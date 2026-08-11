@@ -1,6 +1,7 @@
 services:
   - type: web
     name: jobpilot
+    region: frankfurt
     runtime: docker
     plan: free
     healthCheckPath: /api/health
