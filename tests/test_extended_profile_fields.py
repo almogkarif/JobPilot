@@ -2,7 +2,7 @@ from agent.fields import known_value, missing_profile_context
 
 
 PROFILE = {
-    "full_name": "Almog Karif",
+    "full_name": "Demo Candidate",
     "location": "Israel",
     "skills": ["Python", "Linux"],
     "application_profile": {

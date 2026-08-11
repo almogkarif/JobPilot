@@ -68,7 +68,7 @@ def test_agent_device_tokens_are_one_time_hashed_and_revocable(monkeypatch):
         db.execute(delete(AgentDevice)); db.execute(delete(AppIdentity)); db.commit()
     headers = {"Authorization": "Bearer valid"}
     with TestClient(app) as client:
-        created = client.post("/api/agent-devices", headers=headers, json={"name": "Almog Mac"})
+        created = client.post("/api/agent-devices", headers=headers, json={"name": "Primary Mac"})
         assert created.status_code == 200
         raw = created.json()["token"]
         device_id = created.json()["device"]["id"]
@@ -231,9 +231,9 @@ def test_supabase_storage_namespaces_objects_by_user(monkeypatch):
 def test_application_agent_is_restricted_to_configured_primary_email(monkeypatch):
     monkeypatch.setattr(settings, "auth_mode", "supabase")
     monkeypatch.setattr(settings, "storage_mode", "local")
-    monkeypatch.setattr(settings, "owner_email", "almogkarif@gmail.com")
-    monkeypatch.setattr(settings, "application_agent_owner_email", "almogkarif@gmail.com")
-    monkeypatch.setattr(settings, "allowed_emails", "almogkarif@gmail.com,friend@example.com")
+    monkeypatch.setattr(settings, "owner_email", "owner@example.com")
+    monkeypatch.setattr(settings, "application_agent_owner_email", "owner@example.com")
+    monkeypatch.setattr(settings, "allowed_emails", "owner@example.com,friend@example.com")
     monkeypatch.setattr(settings, "max_users", 10)
     monkeypatch.setattr(auth_module, "verify_supabase_token", lambda token: AuthIdentity("friend-agent-block", "friend@example.com", "google"))
     with SessionLocal() as db:

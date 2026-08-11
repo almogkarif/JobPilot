@@ -14,7 +14,7 @@ Recommended Render environment values:
 JOBPILOT_MAX_USERS=10
 JOBPILOT_ALLOWED_EMAILS=you@example.com,friend1@example.com,friend2@example.com
 JOBPILOT_OWNER_EMAIL=you@example.com
-JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=almogkarif@gmail.com
+JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=your-email@example.com
 ```
 
 `JOBPILOT_ALLOWED_EMAILS` is an optional allowlist. If empty, any authenticated Supabase user may join until `JOBPILOT_MAX_USERS` is reached. `JOBPILOT_OWNER_EMAIL` marks an admin account; it no longer makes the instance single-owner. If no owner email is configured, the first admitted account becomes admin.
@@ -66,6 +66,6 @@ Local mode remains available with `JOBPILOT_AUTH_MODE=local` and `JOBPILOT_STORA
 
 
 ## Application Agent beta access
-The browser-filling Application Agent is temporarily restricted to `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL` (currently `almogkarif@gmail.com`). Other admitted users still get search, matching, sources and manual application links, but cannot pair an Agent device or queue an automatic application.
+The browser-filling Application Agent is temporarily restricted to the account configured through `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL`. Other admitted users still get search, matching, sources and manual application links, but cannot pair an Agent device or queue an automatic application.
 
 Source enable/disable switches are tenant-owned: every user can independently turn a source on or off for the active career track without changing another user's workspace.

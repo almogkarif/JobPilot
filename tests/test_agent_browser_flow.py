@@ -40,7 +40,7 @@ def test_agent_enters_application_form_fills_steps_and_stops_before_submit():
         page.route("https://careers.example.test/**", route_request)
         task = {
             "job": {"apply_url": "https://careers.example.test/job/123"},
-            "profile": {"full_name": "Almog Karif", "email": "almog@example.com"},
+            "profile": {"full_name": "Demo Candidate", "email": "candidate@example.com"},
             "answers": {},
             "answer_memories": [],
         }
@@ -51,9 +51,9 @@ def test_agent_enters_application_form_fills_steps_and_stops_before_submit():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert page.url == "https://careers.example.test/form"
-            assert page.locator('input[name="first"]').input_value() == "Almog"
-            assert page.locator('input[name="last"]').input_value() == "Karif"
-            assert page.locator('input[name="email"]').input_value() == "almog@example.com"
+            assert page.locator('input[name="first"]').input_value() == "Demo"
+            assert page.locator('input[name="last"]').input_value() == "Candidate"
+            assert page.locator('input[name="email"]').input_value() == "candidate@example.com"
             assert page.locator('button[type="submit"]').is_visible()
         finally:
             browser.close()
@@ -69,7 +69,7 @@ def test_job_page_without_apply_control_reports_a_clear_blocker():
         )
         task = {
             "job": {"apply_url": "https://careers.example.test/job/closed"},
-            "profile": {"full_name": "Almog Karif"},
+            "profile": {"full_name": "Demo Candidate"},
         }
         try:
             fill_application(page, task, auto_submit=False)
@@ -91,14 +91,14 @@ def test_save_and_continue_is_clicked_before_final_review():
               <button type="button">Submit Application</button></section>
         """))
         task = {"job": {"apply_url": "https://careers.example.test/apply"},
-                "profile": {"full_name": "Almog Karif", "email": "almog@example.com"}}
+                "profile": {"full_name": "Demo Candidate", "email": "candidate@example.com"}}
         try:
             fill_application(page, task, auto_submit=False)
             raise AssertionError("The agent should stop only at final submit")
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert page.locator("#one").count() == 0
-            assert page.locator('#two input[type="email"]').input_value() == "almog@example.com"
+            assert page.locator('#two input[type="email"]').input_value() == "candidate@example.com"
         finally:
             browser.close()
 

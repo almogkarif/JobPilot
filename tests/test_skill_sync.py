@@ -11,9 +11,9 @@ from app.services.resume_analysis import analyze_resume, normalize_phone
 def test_israeli_phone_formats_are_equivalent_for_resume_analysis():
     from app.models import Profile
 
-    profile = Profile(phone="0526621319", skills_json="[]")
-    analysis = analyze_resume("Almog Karif\n+972-52-6621319\nSoftware Engineer", profile)
-    assert normalize_phone("0526621319") == normalize_phone("+972-52-6621319")
+    profile = Profile(phone="0521234567", skills_json="[]")
+    analysis = analyze_resume("Demo Candidate\n+972-52-1234567\nSoftware Engineer", profile)
+    assert normalize_phone("0521234567") == normalize_phone("+972-52-1234567")
     assert not any(item.get("field") == "phone" for item in analysis["suggestions"])
 
 

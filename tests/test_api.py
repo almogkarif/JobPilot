@@ -110,8 +110,8 @@ def test_application_can_be_removed_from_queue_without_deleting_job():
 def test_profile_can_be_saved_after_jobs_are_loaded_from_sqlite():
     """SQLite strips timezone metadata; rescoring must still be safe."""
     payload = {
-        "full_name": "Almog Karif",
-        "email": "almog@example.com",
+        "full_name": "Demo Candidate",
+        "email": "candidate@example.com",
         "phone": "0500000000",
         "location": "Israel",
         "linkedin_url": "",
@@ -136,7 +136,7 @@ def test_profile_can_be_saved_after_jobs_are_loaded_from_sqlite():
         response = client.put("/api/profile", json=payload)
         assert response.status_code == 200
         saved = response.json()
-        assert saved["full_name"] == "Almog Karif"
+        assert saved["full_name"] == "Demo Candidate"
         assert saved["skills"] == ["C++", "Python"]
         assert saved["years_experience_options"] == ["0", "1", "2"]
         assert saved["years_experience"] == 2

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     max_users: int = 10
     allowed_emails: str = ""  # comma-separated; empty means any authenticated user up to max_users
     max_concurrent_user_scans: int = 2
-    application_agent_owner_email: str = "almogkarif@gmail.com"
+    application_agent_owner_email: str = ""
     allow_legacy_agent_token: bool = False
     supabase_url: str = ""
     supabase_publishable_key: str = ""

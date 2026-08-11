@@ -27,7 +27,7 @@ def extract_resume_text(path: Path) -> str:
 def normalize_phone(value: str | None) -> str:
     """Normalize Israeli/mobile phone formatting for equality checks.
 
-    The profile may contain 0526621319 while a CV contains +972-52-6621319.
+    The profile may contain 0521234567 while a CV contains +972-52-1234567.
     They are the same number and must not generate a suggestion.
     """
     digits = re.sub(r"\D", "", str(value or ""))

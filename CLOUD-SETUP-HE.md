@@ -29,7 +29,7 @@ JobPilot יוצר לבד את הטבלאות ואת bucket הפרטי `jobpilot-
 JOBPILOT_MAX_USERS=10
 JOBPILOT_ALLOWED_EMAILS=you@example.com,friend1@example.com,friend2@example.com
 JOBPILOT_OWNER_EMAIL=you@example.com
-JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=almogkarif@gmail.com
+JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=your-email@example.com
 ```
 
 `JOBPILOT_ALLOWED_EMAILS` הוא allowlist אופציונלי אך מומלץ מאוד לקבוצה פרטית. אם הוא ריק, כל משתמש Supabase מאומת יכול להצטרף עד שמגיעים ל־`JOBPILOT_MAX_USERS`.
@@ -154,6 +154,6 @@ JOBPILOT_STORAGE_MODE=local
 
 
 ## הרשאת Application Agent בתקופת הבטא
-סוכן ההגשות שמפעיל Chromium מוגבל כרגע לחשבון שמוגדר ב־`JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL` — כרגע `almogkarif@gmail.com`. שאר המשתמשים ממשיכים לקבל חיפוש, דירוג, מקורות וקישורי הגשה ידניים, אבל אינם יכולים לחבר Agent או להכניס משרה לתור האוטומטי.
+סוכן ההגשות שמפעיל Chromium מוגבל כרגע לחשבון שמוגדר דרך `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL`. שאר המשתמשים ממשיכים לקבל חיפוש, דירוג, מקורות וקישורי הגשה ידניים, אבל אינם יכולים לחבר Agent או להכניס משרה לתור האוטומטי.
 
 מתגי המקורות נשמרים בנפרד לכל משתמש ולכל מסלול מקצועי: כיבוי מקור אצל משתמש אחד אינו מכבה אותו אצל משתמש אחר.

@@ -30,7 +30,7 @@ services:
       - key: JOBPILOT_OWNER_EMAIL
         sync: false
       - key: JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL
-        value: almogkarif@gmail.com
+        sync: false
       - key: JOBPILOT_DATABASE_URL
         sync: false
       - key: JOBPILOT_BASE_URL

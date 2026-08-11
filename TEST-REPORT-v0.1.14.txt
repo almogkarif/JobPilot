@@ -9,13 +9,13 @@ Fixed
 4. Removing a skill refreshes CV analyses too, so a real CV-based suggestion can reappear when appropriate.
 5. Saving the full profile also refreshes all CV suggestions, keeping edits from Search Preferences synchronized.
 6. Applying one CV suggestion refreshes every CV version, not only the card where it was clicked.
-7. Israeli phone numbers are compared canonically. For example, 0526621319 and +972-52-6621319 are treated as the same number.
+7. Israeli phone numbers are compared canonically. For example, 0521234567 and +972-52-1234567 are treated as the same number.
 8. Existing stale CV analyses are repaired automatically at startup.
 
 Validation on packaged user data
 ================================
-- Profile phone: 0526621319
-- CV phone: +972-52-6621319
+- Profile phone: 0521234567
+- CV phone: +972-52-1234567
 - Before repair: all 4 CV records suggested changing the phone.
 - After repair: the phone suggestion disappeared from all 4 CV records.
 - Simulating a profile skill addition for pandas removed the pandas suggestion from all 4 CV records simultaneously.

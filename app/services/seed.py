@@ -22,7 +22,7 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
     if not profile:
         local_install = str(db.info.get("user_id") or "") == "local-owner"
         profile = Profile(
-            full_name=("Almog Karif" if local_install and full_name is None else (full_name or "")),
+            full_name=("Demo Candidate" if local_install and full_name is None else (full_name or "")),
             email=email or "",
             location="Israel",
             years_experience=0,

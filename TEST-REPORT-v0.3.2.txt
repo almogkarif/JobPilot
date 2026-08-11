@@ -7,7 +7,7 @@ Scope
 2. Desktop/mobile overlap audit, especially unsaved-change notices and top-bar controls.
 3. Full Industrial Engineering yellow/gold light+dark visual audit.
 4. Save + true minimize controls with meaningful compact summaries on editable cards.
-5. Temporary cloud Application-Agent restriction to almogkarif@gmail.com.
+5. Temporary cloud Application-Agent restriction to the configured primary account.
 6. Collector hardening for Check Point, Salesforce, Rafael, Elbit and AppsFlyer,
    shared by both Computer Science and Industrial Engineering source variants.
 7. Source-quality fix for job identifiers carried in query strings.
@@ -23,7 +23,7 @@ Source controls / multi-user isolation
 Application Agent beta gate
 ---------------------------
 - In Cloud Mode the Application Agent is allowed only for the configured
-  JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL, default almogkarif@gmail.com.
+  JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL, configured explicitly through the environment.
 - Non-owner users cannot create Agent devices, queue a Job for the Agent, or retry an
   Agent application. Agent-device tokens belonging to non-allowed users are rejected.
 - Non-owner UI disables automatic queueing and replaces Agent apply with a direct/manual
