@@ -1,0 +1,41 @@
+JobPilot v0.1.2 — Test Report
+Date: 2026-08-04
+
+Automated checks
+================
+1. JavaScript syntax:
+   node --check app/static/app.js
+   Result: PASS
+
+2. Python bytecode compilation:
+   python -m compileall -q app agent
+   Result: PASS
+
+3. Pytest suite:
+   python -m pytest -q
+   Result: 15 passed
+
+Coverage of requested behavior
+==============================
+- A changed email field immediately receives a red outline and the exact message:
+  "הנתון לא נשמר עדיין".
+- Unsaved profile data survives repeated navigation between Profile and Sources.
+- Unsaved profile data survives a full browser reload through localStorage.
+- Failed profile saves preserve both the typed value and the red warning.
+- Each of the three white profile panels contains its own save button.
+- There is no profile save button at the bottom of the page.
+- Successful saves clear the warning only after the server confirms the save.
+- Personal details, matching settings, and automation settings all save correctly.
+- Dashboard recent jobs open the full job details and application options dialog.
+- Job cards, dashboard metrics, application rows, and source rows are clickable.
+- All six primary views load with no JavaScript runtime errors.
+- Frontend assets are sent with no-cache headers to prevent an old UI after updates.
+- Profile saving and job rescoring were repeated 40 times without server errors.
+- Source create/update/delete, manual job deduplication, queue/retry/skip, blocker
+  resolution, health, dashboard, and agent flows were tested.
+
+Manual browser validation
+=========================
+- Chromium, 1600x1000 viewport, Hebrew locale.
+- Profile draft warning and per-panel buttons visually inspected.
+- Browser page-error list: empty.

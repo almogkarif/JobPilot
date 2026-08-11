@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+  <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.41.0" />
+</head>
+<body>
+  <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+    <div class="auth-shell">
+      <div class="auth-brand">
+        <span class="auth-logo">JP</span>
+        <div><strong>JobPilot</strong><small>החשבון הפרטי שלך לחיפוש והגשת משרות</small></div>
+      </div>
+      <div class="auth-card">
+        <span class="kicker">כניסה מאובטחת</span>
+        <h1>ברוך הבא</h1>
+        <p>התחבר כדי לקבל את הפרופיל, המשרות, המקורות וההגשות שלך מכל מכשיר.</p>
+        <button id="auth-google" class="auth-google" type="button"><span>G</span> המשך עם Google</button>
+        <div class="auth-divider"><span>או</span></div>
+        <form id="auth-form" class="auth-form">
+          <label>אימייל<input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
+          <label>סיסמה<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" /></label>
+          <button class="btn primary" type="submit">התחבר</button>
+        </form>
+        <button id="auth-signup" class="text-btn auth-signup" type="button">אין חשבון? צור חשבון עם האימייל הזה</button>
+        <p id="auth-message" class="auth-message"></p>
+      </div>
+      <small class="auth-footnote">JobPilot Cloud שומר את המידע ב־PostgreSQL ואת הקבצים הפרטיים ב־Storage. סוכן ההגשות נשאר על ה־Mac שלך.</small>
+    </div>
+  </section>
+  <div class="app-shell" id="app-shell">
+    <aside class="sidebar">
+      <div class="brand" role="button" tabindex="0" aria-label="הפעל את מסלול JobPilot">
+        <span class="brand-mark" id="brand-mark">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <defs>
+              <linearGradient id="jp-surface" x1="8" y1="5" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#123F65"/><stop offset=".55" stop-color="#0B3151"/><stop offset="1" stop-color="#06243E"/>
+              </linearGradient>
+              <linearGradient id="jp-line" x1="18" y1="49" x2="50" y2="16" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8FD3F4"/><stop offset=".48" stop-color="#DDF5FF"/><stop offset="1" stop-color="#FFFFFF"/>
+              </linearGradient>
+            </defs>
+            <rect class="logo-surface" x="3" y="3" width="58" height="58" rx="18" fill="url(#jp-surface)"/>
+            <path class="logo-route-depth" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+            <path class="logo-route" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+            <path class="logo-route-highlight" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+          </svg>
+        </span>
+        <i class="brand-flight-dot" id="brand-flight-dot" aria-hidden="true"></i>
+        <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot" id="brand-i-dot"></span></span>lot</strong><span class="brand-tagline" id="brand-tagline">חיפוש משרות חכם</span></div>
+      </div>
+      <nav id="nav">
+        <button data-view="dashboard" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="6.5" rx="2"/><rect x="13.5" y="4" width="7" height="10" rx="2"/><rect x="3.5" y="13.5" width="7" height="6.5" rx="2"/><path class="nav-accent" d="M14.8 18.5h4.4M17 16.3v4.4"/></svg></span><span class="nav-label">לוח בקרה<small>תמונת מצב כללית</small></span></button>
+        <button data-view="jobs"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.8h18v10a2.2 2.2 0 0 1-2.2 2.2H5.2A2.2 2.2 0 0 1 3 17.8v-10Z"/><path d="M8.5 7.8V6.2A1.7 1.7 0 0 1 10.2 4.5h3.6a1.7 1.7 0 0 1 1.7 1.7v1.6M3 12c5.2 2.35 12.8 2.35 18 0"/><circle class="nav-accent" cx="12" cy="13" r="1.35"/></svg></span><span class="nav-label">משרות<small>התאמות והזדמנויות</small></span></button>
+        <button data-view="preferences"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6M14 6h6M4 12h11M19 12h1M4 18h2M10 18h10"/><circle class="nav-accent" cx="12" cy="6" r="2"/><circle class="nav-accent" cx="17" cy="12" r="2"/><circle class="nav-accent" cx="8" cy="18" r="2"/></svg></span><span class="nav-label">העדפות חיפוש<small>תפקידים, ניסיון ומיקום</small></span><em id="preferences-nav-unsaved" class="unsaved-nav-badge" hidden>!</em></button>
+        <button data-view="applications"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.8h9l4 4v5.3M14 3.8v4h4M5 3.8v16.4h7"/><path class="nav-accent" d="m13.2 17.2 2.1 2.1 4.6-5"/></svg></span><span class="nav-label">הגשות<small>מעקב אחר מועמדויות</small></span></button>
+        <button data-view="blockers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.2 4.6 3.5 17a2 2 0 0 0 1.8 2.9h13.4a2 2 0 0 0 1.8-2.9L13.8 4.6a2 2 0 0 0-3.6 0Z"/><path class="nav-accent" d="M12 9v4.7M12 17.1v.1"/></svg></span><span class="nav-label">דורש טיפול<small>פעולות שממתינות לך</small></span><em id="blocker-count">0</em></button>
+        <button data-view="skills"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.2"/><circle cx="17.8" cy="6" r="2.2"/><circle cx="17.8" cy="18" r="2.2"/><path d="m8 11 7.7-4M8 13l7.7 4"/><path class="nav-accent" d="M12 8.8v6.4"/></svg></span><span class="nav-label">סקילים<small>יכולות ופערי ידע</small></span></button>
+        <button data-view="sources"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.8 19.2a10.2 10.2 0 0 1 0-14.4M19.2 4.8a10.2 10.2 0 0 1 0 14.4"/><path class="nav-accent" d="m12 12 5.1-5.1"/></svg></span><span class="nav-label">מקורות<small>אתרי הקריירה שנסרקים</small></span><em id="source-error-badge" class="source-error-badge" hidden aria-label="יש מקורות עם שגיאה">!</em></button>
+        <button data-view="profile"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="3"/><circle cx="9" cy="10" r="2.2"/><path d="M5.8 16c.7-2 2-3 3.2-3s2.5 1 3.2 3M15 9h3M15 13h3"/><circle class="nav-accent" cx="17.5" cy="17" r="1.3"/></svg></span><span class="nav-label">הפרופיל שלי<small>פרטים ושאלות הגשה</small></span><em id="profile-nav-unsaved" class="unsaved-nav-badge" hidden>!</em></button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="agent-dot"><i></i><span>Agent מקומי</span><b id="agent-state">ממתין</b></div>
+        <small>הגשה אוטומטית נעצרת ב־CAPTCHA ובשאלות לא מוכרות.</small>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="career-eyebrow">מערכת חיפוש והגשת משרות</p>
+          <h1 id="page-title">לוח בקרה</h1>
+          <p id="page-context" class="page-context" aria-live="polite">תמונת מצב עדכנית של החיפוש וההגשות</p>
+        </div>
+        <div class="top-actions">
+          <div class="career-switcher" id="career-switcher">
+            <button class="career-switcher-trigger" id="career-switcher-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
+              <span class="career-track-symbol" id="career-track-symbol">CS</span>
+              <span class="career-track-copy"><small>מסלול מקצועי</small><strong id="career-track-label">מדעי המחשב</strong></span>
+              <i class="career-agent-dot" aria-hidden="true"></i><span class="career-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div class="career-switcher-menu" id="career-switcher-menu" role="menu" hidden></div>
+          </div>
+          <button id="scan-status" class="scan-status" type="button" aria-label="מצב הסריקה. לחץ לפתיחת הדוח" title="לחץ לפתיחת דוח הסריקה"><span><b>טרם בוצעה סריקה</b><small>לחץ כאן לאחר סריקה כדי לראות את הדוח המלא</small></span><i class="scan-status-fill" aria-hidden="true"></i></button>
+          <button class="icon-action notification-trigger" id="notification-trigger" type="button" aria-label="פתח מרכז התראות" aria-expanded="false"><span aria-hidden="true">♢</span><em id="notification-count" hidden>0</em></button>
+          <button class="account-chip" id="account-chip" type="button" hidden aria-label="חשבון JobPilot"><span id="account-avatar">A</span><strong id="account-email">חשבון</strong></button>
+          <div class="theme-switch" id="theme-switch" role="group" aria-label="ערכת צבעים">
+            <i class="theme-switch-thumb" aria-hidden="true"></i>
+            <button type="button" data-theme="light" aria-label="מצב יום" title="מצב יום"><span aria-hidden="true">☀</span></button>
+            <button type="button" data-theme="system" aria-label="אוטומטי לפי ה-Mac" title="אוטומטי לפי ה-Mac"><span aria-hidden="true">◐</span><small>אוט׳</small></button>
+            <button type="button" data-theme="dark" aria-label="מצב לילה" title="מצב לילה"><span aria-hidden="true">☾</span></button>
+          </div>
+          <button class="btn secondary" id="scan-btn">סרוק עכשיו</button>
+          <button class="btn primary" data-go="jobs">צפה בהתאמות</button>
+        </div>
+        <div id="scan-progress" class="scan-progress" hidden><i></i><span>סורק את מקורות המשרות…</span></div>
+      </header>
+
+      <section id="view-dashboard" class="view active">
+        <div id="readiness" class="readiness-panel" aria-live="polite" hidden></div>
+        <div id="metrics" class="metrics"></div>
+        <div class="grid two-col">
+          <article class="panel hero-panel">
+            <div class="panel-head">
+              <div><span class="kicker">הפעולה הבאה</span><h2 id="daily-recommendations-title">משרות ששווה לבדוק היום</h2></div>
+              <button class="text-btn" data-go="jobs">לכל המשרות ←</button>
+            </div>
+            <div id="recent-jobs" class="job-stack"></div>
+          </article>
+          <article class="panel flow-panel">
+            <div class="panel-head"><div><span class="kicker">זרימת עבודה חכמה</span><h2>מהאיתור ועד המעקב</h2></div></div>
+            <ol class="flow-list">
+              <li><b>1</b><div><strong>מאתר ומנקה</strong><span>סורק אתרי קריירה, מסנן משרות לא מתאימות ומאחד כפילויות בין מקורות.</span></div></li>
+              <li><b>2</b><div><strong>מסביר את ההתאמה</strong><span>מדרג לפי כותרת, סקילים, ניסיון, מיקום ועדכניות — עם פירוט מלא של הציון.</span></div></li>
+              <li><b>3</b><div><strong>מכין את ההגשה</strong><span>בוחר את גרסת קורות החיים המתאימה, מזהה פערי סקילים וממלא רק מידע שאישרת.</span></div></li>
+              <li><b>4</b><div><strong>משאיר אותך בשליטה</strong><span>עוצר לפני השליחה הסופית ומרכז הגשות, תזכורות ושלבי המשך ב־Kanban.</span></div></li>
+            </ol>
+            <div class="safe-note">LinkedIn משמש כמקור קישורים בלבד; אין אוטומציה בתוך האתר.</div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-jobs" class="view">
+        <div class="toolbar panel compact jobs-toolbar">
+          <label class="job-search-field" for="job-search"><span class="search-symbol">⌕</span><input id="job-search" type="search" placeholder="חיפוש תפקיד, חברה או טכנולוגיה" /><small>חיפוש חכם</small></label>
+          <label class="filter-control"><span>התאמה</span><select id="score-filter"><option value="0">כל הציונים</option><option value="80">80 ומעלה</option><option value="70">70 ומעלה</option><option value="50">50 ומעלה</option></select></label>
+          <label class="filter-control"><span>סטטוס</span><select id="job-status-filter"><option value="">הכול</option><option value="new">חדש</option><option value="queued">בתור</option><option value="submitted">הוגש</option><option value="skipped">דולג</option></select></label>
+          <label class="filter-control job-sort-control"><span>מיון</span><select id="job-sort"><option value="score_desc">ציון — גבוה לנמוך</option><option value="score_asc">ציון — נמוך לגבוה</option><option value="newest">חדשות קודם</option><option value="oldest">ישנות קודם</option><option value="discovered_desc">נוספו לאחרונה</option><option value="company_asc">חברה — א׳ עד ת׳</option><option value="title_asc">תפקיד — א׳ עד ת׳</option></select></label>
+          <label class="filter-control page-size-control"><span>משרות בעמוד</span><select id="jobs-page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></label>
+          <button class="btn secondary density-toggle" id="density-toggle" type="button" aria-pressed="false">תצוגה קומפקטית</button>
+          <button class="btn secondary" id="import-job-btn">הוסף קישור ידנית</button>
+        </div>
+        <div id="active-filters" class="active-filters" aria-live="polite"></div>
+        <div id="jobs-list" class="jobs-grid"></div>
+        <nav id="jobs-pagination" class="jobs-pagination" aria-label="עמודי משרות"></nav>
+      </section>
+
+      <section id="view-applications" class="view">
+        <article class="panel application-automation-panel">
+          <div class="panel-head application-automation-head">
+            <div class="automation-summary">
+              <span class="automation-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/><path d="M12 7v5l3.2 2M16.5 3.5H21V8"/></svg></span>
+              <div><span class="kicker">בקרת התור</span><h2>הגשה אוטומטית</h2><p>קבע אילו משרות ייכנסו אוטומטית לתור ההגשות.</p></div>
+            </div>
+            <div class="card-head-actions"><button class="btn primary small" type="submit" form="profile-form">שמור הגדרות</button></div>
+          </div>
+          <div class="automation-controls">
+            <label class="threshold-control">
+              <span><strong>סף התאמה</strong><small>רק משרות בציון הזה ומעלה</small></span>
+              <b id="threshold-value">82</b>
+              <input id="threshold" name="auto_apply_threshold" form="profile-form" type="range" min="50" max="100" />
+            </label>
+            <label class="automation-toggle-card"><input name="auto_submit_enabled" form="profile-form" type="checkbox" /><span class="switch-track"></span><span><strong>הוספה אוטומטית לתור</strong><small>לאחר כל סריקה, לפי הסף שקבעת</small></span></label>
+          </div>
+          <div class="automation-note"><span class="automation-note-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.8 7.4-7 9.1-4.2-1.7-7-4.8-7-9.1V6l7-2.5Z"/><path d="m8.8 12 2.1 2.1 4.5-4.6"/></svg></span><span><strong>השליטה נשארת אצלך</strong><small>כברירת מחדל הטופס יישאר פתוח לאישור שלך. השליחה הסופית תתבצע רק לאחר שתפעיל אותה במפורש.</small></span></div>
+        </article>
+        <div class="panel">
+          <div class="panel-head"><div><span class="kicker">תור והיסטוריה</span><h2>כל ההגשות</h2></div><div class="view-switch" role="group" aria-label="תצוגת הגשות"><button class="view-mode-button active" id="kanban-view" type="button" aria-pressed="true"><span aria-hidden="true">▦</span>Kanban</button><button class="view-mode-button" id="table-view" type="button" aria-pressed="false"><span aria-hidden="true">☷</span>טבלה</button></div></div>
+          <div id="applications-list" class="table-wrap"></div>
+        </div>
+        <article class="panel data-tools"><div class="panel-head"><div><span class="kicker">שליטה בנתונים</span><h2>ייצוא, גיבוי ופרטיות</h2></div></div><div class="card-actions"><a class="btn secondary" href="/api/export?format=csv">ייצוא CSV</a><a class="btn secondary" href="/api/export?format=json">ייצוא JSON</a><a class="btn secondary" href="/api/backup">הורדת גיבוי</a><button class="btn secondary" id="restore-backup" type="button">שחזור מגיבוי</button><button class="btn secondary" id="privacy-center" type="button">מרכז פרטיות ונעילה</button></div><input id="restore-backup-file" type="file" accept="application/json" hidden /></article>
+      </section>
+
+      <section id="view-blockers" class="view">
+        <div class="panel">
+          <div class="panel-head"><div><span class="kicker">Human in the loop</span><h2>דברים שמחכים לך</h2></div></div>
+          <div id="blockers-list" class="blocker-list"></div>
+        </div>
+      </section>
+
+      <section id="view-skills" class="view">
+        <div class="grid two-col skills-layout">
+          <article class="panel"><div class="panel-head"><div><span class="kicker">הפרופיל שלך</span><h2>הסקילים שלי</h2></div></div><div id="my-skills" class="skill-cloud"></div></article>
+          <article class="panel"><div class="panel-head"><div><span class="kicker">לפי המשרות הפעילות</span><h2>סקילים שכדאי לשקול להוסיף</h2></div></div><p class="preference-help">ההמלצות מבוססות על סקילים שמופיעים במשרות אך עדיין אינם בפרופיל שלך. הוסף רק סקילים שבאמת יש לך.</p><div id="skill-suggestions" class="skill-suggestion-list"></div></article>
+        </div>
+      </section>
+
+      <section id="view-sources" class="view">
+        <div class="grid source-layout">
+          <article class="panel">
+            <div class="panel-head"><div><span class="kicker">סריקה יומית</span><h2>מקורות משרות</h2></div><button class="btn secondary small" id="install-recommended-sources" type="button">הוסף מקורות מומלצים</button></div>
+            <div id="sources-list" class="source-list"></div>
+          </article>
+          <article class="panel sticky-card">
+            <span class="kicker">מקור חדש</span><h2>הוסף לוח קריירה</h2>
+            <form id="source-form" class="form-stack">
+              <label>שם לתצוגה<input name="name" required placeholder="למשל Mobileye Careers" /></label>
+              <label>מערכת ATS<select name="kind"><option value="greenhouse">Greenhouse</option><option value="ashby">Ashby</option><option value="lever">Lever</option><option value="google_careers">Google Careers הרשמי</option></select></label>
+              <label>Board token / site name<input name="identifier" required placeholder="המזהה שמופיע בכתובת" /></label>
+              <label>שם החברה<input name="company_name" placeholder="Mobileye" /></label>
+              <button class="btn primary" type="submit">הוסף מקור</button>
+            </form>
+            <div class="automation-note source-identifier-note">
+              <span class="automation-note-icon source-identifier-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9.4 14.6 7.2 16.8a3.4 3.4 0 0 1-4.8-4.8l3.2-3.2a3.4 3.4 0 0 1 4.8 0"/><path d="m14.6 9.4 2.2-2.2a3.4 3.4 0 1 1 4.8 4.8l-3.2 3.2a3.4 3.4 0 0 1-4.8 0"/><path d="m8.5 15.5 7-7"/><circle cx="18.5" cy="5.5" r="1"/></svg>
+              </span>
+              <span><strong>איך מוצאים את מזהה הלוח?</strong><small><b>Greenhouse</b> — החלק שאחרי boards.greenhouse.io · <b>Ashby</b> — שם לוח המשרות · <b>Lever</b> — החלק שאחרי jobs.lever.co</small></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view">
+        <form id="profile-form" class="profile-grid">
+          <div id="profile-unsaved-count" class="profile-unsaved-summary" aria-live="polite"></div>
+          <section class="profile-completion" id="profile-completion" aria-live="polite">
+            <div><span><strong>השלמת הפרופיל</strong><small id="profile-completion-copy">מחשב את מצב הפרופיל…</small></span><b id="profile-completion-value">0%</b></div>
+            <span class="profile-completion-track"><i id="profile-completion-bar"></i></span>
+          </section>
+          <nav class="profile-section-nav" aria-label="אזורי הפרופיל">
+            <button class="active" type="button" data-profile-section="personal"><span>01</span><strong>פרטים אישיים</strong><small>קשר, ניסיון והשכלה</small></button>
+            <button type="button" data-profile-section="automation"><span>02</span><strong>שאלות והגשה</strong><small>תשובות, קורות חיים ואוטומציה</small></button>
+          </nav>
+          <article class="panel profile-pane active" data-profile-pane="personal">
+            <div class="panel-head">
+              <div><span class="kicker">פרטים אישיים</span><h2>הפרטים למילוי טפסים</h2><p class="preference-help">המידע מסודר לפי האופן שבו הוא מופיע בטפסי מועמדות.</p></div>
+              <button class="btn primary profile-save-action" type="submit">שמור פרטים</button>
+            </div>
+            <div class="personal-profile-layout">
+              <section class="profile-detail-section profile-section-wide">
+                <div class="profile-detail-head"><div><span class="profile-section-index">01</span><h3>זהות ופרטי קשר</h3></div><button class="btn primary small" type="submit">שמור זהות וקשר</button></div>
+                <div class="form-grid profile-identity-grid">
+                  <label>שם מלא<input name="full_name" /></label><label>שם מועדף<input name="extra_preferred_name" /></label><label>כינויי גוף<input name="extra_pronouns" placeholder="אופציונלי" /></label>
+                  <label>אימייל<input name="email" type="email" /></label><label>טלפון<input name="phone" /></label><label>מיקום נוכחי<input name="location" /></label>
+                </div>
+              </section>
+              <section class="profile-detail-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">02</span><h3>נוכחות מקצועית ואבטחה</h3></div><button class="btn primary small" type="submit">שמור קישורים</button></div>
+                <div class="form-grid"><label>LinkedIn<input name="linkedin_url" type="url" /></label><label>GitHub<input name="github_url" type="url" /></label><label>Portfolio<input name="portfolio_url" type="url" /></label><label>אתר מקצועי נוסף<input name="extra_website_url" type="url" /></label><label class="wide-field">סיסמה לאתרי הגשה<input name="application_password" type="password" autocomplete="new-password" placeholder="הזן סיסמה לשימוש בטפסי הגשה" /><small>משמשת רק כשאתר המשרות דורש סיסמה. השאר ריק כדי לשמור את הקיימת.</small></label></div>
+              </section>
+              <section class="profile-detail-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">03</span><h3>התאמה, הרשאות וזמינות</h3></div><button class="btn primary small" type="submit">שמור עבודה וזמינות</button></div>
+                <div class="form-grid">
+                  <fieldset class="experience-picker preference-group wide-field" data-field="years_experience_options"><legend>שנות ניסיון — אפשר לבחור כמה</legend><div class="option-grid experience-options">
+                    <label><input type="checkbox" data-profile-option="years_experience_options" value="0" /> 0</label><label><input type="checkbox" data-profile-option="years_experience_options" value="1" /> 1</label><label><input type="checkbox" data-profile-option="years_experience_options" value="2" /> 2</label><label><input type="checkbox" data-profile-option="years_experience_options" value="3" /> 3</label><label><input type="checkbox" data-profile-option="years_experience_options" value="4" /> 4</label><label><input type="checkbox" data-profile-option="years_experience_options" value="5+" /> 5+</label>
+                  </div><input name="years_experience_options" type="hidden" /><input name="years_experience" type="hidden" /></fieldset>
+                  <label>ציפיות שכר<input name="salary_expectation" placeholder="אופציונלי" /></label><label>תקופת הודעה מוקדמת<input name="extra_notice_period" /></label>
+                  <label>תאריך התחלה אפשרי<span class="date-with-action"><input name="extra_available_start_date" type="date" /><button class="btn secondary small" id="available-now" type="button">עכשיו</button></span></label>
+                  <div class="check-row wide-field"><label><input name="work_authorization" type="checkbox" /> מורשה לעבוד בישראל</label><label><input name="needs_sponsorship" type="checkbox" /> נדרש Sponsorship</label></div>
+                </div>
+              </section>
+              <section class="profile-detail-section documents-card">
+                <div class="profile-detail-head"><div><span class="profile-section-index">04</span><h3>מסמכים</h3></div><div class="card-head-actions"><button type="button" id="manage-resumes" class="btn secondary small">ניהול גרסאות</button><button type="button" id="upload-resume" class="btn primary small">העלה קורות חיים</button></div></div>
+                <div class="resume-box resume-compact resume-profile-card" aria-label="קורות חיים"><span class="resume-file-icon" aria-hidden="true">CV</span><div><strong>קורות חיים</strong><span id="resume-name">לא הועלה קובץ</span></div><input id="resume-file" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" /><span class="resume-safe-note">PDF, DOCX או TXT</span></div>
+                <div id="resume-insights" class="resume-insights"></div>
+              </section>
+              <section class="profile-detail-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">05</span><h3>כתובת</h3></div><button class="btn primary small" type="submit">שמור כתובת</button></div><div class="form-grid">
+                  <label>מדינה<input name="extra_country" value="Israel" /></label><label>עיר<input name="extra_city" /></label>
+                  <label>רחוב ומספר<input name="extra_address_line1" /></label><label>כתובת נוספת<input name="extra_address_line2" /></label>
+                  <label>מחוז / אזור<input name="extra_state" /></label><label>מיקוד<input name="extra_postal_code" /></label>
+                  <label>קידומת טלפון<input name="extra_phone_country_code" placeholder="+972" /></label>
+                </div>
+              </section>
+              <section class="profile-detail-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">06</span><h3>ניסיון תעסוקתי נוכחי או אחרון</h3></div><button class="btn primary small" type="submit">שמור ניסיון</button></div><div class="form-grid">
+                  <label>תפקיד<input name="extra_current_job_title" /></label><label>חברה<input name="extra_current_company" /></label>
+                  <label>מיקום העבודה<input name="extra_employment_location" /></label><label>סוג העסקה<select name="extra_employment_type"><option value="">לא נבחר</option><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option><option>Self-employed</option></select></label>
+                  <label>תאריך התחלה<input name="extra_employment_start_date" type="month" /></label><label>תאריך סיום<input name="extra_employment_end_date" type="month" /><small>השאר ריק אם זו העבודה הנוכחית.</small></label>
+                  <label class="wide-field">תיאור תפקיד והישגים<textarea name="extra_employment_description" rows="3"></textarea></label>
+                </div>
+              </section>
+              <section class="profile-detail-section">
+                  <div class="profile-detail-head"><div><span class="profile-section-index">07</span><h3>השכלה</h3></div><button class="btn primary small" type="submit">שמור השכלה</button></div><div class="form-grid">
+                    <label>מוסד לימודים<input name="extra_education_school" /></label><label>תואר / הסמכה<input name="extra_education_degree" /></label>
+                    <label>תחום לימודים<input name="extra_education_field" /></label><label>ציון / GPA<input name="extra_education_grade" /></label>
+                    <label>תאריך התחלה<input name="extra_education_start_date" type="month" /></label><label>תאריך סיום<input name="extra_education_end_date" type="month" /></label>
+                  </div>
+              </section>
+              <section class="profile-detail-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">08</span><h3>שפות והסמכות</h3></div><button class="btn primary small" type="submit">שמור שפות והסמכות</button></div><div class="form-grid">
+                  <fieldset class="wide-field language-picker"><legend>שפות ורמת שליטה</legend>
+                    <div id="language-rows" class="language-rows"></div>
+                    <input name="extra_languages" type="hidden" />
+                    <button class="btn secondary small" id="add-language" type="button">+ הוסף שפה חדשה</button>
+                  </fieldset>
+                  <label class="wide-field">הסמכות ורישיונות<textarea name="extra_certifications" rows="2" placeholder="שם ההסמכה, הגוף המנפיק והשנה"></textarea></label>
+                </div>
+              </section>
+            </div>
+          </article>
+
+          <article class="panel profile-pane" data-profile-pane="preferences">
+            <div class="panel-head"><div><span class="kicker">התאמה ודירוג</span><h2>מה לחפש עבורך</h2></div><button class="btn primary small" type="submit">שמור התאמה</button></div>
+            <p class="preference-help preference-priority-help">סמן את האפשרויות שמתאימות לך. הבחירות המסומנות עולות למעלה; לחץ והחזק כדי לגרור ולדרג אותן. ככל שהבחירה גבוהה יותר, השפעתה על ציון ההתאמה גדולה יותר.</p>
+            <div class="preference-stack">
+              <fieldset class="preference-group" data-field="desired_titles"><legend>סוגי תפקידים</legend><div class="option-grid" id="desired-title-options">
+                <label><input type="checkbox" data-profile-option="desired_titles" value="software engineer" /> Software Engineer</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="backend" /> Backend</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="frontend" /> Frontend</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="full stack" /> Full Stack</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="automation" /> Automation</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="devops" /> DevOps</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="data engineer" /> Data Engineer</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="embedded" /> Embedded</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="qa" /> QA</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="product" /> Product</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="r&d" /> R&amp;D</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="research engineer" /> Research Engineer</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="research scientist" /> Research Scientist</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="applied scientist" /> Applied Scientist</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="algorithm" /> Algorithms</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="ai engineer" /> AI Engineer</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="machine learning engineer" /> Machine Learning Engineer</label>
+                <label><input type="checkbox" data-profile-option="desired_titles" value="ai research" /> AI Research</label>
+              </div><label class="custom-preference">תפקידים נוספים<textarea id="desired-titles-custom" name="desired_titles" rows="2" placeholder="למשל: Developer Tools, Integration"></textarea></label></fieldset>
+
+              <fieldset class="preference-group" data-field="keywords"><legend>רמות ניסיון שתרצה לראות</legend><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="keywords" value="student" /> Student / Intern</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="entry level" /> Entry Level / Graduate</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="junior" /> Junior</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="mid level" /> Mid Level</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="senior" /> Senior</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="lead" /> Lead</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="staff" /> Staff / Principal</label>
+                <label><input type="checkbox" data-profile-option="keywords" value="manager" /> Manager</label>
+              </div><label class="custom-preference">מילות מפתח חיוביות נוספות<textarea name="keywords" rows="2" placeholder="למשל: infrastructure, developer tools"></textarea></label></fieldset>
+
+              <fieldset class="preference-group preference-exclude" data-field="excluded_keywords"><legend>רמות ניסיון שלא לחפש עבורך</legend><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="student" /> Student / Intern</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="entry level" /> Entry Level / Graduate</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="junior" /> Junior</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="mid level" /> Mid Level</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="senior" /> Senior</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="lead" /> Lead</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="staff" /> Staff / Principal</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="manager" /> Manager</label>
+              </div><label class="custom-preference">תחומים לא רצויים בכותרת המשרה בלבד<textarea name="excluded_keywords" rows="2" placeholder="למשל: sales, manual QA"></textarea></label></fieldset>
+
+              <fieldset class="preference-group" data-field="skills"><legend id="skills-preference-legend">טכנולוגיות וכישורים</legend><div class="option-grid" id="skill-options">
+                <label><input type="checkbox" data-profile-option="skills" value="Python" /> Python</label>
+                <label><input type="checkbox" data-profile-option="skills" value="JavaScript" /> JavaScript</label>
+                <label><input type="checkbox" data-profile-option="skills" value="TypeScript" /> TypeScript</label>
+                <label><input type="checkbox" data-profile-option="skills" value="React" /> React</label>
+                <label><input type="checkbox" data-profile-option="skills" value="Java" /> Java</label>
+                <label><input type="checkbox" data-profile-option="skills" value="C++" /> C++</label>
+                <label><input type="checkbox" data-profile-option="skills" value="C#" /> C#</label>
+                <label><input type="checkbox" data-profile-option="skills" value="SQL" /> SQL</label>
+                <label><input type="checkbox" data-profile-option="skills" value="Docker" /> Docker</label>
+                <label><input type="checkbox" data-profile-option="skills" value="Kubernetes" /> Kubernetes</label>
+                <label><input type="checkbox" data-profile-option="skills" value="AWS" /> AWS</label>
+                <label><input type="checkbox" data-profile-option="skills" value="Linux" /> Linux</label>
+                <label><input type="checkbox" data-profile-option="skills" value="Git" /> Git</label>
+                <label><input type="checkbox" data-profile-option="skills" value="REST API" /> REST API</label>
+              </div><label class="custom-preference">כישורים נוספים<textarea id="skills-custom" name="skills" rows="2" placeholder="מופרדים בפסיקים"></textarea></label></fieldset>
+
+              <fieldset class="preference-group" data-field="preferred_locations"><legend>מיקומים מועדפים</legend><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Tel Aviv" /> תל אביב</label>
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Haifa" /> חיפה</label>
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Herzliya" /> הרצליה</label>
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Jerusalem" /> ירושלים</label>
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Central Israel" /> מרכז</label>
+                <label><input type="checkbox" data-profile-option="preferred_locations" value="Israel" /> כל ישראל</label>
+              </div><label class="custom-preference">מיקומים נוספים<textarea name="preferred_locations" rows="2" placeholder="למשל: רעננה, קיסריה"></textarea></label></fieldset>
+
+              <fieldset class="preference-group" data-field="preferred_work_modes"><legend>אופי עבודה</legend><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="preferred_work_modes" value="remote" /> מרחוק</label>
+                <label><input type="checkbox" data-profile-option="preferred_work_modes" value="hybrid" /> היברידי</label>
+                <label><input type="checkbox" data-profile-option="preferred_work_modes" value="onsite" /> מהמשרד</label>
+              </div><label class="custom-preference">העדפה נוספת<textarea name="preferred_work_modes" rows="1" placeholder="אופציונלי"></textarea></label></fieldset>
+
+            </div>
+          </article>
+
+          <article class="panel auto-card profile-pane" data-profile-pane="automation">
+            <div class="panel-head"><div><span class="kicker">מאגר תשובות אישי</span><h2>שאלות נפוצות</h2></div><button class="btn primary small" type="submit">שמור שינויים</button></div>
+            <div id="profile-answer-panel" class="embedded-answer-panel">
+              <div class="panel-head"><div><span class="kicker">תשובות לטפסי מועמדות</span><h3>התשובות שלך</h3></div><button class="btn primary small" id="save-all-answers" type="button">שמור את כל התשובות</button></div>
+              <p class="preference-help">הסוכן מזהה גם ניסוחים דומים. רק תשובה שסימנת לשימוש אוטומטי תשמש למילוי.</p>
+              <div id="answer-library" class="answer-library"></div>
+              <div id="answers-unsaved-note" class="profile-unsaved-summary"></div>
+            </div>
+          </article>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal" aria-hidden="true"><div class="modal-card"><button class="modal-close">×</button><div id="modal-content"></div></div></div>
+  <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+  <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js?v=0.21.0"></script>
+</body>
+</html>

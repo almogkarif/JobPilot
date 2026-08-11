@@ -1,0 +1,57 @@
+JobPilot v0.1.13 — failing source repair and targeted retry
+Generated: 2026-08-10
+
+Database diagnosis
+==================
+The shipped v0.1.12 database contains 16 enabled sources with last_error:
+
+1. Check Point Careers Israel — old joborderid selector timed out.
+2. Wix Careers Israel — old /position selector timed out.
+3. IBM Careers Israel — navigation waited 60s for DOMContentLoaded and timed out.
+4. Salesforce Careers Israel — old /en/jobs/ selector timed out.
+5. Meta Careers Israel — old /jobs/ selector timed out.
+6. Applied Materials Israel — old rendered-HTML Workday selector timed out.
+7. Philips Careers Israel — old /job/ selector timed out.
+8. Elbit Systems Careers — old /job/ selector timed out.
+9. Rafael Careers — generic job/position selector timed out.
+10. IAI Careers — generic job/position selector timed out.
+11. AppsFlyer Careers Israel — generic job/position selector timed out.
+12. Similarweb Careers Israel — old careers.similarweb.com hostname no longer resolves.
+13. Outbrain Careers Israel — old generic job selector timed out.
+14. CyberArk Careers Israel — old /job/ selector timed out.
+15. Orca Security Careers — navigation waited 60s for DOMContentLoaded and timed out.
+16. Aqua Security Careers — generic job/position selector timed out.
+
+Repairs
+=======
+- Refreshed current public career URLs/selectors for Check Point, Wix, IBM,
+  Salesforce, Meta, Philips, Elbit, Rafael, IAI, AppsFlyer, Orca and Aqua.
+- Official HTML collector now navigates on commit, uses a short best-effort DOM
+  settle, supports explicit empty-result markers, and reports concise selector errors.
+- Duplicate links to the same job no longer stop card-container discovery, improving
+  title/location extraction on cards that have both title and Apply links.
+- Applied Materials migrated to its Workday CXS collector.
+- Similarweb migrated to Greenhouse board token similarweb.
+- Outbrain migrated to Greenhouse board token outbraininc.
+- CyberArk migrated to SmartRecruiters public Posting API company Cyberark1.
+- Added SmartRecruiters as a supported source kind.
+- Recommended-source catalog now uses the stable ATS kinds above.
+- Existing error text is preserved until a retry succeeds.
+- Any backoff/disabled_until is cleared for the 16 repaired sources.
+- On the first v0.1.13 startup, only the repaired/error sources are retried in the
+  background. A successful scan clears last_error; a failed scan stores the fresh error.
+
+Validation
+==========
+- Actual shipped database repair probe: 16/16 errored sources selected for retry.
+- Source repair/collector unit tests: 5 passed.
+- Focused API/scanner/matching/source/UI regression suite: 104 passed.
+- node --check app/static/app.js: passed.
+- python -m compileall app agent tests: passed.
+
+Environment limitation
+======================
+The build container cannot make outbound DNS/HTTP requests to career sites, so it
+cannot truthfully claim the 16 live collector retries succeeded here. Current career
+pages/ATS targets were verified through web retrieval, and v0.1.13 performs the actual
+targeted retries automatically on the user's network immediately after local startup.

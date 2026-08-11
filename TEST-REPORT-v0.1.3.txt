@@ -1,0 +1,33 @@
+JobPilot v0.1.3 — Test Report
+Date: 2026-08-04
+
+Automated test suite
+- 15 tests passed.
+- 5 Playwright UI tests skipped because the execution sandbox blocks browser access to localhost with ERR_BLOCKED_BY_ADMINISTRATOR.
+- The skipped tests remain in the package and will run normally on a local Mac where localhost browser access is available.
+
+Scanner coverage
+- Explicit no-source result instead of an ambiguous “0 new jobs”.
+- Correct distinction between jobs found, new jobs, and existing jobs refreshed.
+- 12 sources × 40 jobs = 480 jobs scanned.
+- 20 repeated full scans verified that the database stayed at exactly 480 jobs with no duplicates.
+- Board shrink from 40 to 20 jobs per source correctly marked 240 old jobs inactive.
+- A simulated failure in one source did not cancel successful sources.
+- Recommended-source installation is idempotent.
+
+Backend/API coverage
+- Health and dashboard.
+- Profile saving and repeated rescoring.
+- 40 repeated profile saves.
+- Source create, duplicate detection, enable/disable and delete.
+- Recommended source catalog and installation.
+- Manual job import deduplication.
+- Queue, retry, skip and human-in-the-loop blocker flow.
+- Static asset cache prevention and v0.1.3 asset versioning.
+
+Static frontend checks
+- JavaScript syntax passed node --check.
+- Scan diagnostics, recommended-source button and v0.1.3 assets verified in generated HTML/JS.
+
+Known environment limitation
+- This build environment cannot navigate Chromium to its own localhost server. No browser result is claimed for this environment. The E2E tests are included for execution on the user’s Mac.

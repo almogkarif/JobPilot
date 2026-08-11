@@ -1,0 +1,112 @@
+JobPilot v0.2.0 — Professional Tracks Test Report
+Generated: 2026-08-11
+
+Scope
+=====
+This release introduces first-class professional search tracks. The current build
+contains Computer Science (CS) and Industrial Engineering & Management (IEM), with
+a generic track registry/schema intended to support additional professions later.
+
+Track isolation
+===============
+Verified as separate per track:
+- skills and skill suggestions
+- desired titles
+- positive and excluded keywords
+- experience settings/options
+- salary expectation
+- preferred locations and work modes
+- auto-queue threshold and enabled state
+- selected CV path and resume versions
+- source rows, enabled/error state and source health
+- collected jobs, scores and recommendations
+- applications and blockers through their associated job
+- dashboard metrics and source-error badge
+- browser-local profile drafts
+
+Shared intentionally across tracks:
+- identity/contact information
+- work authorization and sponsorship
+- reusable application-question answers
+- extended application identity/profile fields
+
+Search-agent safety
+===================
+- Exactly one professional track is active at a time.
+- The inactive track is explicitly shown as "search agent off" in the switcher.
+- Scanner entry rejects an inactive track before invoking any collector.
+- A single global scan lock prevents parallel cross-track scans.
+- Track switching is rejected while a scan is running.
+- Scheduled scanning always resolves the currently active track.
+- Agent task claiming filters queued applications to the currently active track.
+
+IEM product configuration
+=========================
+- Dedicated yellow/gold light theme.
+- Dedicated warm yellow/gold dark theme.
+- IEM job families include industrial engineering, business/data/BI analysis,
+  operations, supply chain, planning, procurement, logistics, PMO/project/program
+  management, process improvement, operational excellence, manufacturing,
+  quality and NPI.
+- IEM skills include Excel, SQL, Power BI, Tableau, ERP, SAP, Priority, Lean,
+  Six Sigma, process improvement, project management, supply chain, procurement,
+  production planning, operations research, statistics, Power Query, VBA and Python.
+- 22 IEM recommended source rows are installed independently from the 42 CS source rows.
+- IEM matching applies an additional professional-relevance gate so broad company
+  boards do not flood the track with unrelated software roles.
+
+Migration / real-data smoke test
+================================
+A COPY of the user's current SQLite database was upgraded and exercised; the original
+working database was not modified by this smoke test.
+- API health reported v0.2.0.
+- Existing CS data remained intact: 42 enabled CS sources and 300 active CS jobs.
+- IEM initialized independently with 22 enabled sources and 0 jobs before its first scan.
+- Switching CS -> IEM -> CS preserved the original 300 CS jobs.
+- Source API returned only source rows belonging to the active track.
+- Exactly one track reported search_agent_active=true after each switch.
+
+Backup / lifecycle hardening
+============================
+- Backup format upgraded to v2 and preserves both professional-track profiles.
+- Resume backups preserve career_track and reconnect restored track CV paths.
+- Source backup/restore preserves per-track source configuration.
+- Legacy v1 backups remain restorable into the CS track with safe IEM defaults.
+- Source deletion now removes dependent jobs/applications/blockers safely.
+
+Automated verification
+======================
+Core + offline browser command:
+  pytest -q --ignore=tests/test_agent_browser_flow.py --ignore=tests/test_ui_e2e.py
+Result:
+  166 passed, 0 failed
+
+Static validation:
+- python -m compileall -q app agent tests: passed
+- node --check app/static/app.js: passed
+
+Real Chromium offline UI coverage (included in the 166 passing tests):
+- Existing delete/scan-report UI flow: passed
+- Existing compact blocker/application handoff UI flow: passed
+- New professional-track switch test: passed
+  * CS starts blue and active
+  * switcher shows one active and one inactive search agent
+  * IEM switch changes title/skills/search UI
+  * IEM light brand token is #b87908
+  * IEM dark brand token is #e1ab2b
+  * IEM remains the active option after dark-mode switch
+  * no JavaScript page errors
+
+Live-server browser suite:
+  pytest -q tests/test_ui_e2e.py
+Result:
+  6 skipped because this execution sandbox blocks Chromium from navigating to localhost
+  (ERR_BLOCKED_BY_ADMINISTRATOR). The server itself was separately exercised through
+  TestClient and the real-database smoke test above.
+
+Agent-browser suite limitation
+==============================
+The execution sandbox also blocks Chromium navigations used by the routed Agent browser
+flow tests. Agent track isolation is therefore covered at the API/database task-claim
+layer in this build, including a test that a queued IEM task is claimable while a queued
+CS task stays untouched when IEM is active.

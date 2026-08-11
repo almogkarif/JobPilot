@@ -1,0 +1,74 @@
+JobPilot v0.1.5 — Test Report
+Generated: 2026-08-04
+
+Scope
+-----
+1. One-time final submission approval while JOBPILOT_AUTO_SUBMIT=false.
+2. Approval consumption and duplicate-submission prevention.
+3. Backward compatibility for v0.1.4 approvals saved as ordinary answers.
+4. Compact blocker presentation in the Applications queue.
+5. Exact page_url handoff for CAPTCHA and other blockers.
+6. Manual completion and "mark as submitted" flow.
+7. Existing profile draft, saving, job deletion, Israel-only scanning, matching,
+   source lifecycle, queue, scanner and UI behavior.
+
+Automated suite
+---------------
+Command: python -m pytest -q
+Result: 64 passed, 5 skipped, 0 failed
+Runtime: 20.39 seconds
+
+The 5 skipped tests are browser-to-localhost E2E tests. The execution sandbox blocks
+Chromium from reaching localhost. This is an environment restriction, not an
+application failure. Two independent Chromium tests that render the complete UI
+offline did run and passed, including the new compact queue blockers and actions.
+
+New submission tests
+--------------------
+- Final review approval authorizes the next Agent attempt exactly once.
+- The approval marker is removed when the Agent claims the task.
+- A failed attempt does not silently retain permission for another submission.
+- Empty or ambiguous final-review responses are rejected.
+- Final review can be skipped without returning to the queue.
+- A v0.1.4 answer such as "אישור הגשה: אשר ושלח" is upgraded to a one-time approval.
+- run_agent passes submit authorization to fill_application only when global
+  auto-submit or an explicit one-time approval is present.
+
+Blocker and handoff tests
+-------------------------
+- CAPTCHA is returned in /api/applications as a structured blocker.
+- The exact URL where the Agent stopped is preserved and returned to the UI.
+- The compact raw backend value remains available as:
+  [blocked:captcha] <explanation>
+- The UI renders a short badge instead of the full raw error.
+- Manual completion marks the application submitted and closes open blockers.
+- Manual completion is idempotent if clicked more than once.
+
+Stress tests
+------------
+- 50 consecutive one-time approval flows: queue -> claim -> final review ->
+  approve -> claim with permission -> submitted.
+- 50 consecutive CAPTCHA handoffs: queue -> claim -> blocked -> exact URL check ->
+  manual completion.
+- No approval leaked from one application to another.
+- Existing scanner stress test: 480 jobs from 12 sources, followed by 20 repeated
+  scans with no duplicates, then active/inactive reconciliation.
+- Existing profile stress test: 40 consecutive profile saves and full job rescoring.
+- Existing Israel-only stress coverage filters foreign jobs before persistence.
+
+Runtime/server validation
+-------------------------
+A real Uvicorn process was started with a fresh SQLite database and validated with
+HTTP requests:
+- GET /api/health returned version 0.1.5.
+- Static assets returned no-store cache headers.
+- A real application was queued and claimed by the Agent API.
+- A CAPTCHA blocker was recorded with the exact handoff URL.
+- GET /api/applications returned the structured blocker and compact raw error.
+- POST /api/applications/{id}/mark-submitted completed the manual handoff flow.
+
+Static validation
+-----------------
+- node --check app/static/app.js: passed.
+- python -m compileall app agent tests: passed.
+- Python module compilation for server and Agent: passed.

@@ -1,0 +1,17 @@
+JobPilot v0.1.11 — compact dashboard metrics
+
+Implemented
+===========
+- Replaced the oversized five-card dashboard metric area with one compact five-item summary strip.
+- Preserved every metric label, value, detail, click target, score filter, and destination view.
+- Added subtle semantic value accents while retaining the site palette.
+- Added a compact horizontal metric rail on narrow screens instead of stacking cards vertically.
+- Added matching dark-mode surfaces and contrast.
+- Updated dashboard loading skeleton count from four to five metrics.
+- Bumped API and static asset versions.
+
+Validation
+==========
+- 48 focused tests passed.
+- node --check app/static/app.js passed.
+- Python compileall for app/tests passed.

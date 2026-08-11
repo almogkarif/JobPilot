@@ -1,0 +1,110 @@
+JobPilot v0.3.1 — Multi-user Cloud Test Report
+Generated: 2026-08-11
+
+Scope
+-----
+1. Small multi-user cloud deployment (default limit: 10 users).
+2. Per-user isolation for profiles, career tracks, skills, preferences, sources,
+   jobs, resumes, applications, blockers, answer memory, audit logs and Agent devices.
+3. Optional email allowlist plus a hard configurable account cap.
+4. Admin role for JOBPILOT_OWNER_EMAIL (or the first admitted account only when no
+   owner email is configured).
+5. Per-user local Mac Application Agents with revocable device-specific tokens.
+6. Per-user scan state and only the active career track scanned for each account.
+7. Bounded whole-user scan concurrency so ~10 accounts cannot overload a small server.
+8. User-namespaced Supabase Storage paths.
+9. Backward-compatible migration from the existing single-user/local workspace.
+10. Defense-in-depth tenant enforcement in SQLAlchemy plus PostgreSQL/Supabase direct-table lock-down.
+
+Automated regression
+--------------------
+Core/API/logic suites were run as one regression group:
+  176 passed, 0 failed
+
+Real Chromium offline UI suites were run separately:
+  10 passed, 0 failed
+
+Together these provide 186 passing regression/UI tests for the application changes.
+The repository currently contains 198 collected tests in total.
+
+Multi-user isolation coverage
+-----------------------------
+- Two authenticated Supabase users receive different profile/source workspaces.
+- Adding a Skill for user A does not change user B.
+- Activating Industrial Engineering for user A leaves user B on Computer Science.
+- Source IDs are tenant-specific.
+- A user cannot GET another user's Job through SQLAlchemy or the HTTP API.
+- A tenant-scoped ORM UPDATE targeting another user's Job changes zero rows.
+- Cloud INSERT of a private mapped object without an authenticated user scope fails closed.
+- Agent token A can claim only user A's queued application; token B can claim only user B's.
+- Scan progress dictionaries are distinct per account.
+- The configurable user limit rejects an additional new account after capacity is reached.
+- An allowlist rejects an authenticated but uninvited account.
+- When JOBPILOT_OWNER_EMAIL is configured, an invited friend signing in first does
+  not become admin and does not claim migrated owner data; the configured owner does.
+- Legacy migrated rows are claimed by the correct owner workspace.
+- Admin can view the account roster/count; ordinary users receive HTTP 403.
+
+Storage/security coverage
+-------------------------
+- Agent device tokens are shown once, stored only as SHA-256 hashes, and stop working
+  after revoke.
+- Supabase Storage objects use users/<user-id>/... namespaces; identical CV filenames
+  for two users resolve to different object references.
+- Browser auth configuration never exposes Supabase server Secret/service-role keys.
+- Cloud private writes without a tenant scope are rejected.
+- PostgreSQL migration enables RLS on JobPilot private tables and revokes direct table
+  privileges from Supabase anon/authenticated roles when those roles are present.
+  (No real Supabase PostgreSQL instance was available in this build environment.)
+
+Admin/account UI
+----------------
+- Cloud account chip remains user-specific.
+- Admin account modal renders the registered-account count (for example 2/10), email,
+  role and last-seen information.
+- User roster endpoint is admin-only.
+- No destructive account-delete action was added; data cannot be removed accidentally
+  from the new roster UI.
+
+Scanning at ~10 users
+---------------------
+- Each account keeps its own active career track and scan status.
+- Scheduled scans iterate accounts independently.
+- JOBPILOT_MAX_CONCURRENT_USER_SCANS defaults to 2.
+- Each account retains source-level concurrency and the existing hard per-source timeout.
+- Agent task queues remain per-user even while several accounts are active.
+
+Migration validation
+--------------------
+A migration smoke test was run on a fresh copy of the packaged v0.3.0 SQLite database.
+Before and after the v0.3.1 compatibility migration the data counts were identical:
+- profiles: 1
+- sources: 43
+- jobs: 300
+- applications: 2
+- resume_profiles: 4
+- blockers: 3
+
+Every existing row in those tables received the local-owner tenant marker in Local Mode;
+no row count changed. The cloud migration script separately assigns legacy-owner (or an
+explicit JOBPILOT_MIGRATION_USER_ID) so the intended cloud account can claim that data.
+
+Additional browser suites / environment limits
+----------------------------------------------
+- tests/test_ui_e2e.py: 6 skipped because this execution sandbox blocks Chromium from
+  navigating to its own localhost server (ERR_BLOCKED_BY_ADMINISTRATOR).
+- tests/test_agent_browser_flow.py: 1 passed; 5 route/navigation scenarios cannot execute
+  here because the sandbox blocks Page.goto to the synthetic careers.example.test host
+  before Playwright route interception. The failures occur before Agent form logic runs.
+
+Static validation
+-----------------
+- node --check app/static/app.js: passed.
+- python -m compileall app agent scripts tests: passed.
+- bash -n configure-cloud-agent.sh start-agent.sh start.sh: passed.
+
+Known deployment boundary
+-------------------------
+No real Supabase/Render credentials were used in the build environment. The application
+contains the multi-user PostgreSQL/Supabase migration and deployment configuration, but
+final validation against the user's real cloud project must be done during deployment.

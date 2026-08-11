@@ -1,0 +1,30 @@
+JobPilot v0.1.17 — Scan status bar and on-demand report
+Generated: 2026-08-11
+
+Implemented
+===========
+1. The long scan-status pill keeps a fixed 590x46 CSS-pixel desktop footprint while its contents change during scanning.
+2. During a scan the status pill shows real progress: completed/total, current source, concurrent-source count, and an in-place progress fill.
+3. The separate "סרוק עכשיו" action button no longer morphs into a progress meter; it keeps its label and size and is only disabled while a scan is already running.
+4. Scan completion no longer auto-opens the scan report and no completion report toast is shown. The persistent status pill updates silently.
+5. Clicking the scan-status pill after completion opens the full report on demand.
+6. The report was redesigned with six summary metrics, a dedicated errors section, and collapsed per-source details.
+7. Light/dark mode and responsive layouts were added for the new scan status/report UI.
+
+Validation
+==========
+- node --check app/static/app.js: passed.
+- python -m compileall app tests: passed.
+- pytest -q tests/test_api.py tests/test_dashboard_metrics_compact.py tests/test_scan_progress.py: 33 passed.
+- Real Chromium offline UI smoke test:
+  * stopped status pill: 590x46 CSS px
+  * running status pill: 590x46 CSS px (no layout jump)
+  * running text: "12 מתוך 42" and current source "Mobileye"
+  * scan action remained "סרוק עכשיו" and was disabled during the active scan
+  * click on completed scan status opened the report
+  * report rendered 6 summary metrics and the errors section
+  * no JavaScript page errors attributable to the new scan UI
+
+Notes
+=====
+The older broad offline applications-queue test still depends on localStorage being available in a page.set_content context; Chromium blocks localStorage for that test origin. This is unrelated to the scan-status/report changes and does not occur when JobPilot is served normally from localhost.

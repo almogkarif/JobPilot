@@ -1,0 +1,38 @@
+JobPilot v0.1.9 — UI refinement report
+Generated: 2026-08-10
+
+Implemented
+===========
+1. Job description modal
+   - Replaced the single dense paragraph with a structured description section.
+   - Preserves all source text; formatting only adds visual paragraph/list/heading breaks.
+   - Recognizes common ATS headings and bullets when present.
+   - Long flattened ATS text is grouped by sentence boundaries for readability.
+   - Added light/dark mode styling.
+
+2. Search-preference state colors
+   - Excluded/negative preferences remain muted red.
+   - Unsaved preference edits now use amber/orange instead of the same red.
+   - The preferences navigation unsaved badge follows the amber state.
+   - Added matching dark-mode colors.
+
+3. Applications Kanban/Table switch
+   - Replaced two independent-looking buttons with a segmented control.
+   - Active mode receives a visible selected treatment.
+   - UI state is synchronized with the saved localStorage mode on load and after clicks.
+   - aria-pressed mirrors the active view for accessibility.
+
+4. Modal stacking
+   - Job/details modal now has z-index 110, above the normal header/theme switch.
+   - Command palette remains above it at z-index 120.
+
+Validation
+==========
+- node --check app/static/app.js: passed
+- python -m compileall app agent tests: passed
+- Focused pytest suite: 44 passed, 0 failed
+  Includes API, matching, source-logo and v0.1.9 UI checks.
+
+Environment limitation
+======================
+Full Playwright browser tests cannot launch here because the Playwright Chromium executable is not installed in this build environment. This is independent of the v0.1.9 changes.

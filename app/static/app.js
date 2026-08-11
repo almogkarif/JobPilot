@@ -1,0 +1,2906 @@
+const state = {
+  profile: null,
+  profileLoaded: false,
+  jobs: [],
+  jobsPaging: { page: 1, pageSize: 20, total: 0, pages: 1, sort: 'score_desc' },
+  applications: [],
+  blockers: [],
+  skillsOverview: null,
+  answerLibrary: [],
+  answerLibrarySaved: [],
+  answersDirty: false,
+  sources: [],
+  dashboard: null,
+  activeView: 'dashboard',
+  careerTracks: [],
+  activeCareerTrack: 'computer_science',
+};
+
+
+const CAREER_TRACK_UI = Object.freeze({
+  computer_science: {
+    key: 'computer_science', symbol: 'CS', label: 'מדעי המחשב', shortLabel: 'מדמ״ח', themeClass: 'track-computer-science',
+    description: 'פיתוח תוכנה, אלגוריתמים, תשתיות, AI ומחקר',
+    eyebrow: 'סוכן חיפוש · מדעי המחשב', tagline: 'חיפוש משרות · מדעי המחשב',
+    searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה', skillsLegend: 'טכנולוגיות וכישורים',
+    desiredTitles: [
+      ['software engineer','Software Engineer'], ['backend','Backend'], ['frontend','Frontend'], ['full stack','Full Stack'],
+      ['automation','Automation'], ['devops','DevOps'], ['data engineer','Data Engineer'], ['embedded','Embedded'], ['qa','QA'],
+      ['product','Product'], ['r&d','R&D'], ['research engineer','Research Engineer'], ['research scientist','Research Scientist'],
+      ['applied scientist','Applied Scientist'], ['algorithm','Algorithms'], ['ai engineer','AI Engineer'],
+      ['machine learning engineer','Machine Learning Engineer'], ['ai research','AI Research']
+    ],
+    skills: [['Python','Python'],['JavaScript','JavaScript'],['TypeScript','TypeScript'],['React','React'],['Java','Java'],['C++','C++'],['C#','C#'],['SQL','SQL'],['Docker','Docker'],['Kubernetes','Kubernetes'],['AWS','AWS'],['Linux','Linux'],['Git','Git'],['REST API','REST API']],
+    desiredPlaceholder: 'למשל: Developer Tools, Integration', skillsPlaceholder: 'מופרדים בפסיקים',
+  },
+  industrial_engineering: {
+    key: 'industrial_engineering', symbol: 'IE', label: 'תעשייה וניהול', shortLabel: 'תעו״נ', themeClass: 'track-industrial-engineering',
+    description: 'תפעול, שרשרת אספקה, אנליזה, BI, פרויקטים ותהליכים',
+    eyebrow: 'סוכן חיפוש · תעשייה וניהול', tagline: 'חיפוש משרות · תעשייה וניהול',
+    searchPlaceholder: 'חיפוש תפקיד, חברה, תחום או כלי', skillsLegend: 'כלים, מערכות וכישורים',
+    desiredTitles: [
+      ['industrial engineer','Industrial Engineer'], ['business analyst','Business Analyst'], ['data analyst','Data Analyst'], ['bi analyst','BI Analyst'],
+      ['operations analyst','Operations Analyst'], ['business operations','Business Operations'], ['supply chain','Supply Chain'],
+      ['supply chain analyst','Supply Chain Analyst'], ['production planner','Production Planner'], ['material planner','Material Planner'],
+      ['demand planner','Demand Planner'], ['procurement','Procurement / Buyer'], ['logistics','Logistics'], ['pmo','PMO'],
+      ['project manager','Project Manager'], ['program manager','Program Manager'], ['process improvement','Process Improvement'],
+      ['operational excellence','Operational Excellence'], ['manufacturing engineer','Manufacturing Engineer'], ['quality engineer','Quality Engineer'], ['npi','NPI']
+    ],
+    skills: [['Excel','Excel'],['SQL','SQL'],['Power BI','Power BI'],['Tableau','Tableau'],['Data Analysis','Data Analysis'],['ERP','ERP'],['SAP','SAP'],['Priority','Priority'],['Lean','Lean'],['Six Sigma','Six Sigma'],['Process Improvement','Process Improvement'],['Project Management','Project Management'],['Supply Chain','Supply Chain'],['Procurement','Procurement'],['Production Planning','Production Planning'],['Operations Research','Operations Research'],['Statistics','Statistics'],['Power Query','Power Query'],['VBA','VBA'],['Python','Python']],
+    desiredPlaceholder: 'למשל: Planning, Operational Excellence, Sales Operations', skillsPlaceholder: 'למשל: MRP, Jira, Monday, Forecasting',
+  },
+});
+
+window.jobPilotReloadAfterCareerSwitch = window.jobPilotReloadAfterCareerSwitch || (() => window.location.reload());
+
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+let scanPollActive = false;
+let lastScanCompleted = 0;
+let lastScanReport = null;
+
+const authState = {
+  config: null,
+  session: null,
+  user: null,
+  capabilities: { application_agent: true },
+  storageKey: 'jobpilot-cloud-session-v1',
+};
+
+const parseJwt = (token = '') => {
+  try {
+    const payload = token.split('.')[1];
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(atob(normalized).split('').map((char) => `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`).join('')));
+  } catch {
+    return {};
+  }
+};
+
+const authHeaders = () => authState.session?.access_token ? { Authorization: `Bearer ${authState.session.access_token}` } : {};
+const applicationAgentAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.application_agent !== false;
+
+const saveAuthSession = (session) => {
+  authState.session = session?.access_token ? session : null;
+  if (authState.session) localStorage.setItem(authState.storageKey, JSON.stringify(authState.session));
+  else localStorage.removeItem(authState.storageKey);
+};
+
+const supabaseFetch = async (path, options = {}) => {
+  const base = String(authState.config?.supabase_url || '').replace(/\/$/, '');
+  const key = authState.config?.supabase_publishable_key || '';
+  if (!base || !key) throw new Error('Supabase authentication is not configured');
+  return fetch(`${base}/auth/v1${path}`, {
+    ...options,
+    headers: {
+      apikey: key,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  });
+};
+
+async function refreshCloudSession() {
+  const refreshToken = authState.session?.refresh_token;
+  if (!refreshToken) return false;
+  const response = await supabaseFetch('/token?grant_type=refresh_token', {
+    method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!response.ok) { saveAuthSession(null); return false; }
+  saveAuthSession(await response.json());
+  return true;
+}
+
+async function ensureCloudAccessToken() {
+  if (authState.config?.mode !== 'supabase') return '';
+  if (!authState.session) return '';
+  const claims = parseJwt(authState.session.access_token);
+  const expires = Number(claims.exp || 0) * 1000;
+  if (!expires || expires - Date.now() < 60_000) await refreshCloudSession();
+  return authState.session?.access_token || '';
+}
+
+const api = async (path, options = {}) => {
+  if (authState.config?.mode === 'supabase') await ensureCloudAccessToken();
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...authHeaders(),
+      ...(options.headers || {}),
+    },
+  });
+  if (!response.ok) {
+    let message = await response.text();
+    try { message = JSON.parse(message).detail || message; } catch { /* keep body */ }
+    if (response.status === 401 && authState.config?.mode === 'supabase') {
+      saveAuthSession(null);
+      showAuthGate('פג תוקף ההתחברות. התחבר שוב.');
+    }
+    throw new Error(message || `שגיאת שרת ${response.status}`);
+  }
+  if (response.status === 204) return null;
+  return response.json();
+};
+
+const esc = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+}[char]));
+
+const safeUrl = (value = '') => {
+  try {
+    const raw = String(value);
+    const absolute = /^[a-z][a-z0-9+.-]*:/i.test(raw);
+    const url = absolute ? new URL(raw) : new URL(raw, window.location.origin);
+    return ['http:', 'https:'].includes(url.protocol) ? esc(url.href) : '#';
+  } catch {
+    return '#';
+  }
+};
+
+
+function showAuthGate(message = '', tone = 'error') {
+  const gate = $('#auth-gate');
+  if (!gate) return;
+  gate.hidden = false;
+  $('#app-shell')?.setAttribute('aria-hidden', 'true');
+  const note = $('#auth-message');
+  if (note) { note.textContent = message; note.className = `auth-message ${message ? tone : ''}`; }
+}
+
+function hideAuthGate() {
+  $('#auth-gate') && ($('#auth-gate').hidden = true);
+  $('#app-shell')?.removeAttribute('aria-hidden');
+}
+
+function restoreStoredSession() {
+  try { saveAuthSession(JSON.parse(localStorage.getItem(authState.storageKey) || 'null')); }
+  catch { saveAuthSession(null); }
+}
+
+function captureOAuthSession() {
+  if (!location.hash.includes('access_token=')) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const accessToken = params.get('access_token');
+  if (!accessToken) return false;
+  saveAuthSession({
+    access_token: accessToken,
+    refresh_token: params.get('refresh_token') || '',
+    token_type: params.get('token_type') || 'bearer',
+    expires_in: Number(params.get('expires_in') || 3600),
+  });
+  history.replaceState({}, document.title, `${location.pathname}${location.search}`);
+  return true;
+}
+
+async function verifyCloudSession() {
+  if (!authState.session) return false;
+  try {
+    await ensureCloudAccessToken();
+    const result = await api('/api/auth/me');
+    authState.user = result.user || null;
+    authState.capabilities = result.capabilities || { application_agent: true };
+    return Boolean(authState.user);
+  } catch {
+    return false;
+  }
+}
+
+function renderCloudAccount() {
+  const button = $('#account-chip');
+  if (!button) return;
+  if (authState.config?.mode !== 'supabase' || !authState.user) { button.hidden = true; return; }
+  button.hidden = false;
+  const email = authState.user.email || 'JobPilot';
+  $('#account-email').textContent = email;
+  $('#account-avatar').textContent = email.slice(0, 1).toUpperCase() || 'A';
+  button.title = `${email} · חשבון ענן`;
+}
+
+async function initAuthentication() {
+  const response = await fetch('/api/auth/config', { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error('לא ניתן לטעון את הגדרות ההתחברות');
+  authState.config = await response.json();
+  if (authState.config.mode !== 'supabase') { hideAuthGate(); return true; }
+  if (!authState.config.supabase_url || !authState.config.supabase_publishable_key) {
+    showAuthGate('Cloud Mode פעיל אבל Supabase עדיין לא הוגדר בשרת.');
+    return false;
+  }
+  captureOAuthSession();
+  if (!authState.session) restoreStoredSession();
+  if (!await verifyCloudSession()) {
+    showAuthGate('');
+    return false;
+  }
+  hideAuthGate();
+  renderCloudAccount();
+  return true;
+}
+
+async function cloudEmailLogin(email, password) {
+  const response = await supabaseFetch('/token?grant_type=password', {
+    method: 'POST', body: JSON.stringify({ email, password }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.msg || payload.error_description || payload.message || 'ההתחברות נכשלה');
+  saveAuthSession(payload);
+  if (!await verifyCloudSession()) throw new Error('החשבון אומת ב-Supabase אך JobPilot לא אישר גישה לחשבון הזה');
+  hideAuthGate();
+  renderCloudAccount();
+  location.reload();
+}
+
+async function cloudSignup(email, password) {
+  const response = await supabaseFetch('/signup', {
+    method: 'POST', body: JSON.stringify({ email, password }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.msg || payload.message || 'יצירת החשבון נכשלה');
+  if (payload.access_token) {
+    saveAuthSession(payload);
+    await verifyCloudSession();
+    location.reload();
+    return;
+  }
+  showAuthGate('החשבון נוצר. אם אימות אימייל פעיל ב-Supabase, אשר את ההודעה שנשלחה אליך ואז התחבר.', 'success');
+}
+
+function cloudGoogleLogin() {
+  const base = String(authState.config?.supabase_url || '').replace(/\/$/, '');
+  const key = authState.config?.supabase_publishable_key || '';
+  if (!base || !key) return;
+  const redirect = `${location.origin}${location.pathname}`;
+  location.href = `${base}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`;
+}
+
+async function cloudSignOut() {
+  const token = authState.session?.access_token;
+  if (token) {
+    try { await supabaseFetch('/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); } catch { /* local cleanup still wins */ }
+  }
+  saveAuthSession(null);
+  authState.user = null;
+  location.reload();
+}
+
+async function refreshAgentStatus() {
+  if (authState.config?.mode !== 'supabase') return;
+  try {
+    const status = await api('/api/agent/status');
+    const label = $('#agent-state');
+    if (label) label.textContent = status.available === false ? 'לא זמין בחשבון זה' : status.connected ? `מחובר · ${status.online}` : 'לא מחובר';
+    document.querySelector('.agent-dot')?.classList.toggle('connected', Boolean(status.connected));
+    document.querySelector('.agent-dot')?.classList.toggle('restricted', status.available === false);
+  } catch { /* account may be signing out */ }
+}
+
+async function openCloudAccount() {
+  if (authState.config?.mode !== 'supabase') return;
+  const me = await api('/api/auth/me');
+  const [devices, adminUsers] = await Promise.all([
+    api('/api/agent-devices'),
+    me.user?.role === 'admin' ? api('/api/admin/users') : Promise.resolve(null),
+  ]);
+  const rows = (devices.devices || []).map((device) => `<div class="agent-device-row ${device.online ? 'online' : ''}">
+    <i></i><span><strong>${esc(device.name)}</strong><small>${device.online ? 'מחובר עכשיו' : device.last_seen_at ? `נראה לאחרונה ${esc(new Date(device.last_seen_at).toLocaleString('he-IL'))}` : 'עדיין לא התחבר'} · ${esc(device.token_prefix)}…</small></span>
+    ${device.enabled ? `<button class="btn danger-outline small" type="button" onclick="revokeAgentDevice(${device.id})">בטל</button>` : '<small>בוטל</small>'}
+  </div>`).join('');
+  const userRows = adminUsers ? (adminUsers.users || []).map((user) => `<div class="cloud-user-row">
+    <span class="cloud-user-avatar">${esc((user.email || '?').slice(0, 1).toUpperCase())}</span>
+    <span><strong>${esc(user.email || user.id)}</strong><small>${user.role === 'admin' ? 'Admin' : 'משתמש'} · ${user.last_seen_at ? `נראה לאחרונה ${esc(new Date(user.last_seen_at).toLocaleString('he-IL'))}` : 'טרם התחבר'}</small></span>
+  </div>`).join('') : '';
+  const adminSection = adminUsers ? `<div class="cloud-users-section">
+    <div class="panel-head"><div><span class="kicker">גישה לקבוצה</span><h3>משתמשים ${adminUsers.count}/${adminUsers.max_users}</h3></div></div>
+    <div class="cloud-user-list">${userRows}</div>
+    <small class="cloud-users-note">הרשאות הצטרפות מנוהלות כרגע דרך JOBPILOT_ALLOWED_EMAILS בשרת.</small>
+  </div>` : '';
+  const agentSection = devices.available === false
+    ? `<div class="agent-restricted-note"><strong>Application Agent עדיין סגור לחשבון הזה</strong><span>בשלב הבטא סוכן ההגשות האוטומטי פעיל רק בחשבון הראשי. חיפוש משרות, דירוג ושאר האתר ממשיכים לעבוד כרגיל.</span></div>`
+    : `<div class="panel-head"><div><span class="kicker">Application Agent</span><h3>מכשירי Agent</h3></div><button class="btn secondary small" type="button" onclick="createAgentDevice()">חבר Mac חדש</button></div><div class="agent-device-list">${rows || '<div class="empty-state"><strong>אין Agent מחובר</strong><span>צור token חד-פעמי וחבר את ה-Mac שלך.</span></div>'}</div>`;
+  modal(`<span class="kicker">JobPilot Cloud</span><h2>החשבון והמכשירים שלך</h2>
+    <p>${esc(me.user?.email || '')}</p>
+    ${adminSection}
+    ${agentSection}
+    <div class="modal-actions"><button class="btn danger-outline" type="button" onclick="cloudSignOut()">התנתק מהחשבון</button></div>`);
+}
+
+async function createAgentDevice() {
+  const name = prompt('שם למחשב / Agent', 'MacBook Pro') || 'Mac Agent';
+  const result = await api('/api/agent-devices', { method: 'POST', body: JSON.stringify({ name }) });
+  const token = result.token;
+  const baseUrl = result.base_url || location.origin;
+  modal(`<span class="kicker">Token חד-פעמי</span><h2>חיבור ${esc(name)}</h2>
+    <p>העתק את ה-token עכשיו. מטעמי אבטחה JobPilot לא יציג אותו שוב.</p>
+    <div class="agent-pair-token">${esc(token)}</div>
+    <p>ב-Mac, בתוך תיקיית JobPilot, הפעל את פקודת החיבור ואז הדבק את ה-token כשהיא מבקשת אותו. ה-token לא יישמר ב-history של ה-Terminal:</p>
+    <div class="agent-command">./configure-cloud-agent.sh ${esc(baseUrl)}</div>
+    <p>לאחר ההגדרה הפעל <code>./start-agent.sh</code>.</p>
+    <div class="modal-actions"><button class="btn secondary" type="button" onclick="navigator.clipboard.writeText('${esc(token)}'); toast('ה-token הועתק')">העתק token</button><button class="btn primary" type="button" onclick="openCloudAccount()">סיימתי</button></div>`);
+}
+
+async function revokeAgentDevice(id) {
+  if (!confirm('לבטל את הגישה של ה-Agent הזה?')) return;
+  await api(`/api/agent-devices/${id}`, { method: 'DELETE' });
+  toast('גישה ל-Agent בוטלה');
+  openCloudAccount();
+}
+
+function careerTrackUI(key = state.activeCareerTrack) {
+  return CAREER_TRACK_UI[key] || CAREER_TRACK_UI.computer_science;
+}
+
+function applyCareerTrackTheme() {
+  const config = careerTrackUI();
+  document.body.classList.toggle('track-industrial-engineering', config.key === 'industrial_engineering');
+  document.body.classList.toggle('track-computer-science', config.key === 'computer_science');
+  document.body.dataset.careerTrack = config.key;
+  $('#career-track-symbol') && ($('#career-track-symbol').textContent = config.symbol);
+  $('#career-track-label') && ($('#career-track-label').textContent = config.label);
+  $('#career-eyebrow') && ($('#career-eyebrow').textContent = config.eyebrow);
+  $('#brand-tagline') && ($('#brand-tagline').textContent = config.tagline);
+  $('#job-search') && ($('#job-search').placeholder = config.searchPlaceholder);
+  $('#skills-preference-legend') && ($('#skills-preference-legend').textContent = config.skillsLegend);
+  $('#scan-btn') && ($('#scan-btn').textContent = `סרוק עכשיו · ${config.shortLabel}`);
+  document.title = `JobPilot — ${config.label}`;
+}
+
+function preferenceOptionMarkup(field, values) {
+  return values.map(([value, label]) => `<label><input type="checkbox" data-profile-option="${field}" value="${esc(value)}" /> ${esc(label)}</label>`).join('');
+}
+
+function renderCareerPreferenceOptions() {
+  const config = careerTrackUI();
+  const titles = $('#desired-title-options');
+  const skills = $('#skill-options');
+  if (titles) titles.innerHTML = preferenceOptionMarkup('desired_titles', config.desiredTitles);
+  if (skills) skills.innerHTML = preferenceOptionMarkup('skills', config.skills);
+  if ($('#desired-titles-custom')) $('#desired-titles-custom').placeholder = config.desiredPlaceholder;
+  if ($('#skills-custom')) $('#skills-custom').placeholder = config.skillsPlaceholder;
+  if (typeof bindPreferencePriorityDragging === 'function') bindPreferencePriorityDragging();
+}
+
+function renderCareerSwitcher() {
+  const current = state.careerTracks.find((track) => track.key === state.activeCareerTrack);
+  const config = careerTrackUI();
+  const menu = $('#career-switcher-menu');
+  if (!menu) return;
+  $('#career-track-symbol').textContent = config.symbol;
+  $('#career-track-label').textContent = current?.label || config.label;
+  $('#career-switcher-trigger').title = `${current?.label || config.label} · סוכן חיפוש פעיל`;
+  menu.innerHTML = state.careerTracks.map((track) => {
+    const ui = CAREER_TRACK_UI[track.key] || { symbol: track.short_label || '•' };
+    const active = track.key === state.activeCareerTrack;
+    return `<button class="career-track-option ${active ? 'active' : ''}" type="button" role="menuitem" data-career-track="${esc(track.key)}" ${active ? 'aria-current="true"' : ''}>
+      <span class="career-option-symbol">${esc(ui.symbol || track.short_label || '•')}</span>
+      <span class="career-option-copy"><strong>${esc(track.label)}</strong><small>${esc(track.description || '')}</small><em>${active ? '● סוכן חיפוש פעיל' : '○ סוכן חיפוש כבוי'} · ${track.enabled_sources || 0} מקורות · ${track.jobs || 0} משרות</em></span>
+      <i class="career-option-agent ${active ? 'on' : 'off'}" aria-hidden="true"></i>
+    </button>`;
+  }).join('') + `<div class="career-track-future"><span>＋</span><div><strong>מקצועות נוספים</strong><small>המבנה מוכן להוספת מסלולים נוספים בהמשך</small></div></div>`;
+  $$('[data-career-track]', menu).forEach((button) => {
+    button.onclick = () => switchCareerTrack(button.dataset.careerTrack);
+  });
+}
+
+function setCareerMenu(open) {
+  const menu = $('#career-switcher-menu');
+  const trigger = $('#career-switcher-trigger');
+  if (!menu || !trigger) return;
+  menu.hidden = !open;
+  trigger.setAttribute('aria-expanded', String(open));
+  $('#career-switcher')?.classList.toggle('open', open);
+}
+
+async function loadCareerTracks() {
+  const payload = await api('/api/career-tracks');
+  state.careerTracks = payload.tracks || [];
+  state.activeCareerTrack = payload.active_track || 'computer_science';
+  applyCareerTrackTheme();
+  renderCareerPreferenceOptions();
+  renderCareerSwitcher();
+  return payload;
+}
+
+async function switchCareerTrack(target) {
+  if (!target || target === state.activeCareerTrack) { setCareerMenu(false); return; }
+  const dirty = typeof getDirtyProfileFields === 'function' ? getDirtyProfileFields() : [];
+  if (dirty.length || state.answersDirty) {
+    toast('יש שינויים שלא נשמרו. שמור או בטל אותם לפני החלפת מסלול מקצועי.');
+    return;
+  }
+  const targetTrack = state.careerTracks.find((track) => track.key === target);
+  try {
+    $('#career-switcher-trigger').disabled = true;
+    const result = await api('/api/career-tracks/active', { method: 'PUT', body: JSON.stringify({ track: target }) });
+    state.activeCareerTrack = result.active_track || target;
+    state.careerTracks = result.tracks || state.careerTracks;
+    state.profile = result.profile || null;
+    applyCareerTrackTheme();
+    renderCareerPreferenceOptions();
+    renderCareerSwitcher();
+    setCareerMenu(false);
+    toast(`עברנו למסלול ${targetTrack?.label || careerTrackUI(target).label}. סוכן החיפוש הקודם כובה.`);
+    window.setTimeout(() => window.jobPilotReloadAfterCareerSwitch(), 180);
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    $('#career-switcher-trigger').disabled = false;
+  }
+}
+
+const JOB_DESCRIPTION_HEADINGS = [
+  'about the role', 'about the position', 'about the team', 'about us', 'the role', 'the position',
+  'what you’ll do', "what you'll do", 'what you will do', 'what you’ll bring', "what you'll bring",
+  'responsibilities', 'your responsibilities', 'requirements', 'minimum requirements', 'qualifications',
+  'minimum qualifications', 'preferred qualifications', 'what we’re looking for', "what we're looking for",
+  'who you are', 'skills', 'experience', 'nice to have', 'preferred', 'benefits', 'why join us', 'why us',
+  'day to day', 'day-to-day', 'job description', 'description', 'overview', 'key responsibilities'
+];
+
+function isJobDescriptionHeading(line = '') {
+  const normalized = String(line).trim().replace(/[:：]+$/, '').toLowerCase();
+  return JOB_DESCRIPTION_HEADINGS.includes(normalized);
+}
+
+function formatJobDescription(value = '') {
+  const raw = String(value || '').replace(/\r\n?/g, '\n').trim();
+  if (!raw) return '<div class="job-description-empty">אין תיאור</div>';
+
+  // Add presentation-only line breaks around reliable structure markers. No words are removed.
+  let text = raw
+    .replace(/[ \t]*([•●▪◦])\s*/g, '\n$1 ')
+    .replace(/([.!?])\s+(?=(?:Responsibilities|Requirements|Qualifications|Minimum Qualifications|Preferred Qualifications|About the Role|About the Team|What You(?:’|')ll Do|What We(?:’|')re Looking For|Benefits|Why Join Us)\s*:)/gi, '$1\n\n')
+    .replace(/\s+(?=(?:Responsibilities|Requirements|Qualifications|Minimum Qualifications|Preferred Qualifications|Key Responsibilities)\s*:)/gi, '\n\n')
+    .replace(/(Responsibilities|Requirements|Qualifications|Minimum Qualifications|Preferred Qualifications|Key Responsibilities|About the Role|About the Team|What You(?:’|')ll Do|What We(?:’|')re Looking For|Benefits|Why Join Us)\s*:\s*/gi, '\n\n$1:\n');
+
+  const sourceLines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const lines = [];
+  for (const line of sourceLines) {
+    // ATS feeds sometimes flatten whole paragraphs into one line. Split only on sentence boundaries
+    // and group them for readability while preserving every sentence and punctuation mark.
+    if (line.length > 520 && !/^[•●▪◦*-]\s+/.test(line)) {
+      const sentences = line.split(/(?<=[.!?])\s+(?=[A-Z0-9])/);
+      if (sentences.length > 3) {
+        for (let i = 0; i < sentences.length; i += 3) lines.push(sentences.slice(i, i + 3).join(' '));
+        continue;
+      }
+    }
+    lines.push(line);
+  }
+
+  let html = '';
+  let listOpen = false;
+  const closeList = () => { if (listOpen) { html += '</ul>'; listOpen = false; } };
+
+  for (const line of lines) {
+    const bullet = line.match(/^[•●▪◦*-]\s+(.+)$/);
+    const numbered = line.match(/^(\d{1,2}[.)])\s+(.+)$/);
+    if (bullet || numbered) {
+      if (!listOpen) { html += '<ul class="job-description-list">'; listOpen = true; }
+      html += `<li>${esc((bullet || numbered)[numbered ? 2 : 1])}</li>`;
+      continue;
+    }
+
+    closeList();
+    const colonHeading = line.match(/^(.{2,55})[:：]$/);
+    if (isJobDescriptionHeading(line) || (colonHeading && colonHeading[1].split(/\s+/).length <= 7)) {
+      html += `<h4>${esc(line)}</h4>`;
+    } else {
+      html += `<p>${esc(line)}</p>`;
+    }
+  }
+  closeList();
+  return `<div class="job-description-content" dir="auto">${html}</div>`;
+}
+
+
+const SOURCE_LOGO_DOMAINS = Object.freeze({
+  'google': 'google.com',
+  'apple': 'apple.com',
+  'amazon': 'amazon.com',
+  'nvidia': 'nvidia.com',
+  'intel': 'intel.com',
+  'microsoft': 'microsoft.com',
+  'mobileye': 'mobileye.com',
+  'check point': 'checkpoint.com',
+  'palo alto networks': 'paloaltonetworks.com',
+  'wix': 'wix.com',
+  'monday.com': 'monday.com',
+  'monday': 'monday.com',
+  'cisco': 'cisco.com',
+  'ibm': 'ibm.com',
+  'salesforce': 'salesforce.com',
+  'meta': 'meta.com',
+  'qualcomm': 'qualcomm.com',
+  'samsung research israel': 'samsung.com',
+  'samsung': 'samsung.com',
+  'applied materials': 'appliedmaterials.com',
+  'kla': 'kla.com',
+  'medtronic': 'medtronic.com',
+  'philips': 'philips.com',
+  'elbit systems': 'elbitsystems.com',
+  'elbit': 'elbitsystems.com',
+  'rafael': 'rafael.co.il',
+  'israel aerospace industries': 'iai.co.il',
+  'iai': 'iai.co.il',
+  'taboola': 'taboola.com',
+  'appsflyer': 'appsflyer.com',
+  'similarweb': 'similarweb.com',
+  'outbrain': 'outbrain.com',
+  'cyberark': 'cyberark.com',
+  'cato networks': 'catonetworks.com',
+  'cato': 'catonetworks.com',
+  'wiz': 'wiz.io',
+  'orca security': 'orca.security',
+  'orca': 'orca.security',
+  'sentinelone': 'sentinelone.com',
+  'aqua security': 'aquasec.com',
+  'aqua': 'aquasec.com',
+  'figma': 'figma.com',
+  'speechify': 'speechify.com',
+  'pagaya': 'pagaya.com',
+  'tenable': 'tenable.com',
+  'redis': 'redis.io',
+  'tavily': 'tavily.com',
+  'nexxen': 'nexxen.com',
+  'chainalysis': 'chainalysis.com',
+  'reindeer ai': 'reindeer.ai',
+  'reindeer': 'reindeer.ai',
+  'traild': 'traildsoftware.com',
+});
+
+function normalizeSourceBrand(value = '') {
+  return String(value).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function sourceLogoDomain(source) {
+  const candidates = [source?.company_name, source?.identifier, source?.name]
+    .map(normalizeSourceBrand)
+    .filter(Boolean);
+  for (const candidate of candidates) {
+    if (SOURCE_LOGO_DOMAINS[candidate]) return SOURCE_LOGO_DOMAINS[candidate];
+    for (const [brand, domain] of Object.entries(SOURCE_LOGO_DOMAINS)) {
+      if (candidate === brand || candidate.startsWith(`${brand} `) || candidate.includes(` ${brand} `)) return domain;
+    }
+  }
+
+  const identifier = String(source?.identifier || '').trim();
+  if (/^https?:\/\//i.test(identifier)) {
+    try { return new URL(identifier).hostname.replace(/^www\./i, ''); } catch { return ''; }
+  }
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(identifier)) return identifier.replace(/^www\./i, '');
+  return '';
+}
+
+function sourceLogoFallback(source) {
+  const label = String(source?.company_name || source?.name || source?.identifier || '?').trim();
+  return Array.from(label)[0]?.toUpperCase() || '?';
+}
+
+function sourceLogoMarkup(source, className = '') {
+  const domain = sourceLogoDomain(source);
+  const fallback = esc(sourceLogoFallback(source));
+  const company = esc(source?.company_name || source?.name || 'חברה');
+  if (!domain) {
+    return `<div class="source-logo-tile ${className}" aria-label="${company}"><span class="source-logo-fallback">${fallback}</span></div>`;
+  }
+  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+  return `<div class="source-logo-tile ${className}" title="${company}">
+    <img class="source-company-logo" src="${esc(logoUrl)}" alt="הלוגו של ${company}" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+    <span class="source-logo-fallback" hidden>${fallback}</span>
+  </div>`;
+}
+
+const dateFmt = (value) => value
+  ? new Intl.DateTimeFormat('he-IL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  : '—';
+
+const statusLabel = (status) => ({
+  new: 'חדש', saved: 'נשמרה', queued: 'בתור', applying: 'בטיפול', needs_input: 'מחכה לך',
+  submitted: 'הוגשה', interview: 'ראיון', rejected: 'נדחתה', failed: 'נכשל', skipped: 'דולג',
+}[status] || status);
+
+const blockerMeta = (kind) => ({
+  captcha: { icon: '🧩', label: 'CAPTCHA', short: 'נדרש אימות אנושי', tone: 'danger' },
+  review_before_submit: { icon: '✓', label: 'ממתין לאישור', short: 'הטופס מוכן לשליחה', tone: 'warning' },
+  unknown_field: { icon: '?', label: 'חסר פרט', short: 'נדרשת תשובה שלך', tone: 'warning' },
+  missing_profile_detail: { icon: '◌', label: 'חסר בפרופיל', short: 'נדרש להשלים פרטים אישיים', tone: 'warning' },
+  linkedin_manual: { icon: 'in', label: 'LinkedIn ידני', short: 'נדרשת השלמה ידנית', tone: 'warning' },
+  submit_button_missing: { icon: '!', label: 'כפתור לא זוהה', short: 'נדרשת בדיקה ידנית', tone: 'danger' },
+  confirmation_missing: { icon: '!', label: 'אין אישור שליחה', short: 'צריך לבדוק אם נשלח', tone: 'danger' },
+}[kind] || { icon: '!', label: 'דורש טיפול', short: 'הסוכן נעצר', tone: 'warning' });
+
+function blockerTarget(blocker, application) {
+  return blocker?.page_url || application?.job?.apply_url || '#';
+}
+
+function compactAgentFailure(value = '') {
+  return String(value || '').replace(/^\[blocked:[^\]]+\]\s*/i, '').trim();
+}
+
+function renderApplicationStatus(application) {
+  const blocker = application.blocker;
+  const stageLabel = application.agent_stage || statusLabel(application.status);
+  const waitingFor = application.agent_waiting_for || '—';
+  const failureDetail = compactAgentFailure(application.agent_failure_detail || application.last_error || '');
+  const queuePosition = application.queue_position ? `<span>מיקום בתור: ${application.queue_position}</span>` : '';
+  const expectedStart = application.expected_start_at ? `<small>התחלה צפויה: ${esc(dateFmt(application.expected_start_at))}</small>` : '';
+
+  const stageBadge = `<span class="status-pill">${esc(stageLabel)}</span>`;
+  if (blocker) {
+    const meta = blockerMeta(blocker.kind);
+    return `${stageBadge}
+      <div class="queue-blocker queue-blocker-${meta.tone}" title="${esc(blocker.explanation || meta.short)}">
+        <span class="queue-blocker-icon">${esc(meta.icon)}</span>
+        <span><strong>${esc(meta.label)}</strong><small>${esc(meta.short)}</small></span>
+      </div>
+      <div class="queue-progress-meta" title="${esc(failureDetail)}">
+        <strong>שלב: ${esc(stageLabel)}</strong>
+        <span>ממתין ל: ${esc(waitingFor)}</span>
+        ${queuePosition ? queuePosition : ''}
+        ${expectedStart}
+        ${failureDetail ? `<small>${esc(failureDetail)}</small>` : ''}
+      </div>`;
+  }
+  if (application.status === 'failed' && application.last_error) {
+    return `${stageBadge}
+      <div class="queue-error" title="${esc(application.last_error)}">${esc(application.last_error)}</div>`;
+  }
+  return `${stageBadge}
+    <div class="queue-progress-meta">
+      <strong>שלב: ${esc(stageLabel)}</strong>
+      <span>ממתין ל: ${esc(waitingFor)}</span>
+      ${queuePosition ? queuePosition : ''}
+      ${expectedStart}
+      ${failureDetail ? `<small>${esc(failureDetail)}</small>` : ''}
+    </div>`;
+}
+
+function renderApplicationActions(application) {
+  const blocker = application.blocker;
+  if (blocker?.kind === 'review_before_submit') {
+    return `<button class="btn primary small" type="button" onclick="event.stopPropagation();markApplicationSubmitted(${application.id})">סמן כהוגש</button>
+      <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח את הטופס</a>
+      <button class="btn secondary small" type="button" onclick="event.stopPropagation();resolveBlockerAction(${blocker.id},'skip')">דלג</button>
+      <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
+  }
+  if (blocker) {
+    return `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח והמשך</a>
+      ${blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing'
+        ? `<button class="btn secondary small" type="button" onclick="event.stopPropagation();markApplicationSubmitted(${application.id})">סמן כהוגש</button>`
+        : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();switchView('blockers')">ענה במערכת</button>`}
+      <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
+  }
+  if (application.status === 'submitted') return '';
+  return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();retryApp(${application.id})">נסה שוב</button>
+    <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
+}
+
+function toast(message) {
+  const element = $('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => element.classList.remove('show'), 3000);
+}
+
+function skeleton(count = 3, kind = 'cards') {
+  return `<div class="skeleton-stack skeleton-${kind}" aria-label="טוען נתונים">${Array.from({ length: count }, () => '<div class="skeleton-item"><i></i><span></span><small></small></div>').join('')}</div>`;
+}
+
+function emptyState(icon, title, copy, action = '') {
+  return `<div class="empty-state"><span class="empty-state-icon" aria-hidden="true">${icon}</span><strong>${title}</strong><p>${copy}</p>${action}</div>`;
+}
+
+const VIEW_CONTEXT = {
+  dashboard: 'תמונת מצב עדכנית של החיפוש וההגשות', jobs: 'משרות שנאספו ודורגו לפי ההתאמה לפרופיל שלך',
+  applications: 'מעקב אחר התור, ניסיונות ההגשה והסטטוס הנוכחי', blockers: 'פעולות שמחכות להחלטה או להשלמת מידע',
+  skills: 'הכישורים שלך והפערים שעולים מהמשרות הפעילות', sources: 'אתרי הקריירה והלוחות ש־JobPilot סורק',
+  preferences: 'הגדרות שמשפיעות על האיסוף, הסינון והדירוג', profile: 'המידע המאושר שמשמש למילוי טפסי מועמדות',
+};
+
+function setPageContext(view, count = null) {
+  const suffix = count === null ? '' : ` · ${count} פריטים`;
+  $('#page-context').textContent = `${VIEW_CONTEXT[view] || ''}${suffix}`;
+}
+
+function modal(html) {
+  modal.previousFocus = document.activeElement;
+  $('#modal-content').innerHTML = html;
+  $('#modal').classList.add('open');
+  $('#modal').setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => $('.modal-close').focus());
+}
+
+function closeModal() {
+  $('#modal').classList.remove('open');
+  $('#modal').setAttribute('aria-hidden', 'true');
+  modal.previousFocus?.focus?.();
+}
+
+$('.modal-close').onclick = closeModal;
+$('#modal').addEventListener('click', (event) => {
+  if (event.target.id === 'modal') closeModal();
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeModal();
+  if (event.key === 'Tab' && $('#modal').classList.contains('open')) {
+    const focusable = $$('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]', $('#modal'));
+    if (!focusable.length) return;
+    const first = focusable[0]; const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+});
+
+function switchView(view, options = {}) {
+  persistCurrentProfileDraft();
+  state.activeView = view;
+  try { localStorage.setItem('jobpilot-active-view', view); } catch { /* Storage may be unavailable. */ }
+  const contentView = view === 'preferences' ? 'profile' : view;
+  $$('.view').forEach((element) => element.classList.remove('active'));
+  $(`#view-${contentView}`).classList.add('active');
+  $$('#nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
+  $$('#nav button').forEach((button) => button.setAttribute('aria-current', button.dataset.view === view ? 'page' : 'false'));
+  $('#page-title').textContent = ({
+    dashboard: 'לוח בקרה', jobs: 'משרות', applications: 'הגשות', blockers: 'דורש טיפול', skills: 'סקילים',
+    sources: 'מקורות', preferences: 'העדפות חיפוש', profile: 'הפרופיל שלי',
+  })[view];
+  setPageContext(view);
+  $('#view-profile').classList.toggle('showing-preferences', view === 'preferences');
+
+  if (view === 'dashboard') loadDashboard();
+  if (view === 'jobs') {
+    if (options.minScore !== undefined) $('#score-filter').value = String(options.minScore);
+    if (options.status !== undefined) $('#job-status-filter').value = options.status;
+    loadJobs();
+  }
+  if (view === 'applications') loadApplications();
+  if (view === 'blockers') loadBlockers();
+  if (view === 'skills') loadSkills();
+  if (view === 'sources') loadSources();
+  if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
+  if (view === 'profile') {
+    const savedSection = options.profileSection || localStorage.getItem('jobpilot-profile-section') || 'personal';
+    switchProfileSection(['personal', 'automation'].includes(savedSection) ? savedSection : 'personal');
+    loadProfile();
+  }
+}
+
+$$('[data-view]').forEach((button) => {
+  button.onclick = () => switchView(button.dataset.view);
+});
+
+function switchProfileSection(section) {
+  $$('[data-profile-section]').forEach((button) => button.classList.toggle('active', button.dataset.profileSection === section));
+  $$('[data-profile-pane]').forEach((pane) => pane.classList.toggle('active', pane.dataset.profilePane === section));
+  if (['personal', 'automation'].includes(section)) {
+    try { localStorage.setItem('jobpilot-profile-section', section); } catch { /* Storage may be unavailable. */ }
+  }
+}
+
+$$('[data-profile-section]').forEach((button) => {
+  button.onclick = () => switchProfileSection(button.dataset.profileSection);
+});
+
+function initMacDockNav() {
+  const nav = $('#nav');
+  if (!nav || !window.matchMedia('(hover: hover) and (pointer: fine)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const buttons = [...nav.querySelectorAll('button')];
+  let frame;
+  let focusedButton = null;
+  const exitTimers = new WeakMap();
+  const keepSolidThroughExit = (button) => {
+    if (!button) return;
+    buttons.forEach((item) => {
+      if (item === button) return;
+      window.clearTimeout(exitTimers.get(item));
+      item.classList.remove('is-dock-exit');
+    });
+    window.clearTimeout(exitTimers.get(button));
+    button.classList.add('is-dock-exit');
+    exitTimers.set(button, window.setTimeout(() => button.classList.remove('is-dock-exit'), 230));
+  };
+  const applyAt = (pointerY) => {
+    const measurements = buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { button, distance: Math.abs(pointerY - (rect.top + rect.height / 2)) };
+    });
+    const nearest = measurements.reduce((best, item) => item.distance < best.distance ? item : best, measurements[0]);
+    const nextFocusedButton = nearest.distance < 95 ? nearest.button : null;
+    if (focusedButton && focusedButton !== nextFocusedButton) keepSolidThroughExit(focusedButton);
+    if (nextFocusedButton) {
+      window.clearTimeout(exitTimers.get(nextFocusedButton));
+      nextFocusedButton.classList.remove('is-dock-exit');
+    }
+    focusedButton = nextFocusedButton;
+    measurements.forEach(({ button, distance }) => {
+      const influence = Math.max(0, 1 - distance / 132);
+      button.style.setProperty('--dock-scale', (1 + influence * .42).toFixed(3));
+      button.style.setProperty('--dock-space', `${(influence * 10).toFixed(2)}px`);
+      button.style.setProperty('--dock-x', `${(-influence * 11).toFixed(2)}px`);
+      const labelProgress = button === nearest.button ? Math.max(0, Math.min(1, (influence - .28) / .72)) : 0;
+      button.style.setProperty('--dock-label', labelProgress.toFixed(3));
+      button.style.setProperty('--dock-glyph-scale', (1 + labelProgress * .55).toFixed(3));
+      button.classList.toggle('is-dock-focus', button === nearest.button && influence > .28);
+    });
+  };
+  const reset = () => {
+    keepSolidThroughExit(focusedButton);
+    focusedButton = null;
+    buttons.forEach((button) => {
+      button.style.setProperty('--dock-scale', '1');
+      button.style.setProperty('--dock-glyph-scale', '1');
+      button.style.setProperty('--dock-space', '0px');
+      button.style.setProperty('--dock-x', '0px');
+      button.style.setProperty('--dock-label', '0');
+      button.classList.remove('is-dock-focus');
+    });
+  };
+  nav.addEventListener('pointermove', (event) => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => applyAt(event.clientY));
+  });
+  nav.addEventListener('pointerleave', reset);
+  buttons.forEach((button) => {
+    button.addEventListener('focus', () => applyAt(button.getBoundingClientRect().top + button.offsetHeight / 2));
+    button.addEventListener('blur', () => { if (!nav.contains(document.activeElement)) reset(); });
+    button.addEventListener('click', () => {
+      button.classList.remove('is-launching');
+      void button.offsetWidth;
+      button.classList.add('is-launching');
+      button.addEventListener('animationend', () => button.classList.remove('is-launching'), { once: true });
+    });
+  });
+}
+
+initMacDockNav();
+$$('[data-go]').forEach((button) => {
+  button.onclick = () => switchView(button.dataset.go);
+});
+
+async function loadAnswerLibrary() {
+  state.answerLibrary = await api('/api/answer-library');
+  state.answerLibrarySaved = JSON.parse(JSON.stringify(state.answerLibrary));
+  const root = $('#answer-library');
+  root.innerHTML = state.answerLibrary.map((item) => {
+    const control = item.choices.length
+      ? `<select data-answer>${['', ...item.choices].map((choice) => `<option value="${esc(choice)}" ${choice === item.answer ? 'selected' : ''}>${esc(choice || 'בחר תשובה')}</option>`).join('')}</select>`
+      : `<input data-answer type="text" value="${esc(item.answer)}" placeholder="כתוב תשובה מאושרת" />`;
+    return `<div class="answer-card" data-answer-key="${esc(item.key)}">
+      <div class="answer-card-copy"><strong>${esc(item.title)}</strong><small dir="ltr">${esc(item.example)}</small><small class="answer-compact-summary"></small></div>
+      <div class="answer-card-actions">${control}
+        <label class="answer-enabled"><input data-enabled type="checkbox" ${item.enabled ? 'checked' : ''} /> שימוש אוטומטי</label>
+        <button class="btn primary small answer-save" type="button">שמור</button>
+        <button class="section-collapse answer-collapse" type="button" aria-expanded="true" title="מזער"><span aria-hidden="true">⌃</span></button>
+      </div></div>`;
+  }).join('');
+  $$('[data-answer], [data-enabled]', root).forEach((control) => control.addEventListener('input', updateAnswerDirtyState));
+  $$('.answer-card', root).forEach((card) => {
+    const key = card.dataset.answerKey;
+    const collapse = $('.answer-collapse', card);
+    const summary = $('.answer-compact-summary', card);
+    const updateSummary = () => {
+      const value = $('[data-answer]', card)?.value?.trim() || 'ללא תשובה';
+      summary.textContent = `${value}${$('[data-enabled]', card)?.checked ? ' · שימוש אוטומטי' : ' · ידני בלבד'}`;
+    };
+    updateSummary();
+    $$('[data-answer], [data-enabled]', card).forEach((control) => control.addEventListener('input', updateSummary));
+    const collapsed = localStorage.getItem(`jobpilot-collapse-answer-${key}`) === '1';
+    card.classList.toggle('is-answer-collapsed', collapsed);
+    collapse.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    collapse.onclick = () => {
+      const next = card.classList.toggle('is-answer-collapsed');
+      collapse.setAttribute('aria-expanded', next ? 'false' : 'true');
+      collapse.title = next ? 'פתח' : 'מזער';
+      localStorage.setItem(`jobpilot-collapse-answer-${key}`, next ? '1' : '0');
+    };
+    $('.answer-save', card).onclick = saveAllAnswers;
+  });
+  updateAnswerDirtyState();
+}
+
+function currentAnswerLibraryPayload() {
+  return Object.fromEntries($$('#answer-library [data-answer-key]').map((card) => [card.dataset.answerKey, {
+    answer: $('[data-answer]', card).value,
+    enabled: $('[data-enabled]', card).checked,
+  }]));
+}
+
+function updateAnswerDirtyState() {
+  const current = currentAnswerLibraryPayload();
+  state.answersDirty = state.answerLibrarySaved.some((item) => {
+    const value = current[item.key] || { answer: '', enabled: false };
+    return value.answer !== item.answer || value.enabled !== item.enabled;
+  });
+  $('#profile-answer-panel')?.classList.toggle('has-unsaved', state.answersDirty);
+  $('#answers-unsaved-note').textContent = state.answersDirty ? 'יש שינויים בתשובות שעדיין לא נשמרו' : '';
+  syncProfileUnsavedUI();
+}
+
+async function saveAllAnswers() {
+  try {
+    await api('/api/answer-library/save-all', { method: 'POST', body: JSON.stringify({ answers: currentAnswerLibraryPayload() }) });
+    await loadAnswerLibrary();
+    toast('כל התשובות נשמרו יחד');
+  } catch (error) { toast(error.message); }
+}
+
+$('#save-all-answers').onclick = saveAllAnswers;
+
+async function loadDashboard() {
+  if (state.activeView === 'dashboard') {
+    $('#metrics').innerHTML = skeleton(5, 'metrics');
+    $('#recent-jobs').innerHTML = skeleton(3, 'rows');
+  }
+  state.dashboard = await api('/api/dashboard');
+  const dashboard = state.dashboard;
+  if (dashboard.career_track_info?.tracks) {
+    state.careerTracks = dashboard.career_track_info.tracks;
+    state.activeCareerTrack = dashboard.career_track || dashboard.career_track_info.active_track || state.activeCareerTrack;
+    renderCareerSwitcher();
+  }
+  renderReadiness(dashboard.readiness || {});
+  renderSourceErrorBadge(Number(dashboard.readiness?.sources_with_errors || 0));
+  const metrics = [
+    { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
+    { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
+    { label: 'בתור להגשה', value: dashboard.queued, detail: 'ממתינות ל־Agent', view: 'applications', tone: 'queue' },
+    { label: 'הוגשו', value: dashboard.submitted, detail: 'מועמדויות מתועדות', view: 'applications', tone: 'submitted' },
+    { label: 'דורש טיפול', value: dashboard.open_blockers, detail: 'מחכה לתשובה שלך', view: 'blockers', tone: 'attention' },
+  ];
+  $('#metrics').innerHTML = metrics.map((metric) => `
+    <button class="metric metric-link" type="button" data-metric-view="${metric.view}"
+      data-min-score="${metric.score ?? ''}" data-status="${metric.status ?? ''}"
+      data-metric-tone="${metric.tone}" data-has-value="${Number(metric.value) > 0}">
+      <strong>${metric.value}</strong>
+      <span class="metric-copy"><b>${metric.label}</b><small>${metric.detail}</small></span>
+      <i aria-hidden="true">←</i>
+    </button>
+  `).join('');
+  $$('#metrics [data-metric-view]').forEach((button) => {
+    button.onclick = () => switchView(button.dataset.metricView, {
+      minScore: button.dataset.minScore === '' ? undefined : Number(button.dataset.minScore),
+      status: button.dataset.status === '' ? undefined : button.dataset.status,
+    });
+  });
+  $('#blocker-count').textContent = dashboard.open_blockers;
+  $('#daily-recommendations-title').textContent = dashboard.recommendations_from_previous_day
+    ? 'המשרות המובילות מאתמול'
+    : 'משרות ששווה לבדוק היום';
+  renderRecent(dashboard.recent_jobs, dashboard.recommendations_from_previous_day);
+  renderScan(dashboard.scan);
+}
+
+function renderSourceErrorBadge(count) {
+  const badge = $('#source-error-badge');
+  if (!badge) return;
+  const errors = Math.max(0, Number(count || 0));
+  badge.hidden = errors === 0;
+  badge.textContent = '!';
+  badge.title = errors ? `${errors} מקורות עם שגיאה — לחץ לבדיקה` : '';
+  const sourceButton = badge.closest('[data-view="sources"]');
+  if (sourceButton) sourceButton.title = errors ? `${errors} מקורות עם שגיאה` : '';
+}
+
+function renderReadiness(readiness) {
+  const root = $('#readiness');
+  const checks = [
+    { ok: readiness.profile_complete, label: 'פרטי קשר מלאים', action: "switchView('profile')" },
+    { ok: readiness.resume_uploaded, label: 'קורות חיים הועלו', action: "switchView('profile')" },
+    { ok: readiness.sources_enabled > 0, label: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
+    { ok: readiness.agent_token_secure, label: 'Token מאובטח ל־Agent', action: null },
+  ];
+  const missing = checks.filter((check) => !check.ok).length;
+  if (!missing) {
+    root.hidden = true;
+    root.className = 'readiness-panel';
+    root.innerHTML = '';
+    return;
+  }
+  root.hidden = false;
+  root.className = 'readiness-panel readiness-incomplete';
+  root.innerHTML = `
+    <div class="readiness-copy"><span class="readiness-icon">!</span>
+      <div><strong>נשארו כמה צעדים לפני הגשה בטוחה</strong>
+      <small>${missing} הגדרות דורשות השלמה. אפשר עדיין לעיין ולסרוק משרות.</small></div>
+    </div>
+    <div class="readiness-checks">${checks.map((check) => check.action
+      ? `<button type="button" class="readiness-check ${check.ok ? 'ok' : 'missing'}" onclick="${check.action}">${check.ok ? '✓' : '○'} ${esc(check.label)}</button>`
+      : `<span class="readiness-check ${check.ok ? 'ok' : 'missing'}">${check.ok ? '✓' : '○'} ${esc(check.label)}</span>`).join('')}</div>`;
+}
+
+function renderRecent(jobs, showingPreviousDay = false) {
+  const root = $('#recent-jobs');
+  root.innerHTML = jobs.length ? jobs.map((job) => `
+    <button class="job-row interactive-row" type="button" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+      <div class="score-ring" style="--score:${job.score}"><b>${job.score}</b></div>
+      <div class="job-info"><strong dir="auto">${esc(job.title)}</strong><span>${esc(job.company)} · ${esc(job.location || 'מיקום לא צוין')}</span></div>
+      <span class="status-pill">${statusLabel(job.status)}</span>
+      <span class="row-arrow" aria-hidden="true">←</span>
+    </button>
+  `).join('') : emptyState('⌁', showingPreviousDay ? 'לא נמצאו המלצות מאתמול' : 'עוד אין המלצות להיום', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
+  $$('[data-job-id]', root).forEach((element) => {
+    element.onclick = () => showJob(Number(element.dataset.jobId));
+  });
+}
+
+function scanResultSummary(result) {
+  if (!result) return '';
+  if (result.status === 'no_sources') return 'אין מקורות פעילים';
+  const found = Number(result.found || 0);
+  const fresh = Number(result.new || 0);
+  return `${found} משרות בישראל · ${fresh} חדשות`;
+}
+
+function scanNextLabel(nextScheduledAt) {
+  if (!nextScheduledAt) return 'סריקה אוטומטית אינה פעילה';
+  const date = new Date(nextScheduledAt);
+  if (Number.isNaN(date.getTime())) return 'סריקה אוטומטית אינה פעילה';
+  const minutes = Math.max(0, Math.ceil((date.getTime() - Date.now()) / 60000));
+  if (minutes < 1) return 'הסריקה הבאה בעוד פחות מדקה';
+  if (minutes < 60) return `הסריקה הבאה בעוד ${minutes} דקות`;
+  if (minutes < 1440) return `הסריקה הבאה בעוד ${Math.floor(minutes / 60)} שעות ו־${minutes % 60} דקות`;
+  const now = new Date();
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+  const day = date.toDateString() === now.toDateString() ? 'היום' : date.toDateString() === tomorrow.toDateString() ? 'מחר' : new Intl.DateTimeFormat('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' }).format(date);
+  return `הסריקה הבאה ${day} ב־${new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(date)}`;
+}
+
+function renderScan(scan) {
+  const element = $('#scan-status');
+  const progress = $('#scan-progress');
+  const button = $('#scan-btn');
+  progress.hidden = true;
+  progress.classList.remove('running');
+
+  if (scan.running) {
+    const current = scan.progress || {};
+    const total = Math.max(0, Number(current.total || 0));
+    const completed = Math.max(0, Number(current.completed || 0));
+    const activeSources = Array.isArray(current.active_sources) ? current.active_sources.filter(Boolean) : [];
+    const source = current.current_source || activeSources[0] || '';
+    const phase = current.phase || 'starting';
+    const percent = total ? Math.min(100, Math.max(0, Math.round((completed / total) * 100))) : 0;
+    const counter = total ? `${Math.min(completed, total)} מתוך ${total}` : 'מכין מקורות';
+    const parallel = activeSources.length > 1 ? ` · עוד ${activeSources.length - 1} במקביל` : '';
+    const detail = phase === 'finalizing'
+      ? 'מסיים שמירה ודירוג של המשרות…'
+      : source ? `סורק עכשיו: ${source}${parallel}` : 'מכין את רשימת המקורות…';
+
+    element.classList.add('is-running');
+    element.style.setProperty('--scan-progress', `${percent}%`);
+    element.dataset.nextScan = '';
+    element.innerHTML = `
+      <span><b>סריקה בתהליך · ${esc(counter)}</b><small>${esc(detail)}</small></span>
+      <i class="scan-status-fill ${total ? '' : 'is-indeterminate'}" aria-hidden="true"></i>
+    `;
+    element.setAttribute('aria-label', `סריקה בתהליך. ${counter}. ${detail}`);
+    element.title = 'הדוח המלא יהיה זמין כשהסריקה תסתיים';
+
+    // The real scan action stays visually unchanged; it is only disabled to avoid duplicate scans.
+    button.disabled = true;
+    button.classList.remove('scan-btn-running');
+    button.textContent = 'סרוק עכשיו';
+    button.setAttribute('aria-label', 'סריקה כבר מתבצעת');
+  } else {
+    element.classList.remove('is-running');
+    element.style.removeProperty('--scan-progress');
+    button.disabled = false;
+    button.classList.remove('scan-btn-running');
+    button.removeAttribute('aria-label');
+    button.textContent = 'סרוק עכשיו';
+
+    if (scan.last_result) lastScanReport = scan.last_result;
+    const summary = scanResultSummary(scan.last_result);
+    element.dataset.nextScan = scan.next_scheduled_at || '';
+    const nextScan = scanNextLabel(scan.next_scheduled_at);
+    const finished = scan.last_finished_at ? `הסתיימה ${dateFmt(scan.last_finished_at)}` : '';
+    const headline = scan.last_finished_at ? `סריקה אחרונה · ${summary || 'הושלמה'}` : 'טרם בוצעה סריקה';
+    const detail = scan.last_finished_at
+      ? `${finished} · ${nextScan} · לחץ לדוח המלא`
+      : `${nextScan} · לאחר הסריקה אפשר ללחוץ כאן לדוח המלא`;
+    element.innerHTML = `<span><b>${esc(headline)}</b><small>${esc(detail)}</small></span><i class="scan-status-fill" aria-hidden="true"></i>`;
+    element.setAttribute('aria-label', `${headline}. ${detail}`);
+    element.title = scan.last_result ? 'פתח דוח סריקה מלא' : 'עדיין אין דוח סריקה';
+  }
+}
+
+function updateScanCountdown() {
+  const element = $('#scan-status');
+  if (!element || element.classList.contains('is-running')) return;
+  const small = element.querySelector('small');
+  if (!small || !element.dataset.nextScan) return;
+  const finishedPart = small.textContent.split(' · ')[0];
+  const nextScan = scanNextLabel(element.dataset.nextScan);
+  small.textContent = `${finishedPart} · ${nextScan} · לחץ לדוח המלא`;
+}
+setInterval(updateScanCountdown, 30000);
+
+function scanMetric(value, label, tone = '') {
+  return `<div class="scan-report-metric ${tone}"><strong>${Number(value || 0)}</strong><span>${label}</span></div>`;
+}
+
+function showScanReport(result) {
+  if (!result) return toast('עדיין אין דוח סריקה להצגה');
+  if (result.status === 'no_sources') {
+    modal(`
+      <div class="scan-report-head"><span class="scan-report-icon warning" aria-hidden="true">!</span><div><span class="kicker">דוח סריקה</span><h2>לא נמצאו מקורות פעילים</h2><p>לא היה מה לסרוק. אפשר להפעיל מקורות קיימים או להוסיף מקורות חדשים.</p></div></div>
+      <div class="card-actions modal-actions"><button class="btn primary" type="button" onclick="closeModal();switchView('sources')">עבור למקורות</button><button class="btn secondary" type="button" onclick="closeModal();installRecommendedSources()">הוסף מקורות מומלצים</button></div>
+    `);
+    return;
+  }
+
+  const perSource = Array.isArray(result.per_source) ? result.per_source : [];
+  const failedItems = perSource.filter((item) => item.error);
+  const successfulItems = perSource.filter((item) => !item.error);
+  const fallbackErrors = Array.isArray(result.errors) ? result.errors : [];
+  const errors = failedItems.length ? failedItems : fallbackErrors.map((item) => ({ source: item.source || 'מקור לא ידוע', error: item.error || String(item) }));
+  const failed = Number(result.failed_sources || errors.length || 0);
+  const successful = Number(result.successful_sources || Math.max(0, Number(result.sources || 0) - failed));
+  const title = result.status === 'failed' ? 'הסריקה נכשלה' : failed ? 'הסריקה הסתיימה עם שגיאות' : 'הסריקה הושלמה בהצלחה';
+  const subtitle = failed
+    ? `${successful} מקורות נסרקו בהצלחה ו־${failed} נכשלו. המשרות ממקורות שהצליחו כבר נשמרו במערכת.`
+    : `${successful || Number(result.sources || 0)} מקורות נסרקו בהצלחה והמשרות שלהם נשמרו ודורגו.`;
+
+  const errorSection = errors.length ? `
+    <section class="scan-report-section scan-report-errors">
+      <div class="scan-report-section-title"><div><span class="kicker">דורש בדיקה</span><h3>${errors.length} מקורות עם שגיאה</h3></div><button class="btn secondary small" type="button" onclick="closeModal();switchView('sources')">פתח מקורות</button></div>
+      <div class="scan-report-error-list">${errors.map((item) => `
+        <div class="scan-report-error"><span aria-hidden="true">!</span><div><strong>${esc(item.source || 'מקור')}</strong><small>${esc(item.error || 'שגיאה לא ידועה')}</small></div></div>
+      `).join('')}</div>
+    </section>` : '';
+
+  const sourceRows = perSource.map((item) => `
+    <div class="scan-source-row ${item.error ? 'has-error' : ''}">
+      <div class="scan-source-name"><i aria-hidden="true"></i><strong>${esc(item.source || 'מקור')}</strong></div>
+      ${item.error
+        ? `<span class="scan-source-error">${esc(item.error)}</span>`
+        : `<span class="scan-source-counts"><b>${Number(item.found || 0)}</b> בישראל <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
+    </div>
+  `).join('');
+
+  modal(`
+    <div class="scan-report">
+      <div class="scan-report-head"><span class="scan-report-icon ${failed ? 'warning' : 'success'}" aria-hidden="true">${failed ? '!' : '✓'}</span><div><span class="kicker">דוח סריקה</span><h2>${title}</h2><p>${esc(subtitle)}</p></div></div>
+      <div class="scan-report-metrics">
+        ${scanMetric(result.found, 'משרות בישראל', 'primary')}
+        ${scanMetric(result.new, 'חדשות', 'success')}
+        ${scanMetric(result.updated, 'עודכנו')}
+        ${scanMetric(result.filtered_foreign, 'מחו״ל סוננו')}
+        ${scanMetric(result.filtered_mismatch, 'לפי ההחרגות')}
+        ${scanMetric(failed, 'שגיאות', failed ? 'danger' : '')}
+      </div>
+      ${errorSection}
+      <details class="scan-report-details">
+        <summary><span>פירוט לפי מקור</span><small>${perSource.length || Number(result.sources || 0)} מקורות</small></summary>
+        <div class="scan-source-list">${sourceRows || '<div class="empty">אין פירוט מקורות זמין.</div>'}</div>
+      </details>
+      <div class="card-actions modal-actions"><button class="btn primary" type="button" onclick="closeModal();switchView('jobs')">צפה במשרות</button><button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>
+    </div>
+  `);
+}
+
+$('#scan-status').onclick = () => {
+  if ($('#scan-status').classList.contains('is-running')) {
+    toast('הסריקה עדיין פועלת — הדוח המלא יהיה זמין בסיום');
+    return;
+  }
+  showScanReport(lastScanReport || state.dashboard?.scan?.last_result || null);
+};
+
+$('#scan-btn').onclick = async () => {
+  try {
+    await api('/api/scan', { method: 'POST' });
+    lastScanCompleted = 0;
+    toast('הסריקה התחילה');
+    renderScan({ running: true, progress: { phase: 'starting', current: 0, completed: 0, total: 0, current_source: null } });
+    pollScan();
+  } catch (error) {
+    toast(error.message);
+  }
+};
+
+async function pollScan() {
+  if (scanPollActive) return;
+  scanPollActive = true;
+  try {
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const scan = await api('/api/scan/status');
+      renderScan(scan);
+      const completed = Math.max(0, Number(scan.progress?.completed || 0));
+      if (scan.running && completed > lastScanCompleted) {
+        lastScanCompleted = completed;
+        // Each source is committed independently by the backend. Refresh only the
+        // visible screen so newly collected jobs appear without waiting for the
+        // remaining sources to finish.
+        try {
+          if (state.activeView === 'jobs') await loadJobs({ silent: true });
+          else if (state.activeView === 'dashboard') await loadDashboard();
+          else if (state.activeView === 'sources') await loadSources();
+          else if (state.activeView === 'applications') await loadApplications();
+        } catch (refreshError) {
+          console.warn('Incremental scan refresh failed', refreshError);
+        }
+      }
+      if (!scan.running) {
+        lastScanCompleted = completed;
+        const result = scan.last_result || {};
+        if (scan.last_result) lastScanReport = scan.last_result;
+        // Completion stays quiet: the persistent scan-status bar updates in place.
+        // The full report opens only when the user explicitly clicks that bar.
+        await Promise.all([loadDashboard(), state.activeView === 'sources' ? loadSources() : Promise.resolve()]);
+        return;
+      }
+    }
+  } catch (error) {
+    toast(`לא הצלחתי לעדכן את מצב הסריקה: ${error.message}`);
+  } finally {
+    scanPollActive = false;
+  }
+}
+
+async function loadJobs(options = {}) {
+  if (options.resetPage) state.jobsPaging.page = 1;
+  if (!options.silent) {
+    $('#jobs-list').innerHTML = skeleton(4, 'cards');
+    $('#jobs-pagination').innerHTML = '';
+  }
+  const query = encodeURIComponent($('#job-search').value || '');
+  const score = $('#score-filter').value;
+  const status = $('#job-status-filter').value;
+  const sort = $('#job-sort').value || 'score_desc';
+  const pageSize = Number($('#jobs-page-size').value || 20);
+  state.jobsPaging.sort = sort;
+  state.jobsPaging.pageSize = pageSize;
+  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}`);
+  if (Array.isArray(payload)) {
+    state.jobs = payload;
+    state.jobsPaging = { ...state.jobsPaging, page: 1, total: payload.length, pages: 1 };
+  } else {
+    state.jobs = payload.items || [];
+    state.jobsPaging = {
+      page: payload.page || 1,
+      pageSize: payload.page_size || pageSize,
+      total: payload.total || 0,
+      pages: payload.pages || 1,
+      sort: payload.sort || sort,
+    };
+  }
+  renderJobs();
+}
+
+function renderJobs() {
+  const root = $('#jobs-list');
+  renderActiveFilters();
+  setPageContext('jobs', state.jobsPaging.total);
+  if (!state.jobs.length) {
+    $('#jobs-pagination').innerHTML = '';
+    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value;
+    root.innerHTML = hasFilters
+      ? emptyState('⌕', 'לא נמצאו התאמות לסינון הזה', 'אפשר להסיר מסנן אחד או לנקות את החיפוש ולנסות שוב.', '<button class="btn secondary small" type="button" onclick="clearJobFilters()">נקה את כל המסננים</button>')
+      : emptyState('＋', 'עדיין אין משרות להצגה', 'הוסף מקורות משרות והפעל סריקה ראשונה.', '<button class="btn primary small" type="button" onclick="switchView(\'sources\')">הגדר מקורות</button>');
+    return;
+  }
+  const first = ((state.jobsPaging.page - 1) * state.jobsPaging.pageSize) + 1;
+  const last = Math.min(state.jobsPaging.total, first + state.jobs.length - 1);
+  const sortLabel = $('#job-sort').selectedOptions[0]?.textContent || 'מיון';
+  root.innerHTML = `<div class="results-summary">מציג ${first}–${last} מתוך ${state.jobsPaging.total} משרות · ${esc(sortLabel)}</div>` + state.jobs.map((job) => `
+    <article class="job-card interactive-card" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+      <div class="job-card-head"><div><h3 dir="auto">${esc(job.title)}</h3><div class="company">${esc(job.company)}</div></div><div class="score-badge">${job.score}</div></div>
+      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${esc(job.workplace)}</span><span>${statusLabel(job.status)}</span>${job.source ? `<span>${esc(job.source.kind)}</span>` : ''}</div>
+      <div class="skills">${job.skills.slice(0, 6).map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>
+      ${job.skill_gaps?.length ? `<button class="skill-gap-alert" type="button" data-no-card-click onclick="event.stopPropagation();showSkillGaps(${job.id})">יש במשרה הזאת ${job.skill_gaps.length} סקילים שאין לך</button>` : ''}
+      <div class="reason-list">${job.score_reasons.slice(0, 3).map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)}</div>`).join('')}</div>
+      <div class="card-actions" data-no-card-click>
+        <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
+        ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'review')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'החזר לתור' : 'הגש'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+        <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
+        <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
+        <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
+        <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
+      </div>
+    </article>
+  `).join('');
+  $$('.interactive-card', root).forEach((card) => {
+    card.onclick = (event) => {
+      if (event.target.closest('[data-no-card-click]')) return;
+      showJob(Number(card.dataset.jobId));
+    };
+    card.onkeydown = (event) => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('[data-no-card-click]')) {
+        event.preventDefault();
+        showJob(Number(card.dataset.jobId));
+      }
+    };
+  });
+  renderJobsPagination();
+}
+
+function renderJobsPagination() {
+  const root = $('#jobs-pagination');
+  const { page, pages, total } = state.jobsPaging;
+  if (!total || pages <= 1) {
+    root.innerHTML = '';
+    return;
+  }
+  const visible = new Set([1, pages, page - 2, page - 1, page, page + 1, page + 2]);
+  const pageNumbers = [...visible].filter((value) => value >= 1 && value <= pages).sort((a, b) => a - b);
+  let buttons = '';
+  let previous = 0;
+  for (const value of pageNumbers) {
+    if (previous && value - previous > 1) buttons += '<span class="pagination-ellipsis">…</span>';
+    buttons += `<button type="button" class="pagination-page ${value === page ? 'active' : ''}" ${value === page ? 'aria-current="page"' : ''} onclick="goToJobsPage(${value})">${value}</button>`;
+    previous = value;
+  }
+  root.innerHTML = `
+    <button type="button" class="pagination-nav" onclick="goToJobsPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>הקודם</button>
+    <div class="pagination-pages">${buttons}</div>
+    <button type="button" class="pagination-nav" onclick="goToJobsPage(${page + 1})" ${page >= pages ? 'disabled' : ''}>הבא</button>`;
+}
+
+function goToJobsPage(page) {
+  const nextPage = Math.max(1, Math.min(Number(page) || 1, state.jobsPaging.pages));
+  if (nextPage === state.jobsPaging.page) return;
+  state.jobsPaging.page = nextPage;
+  loadJobs();
+  document.querySelector('#view-jobs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.goToJobsPage = goToJobsPage;
+
+$('#job-search').addEventListener('input', debounce(() => loadJobs({ resetPage: true }), 300));
+$('#score-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-status-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-sort').onchange = () => loadJobs({ resetPage: true });
+$('#jobs-page-size').onchange = () => loadJobs({ resetPage: true });
+
+function renderActiveFilters() {
+  const root = $('#active-filters');
+  const filters = [];
+  const query = $('#job-search').value.trim();
+  const score = $('#score-filter').value;
+  const status = $('#job-status-filter').value;
+  if (query) filters.push({ key: 'query', label: `חיפוש: ${query}` });
+  if (score !== '0') filters.push({ key: 'score', label: `התאמה ${score}+` });
+  if (status) filters.push({ key: 'status', label: `סטטוס: ${statusLabel(status)}` });
+  root.innerHTML = filters.length ? `<span>מסננים פעילים</span>${filters.map((filter) => `<button type="button" data-clear-filter="${filter.key}">${esc(filter.label)} <b>×</b></button>`).join('')}<button type="button" class="clear-all-filters" data-clear-filter="all">נקה הכול</button>` : '';
+  $$('[data-clear-filter]', root).forEach((button) => { button.onclick = () => clearJobFilters(button.dataset.clearFilter); });
+}
+
+function clearJobFilters(key = 'all') {
+  if (key === 'all' || key === 'query') $('#job-search').value = '';
+  if (key === 'all' || key === 'score') $('#score-filter').value = '0';
+  if (key === 'all' || key === 'status') $('#job-status-filter').value = '';
+  loadJobs({ resetPage: true });
+}
+window.clearJobFilters = clearJobFilters;
+
+const densityButton = $('#density-toggle');
+const applyDensity = (compact) => {
+  document.body.classList.toggle('density-compact', compact);
+  densityButton.setAttribute('aria-pressed', compact ? 'true' : 'false');
+  densityButton.textContent = compact ? 'תצוגה מרווחת' : 'תצוגה קומפקטית';
+  localStorage.setItem('jobpilot-density', compact ? 'compact' : 'comfortable');
+};
+densityButton.onclick = () => applyDensity(!document.body.classList.contains('density-compact'));
+applyDensity(localStorage.getItem('jobpilot-density') === 'compact');
+
+async function queueJob(id, mode = 'review', resumeId = null) {
+  if (!applicationAgentAllowed()) {
+    toast('סוכן ההגשות האוטומטי פעיל כרגע רק בחשבון הראשי. אפשר לפתוח את המשרה ולהגיש ידנית.');
+    return;
+  }
+  try {
+    await api(`/api/jobs/${id}/queue`, { method: 'POST', body: JSON.stringify({ mode, resume_id: resumeId }) });
+    toast(mode === 'auto' ? 'המשרה נכנסה לתור האוטומטי' : 'המשרה נכנסה לתור');
+    await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
+
+async function skipJob(id) {
+  try {
+    await api(`/api/jobs/${id}/skip`, { method: 'POST' });
+    toast('המשרה סומנה כלא רלוונטית');
+    closeModal();
+    await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function deleteJob(id) {
+  if (!confirm('למחוק את המשרה לצמיתות? גם הגשה או חסימה ששייכות אליה יימחקו.')) return;
+  try {
+    await api(`/api/jobs/${id}`, { method: 'DELETE' });
+    closeModal();
+    state.jobs = state.jobs.filter((job) => job.id !== id);
+    toast('המשרה נמחקה לצמיתות');
+    await Promise.all([
+      loadDashboard(),
+      state.activeView === 'jobs' ? loadJobs() : Promise.resolve(),
+      state.activeView === 'applications' ? loadApplications() : Promise.resolve(),
+      state.activeView === 'blockers' ? loadBlockers() : Promise.resolve(),
+    ]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function showJob(id) {
+  try {
+    const [job, resumes] = await Promise.all([api(`/api/jobs/${id}`), api(`/api/resumes?job_id=${id}`)]);
+    const alreadySubmitted = job.status === 'submitted';
+    modal(`
+      <span class="kicker">${esc(job.company)}</span>
+      <h2 dir="auto">${esc(job.title)}</h2>
+      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>ציון ${job.score}</span><span>${statusLabel(job.status)}</span></div>
+      <h3>למה היא מתאימה</h3>
+      <div class="score-breakdown">${Object.entries({title:'כותרת',skills:'סקילים',experience:'ניסיון',location:'מיקום',freshness:'עדכניות'}).map(([key,label]) => `<div><span>${label}</span><i><b style="width:${job.match_breakdown?.[key] ?? 50}%"></b></i><strong>${job.match_breakdown?.[key] ?? 50}</strong></div>`).join('')}</div>
+      <div class="reason-list">${job.score_reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)} (${reason.points > 0 ? '+' : ''}${reason.points})</div>`).join('')}</div>
+      ${job.skill_gaps?.length ? `<h3>סקילים שזוהו ואינם בפרופיל שלך</h3><div class="skill-gap-list">${job.skill_gaps.map((skill) => `<button type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(skill)}'), ${job.id})">+ ${esc(skill)}</button>`).join('')}</div><p class="skill-honesty-note">הוסף רק סקיל שיש לך בפועל; המערכת לא מניחה ניסיון שלא אישרת.</p>` : ''}
+      <section class="job-description-section">
+        <div class="job-description-heading"><span class="kicker">פרטי התפקיד</span><h3>תיאור המשרה</h3></div>
+        ${formatJobDescription(job.description)}
+      </section>
+      <h3>אפשרויות הגשה</h3>
+      ${resumes.length ? `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>JobPilot ממליץ על הגרסה עם חפיפת הסקילים הגבוהה ביותר. אפשר לשנות ידנית לפני הכנסה לתור.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.sort((a,b)=>(b.fit?.score||0)-(a.fit?.score||0)).map((resume) => `<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.fit?.recommended ? 'selected' : ''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${resume.fit?.score ?? 0}% התאמה</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit"></div>` : '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>'}
+      ${applicationAgentAllowed() ? `<div class="application-options">
+        <button class="application-option application-option-review" type="button" onclick="queueJob(${job.id},'review',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
+          <i class="application-option-icon">✓</i><span class="application-option-copy"><small>מומלץ</small><strong>הגשה עם בקרה</strong><span>ה־Agent ימלא את הטופס ויעצור לאישור לפני השליחה.</span></span><b>←</b>
+        </button>
+        <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
+          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>מהיר</small><strong>הכנסה לתור אוטומטי</strong><span>יתקדם לבד בעזרת הפרטים והתשובות שכבר אישרת.</span></span><b>←</b>
+        </button>
+      </div>` : `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית. הסוכן המקומי שממלא ושולח טפסים פעיל כרגע רק בחשבון הראשי.</span></div>`}
+      <div class="card-actions modal-actions">
+        <a class="btn secondary" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}">פתח באתר החברה</a>
+        ${job.application_links?.slice(1).map((link) => `<a class="btn secondary" target="_blank" rel="noopener" href="${safeUrl(link.apply_url)}">הגש דרך ${esc(link.source || 'מקור נוסף')}</a>`).join('') || ''}
+        <button class="btn secondary" type="button" onclick="openDraftComposer(${job.id})">טיוטת תשובה פתוחה</button>
+        ${job.official_careers_url && job.official_careers_url !== job.apply_url ? `<a class="btn secondary" target="_blank" rel="noopener" href="${safeUrl(job.official_careers_url)}">עמוד הקריירה הרשמי</a>` : ''}
+        <button class="btn danger" type="button" onclick="skipJob(${job.id})">לא רלוונטי</button>
+        <button class="btn danger-outline" type="button" onclick="deleteJob(${job.id})">מחק משרה לצמיתות</button>
+      </div>
+    `);
+    const resumeSelect=$('#job-resume-select'); if(resumeSelect) updateResumeFit(resumeSelect);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function updateResumeFit(select){let fit={};try{fit=JSON.parse(select.selectedOptions[0]?.dataset.fit||'{}')}catch{}const missing=fit.missing_skills||[];const matched=fit.matched_skills||[];$('#resume-fit').innerHTML=`<div class="resume-fit-score"><strong>${fit.score ?? 0}% התאמת קורות חיים</strong><span>${matched.length} סקילים תואמים</span></div>${missing.length?`<p><strong>${missing.length} סקילים מרכזיים אינם מופיעים בגרסה:</strong> ${missing.map(esc).join(', ')}</p>`:'<p><strong>לא זוהו פערי סקילים מול הגרסה שנבחרה.</strong></p>'}`;}
+
+let applicationsView = localStorage.getItem('jobpilot-applications-view') || 'kanban';
+if (!['kanban', 'table'].includes(applicationsView)) applicationsView = 'kanban';
+
+function syncApplicationsViewButtons() {
+  [['kanban-view', 'kanban'], ['table-view', 'table']].forEach(([id, view]) => {
+    const button = $(`#${id}`);
+    if (!button) return;
+    const active = applicationsView === view;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+async function loadApplications() {
+  syncApplicationsViewButtons();
+  $('#applications-list').innerHTML = skeleton(4, 'rows');
+  state.applications = await api('/api/applications');
+  const root = $('#applications-list');
+  root.classList.toggle('kanban-wrap', applicationsView === 'kanban');
+  setPageContext('applications', state.applications.length);
+  if (applicationsView === 'kanban') { renderApplicationsKanban(root); return; }
+  root.innerHTML = state.applications.length ? `
+    <table><thead><tr><th>משרה</th><th>חברה</th><th>סטטוס</th><th>מצב</th><th>ניסיונות</th><th>עודכן</th><th>פעולה</th></tr></thead>
+    <tbody>${state.applications.map((application) => `
+      <tr class="interactive-table-row" data-job-id="${application.job_id}" tabindex="0">
+        <td>${esc(application.job?.title)}</td><td>${esc(application.job?.company)}</td>
+        <td class="application-status-cell">${renderApplicationStatus(application)}</td><td>${esc(application.mode)}</td>
+        <td>${application.attempt_count}</td><td>${dateFmt(application.updated_at)}</td>
+        <td class="application-row-actions" data-no-row-click>${renderApplicationActions(application)}</td>
+      </tr>`).join('')}</tbody></table>
+  ` : emptyState('↗', 'עדיין אין הגשות', 'משרות שתוסיף לתור יופיעו כאן עם סטטוס וניסיונות ההגשה.', '<button class="btn primary small" type="button" onclick="switchView(\'jobs\')">מצא משרה להגשה</button>');
+  $$('.interactive-table-row', root).forEach((row) => {
+    const open = () => showJob(Number(row.dataset.jobId));
+    row.onclick = (event) => { if (!event.target.closest('[data-no-row-click]')) open(); };
+    row.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } };
+  });
+}
+
+$('#kanban-view').onclick=()=>{applicationsView='kanban';localStorage.setItem('jobpilot-applications-view',applicationsView);syncApplicationsViewButtons();loadApplications();};
+$('#table-view').onclick=()=>{applicationsView='table';localStorage.setItem('jobpilot-applications-view',applicationsView);syncApplicationsViewButtons();loadApplications();};
+syncApplicationsViewButtons();
+
+async function openDraftComposer(jobId) {
+  modal(`<span class="kicker">טיוטה באישור שלך</span><h2>תשובה לשאלה פתוחה</h2><label>השאלה<textarea id="draft-question" placeholder="Why do you want to work here?"></textarea></label><label>טיוטה אופציונלית<textarea id="draft-text" rows="7" placeholder="השאר ריק כדי ש-JobPilot יכין נקודת פתיחה מותאמת"></textarea></label><label class="remember-label"><input id="draft-approved" type="checkbox" /> מאשר להשתמש בתשובה לאחר שאבדוק אותה</label><button class="btn primary" type="button" onclick="saveDraft(${jobId})">צור ושמור</button>`);
+}
+async function saveDraft(jobId){const result=await api(`/api/jobs/${jobId}/answer-drafts`,{method:'POST',body:JSON.stringify({question:$('#draft-question').value,draft:$('#draft-text').value||null,approved:$('#draft-approved').checked})});$('#draft-text').value=result.draft;toast(result.approved?'הטיוטה נשמרה ואושרה':'הטיוטה נשמרה ומחכה לאישור');}
+
+function renderApplicationsKanban(root) {
+  const columns = [['saved','נשמרה'],['queued','בתור'],['applying','בטיפול'],['needs_input','מחכה לך'],['submitted','הוגשה'],['interview','ראיון'],['rejected','נדחתה']];
+  root.classList.add('kanban-wrap');
+  root.innerHTML = state.applications.length ? `<div class="kanban-board">${columns.map(([status,label]) => `<section class="kanban-column" data-status="${status}"><header><strong>${label}</strong><span>${state.applications.filter(a=>a.status===status).length}</span></header><div>${state.applications.filter(a=>a.status===status).map(a=>`<article class="kanban-card" draggable="true" data-application-id="${a.id}" onclick="showJob(${a.job_id})"><strong>${esc(a.job?.title)}</strong><span>${esc(a.job?.company)}</span>${a.reminder_at ? `<small>תזכורת: ${dateFmt(a.reminder_at)}</small>`:''}<button type="button" onclick="event.stopPropagation();editApplication(${a.id})">ניהול</button></article>`).join('')}</div></section>`).join('')}</div>` : emptyState('↗','עדיין אין הגשות','משרות שתשמור או תוסיף לתור יופיעו כאן.');
+  $$('.kanban-card', root).forEach(card => card.ondragstart = e => e.dataTransfer.setData('text/plain', card.dataset.applicationId));
+  $$('.kanban-column', root).forEach(column => { column.ondragover=e=>e.preventDefault(); column.ondrop=async e=>{ e.preventDefault(); await updateApplication(Number(e.dataTransfer.getData('text/plain')), {status:column.dataset.status}); }; });
+}
+
+async function updateApplication(id, payload) { await api(`/api/applications/${id}`, {method:'PATCH',body:JSON.stringify(payload)}); await loadApplications(); }
+
+async function editApplication(id) {
+  const item=state.applications.find(a=>a.id===id); if(!item)return;
+  modal(`<span class="kicker">מעקב הגשה</span><h2>${esc(item.job?.title)}</h2><label>שלב<select id="application-stage">${['saved','queued','applying','needs_input','submitted','interview','rejected'].map(s=>`<option value="${s}" ${s===item.status?'selected':''}>${statusLabel(s)}</option>`).join('')}</select></label><label>הערות<textarea id="application-notes">${esc(item.notes||'')}</textarea></label><label>מועד תזכורת<input id="application-reminder" type="datetime-local" /></label><label>מה להזכיר<input id="application-reminder-note" value="${esc(item.reminder_note||'')}" placeholder="מעקב מול המגייסת" /></label><button class="btn primary" type="button" onclick="saveApplicationEdit(${id})">שמור</button>`);
+}
+async function saveApplicationEdit(id){await updateApplication(id,{status:$('#application-stage').value,notes:$('#application-notes').value,reminder_at:$('#application-reminder').value||null,reminder_note:$('#application-reminder-note').value});closeModal();}
+
+async function loadSkills() {
+  $('#my-skills').innerHTML = skeleton(2, 'rows');
+  $('#skill-suggestions').innerHTML = skeleton(3, 'rows');
+  state.skillsOverview = await api('/api/skills/overview');
+  setPageContext('skills', state.skillsOverview.profile_skills.length);
+  $('#my-skills').innerHTML = state.skillsOverview.profile_skills.length
+    ? state.skillsOverview.profile_skills.map((skill) => `<span>${esc(skill)} <button type="button" title="הסר" onclick="removeSkill(decodeURIComponent('${encodeURIComponent(skill)}'))">×</button></span>`).join('')
+    : emptyState('＋', 'רשימת הסקילים עדיין ריקה', 'הוסף סקילים מתוך הצעות המערכת או דרך העדפות החיפוש.', '<button class="btn secondary small" type="button" onclick="switchView(\'preferences\')">להעדפות החיפוש</button>');
+  $('#skill-suggestions').innerHTML = state.skillsOverview.suggestions.length
+    ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div><strong>${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span><small>${item.jobs.map((job) => `${esc(job.company)} — ${esc(job.title)}`).join('<br>')}</small></div><button class="btn secondary small" type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">הוסף לסקילים שלי</button></article>`).join('')
+    : emptyState('✓', 'אין כרגע פערי סקילים חדשים', 'כל הסקילים שזוהו במשרות הפעילות כבר מופיעים בפרופיל שלך.');
+}
+
+async function addSkill(skill, reopenJobId = null) {
+  try {
+    await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
+    state.profileLoaded = false;
+    toast(`${skill} נוסף לפרופיל והמשרות דורגו מחדש`);
+    if (state.activeView === 'skills') await loadSkills();
+    if (state.activeView === 'jobs') await loadJobs();
+    if (reopenJobId) await showJob(reopenJobId);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function removeSkill(skill) {
+  if (!confirm(`להסיר את ${skill} מרשימת הסקילים שלך?`)) return;
+  try {
+    await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
+    state.profileLoaded = false;
+    toast(`${skill} הוסר והדירוגים עודכנו`);
+    await loadSkills();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function showSkillGaps(jobId) {
+  try {
+    const job = await api(`/api/jobs/${jobId}`);
+    modal(`<span class="kicker">פערי סקילים</span><h2>${esc(job.company)} — ${esc(job.title)}</h2><p>במשרה זוהו ${job.skill_gaps.length} סקילים שאינם כרגע בפרופיל שלך:</p><div class="skill-gap-list">${job.skill_gaps.map((skill) => `<button type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(skill)}'), ${job.id})">+ ${esc(skill)}</button>`).join('')}</div><p class="skill-honesty-note">לחץ להוספה רק אם זה סקיל שכבר יש לך.</p>`);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function retryApp(id) {
+  try {
+    await api(`/api/applications/${id}/retry`, { method: 'POST' });
+    toast('ההגשה הוחזרה לתור');
+    await Promise.all([loadApplications(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function removeApplication(id) {
+  if (!confirm('להסיר את המשרה מתור ההגשות? המשרה עצמה תישאר ברשימת המשרות.')) return;
+  try {
+    await api(`/api/applications/${id}`, { method: 'DELETE' });
+    toast('המשרה הוסרה מהתור ונשארה ברשימת המשרות');
+    await Promise.all([loadApplications(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function renderBlockerCard(blocker) {
+  const meta = blockerMeta(blocker.kind);
+  const target = blocker.page_url || blocker.job?.apply_url || '#';
+  let interaction = '';
+  if (blocker.kind === 'review_before_submit') {
+    interaction = `<div class="blocker-decision">
+      <button class="btn primary" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש לאחר שליחה ידנית</button>
+      <button class="btn secondary" type="button" onclick="resolveBlockerAction(${blocker.id},'skip')">דלג על המשרה</button>
+    </div>`;
+  } else if (blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') {
+    interaction = `<div class="blocker-manual-note">הטופס זמין בקישור הישיר. לאחר שסיימת בו ידנית, אפשר לסמן את ההגשה כהושלמה.</div>`;
+  } else {
+    interaction = `<div class="blocker-answer"><input id="answer-${blocker.id}" placeholder="כתוב תשובה מאושרת" />
+      <label class="remember-label"><input id="remember-${blocker.id}" type="checkbox" /> זכור לפעם הבאה</label>
+      <button class="btn primary" type="button" onclick="resolveBlocker(${blocker.id})">שמור והמשך</button></div>`;
+  }
+  return `<article class="blocker-card blocker-${meta.tone}">
+    <div><div class="blocker-title-line"><span class="blocker-kind-badge"><b>${esc(meta.icon)}</b>${esc(meta.label)}</span><h3>${esc(blocker.job?.company)} — ${esc(blocker.job?.title)}</h3></div>
+      <p><strong>${esc(blocker.question || blocker.field_label || meta.short)}</strong></p><p>${esc(blocker.explanation)}</p>
+      ${blocker.options.length && blocker.kind !== 'review_before_submit' ? `<div class="skills">${blocker.options.map((option) => `<span>${esc(option)}</span>`).join('')}</div>` : ''}
+      ${interaction}
+    </div>
+    <div class="blocker-actions"><button class="btn secondary small" type="button" onclick="showJob(${blocker.job?.id})">פרטי משרה</button>
+      <a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(target)}">פתח והמשך מהנקודה</a>
+      ${(blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') ? `<button class="btn secondary small" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש ידנית</button>` : ''}
+      ${blocker.screenshot_url ? `<a class="btn secondary small" target="_blank" href="${esc(blocker.screenshot_url)}">צילום מסך</a>` : ''}</div>
+  </article>`;
+}
+
+async function loadBlockers() {
+  $('#blockers-list').innerHTML = skeleton(3, 'rows');
+  state.blockers = await api('/api/blockers');
+  $('#blocker-count').textContent = state.blockers.length;
+  const root = $('#blockers-list');
+  setPageContext('blockers', state.blockers.length);
+  root.innerHTML = state.blockers.length ? state.blockers.map(renderBlockerCard).join('') : emptyState('✓', 'הכול מטופל', 'אין כרגע שאלות, אימותים או פעולות שמחכים לך.');
+}
+
+async function resolveBlocker(id) {
+  const answerInput = $(`#answer-${id}`);
+  const answer = answerInput?.value.trim() || '';
+  if (!answer) return toast('צריך להזין תשובה');
+  try {
+    await api(`/api/blockers/${id}/resolve`, {
+      method: 'POST', body: JSON.stringify({ answer, remember: $(`#remember-${id}`)?.checked || false }),
+    });
+    toast('התשובה נשמרה וההגשה חזרה לתור');
+    await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function resolveBlockerAction(id, action) {
+  try {
+    await api(`/api/blockers/${id}/resolve`, {
+      method: 'POST', body: JSON.stringify({ action }),
+    });
+    toast(action === 'approve_submit' ? 'אישור חד־פעמי נשמר — ה־Agent ישלח בניסיון הבא' : 'ההגשה דולגה');
+    await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function markApplicationSubmitted(id) {
+  if (!confirm('לסמן שהמועמדות הוגשה ידנית?')) return;
+  try {
+    await api(`/api/applications/${id}/mark-submitted`, { method: 'POST' });
+    toast('המועמדות סומנה כהוגשה');
+    await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function loadSources() {
+  $('#sources-list').innerHTML = skeleton(4, 'rows');
+  state.sources = await api('/api/sources');
+  renderSourceErrorBadge(state.sources.filter((source) => source.enabled && source.last_error).length);
+  const root = $('#sources-list');
+  setPageContext('sources', state.sources.length);
+  root.innerHTML = state.sources.length ? state.sources.map((source) => `
+    <div class="source-item interactive-row ${source.enabled ? '' : 'source-disabled'}" role="button" tabindex="0" data-source-id="${source.id}">
+      ${sourceLogoMarkup(source)}
+      <div><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · נסרק ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${source.health_score}% בריאות מקור</strong></div></div>
+      <div class="source-actions" data-no-source-click>
+        <label class="source-toggle" title="${source.enabled ? 'המקור נסרק במסלול הזה' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
+          <input type="checkbox" ${source.enabled ? 'checked' : ''} aria-label="${source.enabled ? 'כבה' : 'הפעל'} את ${esc(source.name)}" onchange="event.stopPropagation();toggleSource(${source.id},this.checked,this)" />
+          <span class="source-toggle-track" aria-hidden="true"><i></i></span>
+          <span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה' : 'לא ייסרק'}</small></span>
+        </label>
+        <button class="btn danger small" type="button" onclick="event.stopPropagation();deleteSource(${source.id})">מחק</button>
+      </div>
+    </div>
+  `).join('') : emptyState('⌁', 'לא הוגדרו מקורות משרות', 'אפשר להוסיף מקור ידנית או להתקין את רשימת המקורות המומלצים.', '<button class="btn primary small" type="button" onclick="installRecommendedSources()">הוסף מקורות מומלצים</button>');
+  $$('.source-item', root).forEach((item) => {
+    const open = () => showSource(Number(item.dataset.sourceId));
+    item.onclick = (event) => { if (!event.target.closest('[data-no-source-click]')) open(); };
+    item.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } };
+  });
+}
+
+function showSource(id) {
+  const source = state.sources.find((item) => item.id === id);
+  if (!source) return;
+  modal(`
+    <div class="source-modal-heading">${sourceLogoMarkup(source, 'source-logo-modal')}<div><span class="kicker">מקור משרות</span><h2>${esc(source.name)}</h2></div></div>
+    <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>סריקה אחרונה</span><strong>${dateFmt(source.last_scanned_at)}</strong></div>
+    ${source.last_error ? `<div class="warning">${esc(source.last_error)}</div>` : ''}
+    <div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>
+  `);
+}
+
+async function installRecommendedSources() {
+  const button = $('#install-recommended-sources');
+  if (button) button.disabled = true;
+  try {
+    const result = await api('/api/sources/recommended/install', { method: 'POST' });
+    toast(result.installed ? `נוספו ${result.installed} מקורות מומלצים` : 'כל המקורות המומלצים כבר מותקנים');
+    await loadSources();
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+$('#install-recommended-sources').onclick = installRecommendedSources;
+
+$('#source-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const body = Object.fromEntries(new FormData(event.target).entries());
+  try {
+    await api('/api/sources', { method: 'POST', body: JSON.stringify(body) });
+    event.target.reset();
+    toast('המקור נוסף');
+    await loadSources();
+  } catch (error) {
+    toast(error.message);
+  }
+};
+
+async function toggleSource(id, enabled, input = null) {
+  try {
+    if (input) input.disabled = true;
+    await api(`/api/sources/${id}`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
+    toast(enabled ? 'המקור הופעל' : 'המקור כובה');
+    await loadSources();
+  } catch (error) {
+    if (input) { input.checked = !enabled; input.disabled = false; }
+    toast(error.message);
+  }
+}
+
+async function deleteSource(id) {
+  if (!confirm('למחוק את המקור וכל המשרות שנאספו ממנו?')) return;
+  try {
+    await api(`/api/sources/${id}`, { method: 'DELETE' });
+    toast('המקור נמחק');
+    await Promise.all([loadSources(), loadDashboard()]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+// ---------------- Profile draft and unsaved state ----------------
+
+const LEGACY_PROFILE_DRAFT_KEY = 'jobpilot.profileDraft.v1';
+const profileDraftKey = () => `jobpilot.profileDraft.v3.${state.activeCareerTrack || 'computer_science'}`;
+const PROFILE_TEXT_FIELDS = [
+  'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
+  'application_password', 'years_experience_options', 'salary_expectation', 'skills', 'desired_titles', 'preferred_locations',
+  'preferred_work_modes', 'keywords', 'excluded_keywords', 'auto_apply_threshold',
+];
+const APPLICATION_PROFILE_FIELDS = [
+  'preferred_name', 'pronouns', 'country', 'city', 'address_line1', 'address_line2', 'state', 'postal_code',
+  'phone_country_code', 'website_url', 'current_job_title', 'current_company', 'employment_location',
+  'employment_type', 'employment_start_date', 'employment_end_date', 'employment_description',
+  'education_school', 'education_degree', 'education_field', 'education_grade', 'education_start_date',
+  'education_end_date', 'languages', 'certifications', 'notice_period', 'available_start_date',
+];
+const EXTRA_PROFILE_FIELDS = APPLICATION_PROFILE_FIELDS.map((name) => `extra_${name}`);
+const PROFILE_CHECK_FIELDS = ['work_authorization', 'needs_sponsorship', 'auto_submit_enabled'];
+const PROFILE_ARRAY_FIELDS = new Set(['years_experience_options', 'skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
+const PRIORITY_PROFILE_ARRAY_FIELDS = new Set(['skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
+const SEARCH_PREFERENCE_FIELDS = new Set(['skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
+const PROFILE_NUMBER_FIELDS = new Set(['auto_apply_threshold']);
+const PROFILE_FIELDS = [...PROFILE_TEXT_FIELDS, ...PROFILE_CHECK_FIELDS, ...EXTRA_PROFILE_FIELDS];
+
+function profileForm() {
+  return $('#profile-form');
+}
+
+function savedProfileFormValue(name) {
+  if (name === 'extra_languages') return JSON.stringify(normalizeLanguages(state.profile?.application_profile?.languages));
+  if (name.startsWith('extra_')) return String(state.profile?.application_profile?.[name.slice(6)] ?? '');
+  if (name === 'application_password') return '';
+  if (PROFILE_CHECK_FIELDS.includes(name)) return !!state.profile?.[name];
+  if (PROFILE_ARRAY_FIELDS.has(name)) return (state.profile?.[name] || []).join(', ');
+  return String(state.profile?.[name] ?? '');
+}
+
+function currentProfileFormValue(name) {
+  const control = profileForm()?.elements[name];
+  if (!control) return '';
+  if (name === 'extra_languages') return JSON.stringify(collectLanguages());
+  if (PROFILE_ARRAY_FIELDS.has(name)) {
+    const selected = $$(`[data-profile-option="${name}"]:checked`, profileForm()).map((item) => item.value);
+    const custom = String(control.value || '').split(',').map((item) => item.trim()).filter(Boolean);
+    return [...new Set([...selected, ...custom])].join(', ');
+  }
+  return control.type === 'checkbox' ? control.checked : control.value;
+}
+
+function normalizedProfileValue(name, value) {
+  if (PROFILE_CHECK_FIELDS.includes(name)) return !!value;
+  if (PROFILE_ARRAY_FIELDS.has(name)) {
+    const values = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+    return PRIORITY_PROFILE_ARRAY_FIELDS.has(name) ? values : values.sort((a, b) => a.localeCompare(b, undefined, { numeric:true }));
+  }
+  if (PROFILE_NUMBER_FIELDS.has(name)) return Number(value || 0);
+  if (name === 'extra_languages') return normalizeLanguages(value)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return String(value ?? '');
+}
+
+function setFieldUnsaved(name, isUnsaved) {
+  const control = profileForm()?.elements[name];
+  if (!control) return;
+  const label = control.closest('label');
+  if (!label) return;
+  let note = label.querySelector(`.unsaved-note[data-field="${name}"]`);
+  if (isUnsaved && !note) {
+    note = document.createElement('small');
+    note.className = 'unsaved-note';
+    note.dataset.field = name;
+    note.textContent = 'הנתון לא נשמר עדיין';
+    label.appendChild(note);
+  }
+  if (!isUnsaved && note) note.remove();
+  label.classList.toggle('has-unsaved', isUnsaved);
+  control.closest('.preference-group')?.classList.toggle('has-unsaved', isUnsaved);
+  control.setAttribute('aria-invalid', isUnsaved ? 'true' : 'false');
+}
+
+function applyArrayFieldToControls(name, values) {
+  const normalized = (values || []).map((value) => String(value).trim()).filter(Boolean);
+  const options = $$(`[data-profile-option="${name}"]`, profileForm());
+  const known = new Set(options.map((option) => option.value.toLowerCase()));
+  options.forEach((option) => {
+    option.checked = normalized.some((value) => value.toLowerCase() === option.value.toLowerCase());
+  });
+  const custom = normalized.filter((value) => !known.has(value.toLowerCase()));
+  profileForm().elements[name].value = custom.join(', ');
+  if (PRIORITY_PROFILE_ARRAY_FIELDS.has(name)) syncPreferenceOptionOrder(name, normalized, false);
+}
+
+function animateOptionReorder(grid, mutate) {
+  const labels = $$(':scope > label', grid);
+  const before = new Map(labels.map((label) => [label, label.getBoundingClientRect()]));
+  mutate();
+  labels.forEach((label) => {
+    const first = before.get(label); const last = label.getBoundingClientRect();
+    const dx = first.left - last.left; const dy = first.top - last.top;
+    if (dx || dy) label.animate([{ transform:`translate(${dx}px,${dy}px)` },{ transform:'translate(0,0)' }], { duration:440, easing:'cubic-bezier(.32,.72,0,1)' });
+  });
+}
+function refreshPreferencePriorities(grid) {
+  $$(':scope > label', grid).forEach((label) => { delete label.dataset.priority; });
+  $$(':scope > label:has(input:checked)', grid).forEach((label,index) => { label.dataset.priority = String(index + 1); });
+}
+function syncPreferenceOptionOrder(name, preferredValues = null, animate = true) {
+  const group = $(`.preference-group[data-field="${name}"]`, profileForm());
+  const grid = $('.option-grid', group);
+  if (!grid) return;
+  const labels = $$(':scope > label', grid);
+  labels.forEach((label,index) => { if (!label.dataset.originalOrder) label.dataset.originalOrder = String(index); });
+  const order = new Map((preferredValues || labels.filter((label) => $('input',label).checked).map((label) => $('input',label).value))
+    .map((value,index) => [String(value).toLowerCase(),index]));
+  const mutate = () => labels.sort((a,b) => {
+    const ai = $('input',a); const bi = $('input',b);
+    if (ai.checked !== bi.checked) return ai.checked ? -1 : 1;
+    if (ai.checked) return (order.get(ai.value.toLowerCase()) ?? 999) - (order.get(bi.value.toLowerCase()) ?? 999);
+    return Number(a.dataset.originalOrder) - Number(b.dataset.originalOrder);
+  }).forEach((label) => grid.appendChild(label));
+  if (animate) animateOptionReorder(grid, mutate); else mutate();
+  refreshPreferencePriorities(grid);
+}
+
+const LANGUAGE_LEVELS = ['Native / Bilingual', 'Fluent', 'Advanced', 'Intermediate', 'Beginner'];
+
+function normalizeLanguages(value) {
+  if (Array.isArray(value)) return value.map((item) => typeof item === 'string'
+    ? { name: item.trim(), proficiency: '' }
+    : { name: String(item.name || '').trim(), proficiency: String(item.proficiency || '') }).filter((item) => item.name);
+  if (!value) return [];
+  try { return normalizeLanguages(JSON.parse(value)); } catch { /* Legacy comma-separated value. */ }
+  return String(value).split(',').map((name) => ({ name: name.trim(), proficiency: '' })).filter((item) => item.name);
+}
+
+function languageRow(item = {}, removable = true) {
+  const options = ['', ...LANGUAGE_LEVELS].map((level) => `<option value="${esc(level)}" ${level === item.proficiency ? 'selected' : ''}>${esc(level || 'בחר רמת שליטה')}</option>`).join('');
+  return `<div class="language-row" data-language-row>
+    <input data-language-name value="${esc(item.name || '')}" placeholder="שם השפה" aria-label="שם השפה" />
+    <select data-language-level aria-label="רמת שליטה">${options}</select>
+    ${removable ? '<button class="btn danger-outline small" type="button" data-remove-language>הסר</button>' : '<span></span>'}
+  </div>`;
+}
+
+function renderLanguages(value) {
+  const saved = normalizeLanguages(value);
+  const byName = new Map(saved.map((item) => [item.name.toLowerCase(), item]));
+  const defaults = [byName.get('hebrew') || { name: 'Hebrew', proficiency: '' }, byName.get('english') || { name: 'English', proficiency: '' }];
+  const additional = saved.filter((item) => !['hebrew', 'english'].includes(item.name.toLowerCase()));
+  $('#language-rows').innerHTML = [...defaults.map((item) => languageRow(item, false)), ...additional.map((item) => languageRow(item, true))].join('');
+  bindLanguageRows();
+}
+
+function collectLanguages() {
+  return $$('[data-language-row]', $('#language-rows')).map((row) => ({
+    name: $('[data-language-name]', row).value.trim(), proficiency: $('[data-language-level]', row).value,
+  })).filter((item) => item.name && item.proficiency);
+}
+
+function bindLanguageRows() {
+  $$('[data-remove-language]', $('#language-rows')).forEach((button) => {
+    button.onclick = () => { button.closest('[data-language-row]').remove(); updateProfileDirtyState(); };
+  });
+}
+
+function captureProfileDraft() {
+  const values = {};
+  PROFILE_FIELDS.filter((name) => name !== 'application_password')
+    .forEach((name) => { values[name] = currentProfileFormValue(name); });
+  return values;
+}
+
+function getDirtyProfileFields() {
+  if (!state.profileLoaded) return [];
+  return PROFILE_FIELDS.filter((name) => {
+    const current = normalizedProfileValue(name, currentProfileFormValue(name));
+    const saved = normalizedProfileValue(name, savedProfileFormValue(name));
+    return JSON.stringify(current) !== JSON.stringify(saved);
+  });
+}
+
+function persistProfileDraft(dirtyFields = getDirtyProfileFields()) {
+  try {
+    if (!dirtyFields.length) {
+      localStorage.removeItem(profileDraftKey());
+      if (state.activeCareerTrack === 'computer_science') localStorage.removeItem(LEGACY_PROFILE_DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(profileDraftKey(), JSON.stringify({
+      savedProfileUpdatedAt: state.profile?.updated_at || '',
+      savedAt: new Date().toISOString(),
+      values: captureProfileDraft(),
+    }));
+  } catch {
+    // localStorage may be unavailable in private or restricted browser modes.
+  }
+}
+
+function persistCurrentProfileDraft() {
+  if (!state.profileLoaded || !profileForm()) return;
+  updateProfileDirtyState();
+}
+
+function updateProfileDirtyState() {
+  if (!state.profileLoaded || !profileForm()) return;
+  const dirtyFields = getDirtyProfileFields();
+  PROFILE_FIELDS.forEach((name) => setFieldUnsaved(name, dirtyFields.includes(name)));
+  profileForm().classList.toggle('has-unsaved', dirtyFields.length > 0);
+  syncProfileUnsavedUI(dirtyFields);
+  persistProfileDraft(dirtyFields);
+  updateProfileCompletion();
+}
+
+function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
+  const total = dirtyFields.length + (state.answersDirty ? 1 : 0);
+  const preferenceDirty = dirtyFields.filter((field) => SEARCH_PREFERENCE_FIELDS.has(field));
+  const personalDirty = dirtyFields.filter((field) => !SEARCH_PREFERENCE_FIELDS.has(field));
+  const parts = [];
+  if (dirtyFields.length) parts.push(`${dirtyFields.length} שדות לא נשמרו`);
+  if (state.answersDirty) parts.push('שינויים בשאלות לא נשמרו');
+  $('#profile-unsaved-count').textContent = parts.join(' · ');
+  $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
+  $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
+  $$('button[type="submit"]', profileForm()).forEach((button) => {
+    button.disabled = dirtyFields.length === 0;
+    button.classList.toggle('save-ready', dirtyFields.length > 0);
+  });
+}
+
+const PROFILE_COMPLETION_FIELDS = [
+  ['full_name','שם מלא'], ['email','אימייל'], ['phone','טלפון'], ['location','מיקום'],
+  ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_current_job_title','תפקיד אחרון'],
+  ['extra_current_company','חברה אחרונה'], ['extra_education_school','מוסד לימודים'],
+  ['extra_education_degree','השכלה'], ['extra_languages','שפות'],
+];
+function updateProfileCompletion() {
+  const form = profileForm();
+  if (!form || !$('#profile-completion')) return;
+  const missing = [];
+  PROFILE_COMPLETION_FIELDS.forEach(([name,label]) => {
+    const control = form.elements[name];
+    const value = name === 'extra_languages' ? collectLanguages() : control?.value?.trim();
+    const complete = Array.isArray(value) ? value.length > 0 : Boolean(value);
+    if (!complete) missing.push(label);
+    const fieldLabel = control?.closest('label');
+    fieldLabel?.classList.toggle('is-recommended-missing', !complete);
+    if (fieldLabel) fieldLabel.title = complete ? '' : `${label} הוא פרט נפוץ בטפסי מועמדות ומומלץ להשלים אותו`;
+  });
+  const resumeComplete = Boolean(state.profile?.cv_filename || $('#resume-name')?.textContent !== 'לא הועלה קובץ');
+  if (!resumeComplete) missing.push('קורות חיים');
+  const total = PROFILE_COMPLETION_FIELDS.length + 1;
+  const percent = Math.round((total - missing.length) / total * 100);
+  $('#profile-completion-value').textContent = `${percent}%`;
+  $('#profile-completion-bar').style.width = `${percent}%`;
+  $('#profile-completion-copy').textContent = missing.length ? `מומלץ להשלים: ${missing.slice(0,3).join(' · ')}${missing.length > 3 ? ` ועוד ${missing.length - 3}` : ''}` : 'כל הפרטים המרכזיים מוכנים למילוי טפסים';
+  renderNotificationCenter();
+}
+
+function clearProfileDirtyState() {
+  PROFILE_FIELDS.forEach((name) => setFieldUnsaved(name, false));
+  $$('.unsaved-note', profileForm()).forEach((note) => note.remove());
+  $$('.has-unsaved', profileForm()).forEach((element) => element.classList.remove('has-unsaved'));
+  $$('[aria-invalid="true"]', profileForm()).forEach((control) => control.setAttribute('aria-invalid', 'false'));
+  profileForm().classList.remove('has-unsaved');
+  $('#profile-unsaved-count').textContent = '';
+  $('#profile-answer-panel')?.classList.toggle('has-unsaved', state.answersDirty);
+  syncProfileUnsavedUI([]);
+  try {
+    localStorage.removeItem(profileDraftKey());
+    localStorage.removeItem(LEGACY_PROFILE_DRAFT_KEY);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+function applyProfileToForm(profile) {
+  const form = profileForm();
+  PROFILE_TEXT_FIELDS.forEach((name) => {
+    if (PROFILE_ARRAY_FIELDS.has(name)) {
+      const fallback = name === 'years_experience_options' ? [String(Math.min(5, Number(profile.years_experience || 0))) + (Number(profile.years_experience || 0) >= 5 ? '+' : '')] : [];
+      applyArrayFieldToControls(name, profile[name]?.length ? profile[name] : fallback);
+    }
+    else form.elements[name].value = name === 'auto_apply_threshold' ? (profile[name] ?? 82) : savedProfileFormValue(name);
+  });
+  form.elements.application_password.placeholder = profile.application_password_configured
+    ? 'נשמרה סיסמה · הזן חדשה רק כדי להחליף'
+    : 'הזן סיסמה לשימוש בטפסי הגשה';
+  PROFILE_CHECK_FIELDS.forEach((name) => { form.elements[name].checked = !!profile[name]; });
+  if (!applicationAgentAllowed() && form.elements.auto_submit_enabled) {
+    form.elements.auto_submit_enabled.checked = false;
+    form.elements.auto_submit_enabled.disabled = true;
+    const card = form.elements.auto_submit_enabled.closest('.automation-toggle-card');
+    if (card) {
+      card.classList.add('is-restricted');
+      const small = card.querySelector('small');
+      if (small) small.textContent = 'זמין כרגע רק לחשבון הראשי';
+    }
+  }
+  APPLICATION_PROFILE_FIELDS.forEach((name) => {
+    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name]
+      || (name === 'country' ? profile.location : '');
+  });
+  renderLanguages(profile.application_profile?.languages);
+  $('#threshold-value').textContent = profile.auto_apply_threshold ?? 82;
+  $('#resume-name').textContent = profile.cv_filename || 'לא הועלה קובץ';
+  if (typeof updateProfileSectionSummaries === 'function') updateProfileSectionSummaries();
+  updateProfileCompletion();
+}
+
+function readStoredProfileDraft() {
+  try {
+    const raw = localStorage.getItem(profileDraftKey()) || (state.activeCareerTrack === 'computer_science' ? localStorage.getItem(LEGACY_PROFILE_DRAFT_KEY) : null);
+    return JSON.parse(raw || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function restoreProfileDraft() {
+  const draft = readStoredProfileDraft();
+  if (!draft?.values) return false;
+  const form = profileForm();
+  PROFILE_FIELDS.forEach((name) => {
+    if (!(name in draft.values)) return;
+    const control = form.elements[name];
+    if (name === 'extra_languages') {
+      renderLanguages(draft.values[name]);
+    } else if (PROFILE_ARRAY_FIELDS.has(name)) {
+      applyArrayFieldToControls(name, normalizedProfileValue(name, draft.values[name]));
+    } else if (control.type === 'checkbox') control.checked = !!draft.values[name];
+    else control.value = draft.values[name];
+  });
+  $('#threshold-value').textContent = form.elements.auto_apply_threshold.value;
+  return true;
+}
+
+async function loadProfile() {
+  if (state.profileLoaded) {
+    updateProfileDirtyState();
+    if (!state.answerLibrary.length) await loadAnswerLibrary();
+    await loadResumeInsights();
+    return;
+  }
+  [state.profile] = await Promise.all([api('/api/profile'), loadAnswerLibrary()]);
+  state.profileLoaded = true;
+  applyProfileToForm(state.profile);
+  restoreProfileDraft();
+  updateProfileDirtyState();
+  await loadResumeInsights();
+}
+
+async function loadResumeInsights(){
+  const root=$('#resume-insights'); if(!root)return;
+  const resumes=await api('/api/resumes');
+  const allSuggestions=resumes.flatMap(resume=>(resume.analysis?.suggestions||[]).map(item=>({...item,resume_id:resume.id,resume_label:resume.label})));
+  const suggestions=[...new Map(allSuggestions.map(item=>[`${item.field}:${String(item.value).toLowerCase()}`,item])).values()];
+  if(!resumes.length){root.innerHTML='';return;}
+  root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" onclick="$('#privacy-center').click()">ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>הצעות שנמצאו בקורות החיים — שום דבר לא נוסף אוטומטית</span>${suggestions.map(item=>`<button type="button" onclick="applyResumeSuggestion(${item.resume_id},decodeURIComponent('${encodeURIComponent(item.field)}'),decodeURIComponent('${encodeURIComponent(item.value)}'))"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הקבצים נותחו. אין כרגע פרטים חדשים שממתינים לאישור.</p>`}`;
+}
+async function applyResumeSuggestion(resumeId,field,value){const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});state.profile=result.profile;applyProfileToForm(state.profile);clearProfileDirtyState();await loadResumeInsights();toast('ההצעה נוספה לפרופיל והמשרות דורגו מחדש');}
+
+function buildProfilePayload() {
+  const form = profileForm();
+  const array = (name) => {
+    const values = normalizedProfileValue(name, currentProfileFormValue(name));
+    return name === 'years_experience_options' && !values.length ? ['0'] : values;
+  };
+  return {
+    full_name: form.elements.full_name.value,
+    email: form.elements.email.value,
+    phone: form.elements.phone.value,
+    location: form.elements.location.value,
+    linkedin_url: form.elements.linkedin_url.value,
+    github_url: form.elements.github_url.value,
+    portfolio_url: form.elements.portfolio_url.value,
+    application_password: form.elements.application_password.value || null,
+    years_experience_options: array('years_experience_options'),
+    years_experience: Math.max(...array('years_experience_options').map((value) => value === '5+' ? 5 : Number(value))),
+    work_authorization: form.elements.work_authorization.checked,
+    needs_sponsorship: form.elements.needs_sponsorship.checked,
+    salary_expectation: form.elements.salary_expectation.value,
+    skills: array('skills'),
+    desired_titles: array('desired_titles'),
+    preferred_locations: array('preferred_locations'),
+    preferred_work_modes: array('preferred_work_modes'),
+    keywords: array('keywords'),
+    excluded_keywords: array('excluded_keywords'),
+    auto_apply_threshold: Number(form.elements.auto_apply_threshold.value || 82),
+    auto_submit_enabled: form.elements.auto_submit_enabled.checked,
+    application_profile: Object.fromEntries(APPLICATION_PROFILE_FIELDS.map((name) => [
+      name, name === 'languages' ? collectLanguages() : (form.elements[`extra_${name}`]?.value || ''),
+    ])),
+  };
+}
+
+const profileElement = profileForm();
+function updateProfileSectionSummaries() {
+  $$('.profile-detail-section', profileElement).forEach((section) => {
+    const summary = $('.profile-section-summary', section);
+    if (!summary) return;
+    const values = [];
+    $$('input:not([type="hidden"]), select, textarea', section).forEach((control) => {
+      if (control.type === 'checkbox' && control.checked) values.push(control.closest('label')?.textContent?.trim());
+      else if (control.type !== 'checkbox' && control.value?.trim()) values.push(control.tagName === 'SELECT' ? control.selectedOptions?.[0]?.textContent?.trim() : control.value.trim());
+    });
+    const unique = [...new Set(values.filter(Boolean))];
+    summary.textContent = unique.length ? `${unique.slice(0, 3).join(' · ')}${unique.length > 3 ? ` · +${unique.length - 3}` : ''}` : 'טרם הושלמו פרטים';
+  });
+}
+$$('.profile-detail-section', profileElement).forEach((section) => {
+  const head = $('.profile-detail-head', section);
+  if (!head) return;
+  const summary = document.createElement('small');
+  summary.className = 'profile-section-summary';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'section-collapse';
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.setAttribute('aria-label', 'צמצם את הרובריקה');
+  toggle.title = 'צמצם';
+  toggle.innerHTML = '<span aria-hidden="true">⌃</span>';
+  const sectionKey = `profile-${$('.profile-section-index', section)?.textContent || $$('.profile-detail-section', profileElement).indexOf(section)}`;
+  const rememberedCollapsed = localStorage.getItem(`jobpilot-collapse-${sectionKey}`) === '1';
+  section.classList.toggle('is-collapsed', rememberedCollapsed);
+  toggle.setAttribute('aria-expanded', rememberedCollapsed ? 'false' : 'true');
+  toggle.querySelector('span').style.transform = rememberedCollapsed ? 'rotate(180deg)' : '';
+  toggle.onclick = () => {
+    const collapsed = section.classList.toggle('is-collapsed');
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', collapsed ? 'פתח את הרובריקה' : 'צמצם את הרובריקה');
+    toggle.title = collapsed ? 'פתח' : 'צמצם';
+    localStorage.setItem(`jobpilot-collapse-${sectionKey}`, collapsed ? '1' : '0');
+    section.style.gridRowEnd = collapsed ? 'span 1' : '';
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  };
+  const actions = document.createElement('div');
+  actions.className = 'card-head-actions';
+  const saveButton = head.querySelector(':scope > .btn');
+  if (saveButton) actions.appendChild(saveButton);
+  actions.appendChild(toggle);
+  head.append(summary, actions);
+  const navigation = document.createElement('div');
+  navigation.className = 'profile-card-navigation';
+  navigation.innerHTML = '<button type="button" data-card-step="-1">→ הכרטיס הקודם</button><button type="button" data-card-step="1">הכרטיס הבא ←</button>';
+  navigation.onclick = (event) => {
+    const step = Number(event.target.closest('[data-card-step]')?.dataset.cardStep || 0);
+    if (!step) return;
+    const sections = $$('.profile-detail-section', profileElement);
+    const target = sections[sections.indexOf(section) + step];
+    if (!target) return;
+    target.classList.remove('is-collapsed');
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    highlightSelectedCard(target);
+  };
+  section.appendChild(navigation);
+});
+
+// Every preference box has its own Save + Minimize controls and a useful compact summary.
+$$('.preference-group', profileElement).forEach((group, index) => {
+  if (group.querySelector(':scope > .preference-group-toolbar')) return;
+  const field = group.dataset.field || `group-${index}`;
+  const toolbar = document.createElement('div');
+  toolbar.className = 'preference-group-toolbar';
+  toolbar.innerHTML = `<small class="preference-group-summary"></small><span class="card-head-actions"><button class="btn primary small" type="submit">שמור</button><button class="section-collapse preference-collapse" type="button" aria-expanded="true" title="מזער"><span aria-hidden="true">⌃</span></button></span>`;
+  const legend = group.querySelector(':scope > legend');
+  legend?.insertAdjacentElement('afterend', toolbar);
+  const updateSummary = () => {
+    const selected = $$('[data-profile-option]:checked', group).map((control) => control.closest('label')?.textContent?.replace(/#\d+/g, '')?.trim()).filter(Boolean);
+    const custom = $$('textarea,input:not([type="checkbox"]):not([type="hidden"])', group).map((control) => control.value?.trim()).filter(Boolean);
+    const values = [...selected, ...custom];
+    $('.preference-group-summary', group).textContent = values.length ? `${values.length} בחירות · ${values.slice(0, 3).join(' · ')}${values.length > 3 ? '…' : ''}` : 'אין בחירות';
+  };
+  updateSummary();
+  group.addEventListener('input', updateSummary);
+  group.addEventListener('change', updateSummary);
+  const toggle = $('.preference-collapse', group);
+  const storageKey = `jobpilot-collapse-preference-${state.activeCareerTrack}-${field}`;
+  const collapsed = localStorage.getItem(storageKey) === '1';
+  group.classList.toggle('is-preference-collapsed', collapsed);
+  toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  toggle.onclick = () => {
+    const next = group.classList.toggle('is-preference-collapsed');
+    toggle.setAttribute('aria-expanded', next ? 'false' : 'true');
+    toggle.title = next ? 'פתח' : 'מזער';
+    localStorage.setItem(storageKey, next ? '1' : '0');
+  };
+});
+
+// Keep every titled content card consistent: its existing action and the
+// collapse control live together in the upper-left corner.
+$$('.panel').forEach((panel, panelIndex) => {
+  const head = panel.querySelector(':scope > .panel-head');
+  if (!head || panel.classList.contains('jobs-toolbar')) return;
+  let actions = head.querySelector(':scope > .card-head-actions');
+  if (!actions) {
+    actions = document.createElement('div');
+    actions.className = 'card-head-actions';
+    $$(':scope > button, :scope > a', head).forEach((action) => actions.appendChild(action));
+    head.appendChild(actions);
+  }
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'section-collapse panel-collapse';
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.setAttribute('aria-label', 'צמצם כרטיס');
+  toggle.title = 'צמצם';
+  toggle.innerHTML = '<span aria-hidden="true">⌃</span>';
+  const panelKey = `panel-${panel.dataset.profilePane || panel.closest('.view')?.id || 'global'}-${panelIndex}`;
+  const rememberedCollapsed = localStorage.getItem(`jobpilot-collapse-${panelKey}`) === '1';
+  const panelSummary = document.createElement('small');
+  panelSummary.className = 'panel-collapse-summary';
+  const refreshPanelSummary = () => {
+    const items = panel.querySelectorAll('.job-card,.source-item,.blocker-card,.answer-card,.skill-suggestion,.resume-profile-card').length;
+    const selected = panel.querySelectorAll('input:checked').length;
+    if (panel.classList.contains('application-automation-panel')) {
+      const threshold = $('#threshold')?.value || $('#threshold-value')?.textContent || '—';
+      const enabled = profileForm()?.elements?.auto_submit_enabled?.checked;
+      panelSummary.textContent = `סף ${threshold} · תור אוטומטי ${enabled ? 'פעיל' : 'כבוי'}`;
+      return;
+    }
+    const filled = $$('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),select,textarea', panel)
+      .map((control) => control.tagName === 'SELECT' ? control.selectedOptions?.[0]?.textContent?.trim() : control.value?.trim())
+      .filter(Boolean);
+    panelSummary.textContent = items ? `${items} פריטים` : selected ? `${selected} אפשרויות נבחרו` : filled.length ? filled.slice(0, 2).join(' · ') : 'אין מידע נוסף';
+  };
+  refreshPanelSummary();
+  head.querySelector(':scope > div')?.appendChild(panelSummary);
+  panel.classList.toggle('is-panel-collapsed', rememberedCollapsed);
+  toggle.setAttribute('aria-expanded', rememberedCollapsed ? 'false' : 'true');
+  toggle.onclick = () => {
+    const collapsed = panel.classList.toggle('is-panel-collapsed');
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', collapsed ? 'פתח כרטיס' : 'צמצם כרטיס');
+    toggle.title = collapsed ? 'פתח' : 'צמצם';
+    localStorage.setItem(`jobpilot-collapse-${panelKey}`, collapsed ? '1' : '0');
+    refreshPanelSummary();
+  };
+  actions.appendChild(toggle);
+});
+const personalProfileLayout = $('.personal-profile-layout', profileElement);
+if (personalProfileLayout && 'ResizeObserver' in window) {
+  const masonryGap = 14;
+  const masonryRow = 8;
+  const resizeProfileCard = (section) => {
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      section.style.gridRowEnd = '';
+      return;
+    }
+    const span = Math.ceil((section.getBoundingClientRect().height + masonryGap) / (masonryRow + masonryGap));
+    section.style.gridRowEnd = `span ${Math.max(1, span)}`;
+  };
+  const profileMasonryObserver = new ResizeObserver((entries) => entries.forEach((entry) => resizeProfileCard(entry.target)));
+  $$('.profile-detail-section', personalProfileLayout).forEach((section) => {
+    profileMasonryObserver.observe(section);
+    resizeProfileCard(section);
+  });
+  window.addEventListener('resize', () => $$('.profile-detail-section', personalProfileLayout).forEach(resizeProfileCard));
+}
+updateProfileSectionSummaries();
+
+// A single, calm selection state helps the eye keep its place in dense forms.
+// Clicking a field highlights its nearest card; clicking the page clears it.
+const selectableCardSelector = '.profile-detail-section, .preference-group, .answer-card, .job-card, .source-item, .blocker-card, .panel';
+function highlightSelectedCard(target) {
+  const selected = target?.closest?.(selectableCardSelector);
+  $$('.is-card-selected').forEach((card) => {
+    if (card !== selected) card.classList.remove('is-card-selected');
+  });
+  selected?.classList.add('is-card-selected');
+}
+document.addEventListener('pointerdown', (event) => highlightSelectedCard(event.target));
+document.addEventListener('focusin', (event) => highlightSelectedCard(event.target));
+$('#add-language').onclick = () => {
+  $('#language-rows').insertAdjacentHTML('beforeend', languageRow({}, true));
+  bindLanguageRows();
+  $('#language-rows [data-language-row]:last-child [data-language-name]').focus();
+  updateProfileDirtyState();
+};
+$('#available-now').onclick = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  profileElement.elements.extra_available_start_date.value = localDate;
+  profileElement.elements.extra_available_start_date.dispatchEvent(new Event('input', { bubbles: true }));
+};
+profileElement.addEventListener('input', (event) => {
+  $('#toast').classList.remove('show');
+  $('#toast').textContent = '';
+  if (event.target.name === 'auto_apply_threshold') $('#threshold-value').textContent = event.target.value;
+  updateProfileDirtyState();
+  updateProfileSectionSummaries();
+});
+profileElement.addEventListener('change', (event) => {
+  const field = event.target.dataset.profileOption;
+  if (field && PRIORITY_PROFILE_ARRAY_FIELDS.has(field)) {
+    const selectedOrder = $$(`[data-profile-option="${field}"]:checked`, profileElement).map((item) => item.value);
+    syncPreferenceOptionOrder(field, selectedOrder, true);
+  }
+  updateProfileDirtyState();
+});
+$$('[form="profile-form"]').forEach((control) => {
+  control.addEventListener('input', () => {
+    if (control.name === 'auto_apply_threshold') $('#threshold-value').textContent = control.value;
+    updateProfileDirtyState();
+  });
+  control.addEventListener('change', updateProfileDirtyState);
+});
+$$('[data-profile-option="keywords"], [data-profile-option="excluded_keywords"]', profileElement).forEach((control) => {
+  control.addEventListener('change', () => {
+    if (!control.checked) return;
+    const opposite = control.dataset.profileOption === 'keywords' ? 'excluded_keywords' : 'keywords';
+    const conflicting = $$(`[data-profile-option="${opposite}"]`, profileElement)
+      .find((item) => item.value.toLowerCase() === control.value.toLowerCase());
+    if (conflicting?.checked) {
+      conflicting.checked = false;
+      toast(`הבחירה ${control.value} הוסרה מהרשימה ההפוכה`);
+      updateProfileDirtyState();
+    }
+  });
+});
+
+function bindPreferencePriorityDragging() {
+  $$('.preference-group .option-grid', profileElement).forEach((grid) => {
+    const field = $('input[data-profile-option]', grid)?.dataset.profileOption;
+    if (!PRIORITY_PROFILE_ARRAY_FIELDS.has(field) || grid.dataset.dragBound === 'true') return;
+    grid.dataset.dragBound = 'true';
+    let pressedLabel = null; let holdTimer = null; let pointerId = null; let dragging = false; let suppressClick = false;
+    grid.addEventListener('pointerdown', (event) => {
+      const label = event.target.closest('label');
+      if (!label || label.parentElement !== grid || event.button !== 0) return;
+      pressedLabel = label; pointerId = event.pointerId; dragging = false;
+      holdTimer = window.setTimeout(() => {
+        if (!pressedLabel) return;
+        dragging = true; suppressClick = true;
+        pressedLabel.classList.add('is-priority-dragging');
+        grid.classList.add('is-priority-sorting');
+        pressedLabel.setPointerCapture?.(pointerId);
+        navigator.vibrate?.(18);
+      }, 420);
+    });
+    grid.addEventListener('pointermove', (event) => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.option-grid > label');
+      if (!target || target === pressedLabel || target.parentElement !== grid) return;
+      const sourceChecked = $('input',pressedLabel).checked; const targetChecked = $('input',target).checked;
+      if (sourceChecked !== targetChecked) return;
+      const targetRect = target.getBoundingClientRect();
+      animateOptionReorder(grid, () => grid.insertBefore(pressedLabel, event.clientY < targetRect.top + targetRect.height / 2 ? target : target.nextSibling));
+      refreshPreferencePriorities(grid);
+    });
+    const finish = () => {
+      clearTimeout(holdTimer);
+      if (dragging) {
+        pressedLabel?.classList.remove('is-priority-dragging');
+        grid.classList.remove('is-priority-sorting');
+        refreshPreferencePriorities(grid);
+        updateProfileDirtyState();
+        window.setTimeout(() => { suppressClick = false; }, 0);
+      }
+      pressedLabel = null; pointerId = null; dragging = false;
+    };
+    grid.addEventListener('pointerup', finish); grid.addEventListener('pointercancel', finish);
+    grid.addEventListener('click', (event) => { if (suppressClick) { event.preventDefault(); event.stopPropagation(); } }, true);
+  });
+}
+bindPreferencePriorityDragging();
+profileElement.onsubmit = async (event) => {
+  event.preventDefault();
+  // Hide a previous save notification so repeated saves have a distinct,
+  // accessible completion signal instead of reusing the old visible toast.
+  $('#toast').classList.remove('show');
+  $('#toast').textContent = '';
+  const buttons = $$('button[type="submit"]', profileElement);
+  const submitter = event.submitter;
+  buttons.forEach((button) => { button.disabled = true; button.dataset.originalText = button.textContent; button.textContent = 'שומר…'; });
+  try {
+    const saved = await api('/api/profile', { method: 'PUT', body: JSON.stringify(buildProfilePayload()) });
+    state.profile = saved;
+    state.profileLoaded = true;
+    applyProfileToForm(saved);
+    clearProfileDirtyState();
+    toast('הפרופיל נשמר והמשרות דורגו מחדש');
+    if (submitter) submitter.textContent = 'נשמר ✓';
+    await loadDashboard();
+  } catch (error) {
+    toast(`השמירה נכשלה: ${error.message}`);
+    updateProfileDirtyState();
+  } finally {
+    buttons.forEach((button) => {
+      button.disabled = false;
+      if (button === submitter && button.textContent === 'נשמר ✓') window.setTimeout(() => { button.textContent = button.dataset.originalText || 'שמור שינויים'; }, 1400);
+      else button.textContent = button.dataset.originalText || 'שמור שינויים';
+    });
+  }
+};
+
+window.addEventListener('beforeunload', persistCurrentProfileDraft);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') persistCurrentProfileDraft();
+});
+
+const NOTIFICATION_VIEWS = {
+  blockers: { icon: '!', title: 'פעולות שמחכות לך', copy: 'שאלות או אישורים דורשים טיפול' },
+  jobs: { icon: '⌁', title: 'משרות חדשות לבדיקה', copy: 'התאמות חדשות זמינות עבורך' },
+  profile: { icon: '○', title: 'הפרופיל עדיין לא מלא', copy: 'השלמת הפרטים תשפר את מילוי הטפסים' },
+  sources: { icon: '↯', title: 'מקורות דורשים בדיקה', copy: 'מקור אחד או יותר דיווח על שגיאה' },
+};
+function notificationItems() {
+  const dashboard = state.dashboard || {};
+  const items = [];
+  if (Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
+  if (Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
+  const fresh = Number(dashboard.scan?.last_result?.new || 0);
+  if (fresh) items.push({ view:'jobs', count:fresh });
+  const completion = Number($('#profile-completion-value')?.textContent?.replace('%','') || 100);
+  if (completion < 100) items.push({ view:'profile', count:`${completion}%` });
+  return items;
+}
+function renderNotificationCenter() {
+  const root = $('#notification-list');
+  if (!root) return;
+  const items = notificationItems();
+  $('#notification-count').hidden = !items.length;
+  $('#notification-count').textContent = items.length;
+  root.innerHTML = items.length ? items.map((item) => {
+    const meta = item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
+    return `<button class="notification-item" type="button" data-notification-view="${item.view}"><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
+  }).join('') : emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.');
+  $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
+}
+function closeNotifications() {
+  $('#notification-center').classList.remove('open');
+  $('#notification-center').setAttribute('aria-hidden','true');
+  $('#notification-trigger').setAttribute('aria-expanded','false');
+}
+$('#notification-trigger').onclick = () => {
+  renderNotificationCenter();
+  const open = $('#notification-center').classList.toggle('open');
+  $('#notification-center').setAttribute('aria-hidden', String(!open));
+  $('#notification-trigger').setAttribute('aria-expanded', String(open));
+};
+$('#notification-close').onclick = closeNotifications;
+
+const COMMAND_VIEWS = [
+  ['dashboard','לוח בקרה','תמונת מצב'], ['jobs','משרות','חיפוש והתאמות'], ['preferences','העדפות חיפוש','תפקידים ומיקום'],
+  ['applications','הגשות','תור והיסטוריה'], ['blockers','דורש טיפול','פעולות שממתינות'], ['skills','סקילים','כישורים ופערים'],
+  ['sources','מקורות','אתרי קריירה'], ['profile','הפרופיל שלי','פרטים אישיים'],
+];
+let commandSelection = 0;
+function commandEntries(query = '') {
+  const term = query.trim().toLowerCase();
+  const views = COMMAND_VIEWS.map(([view,title,copy]) => ({ type:'view', view, title, copy }));
+  const jobs = state.jobs.map((job) => ({ type:'job', id:job.id, title:job.title, copy:`${job.company} · ${job.location || ''}` }));
+  return [...views,...jobs].filter((item) => !term || `${item.title} ${item.copy}`.toLowerCase().includes(term)).slice(0,9);
+}
+function renderCommandResults() {
+  const entries = commandEntries($('#command-input').value);
+  commandSelection = Math.min(commandSelection, Math.max(0, entries.length - 1));
+  $('#command-results').innerHTML = entries.length ? entries.map((item,index) => `<button type="button" class="command-result ${index === commandSelection ? 'active' : ''}" data-command-index="${index}"><span>${esc(item.title)}</span><small>${esc(item.copy)}</small></button>`).join('') : emptyState('⌕','לא נמצאו תוצאות','נסה שם חברה, תפקיד או שם עמוד.');
+  $$('[data-command-index]', $('#command-results')).forEach((button) => { button.onclick = () => runCommand(entries[Number(button.dataset.commandIndex)]); });
+}
+function runCommand(item) {
+  if (!item) return;
+  closeCommandPalette();
+  if (item.type === 'view') switchView(item.view);
+  else { switchView('jobs'); window.setTimeout(() => showJob(item.id), 80); }
+}
+function openCommandPalette() {
+  closeNotifications();
+  commandSelection = 0;
+  $('#command-palette').classList.add('open');
+  $('#command-palette').setAttribute('aria-hidden','false');
+  document.body.classList.add('overlay-open');
+  $('#command-input').value = '';
+  renderCommandResults();
+  requestAnimationFrame(() => $('#command-input').focus());
+}
+function closeCommandPalette() {
+  $('#command-palette').classList.remove('open');
+  $('#command-palette').setAttribute('aria-hidden','true');
+  document.body.classList.remove('overlay-open');
+}
+$('#quick-search-trigger')?.addEventListener('click', openCommandPalette);
+$('#command-input').oninput = () => { commandSelection = 0; renderCommandResults(); };
+$('#command-input').onkeydown = (event) => {
+  const entries = commandEntries(event.currentTarget.value);
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    commandSelection = (commandSelection + (event.key === 'ArrowDown' ? 1 : -1) + entries.length) % Math.max(1,entries.length);
+    renderCommandResults();
+  } else if (event.key === 'Enter') { event.preventDefault(); runCommand(entries[commandSelection]); }
+};
+$('#command-palette').onclick = (event) => { if (event.target.id === 'command-palette') closeCommandPalette(); };
+
+function applyTheme(theme) {
+  const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('theme-dark', dark);
+  document.body.dataset.themePreference = theme;
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  $$('#theme-switch [data-theme]').forEach((button) => {
+    const selected = button.dataset.theme === theme;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  positionThemeThumb();
+}
+function positionThemeThumb(animate = true) {
+  const switcher = $('#theme-switch');
+  const thumb = $('.theme-switch-thumb', switcher);
+  const active = $('[data-theme].active', switcher);
+  if (!switcher || !thumb || !active) return;
+  if (!animate) thumb.style.transition = 'none';
+  thumb.style.left = `${active.offsetLeft}px`;
+  thumb.style.width = `${active.offsetWidth}px`;
+  if (!animate) requestAnimationFrame(() => { thumb.style.transition = ''; });
+}
+let preferredTheme = localStorage.getItem('jobpilot-theme') || 'system';
+applyTheme(preferredTheme);
+let suppressThemeClick = false;
+function selectTheme(theme, compactMessage = false, silent = false) {
+  preferredTheme = theme;
+  localStorage.setItem('jobpilot-theme', preferredTheme);
+  applyTheme(preferredTheme);
+  if (!silent) toast(preferredTheme === 'system' ? (compactMessage ? 'מצב אוטומטי לפי ה־Mac' : 'ערכת הצבעים תותאם אוטומטית ל־Mac') : preferredTheme === 'dark' ? 'מצב לילה הופעל' : 'מצב יום הופעל');
+}
+$$('#theme-switch [data-theme]').forEach((button) => { button.onclick = () => {
+  if (suppressThemeClick) return;
+  selectTheme(button.dataset.theme);
+}; });
+{
+  const switcher = $('#theme-switch');
+  const thumb = $('.theme-switch-thumb', switcher);
+  let pointerId = null;
+  let startX = 0;
+  let dragged = false;
+  const buttons = () => $$('#theme-switch [data-theme]');
+  const closestThemeButton = (clientX) => buttons().reduce((closest, button) => {
+    const rect = button.getBoundingClientRect();
+    const distance = Math.abs(clientX - (rect.left + rect.width / 2));
+    return !closest || distance < closest.distance ? { button, distance } : closest;
+  }, null)?.button;
+  switcher.addEventListener('pointerdown', (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    dragged = false;
+    switcher.setPointerCapture(pointerId);
+  });
+  switcher.addEventListener('pointermove', (event) => {
+    if (pointerId !== event.pointerId) return;
+    if (!dragged && Math.abs(event.clientX - startX) < 4) return;
+    dragged = true;
+    suppressThemeClick = true;
+    switcher.classList.add('is-dragging');
+    const rect = switcher.getBoundingClientRect();
+    const half = thumb.offsetWidth / 2;
+    const left = Math.max(3, Math.min(rect.width - thumb.offsetWidth - 3, event.clientX - rect.left - half));
+    thumb.style.left = `${left}px`;
+    const hovered = closestThemeButton(event.clientX);
+    if (hovered && hovered.dataset.theme !== preferredTheme) selectTheme(hovered.dataset.theme, true, true);
+  });
+  const finishThemeDrag = (event) => {
+    if (pointerId !== event.pointerId) return;
+    const target = closestThemeButton(event.clientX);
+    suppressThemeClick = true;
+    if (target) selectTheme(target.dataset.theme, dragged);
+    window.setTimeout(() => { suppressThemeClick = false; }, 0);
+    switcher.classList.remove('is-dragging');
+    pointerId = null;
+  };
+  switcher.addEventListener('pointerup', finishThemeDrag);
+  switcher.addEventListener('pointercancel', (event) => { finishThemeDrag(event); positionThemeThumb(); });
+  window.addEventListener('resize', () => positionThemeThumb(false));
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (preferredTheme === 'system') applyTheme('system'); });
+
+document.addEventListener('keydown', (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); openCommandPalette(); }
+  if (event.key === 'Escape') { closeCommandPalette(); closeNotifications(); }
+});
+document.addEventListener('click', (event) => {
+  const actionable = event.target.closest('.btn, .icon-action, .section-collapse, .notification-item');
+  if (!actionable) return;
+  actionable.classList.remove('micro-confirm');
+  requestAnimationFrame(() => actionable.classList.add('micro-confirm'));
+  window.setTimeout(() => actionable.classList.remove('micro-confirm'), 380);
+});
+
+$('#upload-resume').onclick = () => $('#resume-file').click();
+$('#manage-resumes').onclick = () => $('#privacy-center').click();
+$('#resume-file').onchange = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const result = await api('/api/profile/resume', { method: 'POST', body: formData });
+    $('#resume-name').textContent = result.filename;
+    if (state.profile) state.profile.cv_filename = result.filename;
+    state.profileLoaded=false;
+    await loadProfile();
+    const count=result.analysis?.suggestions?.length||0;
+    toast(count?`קורות החיים נותחו · נמצאו ${count} הצעות לאישור`:'קורות החיים הועלו ונותחו');
+  } catch (error) {
+    toast(error.message);
+  }
+};
+
+$('#import-job-btn').onclick = () => {
+  modal(`
+    <span class="kicker">הוספה ידנית</span><h2>הוסף משרה מקישור</h2>
+    <form id="import-form" class="form-stack">
+      <label>כותרת<input name="title" required /></label><label>חברה<input name="company" required /></label>
+      <label>מיקום<input name="location" /></label><label>קישור להגשה<input name="apply_url" type="url" required /></label>
+      <label>תיאור<textarea name="description" rows="6"></textarea></label><button class="btn primary" type="submit">נתח והוסף</button>
+    </form>
+  `);
+  $('#import-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const body = Object.fromEntries(new FormData(event.target).entries());
+    try {
+      await api('/api/jobs/import', { method: 'POST', body: JSON.stringify(body) });
+      closeModal();
+      toast('המשרה נוספה ודורגה');
+      await loadJobs();
+    } catch (error) {
+      toast(error.message);
+    }
+  };
+};
+
+function debounce(fn, wait) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), wait);
+  };
+}
+
+window.queueJob = queueJob;
+window.skipJob = skipJob;
+window.deleteJob = deleteJob;
+window.showJob = showJob;
+window.retryApp = retryApp;
+window.removeApplication = removeApplication;
+window.addSkill = addSkill;
+window.removeSkill = removeSkill;
+window.showSkillGaps = showSkillGaps;
+window.resolveBlocker = resolveBlocker;
+window.resolveBlockerAction = resolveBlockerAction;
+window.markApplicationSubmitted = markApplicationSubmitted;
+window.switchView = switchView;
+window.toggleSource = toggleSource;
+window.deleteSource = deleteSource;
+window.closeModal = closeModal;
+window.cloudSignOut = cloudSignOut;
+window.createAgentDevice = createAgentDevice;
+window.revokeAgentDevice = revokeAgentDevice;
+window.openCloudAccount = openCloudAccount;
+
+function initInteractiveLogo() {
+  const brand = document.querySelector('.brand');
+  const mark = document.querySelector('#brand-mark');
+  const dot = document.querySelector('#brand-flight-dot');
+  const target = document.querySelector('#brand-i-dot');
+  if (!brand || !mark || !dot || !target) return;
+  let parked = false;
+  let moving = false;
+  let autoReturnTimer = null;
+  let route = { x: 0, y: 0 };
+  let pathDeltas = [];
+
+  const scheduleAutoReturn = () => {
+    clearTimeout(autoReturnTimer);
+    if (moving || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    autoReturnTimer = window.setTimeout(() => {
+      if (!moving && document.visibilityState === 'visible') toggleDot();
+    }, 9000);
+  };
+
+  const positionDot = () => {
+    const brandRect = brand.getBoundingClientRect();
+    const path = mark.querySelector('.logo-route');
+    const targetRect = target.getBoundingClientRect();
+    const matrix = path.getScreenCTM();
+    const length = path.getTotalLength();
+    const screenPoint = (distance) => {
+      const point = path.getPointAtLength(distance);
+      return new DOMPoint(point.x, point.y).matrixTransform(matrix);
+    };
+    const localStart = path.getPointAtLength(0);
+    const source = new DOMPoint(localStart.x, localStart.y - 10).matrixTransform(matrix);
+    const dotRadius = dot.offsetWidth / 2;
+    const sourceX = source.x - brandRect.left - dotRadius;
+    const sourceY = source.y - brandRect.top - dotRadius;
+    dot.style.left = `${sourceX}px`;
+    dot.style.top = `${sourceY}px`;
+    const targetVisible = targetRect.width > 0 && targetRect.height > 0;
+    route = targetVisible ? {
+      x: targetRect.left + targetRect.width / 2 - source.x,
+      y: targetRect.top + targetRect.height / 2 - source.y,
+    } : { x: 0, y: 0 };
+    pathDeltas = Array.from({ length: 49 }, (_, index) => {
+      const point = screenPoint(length * index / 48);
+      return { x: point.x - source.x, y: point.y - source.y };
+    });
+    dot.style.transform = parked ? `translate(${route.x}px, ${route.y}px)` : 'translate(0, 0)';
+  };
+
+  const toggleDot = () => {
+    if (moving) return;
+    clearTimeout(autoReturnTimer);
+    moving = true;
+    brand.classList.add('is-moving');
+    positionDot();
+    const pathEnd = pathDeltas[pathDeltas.length - 1];
+    const apex = { x: (pathEnd.x + route.x) / 2, y: Math.min(pathEnd.y, route.y) - 17 };
+    const alongPath = pathDeltas.map((point, index) => ({
+      transform: `translate3d(${point.x}px, ${point.y}px, 0) scale(1)`, offset: .03 + index / 48 * .79,
+    }));
+    const outbound = [
+      { transform: 'translate(0, 0) scale(1)', offset: 0 }, ...alongPath,
+      { transform: `translate(${pathEnd.x}px, ${pathEnd.y}px) scale(1)`, offset: .83 },
+      { transform: `translate(${apex.x}px, ${apex.y}px) scale(1.08)`, offset: .91 },
+      { transform: `translate(${route.x}px, ${route.y}px) scale(1)`, offset: 1 },
+    ];
+    const inbound = [
+      { transform: `translate(${route.x}px, ${route.y}px) scale(1)`, offset: 0 },
+      { transform: `translate(${route.x / 2}px, ${Math.min(route.y, 0) - 20}px) scale(1.3)`, offset: .5 },
+      { transform: 'translate(0, 0) scale(.9)', offset: .9 },
+      { transform: 'translate(0, 0) scale(1)', offset: 1 },
+    ];
+    const animation = dot.animate(parked ? inbound : outbound, {
+      duration: parked ? 1050 : 2350,
+      easing: parked ? 'cubic-bezier(.32,.72,0,1)' : 'cubic-bezier(.25,.1,.25,1)', fill: 'forwards',
+    });
+    animation.onfinish = () => {
+      parked = !parked;
+      brand.classList.toggle('is-parked', parked);
+      brand.setAttribute('aria-label', parked ? 'לחץ להחזרת נקודת ה-Pilot אל תחילת המסלול' : 'הפעל את מסלול JobPilot');
+      dot.style.transform = parked ? `translate(${route.x}px, ${route.y}px)` : 'translate(0, 0)';
+      animation.cancel();
+      moving = false;
+      brand.classList.remove('is-moving');
+      scheduleAutoReturn();
+    };
+  };
+  brand.addEventListener('click', toggleDot);
+  brand.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleDot(); }
+  });
+  window.addEventListener('resize', positionDot);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleAutoReturn(); });
+  requestAnimationFrame(() => { positionDot(); scheduleAutoReturn(); });
+}
+
+initInteractiveLogo();
+
+$('#restore-backup').onclick=()=>$('#restore-backup-file').click();
+$('#restore-backup-file').onchange=async(event)=>{const file=event.target.files[0];if(!file)return;if(!confirm('לשחזר את הפרופיל, ההעדפות והתשובות מהגיבוי?'))return;const body=new FormData();body.append('file',file);await api('/api/backup/restore',{method:'POST',body});toast('הגיבוי שוחזר');state.profileLoaded=false;await loadProfile();};
+$('#privacy-center').onclick=async()=>{
+  const [privacy,resumes,security]=await Promise.all([api('/api/privacy'),api('/api/resumes'),api('/api/security/status')]);
+  modal(`<span class="kicker">הנתונים נשארים בשליטתך</span><h2>מרכז פרטיות וקורות חיים</h2><div class="privacy-grid"><article><strong>סיסמת טפסים</strong><span>${privacy.password_stored?'שמורה מקומית':'לא שמורה'}</span><button class="btn danger-outline small" onclick="deletePrivateData('password')">מחיקה</button></article><article><strong>צילומי Agent</strong><span>${privacy.screenshots} קבצים</span><button class="btn danger-outline small" onclick="deletePrivateData('screenshots')">מחיקה</button></article><article><strong>פרופיל דפדפן</strong><span>${privacy.browser_profile?'קיים':'לא קיים'}</span><button class="btn danger-outline small" onclick="deletePrivateData('browser')">מחיקה</button></article></div><h3>גרסאות קורות חיים</h3><p class="resume-version-help">העלה גרסה נפרדת לכל כיוון מקצועי, למשל Backend, AI או Research. המערכת קוראת את הקובץ וממליצה על הגרסה עם חפיפת הסקילים הגבוהה ביותר לכל משרה; תמיד אפשר לבחור אחרת ידנית.</p><div class="resume-manager">${resumes.map(r=>`<div><strong>${esc(r.label)}</strong><span>${esc(r.filename)}${r.is_default?' · ברירת מחדל':''}</span><small>${r.skills.length?`סקילים: ${esc(r.skills.join(', '))}`:'לא הוגדרו סקילים לגרסה'}</small><button class="btn danger-outline small" onclick="deleteResume(${r.id})">מחק</button></div>`).join('')||'<p>אין עדיין גרסאות.</p>'}</div><form id="resume-version-form"><label>שם הגרסה<input name="label" required placeholder="Backend / AI / Research" /></label><label>סקילים נוספים לגרסה — אופציונלי<input name="skills" placeholder="המערכת מחלצת סקילים אוטומטית; אפשר להוסיף ידנית" /></label><label><input name="is_default" type="checkbox" value="true" /> ברירת מחדל</label><input name="file" type="file" required accept=".pdf,.doc,.docx,.txt,.rtf" /><button class="btn primary" type="submit">הוסף גרסה</button></form><h3>נעילת האתר</h3>${security.configured?'<button class="btn danger-outline" onclick="disableSiteLock()">בטל נעילת PIN</button>':'<div class="inline-form"><input id="new-site-pin" type="password" minlength="4" placeholder="PIN מקומי חדש" /><button class="btn secondary" onclick="setupSiteLock()">הפעל נעילה</button></div>'}`);
+  $('#resume-version-form').onsubmit=async e=>{e.preventDefault();const body=new FormData(e.target);if(!body.get('is_default'))body.set('is_default','false');await api('/api/resumes',{method:'POST',body});toast('גרסת קורות החיים נוספה');closeModal();$('#privacy-center').click();};
+};
+async function deletePrivateData(resource){if(!confirm('למחוק את הנתונים האלה לצמיתות מהמחשב המקומי?'))return;await api(`/api/privacy/${resource}`,{method:'DELETE'});toast('הנתונים נמחקו');closeModal();}
+async function deleteResume(id){if(!confirm('למחוק את גרסת קורות החיים?'))return;await api(`/api/resumes/${id}`,{method:'DELETE'});closeModal();$('#privacy-center').click();}
+async function setupSiteLock(){await api('/api/security/setup',{method:'POST',body:JSON.stringify({pin:$('#new-site-pin').value})});toast('נעילת האתר הופעלה');closeModal();}
+async function disableSiteLock(){await api('/api/security/lock',{method:'DELETE'});toast('נעילת האתר בוטלה');closeModal();}
+
+async function ensureUnlocked(){const status=await api('/api/security/status');if(!status.locked)return true;modal(`<span class="kicker">JobPilot נעול</span><h2>הזן PIN מקומי</h2><input id="unlock-pin" type="password" autofocus /><button class="btn primary" onclick="unlockSite()">פתח</button>`);return false;}
+async function unlockSite(){try{await api('/api/security/unlock',{method:'POST',body:JSON.stringify({pin:$('#unlock-pin').value})});location.reload();}catch(error){toast(error.message);}}
+
+$('#auth-form').onsubmit = async (event) => {
+  event.preventDefault();
+  const email = $('#auth-email').value.trim();
+  const password = $('#auth-password').value;
+  try {
+    showAuthGate('מתחבר…', 'success');
+    await cloudEmailLogin(email, password);
+  } catch (error) { showAuthGate(error.message, 'error'); }
+};
+$('#auth-signup').onclick = async () => {
+  const email = $('#auth-email').value.trim();
+  const password = $('#auth-password').value;
+  if (!email || password.length < 6) { showAuthGate('הזן אימייל וסיסמה של לפחות 6 תווים.', 'error'); return; }
+  try { showAuthGate('יוצר חשבון…', 'success'); await cloudSignup(email, password); }
+  catch (error) { showAuthGate(error.message, 'error'); }
+};
+$('#auth-google').onclick = () => cloudGoogleLogin();
+$('#account-chip').onclick = () => openCloudAccount().catch((error) => toast(error.message));
+
+$('#career-switcher-trigger').onclick = (event) => { event.stopPropagation(); setCareerMenu($('#career-switcher-menu').hidden); };
+document.addEventListener('click', (event) => { if (!event.target.closest('#career-switcher')) setCareerMenu(false); });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setCareerMenu(false); });
+
+(async () => {
+  try {
+    if (!await initAuthentication()) return;
+    if (!await ensureUnlocked()) return;
+    await loadCareerTracks();
+    await Promise.all([loadDashboard(), loadProfile()]);
+    if (state.dashboard?.scan?.running) pollScan();
+    renderNotificationCenter();
+    updateScanCountdown();
+    await refreshAgentStatus();
+    if (authState.config?.mode === 'supabase') window.setInterval(refreshAgentStatus, 30_000);
+    const savedView = localStorage.getItem('jobpilot-active-view');
+    const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile']);
+    if (validViews.has(savedView) && savedView !== 'dashboard') switchView(savedView);
+  } catch (error) {
+    if (authState.config?.mode === 'supabase' && !authState.user) showAuthGate(`שגיאת התחברות: ${error.message}`);
+    else toast(`שגיאת חיבור: ${error.message}`);
+  }
+})();

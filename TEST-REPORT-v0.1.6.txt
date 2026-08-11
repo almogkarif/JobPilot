@@ -1,0 +1,43 @@
+JobPilot v0.1.6 — Jobs tab update
+================================
+
+Implemented
+-----------
+1. Jobs sorting
+   - Match score: high to low / low to high
+   - Newest / oldest publication date
+   - Recently discovered
+   - Company A-Z
+   - Job title A-Z
+
+2. Jobs pagination
+   - Numbered pages with Previous / Next controls
+   - 20 jobs per page by default
+   - User-selectable 10 / 20 / 50 jobs per page
+   - API keeps legacy list response unless paginated=true is requested
+
+3. Mobileye collector repair
+   - Prefer Mobileye's structured EU Lever feed
+   - Exact title, location, workplace and job id are preserved
+   - Official careers page remains as a fallback
+   - URL fallback now extracts the role slug before the UUID instead of using the UUID as the title
+
+4. Taboola collector repair
+   - Prefer Taboola's public Greenhouse board (token: taboola)
+   - Exact title and location are preserved
+   - Official careers page remains as a fallback
+   - Fallback prefers the job link text over a shared container heading
+
+Validation
+----------
+- python compileall: PASS
+- node --check app/static/app.js: PASS
+- tests/test_api.py + tests/test_official_collector_titles.py: PASS (29 tests)
+- scanner/location/matching/title focused suite: PASS (58 tests)
+- Total focused passing tests: 87
+
+Environment note
+----------------
+The container used for this update does not have a Playwright Chromium binary installed,
+so browser-only tests that launch Playwright's bundled browser cannot run here. This is an
+environment limitation rather than an application assertion failure.

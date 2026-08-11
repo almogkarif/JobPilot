@@ -1,0 +1,101 @@
+JobPilot v0.3.2 — Pre-cloud hardening test report
+Generated: 2026-08-11
+
+Scope
+-----
+1. Per-user/per-career-track source enable switches.
+2. Desktop/mobile overlap audit, especially unsaved-change notices and top-bar controls.
+3. Full Industrial Engineering yellow/gold light+dark visual audit.
+4. Save + true minimize controls with meaningful compact summaries on editable cards.
+5. Temporary cloud Application-Agent restriction to almogkarif@gmail.com.
+6. Collector hardening for Check Point, Salesforce, Rafael, Elbit and AppsFlyer,
+   shared by both Computer Science and Industrial Engineering source variants.
+7. Source-quality fix for job identifiers carried in query strings.
+
+Source controls / multi-user isolation
+--------------------------------------
+- Source.enabled remains tenant-owned and career-track-owned.
+- Turning a source off for one user does not affect another user's source with the
+  same company/identifier.
+- Disabled sources remain visible in Sources but are excluded from scanning.
+- The switch renders checked/unchecked states and uses the active career-track palette.
+
+Application Agent beta gate
+---------------------------
+- In Cloud Mode the Application Agent is allowed only for the configured
+  JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL, default almogkarif@gmail.com.
+- Non-owner users cannot create Agent devices, queue a Job for the Agent, or retry an
+  Agent application. Agent-device tokens belonging to non-allowed users are rejected.
+- Non-owner UI disables automatic queueing and replaces Agent apply with a direct/manual
+  application link where available.
+- Local Mode remains backward compatible for development/testing.
+
+UI / collapse / overlap validation
+----------------------------------
+- Unsaved-change notices are in normal document flow; negative-margin overlay behavior
+  was removed.
+- Mobile top-bar controls no longer expand the one-column shell past the viewport.
+- At 390px viewport width the unsaved notice, completion card and profile navigation
+  stay inside the viewport and do not overlap each other.
+- Editable profile sections shrink to a compact card after minimize and retain a useful
+  value summary.
+- Preference groups shrink and summarize selected values.
+- Application automation shrinks and summarizes threshold/queue state.
+- Save controls remain available in editable cards; immediate-persistence actions such
+  as source switches do not require a second save.
+
+Industrial Engineering theme audit
+----------------------------------
+- Moving logo dot and JobPilot i-dot use yellow/gold in light and dark modes.
+- Dock rail, dock active/focus accents, scan progress, source switches, view switch,
+  notifications, account chip, selected cards, form focus states and report accents
+  use the IEM palette instead of legacy blue.
+- Semantic success green and danger red remain semantic by design.
+- Company logos retain their authentic brand colors.
+
+Collector / source-quality fixes
+--------------------------------
+- URL identity now retains known application query IDs including jid, jobid, job_id,
+  joborderid, gh_jid, reqid and requisitionid. This prevents legitimate Check Point or
+  Elbit jobs from collapsing into one apparent application URL during quality checks.
+- Official collectors can recover job links/IDs from href, data-url/data-href, onclick,
+  embedded JSON/script content and escaped URLs.
+- Check Point, Salesforce, Rafael, Elbit and AppsFlyer have source-specific fallbacks.
+- Detail-page hydration is bounded with concurrent HTTP requests and timeouts.
+- Synthetic regression fixtures cover current URL/ID shapes. Live board availability
+  was verified separately via web research, but outbound collector HTTP/DNS is not
+  available in this build container, so the real retry must run on the user's machine
+  or cloud deployment.
+
+Automated regression
+--------------------
+All suites except the environment-blocked Agent navigation fixture:
+  190 passed, 0 failed
+
+Localhost E2E suite:
+  6 skipped because this execution sandbox blocks Chromium -> localhost.
+
+Agent browser-flow suite:
+  1 passed
+  5 cannot execute in this sandbox because Page.goto to the synthetic
+  careers.example.test host is blocked with ERR_BLOCKED_BY_ADMINISTRATOR before
+  Playwright route interception. The Agent form logic is not reached in those five.
+
+Repository total:
+  202 collected tests
+  191 passed
+  6 skipped due localhost sandbox restriction
+  5 environment-blocked synthetic-navigation cases
+
+Static validation
+-----------------
+- node --check app/static/app.js: passed.
+- python -m compileall app agent scripts tests: passed.
+- bash -n configure-cloud-agent.sh start-agent.sh start.sh: passed.
+
+Cloud deployment boundary
+-------------------------
+No real Supabase/Render credentials were used in this build. Cloud auth/tenant isolation,
+Agent authorization and UI behavior are covered by mocked/offline tests. The five repaired
+official-career sources should be retried from the real machine/cloud after deployment;
+errors remain visible until a retry succeeds.

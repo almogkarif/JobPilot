@@ -1,0 +1,32 @@
+JobPilot v0.1.14 — skill/profile synchronization and phone normalization
+Generated: 2026-08-11
+
+Fixed
+=====
+1. Profile skills are now the single source of truth for skill recommendations.
+2. Adding a skill from Jobs, the Skills tab, or a CV suggestion refreshes every stored CV analysis.
+3. The same skill no longer remains as a stale suggestion in other CV versions after it was added.
+4. Removing a skill refreshes CV analyses too, so a real CV-based suggestion can reappear when appropriate.
+5. Saving the full profile also refreshes all CV suggestions, keeping edits from Search Preferences synchronized.
+6. Applying one CV suggestion refreshes every CV version, not only the card where it was clicked.
+7. Israeli phone numbers are compared canonically. For example, 0526621319 and +972-52-6621319 are treated as the same number.
+8. Existing stale CV analyses are repaired automatically at startup.
+
+Validation on packaged user data
+================================
+- Profile phone: 0526621319
+- CV phone: +972-52-6621319
+- Before repair: all 4 CV records suggested changing the phone.
+- After repair: the phone suggestion disappeared from all 4 CV records.
+- Simulating a profile skill addition for pandas removed the pandas suggestion from all 4 CV records simultaneously.
+
+Automated validation
+====================
+- 48 targeted tests passed.
+- Includes new tests for Israeli phone equivalence and cross-resume skill synchronization in both add/remove directions.
+- node --check app/static/app.js passed.
+- python compileall for app, agent and tests passed.
+
+Environment limitation
+======================
+The build environment does not contain the Playwright Chromium executable, so browser-launch tests cannot run here.

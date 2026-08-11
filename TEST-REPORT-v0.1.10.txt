@@ -1,0 +1,9 @@
+JobPilot v0.1.10 — preference red-state refinement
+
+Changes
+-------
+- Restored the original red styling for unsaved Search Preferences edits.
+- Restored the original red gradient for the Search Preferences unsaved navigation badge.
+- Strengthened the red treatment of selected negative/excluded search preferences.
+- Added matching stronger-red treatment for dark mode while preserving contrast.
+- Bumped static cache versions and API version to 0.1.10.

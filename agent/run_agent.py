@@ -1,0 +1,219 @@
+from __future__ import annotations
+
+import sys
+import time
+import signal
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+import httpx
+from playwright.sync_api import sync_playwright
+
+from .browser import ApplicationBlocked, fill_application
+from .config import AGENT_CACHE_DIR, AGENT_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS, SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN
+
+
+class AgentTaskTimeout(TimeoutError):
+    pass
+
+
+@contextmanager
+def task_deadline(seconds: int):
+    """Interrupt a hung ATS task so one page can never block the entire queue."""
+    if seconds <= 0 or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+    previous_handler = signal.getsignal(signal.SIGALRM)
+
+    def timeout_handler(_signum, _frame):
+        raise AgentTaskTimeout(f"Application task exceeded {seconds} seconds")
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def api(method: str, path: str, **kwargs):
+    headers = {"X-JobPilot-Agent-Token": TOKEN, **(kwargs.pop("headers", {}) or {})}
+    with httpx.Client(timeout=60) as client:
+        response = client.request(method, f"{BASE_URL}{path}", headers=headers, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+
+def prepare_resume(task: dict) -> str:
+    application = task.get("application") or {}
+    application_id = application.get("id")
+    if not application_id or not application.get("resume_path"):
+        return ""
+    AGENT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    response = httpx.get(
+        f"{BASE_URL}/api/agent/tasks/{application_id}/resume",
+        params={"agent_id": AGENT_ID},
+        headers={"X-JobPilot-Agent-Token": TOKEN},
+        timeout=60.0,
+    )
+    response.raise_for_status()
+    disposition = response.headers.get("content-disposition", "")
+    filename = "resume.pdf"
+    if 'filename="' in disposition:
+        filename = disposition.split('filename="', 1)[1].split('"', 1)[0]
+    safe_name = Path(filename).name or "resume.pdf"
+    destination = AGENT_CACHE_DIR / f"{application_id}_{safe_name}"
+    destination.write_bytes(response.content)
+    application["resume_path"] = str(destination)
+    profile = task.get("profile") or {}
+    profile["cv_path"] = str(destination)
+    return str(destination)
+
+
+def upload_screenshot(application_id: int, screenshot_path: str) -> str:
+    path = Path(screenshot_path)
+    if not path.is_file():
+        return ""
+    with path.open("rb") as handle:
+        response = httpx.post(
+            f"{BASE_URL}/api/agent/tasks/{application_id}/screenshot",
+            data={"token": TOKEN, "agent_id": AGENT_ID},
+            files={"file": (path.name, handle, "image/png")},
+            timeout=60.0,
+        )
+    response.raise_for_status()
+    return str(response.json().get("screenshot_ref") or "")
+
+
+def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_path: str = ""):
+    api(
+        "POST",
+        f"/api/agent/tasks/{application_id}/blocked",
+        json={
+            "token": TOKEN,
+            "kind": blocker.kind,
+            "field_label": blocker.label,
+            "question": blocker.question,
+            "explanation": blocker.explanation,
+            "options": blocker.options,
+            "screenshot_path": screenshot_path,
+            "page_url": blocker.page_url,
+        },
+    )
+
+
+def run_task(context, task: dict):
+    application_id = task["application"]["id"]
+    existing_pages = getattr(context, "pages", [])
+    anchor = existing_pages[0] if existing_pages else context.new_page()
+    try:
+        with context.expect_page(timeout=5000) as page_info:
+            anchor.evaluate("window.open('about:blank', '_blank')")
+        page = page_info.value
+    except Exception:
+        # Chromium normally opens window.open without dimensions as a tab. The
+        # context fallback still keeps the same persistent browser session.
+        page = context.new_page()
+    if hasattr(page, "bring_to_front"):
+        page.bring_to_front()
+    screenshot_path = ""
+    keep_open_for_manual_submit = False
+    try:
+        submit_authorized = AUTO_SUBMIT or bool(task.get("submit_approved_once"))
+        prepare_resume(task)
+        with task_deadline(TASK_TIMEOUT_SECONDS):
+            result = fill_application(page, task, auto_submit=submit_authorized)
+        api(
+            "POST",
+            f"/api/agent/tasks/{application_id}/submitted",
+            json={"token": TOKEN, "message": result["message"], "page_url": result["page_url"]},
+        )
+        print(f"[submitted] {task['job']['company']} — {task['job']['title']}")
+    except ApplicationBlocked as blocker:
+        keep_open_for_manual_submit = blocker.kind in {
+            "review_before_submit", "unknown_field", "application_form_missing",
+            "submit_button_missing", "captcha", "confirmation_missing",
+        }
+        SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        screenshot_path = str(SCREENSHOT_DIR / f"application_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        try:
+            page.screenshot(path=screenshot_path, full_page=True)
+        except Exception:
+            screenshot_path = ""
+        remote_screenshot = ""
+        try:
+            remote_screenshot = upload_screenshot(application_id, screenshot_path) if screenshot_path else ""
+        except Exception as upload_exc:  # noqa: BLE001
+            print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
+        report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
+        print(f"[blocked:{blocker.kind}] {blocker.explanation}")
+    except AgentTaskTimeout as exc:
+        SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        screenshot_path = str(SCREENSHOT_DIR / f"recovery_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        try:
+            page.screenshot(path=screenshot_path, full_page=True)
+        except Exception:
+            screenshot_path = ""
+        remote_screenshot = ""
+        try:
+            remote_screenshot = upload_screenshot(application_id, screenshot_path) if screenshot_path else ""
+        except Exception as upload_exc:  # noqa: BLE001
+            print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
+        api("POST", f"/api/agent/tasks/{application_id}/recover",
+            json={"token": TOKEN, "message": str(exc), "page_url": page.url,
+                  "screenshot_path": remote_screenshot or screenshot_path})
+        print(f"[recovered] {exc}", file=sys.stderr)
+    except Exception as exc:  # noqa: BLE001
+        api(
+            "POST",
+            f"/api/agent/tasks/{application_id}/failed",
+            json={"token": TOKEN, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url},
+        )
+        print(f"[failed] {exc}", file=sys.stderr)
+    finally:
+        if keep_open_for_manual_submit:
+            if hasattr(page, "bring_to_front"):
+                page.bring_to_front()
+            print("[handoff] העמוד נשאר פתוח בכרטיסייה כדי שתוכל לבדוק ולהשלים אותו.")
+        else:
+            page.close()
+
+
+def main():
+    print(f"JobPilot agent: {AGENT_ID} | server={BASE_URL} | auto_submit={AUTO_SUBMIT} | headless={HEADLESS}")
+    BROWSER_PROFILE.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as playwright:
+        context = playwright.chromium.launch_persistent_context(
+            user_data_dir=str(BROWSER_PROFILE),
+            headless=HEADLESS,
+            viewport={"width": 1440, "height": 1000},
+            locale="en-US",
+        )
+        control_page = context.pages[0] if context.pages else context.new_page()
+        control_page.set_content(
+            "<html dir='rtl'><title>JobPilot Agent</title><body style='font-family:system-ui;padding:40px'>"
+            "<h1>JobPilot Agent פעיל</h1><p>כל משרה תיפתח כלשונית נוספת בחלון הזה.</p></body></html>"
+        )
+        while True:
+            try:
+                response = api("GET", "/api/agent/tasks/next", params={"agent_id": AGENT_ID})
+                task = response.get("task")
+                if task:
+                    run_task(context, task)
+                else:
+                    time.sleep(POLL_SECONDS)
+            except KeyboardInterrupt:
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"[agent connection error] {exc}", file=sys.stderr)
+                error_text = str(exc).lower()
+                if "browser has been closed" in error_text or "connection closed" in error_text:
+                    print("[agent stopped] Browser was closed; exiting instead of leaving a zombie Agent.", file=sys.stderr)
+                    break
+                time.sleep(POLL_SECONDS)
+        context.close()
+
+
+if __name__ == "__main__":
+    main()

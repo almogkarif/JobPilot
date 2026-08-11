@@ -1,0 +1,47 @@
+JobPilot v0.1.16 — Scan performance, incremental results and freshness scoring
+Generated: 2026-08-11
+
+Implemented
+===========
+1. Freshness scoring no longer leaves live jobs at a misleading 50/100 when the ATS has no publish date.
+   - Explicit recent publish dates: graded freshness up to 100.
+   - Missing publish date but recently revalidated on the live source: 90 freshness and a small +2 ranking bonus.
+   - Explicit old publish dates are still penalized.
+   - Existing saved jobs are rescored on startup.
+2. Source collection is now bounded and concurrent.
+   - Up to 4 sources are collected in parallel.
+   - Each source has a 45-second wall-clock timeout.
+   - One stalled source can no longer block the entire scan for hours.
+3. Results are committed source-by-source.
+   - As soon as a source finishes, its jobs are saved/scored immediately.
+   - Auto-queue is applied immediately for that source when enabled.
+   - Frontend polling refreshes the currently visible Jobs/Dashboard/Sources/Applications screen after each completed source.
+4. Scan progress now supports concurrent work.
+   - Shows completed/total.
+   - Shows the current source plus how many additional sources are scanning in parallel.
+   - Shows the last completed source and number of new jobs from it.
+5. Stale cleanup no longer deletes still-active jobs merely because they are older than two days.
+   - Cleanup now applies only to jobs already marked inactive by their source.
+   - This prevents valid jobs from disappearing before their source is rescanned.
+
+Validation on packaged user data
+================================
+- Active jobs: 300.
+- Before v0.1.16: 299/300 jobs showed freshness 50; one showed 60.
+- After v0.1.16 rescoring: 299/300 jobs show freshness 90; one shows 100.
+- Active sources: 42.
+- With concurrency=4 and source timeout=45s, the pathological all-timeout network phase is bounded to roughly 8.25 minutes instead of hours (normal API sources should be much faster).
+
+Automated validation
+====================
+- 60 matching/scanner/progress/Israel-filter tests passed.
+- 25 API tests passed.
+- 21 dashboard/profile/resume/skill/source tests passed.
+- Total targeted tests: 106 passed, 0 failed.
+- node --check app/static/app.js: passed.
+- python -m compileall app agent tests: passed.
+- Isolated FastAPI smoke test: /api/health returned version 0.1.16 and scan progress schema initialized correctly.
+
+Environment note
+================
+The full pytest suite also contains Playwright browser tests. The build container does not have the Playwright Chromium binary installed, so those browser-launch tests cannot run here. This is separate from the scan/matching changes above.

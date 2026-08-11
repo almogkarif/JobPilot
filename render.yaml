@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: jobpilot
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: JOBPILOT_AUTH_MODE
+        value: supabase
+      - key: JOBPILOT_STORAGE_MODE
+        value: supabase
+      - key: JOBPILOT_SCHEDULER_ENABLED
+        value: "false"
+      - key: JOBPILOT_SCAN_HOUR
+        value: "8"
+      - key: JOBPILOT_SCAN_MINUTE
+        value: "0"
+      - key: JOBPILOT_SCAN_CONCURRENCY
+        value: "3"
+      - key: JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS
+        value: "45"
+      - key: JOBPILOT_TIMEZONE
+        value: Asia/Jerusalem
+      - key: JOBPILOT_MAX_USERS
+        value: "10"
+      - key: JOBPILOT_MAX_CONCURRENT_USER_SCANS
+        value: "2"
+      - key: JOBPILOT_ALLOWED_EMAILS
+        sync: false
+      - key: JOBPILOT_OWNER_EMAIL
+        sync: false
+      - key: JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL
+        value: almogkarif@gmail.com
+      - key: JOBPILOT_DATABASE_URL
+        sync: false
+      - key: JOBPILOT_BASE_URL
+        sync: false
+      - key: JOBPILOT_SUPABASE_URL
+        sync: false
+      - key: JOBPILOT_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: JOBPILOT_SUPABASE_SECRET_KEY
+        sync: false
+      - key: JOBPILOT_CRON_SECRET
+        sync: false

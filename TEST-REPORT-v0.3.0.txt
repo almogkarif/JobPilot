@@ -1,0 +1,92 @@
+JobPilot v0.3.0 — Cloud Site + Local Agent Test Report
+Generated: 2026-08-11
+
+Scope
+-----
+1. Backward-compatible Local Mode (SQLite + local files + local Agent token).
+2. Private Cloud Mode with Supabase Auth, PostgreSQL and private Storage.
+3. Google OAuth and email/password browser authentication UI.
+4. Single-owner cloud binding so a second Supabase account cannot read the private instance.
+5. Local Mac Application Agent pairing with revocable device-specific tokens.
+6. Secure CV download from the cloud Agent API and screenshot upload back to cloud Storage.
+7. External scheduled-scan endpoint with a separate cron secret.
+8. v0.2.0 career-track isolation remains intact in cloud mode.
+9. Legacy SQLite -> cloud database migration, including older schemas and existing files.
+10. Current Supabase publishable/secret API-key model plus legacy service_role compatibility.
+
+Automated regression
+--------------------
+Command:
+  pytest -q --ignore=tests/test_agent_browser_flow.py --ignore=tests/test_ui_e2e.py
+
+Result:
+  178 passed, 0 failed
+
+The 178 passing tests include five real Chromium offline UI tests, including:
+- Cloud session -> app shell + account identity + Agent online state.
+- No cloud session -> Google and email/password login gate.
+- Career-track switch -> blue CS theme / yellow IEM theme / dark-mode behavior.
+- Existing compact blocker/handoff UI.
+- Existing job deletion and scan-report UI.
+
+Additional browser suites
+-------------------------
+- tests/test_ui_e2e.py: 6 skipped because this execution sandbox blocks Chromium
+  from navigating to its own localhost server (ERR_BLOCKED_BY_ADMINISTRATOR).
+- tests/test_agent_browser_flow.py: 1 passed; the 5 route/navigation cases cannot
+  execute here because the sandbox blocks navigation to the synthetic
+  https://careers.example.test host before Playwright route interception.
+  All five failures occur at Page.goto with ERR_BLOCKED_BY_ADMINISTRATOR, before
+  application-form logic is reached. They remain in the package for a normal Mac.
+
+Static/runtime validation
+-------------------------
+- node --check app/static/app.js: passed.
+- python -m compileall app agent scripts tests: passed.
+- configure-cloud-agent.sh bash syntax: passed.
+- start-agent.sh bash syntax: passed.
+- History-safe Agent pairing helper was executed against a temporary .env:
+  URL/token persisted correctly and .env permissions were set to 600.
+
+Cloud auth/security tests
+-------------------------
+- /api/jobs and other private APIs require a Supabase user session in Cloud Mode.
+- The first accepted cloud user must match JOBPILOT_OWNER_EMAIL.
+- A different authenticated Supabase user receives HTTP 403.
+- Public auth config exposes only Project URL + publishable key, never either
+  server secret-key form.
+- Agent device token is shown once, SHA-256 hashed at rest, and immediately stops
+  authorizing after revoke.
+- Cron endpoint rejects missing/incorrect X-JobPilot-Cron-Secret.
+- New sb_secret_* Supabase keys are sent on apikey only and are never treated as
+  JWT Bearer tokens; legacy service_role JWTs retain Bearer compatibility.
+
+Storage + Agent tests
+---------------------
+- Local storage adapter write/read/delete round trip passed.
+- Supabase Storage upload/read/delete REST contract passed with a mocked private bucket.
+- Local Agent can fetch the application-specific selected CV through the protected
+  Agent API without a browser/user web session.
+- Cloud screenshot upload path is integrated with the same private Storage adapter.
+
+Migration validation
+--------------------
+The migration test builds a legacy-shaped SQLite database and runs
+scripts/migrate_to_cloud.py as a real subprocess. It verifies that:
+- Older SQLite schemas missing newer career-track columns are accepted.
+- IDs and relationships are preserved.
+- New cloud-only identity/device tables are not copied from local data.
+- The upgraded target contains current schema columns.
+- Explicit PostgreSQL IDs are followed by sequence advancement in the migration script.
+
+A separate migration smoke run against the packaged existing JobPilot data preserved:
+- Computer Science: 43 sources, 300 jobs.
+- Industrial Engineering & Management: 22 sources, initially 0 jobs before its first scan.
+- Active track: Computer Science.
+Switching tracks does not merge their jobs/sources/preferences.
+
+Known environment boundary
+--------------------------
+No real Supabase or Render project credentials were available in the build environment,
+so this package is cloud-ready but was not deployed to the user's accounts. The included
+CLOUD-SETUP.md and render.yaml define the remaining account-specific deployment steps.

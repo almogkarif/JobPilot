@@ -1,0 +1,19 @@
+name: JobPilot scheduled scan
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+jobs:
+  wake-and-scan-if-due:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger JobPilot scan if local schedule is due
+        env:
+          JOBPILOT_URL: ${{ secrets.JOBPILOT_URL }}
+          JOBPILOT_CRON_SECRET: ${{ secrets.JOBPILOT_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --retry 2 --max-time 30 \
+            -X POST "$JOBPILOT_URL/api/cron/scan" \
+            -H "X-JobPilot-Cron-Secret: $JOBPILOT_CRON_SECRET"

@@ -1,0 +1,41 @@
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+class Settings(BaseSettings):
+    database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'jobpilot.db'}"
+    base_url: str = "http://127.0.0.1:8000"
+    agent_token: str = "change-me"
+    scan_hour: int = 8
+    scan_minute: int = 0
+    timezone: str = "Asia/Jerusalem"
+    scheduler_enabled: bool = True
+    auth_mode: str = "local"  # local | supabase
+    owner_email: str = ""  # optional admin email; no longer locks the whole instance
+    allow_first_user_claim: bool = False  # legacy compatibility
+    max_users: int = 10
+    allowed_emails: str = ""  # comma-separated; empty means any authenticated user up to max_users
+    max_concurrent_user_scans: int = 2
+    application_agent_owner_email: str = "almogkarif@gmail.com"
+    allow_legacy_agent_token: bool = False
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
+    supabase_secret_key: str = ""
+    supabase_service_role_key: str = ""  # legacy JWT fallback
+    supabase_storage_bucket: str = "jobpilot-private"
+    storage_mode: str = "local"  # local | supabase
+    cron_secret: str = ""
+    agent_poll_seconds: int = 15
+    scan_concurrency: int = 4
+    source_scan_timeout_seconds: int = 45
+
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        env_prefix="JOBPILOT_",
+        extra="ignore",
+    )
+
+
+settings = Settings()

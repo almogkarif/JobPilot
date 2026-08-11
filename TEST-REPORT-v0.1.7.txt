@@ -1,0 +1,35 @@
+JobPilot v0.1.7 — Mobileye/Taboola repair
+========================================
+
+Fixed root cause
+----------------
+1. Legacy database cleanup:
+   - Detects pre-v0.1.7 Mobileye rows whose titles were UUIDs / generic locations.
+   - Detects pre-v0.1.7 Taboola rows where one title/location dominated the source.
+   - Removes corrupt un-applied rows and preserves any applied rows as inactive history.
+   - Immediately refreshes only Mobileye and Taboola after repair on first startup.
+
+2. Mobileye collector:
+   - Uses the official Mobileye careers page directly.
+   - Derives the title from the stable role slug before the UUID.
+   - No longer defaults an unknown location to "Israel".
+   - Stores only roles whose individual row proves an Israeli city/country.
+
+3. Taboola collector:
+   - Uses the official Taboola careers page directly.
+   - Isolates each job row instead of accidentally reading the whole jobs table container.
+   - Uses the first line of the job link as the role title.
+   - Extracts location from the individual job row and rejects rows without Israel evidence.
+
+4. Targeted scanning:
+   - scan_all_sources now optionally accepts source IDs so startup repair refreshes only the two affected sources.
+
+Verification
+------------
+- Existing packaged DB signature verified: 137 corrupt Mobileye + 92 corrupt Taboola rows (229 total).
+- Repair test on a copy of that DB removed all 229 corrupt rows.
+- 75 API/location/deletion/matching tests passed.
+- 13 focused collector/legacy-repair/targeted-scan/cache tests passed.
+- Browser-only tests were not run in the build environment because Playwright Chromium is not installed there.
+
+Version: 0.1.7

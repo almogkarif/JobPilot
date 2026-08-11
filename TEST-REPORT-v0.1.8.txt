@@ -1,0 +1,11 @@
+JobPilot v0.1.8 — Source logos
+
+Implemented
+===========
+- Sources tab now shows company logos instead of the first letter of the collector kind.
+- Known JobPilot sources map to their official company domains.
+- Custom sources can infer a logo domain from a URL/domain identifier.
+- Logo loading failures fall back to the first company letter without a broken-image icon.
+- Dark mode uses a restrained light logo tile so black/dark brand marks remain readable.
+- Source details modal uses the same company branding.
+- Static asset cache versions bumped to app.js v0.7.4 and styles.css v0.23.5.

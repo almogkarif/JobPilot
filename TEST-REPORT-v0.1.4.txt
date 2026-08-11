@@ -1,0 +1,56 @@
+JobPilot v0.1.4 — Test Report
+Generated: 2026-08-04
+
+Implemented
+===========
+1. Permanent job deletion from every job card and from the rich job-details dialog.
+2. Deleting a job also deletes its related Application and Blocker records.
+3. Scanned jobs are stored only when their location explicitly matches Israel or a known Israeli city.
+4. Ambiguous locations such as Remote, Worldwide and EMEA are rejected.
+5. Legacy foreign jobs are permanently purged on the first server startup after the update.
+6. Manual imports with a foreign or ambiguous location return HTTP 400.
+7. Scan reports distinguish raw collected jobs, Israel jobs and foreign jobs filtered out.
+
+Automated suite
+===============
+- 55 tests passed.
+- 5 pre-existing localhost E2E tests were skipped because this execution sandbox blocks Chromium from navigating to localhost.
+- A new real-Chromium offline UI test passed and verified both delete buttons, confirmation dialogs, DOM refresh and the Israel-only scan report.
+- Python compileall passed for app, agent and tests.
+- `node --check app/static/app.js` passed.
+
+Location-filter coverage
+========================
+Accepted examples include:
+- Israel / Remote - Israel
+- Tel Aviv / Haifa / Jerusalem / Herzliya / Ramat Gan
+- Petah Tikva / Ra'anana / Rishon LeZion / Yokneam / Beer Sheva
+- Hebrew forms such as תל אביב, חיפה, פתח תקווה and קריית גת
+
+Rejected examples include:
+- Empty location
+- Remote / Worldwide Remote / EMEA
+- London / New York / Chicago, IL / Paris / Berlin / Toronto / Sydney / Dubai / Singapore
+
+Stress tests
+============
+- 20 sources x 100 jobs = 2,000 raw jobs per scan.
+- Each scan contained 1,000 Israel jobs and 1,000 foreign jobs.
+- 26 consecutive scans completed.
+- Exactly 1,000 Israel jobs remained stored after every scan.
+- No foreign duplicates or foreign database rows were created.
+- Total stress-run time: 11.3 seconds in the build environment.
+
+Live HTTP smoke test
+====================
+- Started a real Uvicorn server against a temporary SQLite database.
+- Seeded a legacy London job with an Application and Blocker before startup.
+- Startup purge removed the legacy foreign job and related records.
+- `/api/health` returned version 0.1.4.
+- Foreign manual import returned HTTP 400.
+- Israeli manual import succeeded.
+- Permanent deletion returned success, and the deleted job then returned HTTP 404.
+
+Known environment limitation
+============================
+The five original full-server browser tests remain in the package and are expected to run normally on a local Mac. They were skipped here only because the sandbox blocks browser access to localhost. The offline real-browser test uses the same production HTML and JavaScript and passed without JavaScript errors.

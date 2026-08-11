@@ -1,0 +1,37 @@
+JobPilot v0.1.18 — Test Report
+Generated: 2026-08-11
+
+Implemented
+===========
+1. Removed the two top-bar system status icon buttons (job discovery + application agent).
+2. Source failures are now represented by a compact "!" badge on the Sources dock icon.
+3. Source errors are no longer injected into the dashboard readiness banner, notification list, or compact scan-summary line.
+4. Replaced fragile rendered-page collectors with structured public ATS feeds for:
+   - Mobileye -> EU Lever
+   - Taboola -> Greenhouse
+   - Orca Security -> Greenhouse
+   Existing structured migrations remain for Applied Materials, Similarweb, Outbrain and CyberArk.
+5. Added source-payload quality validation before any collected data is persisted. It blocks high-confidence corruption patterns such as UUID titles, page-wide repeated titles/locations, duplicate identifiers/URLs and missing core job fields.
+6. A quality failure keeps the previous known-good jobs instead of overwriting them with suspicious rows.
+7. Source health now measures collector/data health rather than job yield. A successful scan is 100% even when it finds zero Israel matches; old 88% successful states are normalized on startup.
+8. Greenhouse now prefers first_published over updated_at when available.
+9. Lever supports an explicit eu: prefix so Mobileye uses api.eu.lever.co.
+10. Legacy corrupt Mobileye/Taboola rows are removed before migration and a targeted source refresh is scheduled in the background.
+
+Data audit
+==========
+The packaged v0.1.17 database contained two proven corrupt successful payloads:
+- Mobileye: 137 active rows with UUID-shaped titles and only the generic location "Israel".
+- Taboola: 92 active rows dominated by one repeated title and one repeated location.
+The startup repair recognizes and removes these signatures before the new structured collectors run.
+
+Automated validation
+====================
+Core non-browser suite: 136 passed, 0 failed.
+Targeted source/API/UI suite: 43 passed, 0 failed.
+JavaScript syntax: node --check app/static/app.js passed.
+Python compilation: python -m compileall app agent tests passed.
+
+Browser limitation
+==================
+Playwright browser tests could not run in this build environment because the Chromium executable is not installed. The failures are environment setup errors (BrowserType.launch executable missing), not application assertions.

@@ -1,0 +1,31 @@
+JobPilot v0.1.19 — Test Report
+Generated: 2026-08-11
+
+Changes
+=======
+1. Dock source-error badge now uses the same 22x22 alert geometry as the other dock badges.
+2. All dock icon containers were audited: 46x46 wrappers with 27x27 base SVG glyphs.
+3. Check Point collector accepts current joborderid links/actions and has HTTP-first + rendered fallback.
+4. Salesforce collector accepts JR job URLs across localized/new career URL structures.
+5. Wix collector accepts both legacy /positions/<id> and current /position/seat-... URLs.
+6. Elbit collector updated from obsolete jobId links to current /job/?jid=... links.
+7. Rafael collector uses HTTP-first and a rendered fallback for /job/<id>/ links.
+8. AppsFlyer collector uses HTTP-first and a rendered fallback for /jobs/position/<id>/ links.
+9. Official collectors now fall back to external-id regex discovery when a CSS selector drifts.
+10. Hebrew Israeli job-card locations are normalized before the Israel-only filter.
+
+Validation
+==========
+- 150 non-browser tests passed.
+- node --check app/static/app.js passed.
+- python compileall app agent tests passed.
+- Browser-dependent Playwright tests were not run because Chromium is not installed in the build environment.
+
+Current official URL patterns covered by targeted tests
+=======================================================
+- Check Point: ?a=show&joborderid=<id>&m=cpcareers
+- Salesforce: localized/new URLs containing JR<number>
+- Wix: /position/seat-... and /location/tel-aviv/positions/<id>
+- Elbit Systems: /job/?jid=<id>
+- Rafael: /job/<id>/
+- AppsFlyer: /jobs/position/<id>/<slug>/

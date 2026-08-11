@@ -1,0 +1,283 @@
+from __future__ import annotations
+
+import json
+import os
+import socket
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from urllib.request import urlopen
+
+import pytest
+from playwright.sync_api import Page, Route, sync_playwright
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+@pytest.fixture(scope="module")
+def live_server():
+    port = _free_port()
+    db_path = Path(tempfile.gettempdir()) / f"jobpilot_e2e_{os.getpid()}_{port}.db"
+    env = os.environ.copy()
+    env.update(
+        {
+            "JOBPILOT_DATABASE_URL": f"sqlite:///{db_path}",
+            "JOBPILOT_SCHEDULER_ENABLED": "false",
+            "JOBPILOT_AGENT_TOKEN": "change-me",
+            "PYTHONUNBUFFERED": "1",
+        }
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    base_url = f"http://127.0.0.1:{port}"
+    deadline = time.time() + 30
+    output = []
+    while time.time() < deadline:
+        try:
+            with urlopen(f"{base_url}/api/health", timeout=1) as response:
+                if response.status == 200:
+                    break
+        except Exception:
+            if process.poll() is not None:
+                output.append(process.stdout.read() if process.stdout else "")
+                raise RuntimeError("Server exited before becoming ready:\n" + "".join(output))
+            time.sleep(0.2)
+    else:
+        process.terminate()
+        output.append(process.stdout.read() if process.stdout else "")
+        raise RuntimeError("Server did not become ready:\n" + "".join(output))
+
+    yield base_url
+
+    process.terminate()
+    try:
+        process.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    for suffix in ("", "-shm", "-wal"):
+        candidate = Path(f"{db_path}{suffix}")
+        if candidate.exists():
+            candidate.unlink()
+
+
+@pytest.fixture()
+def browser_page(live_server):
+    with sync_playwright() as playwright:
+        browser_path = os.environ.get("JOBPILOT_E2E_BROWSER")
+        if not browser_path:
+            candidate = Path(playwright.chromium.executable_path)
+            browser_path = str(candidate) if candidate.exists() else shutil.which("chromium")
+        launch_kwargs = {"headless": True}
+        if browser_path:
+            launch_kwargs["executable_path"] = browser_path
+        browser = playwright.chromium.launch(**launch_kwargs)
+        context = browser.new_context(locale="he-IL")
+        page = context.new_page()
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(f"pageerror: {error}"))
+        page.on("console", lambda message: errors.append(f"console.{message.type}: {message.text}") if message.type == "error" else None)
+        try:
+            page.goto(live_server, wait_until="networkidle")
+        except Exception as exc:
+            if "ERR_BLOCKED_BY_ADMINISTRATOR" in str(exc):
+                context.close()
+                browser.close()
+                pytest.skip("The current execution sandbox blocks browser access to localhost")
+            raise
+        yield page, errors
+        assert errors == [], "Browser errors were detected:\n" + "\n".join(errors)
+        context.close()
+        browser.close()
+
+
+def _open_profile(page: Page) -> None:
+    page.get_by_role("button", name="הפרופיל שלי").click()
+    page.locator('#view-profile.active input[name="email"]').wait_for(state="visible")
+
+
+def test_unsaved_field_is_marked_and_survives_tabs_and_reload(browser_page):
+    page, _ = browser_page
+    _open_profile(page)
+    email = page.locator('input[name="email"]')
+    new_email = "draft-not-saved@example.com"
+    email.fill(new_email)
+
+    email_label = email.locator("xpath=ancestor::label[1]")
+    assert email_label.get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+    assert email.get_attribute("aria-invalid") == "true"
+    assert page.locator("#profile-nav-unsaved").is_visible()
+    assert "שדות לא נשמרו" in page.locator("#profile-unsaved-count").inner_text()
+
+    for _ in range(12):
+        page.locator('#nav button[data-view="sources"]').click()
+        page.locator("#view-sources.active").wait_for(state="visible")
+        page.locator('#nav button[data-view="profile"]').click()
+        assert email.input_value() == new_email
+        assert email_label.get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+
+    page.reload(wait_until="networkidle")
+    _open_profile(page)
+    email = page.locator('input[name="email"]')
+    email_label = email.locator("xpath=ancestor::label[1]")
+    assert email.input_value() == new_email
+    assert email_label.get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+
+
+def test_each_white_profile_panel_has_save_and_save_clears_only_after_success(browser_page, live_server):
+    page, _ = browser_page
+    _open_profile(page)
+
+    panels = page.locator("#profile-form > article.panel")
+    assert panels.count() == 3
+    for index in range(3):
+        assert panels.nth(index).locator('button[type="submit"]').count() >= 1
+    page.locator('[data-profile-section="automation"]').click()
+    assert panels.nth(2).get_by_role("button", name="שמור את כל התשובות").count() == 1
+    page.locator('[data-profile-section="personal"]').click()
+    assert page.locator("#profile-form > button[type='submit']").count() == 0
+
+    email = page.locator('input[name="email"]')
+    email.fill("saved@example.com")
+    personal_panel = email.locator("xpath=ancestor::article[1]")
+    personal_panel.get_by_role("button", name="שמור פרטים").click()
+    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    assert email.locator("xpath=ancestor::label[1]").locator(".unsaved-note").count() == 0
+    assert email.get_attribute("aria-invalid") == "false"
+
+    page.locator('#nav button[data-view="preferences"]').click()
+    skills = page.locator('textarea[name="skills"]')
+    skills.fill(skills.input_value() + ", Playwright")
+    assert skills.locator("xpath=ancestor::label[1]").get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+    skills.locator("xpath=ancestor::article[1]").get_by_role("button", name="שמור התאמה").click()
+    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    assert skills.locator("xpath=ancestor::label[1]").locator(".unsaved-note").count() == 0
+
+    page.locator('#nav button[data-view="applications"]').click()
+    threshold = page.locator('input[name="auto_apply_threshold"]')
+    threshold.fill("91")
+    assert threshold.locator("xpath=ancestor::label[1]").get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+    threshold.locator("xpath=ancestor::article[1]").get_by_role("button", name="שמור הגדרות").click()
+    threshold.locator("xpath=ancestor::label[1]").locator(".unsaved-note").wait_for(state="detached")
+    assert threshold.locator("xpath=ancestor::label[1]").locator(".unsaved-note").count() == 0
+
+    profile = json.loads(page.request.get(f"{live_server}/api/profile").text())
+    assert profile["email"] == "saved@example.com"
+    assert "Playwright" in profile["skills"]
+    assert profile["auto_apply_threshold"] == 91
+
+
+def test_failed_save_keeps_draft_and_red_warning(browser_page):
+    page, errors = browser_page
+    _open_profile(page)
+    phone = page.locator('input[name="phone"]')
+    phone.fill("0501234567")
+
+    def fail_profile_put(route: Route):
+        if route.request.method == "PUT":
+            route.fulfill(status=500, content_type="application/json", body='{"detail":"forced test failure"}')
+        else:
+            route.continue_()
+
+    page.route("**/api/profile", fail_profile_put)
+    phone.locator("xpath=ancestor::article[1]").get_by_role("button", name="שמור פרטים").click()
+    page.get_by_text("השמירה נכשלה: forced test failure", exact=True).wait_for(state="visible")
+    assert phone.input_value() == "0501234567"
+    assert phone.locator("xpath=ancestor::label[1]").get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
+
+    page.get_by_role("button", name="מקורות").click()
+    page.get_by_role("button", name="הפרופיל שלי").click()
+    assert phone.input_value() == "0501234567"
+    page.unroute("**/api/profile", fail_profile_put)
+    errors[:] = [item for item in errors if "500 (Internal Server Error)" not in item]
+
+
+def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(browser_page):
+    page, _ = browser_page
+
+    # Recent dashboard job opens the same rich job dialog as the Jobs tab.
+    page.get_by_role("button", name="לוח בקרה").click()
+    recent = page.locator("#recent-jobs .job-row").first
+    recent.click()
+    page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
+    assert page.get_by_role("button", name="הגשה עם בקרה").is_visible()
+    assert page.get_by_role("button", name="הכנסה לתור אוטומטי").is_visible()
+    page.locator(".modal-close").click()
+
+    # Metric cards navigate and apply their filter.
+    page.locator("#metrics .metric-link").filter(has_text="התאמות חזקות").click()
+    page.locator("#view-jobs.active").wait_for(state="visible")
+    assert page.locator("#score-filter").input_value() == "80"
+
+    # Entire job cards are clickable, not only their small buttons.
+    card = page.locator("#jobs-list .job-card").first
+    card.click(position={"x": 250, "y": 80})
+    page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
+    page.get_by_role("button", name="הגשה עם בקרה").click()
+    page.get_by_text("המשרה נכנסה לתור", exact=True).wait_for(state="visible")
+
+    # Application rows open job details.
+    page.get_by_role("button", name="הגשות").click()
+    row = page.locator("#applications-list tbody tr").first
+    row.wait_for(state="visible")
+    row.click(position={"x": 200, "y": 20})
+    page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
+    page.locator(".modal-close").click()
+
+    # Source rows also have a details interaction.
+    page.get_by_role("button", name="מקורות").click()
+    source = page.locator("#sources-list .source-item").first
+    source.wait_for(state="visible")
+    source.click(position={"x": 220, "y": 25})
+    page.get_by_text("מקור משרות", exact=True).wait_for(state="visible")
+    assert page.locator(".source-detail-grid").is_visible()
+
+
+def test_all_main_views_load_without_javascript_errors(browser_page):
+    page, _ = browser_page
+    navigation = [
+        ("dashboard", "לוח בקרה"), ("jobs", "משרות"), ("applications", "הגשות"),
+        ("blockers", "דורש טיפול"), ("skills", "סקילים"), ("preferences", "העדפות חיפוש"),
+        ("sources", "מקורות"), ("profile", "הפרופיל שלי"),
+    ]
+    for view, _label in navigation:
+        page.locator(f'#nav button[data-view="{view}"]').click()
+        page.wait_for_timeout(150)
+        content_view = "profile" if view == "preferences" else view
+        assert page.locator(f"#view-{content_view}.active").count() == 1
+        assert page.locator("body").is_visible()
+
+
+def test_languages_can_be_added_with_level_and_available_now(browser_page, live_server):
+    page, _ = browser_page
+    _open_profile(page)
+    rows = page.locator("#language-rows [data-language-row]")
+    assert rows.count() >= 2
+    rows.nth(0).locator("[data-language-level]").select_option("Native / Bilingual")
+    rows.nth(1).locator("[data-language-level]").select_option("Fluent")
+    page.get_by_role("button", name="הוסף שפה חדשה").click()
+    added = rows.last
+    added.locator("[data-language-name]").fill("Spanish")
+    added.locator("[data-language-level]").select_option("Intermediate")
+    page.locator("#available-now").click()
+    assert page.locator('input[name="extra_available_start_date"]').input_value()
+    page.get_by_role("button", name="שמור שפות והסמכות").click()
+    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    profile = page.request.get(f"{live_server}/api/profile").json()
+    assert {item["name"]: item["proficiency"] for item in profile["application_profile"]["languages"]} == {
+        "Hebrew": "Native / Bilingual", "English": "Fluent", "Spanish": "Intermediate",
+    }
