@@ -95,3 +95,47 @@ def test_postgres_startup_skips_existing_not_null_and_indexes(monkeypatch):
     assert "ALTER COLUMN user_id SET NOT NULL" not in sql
     assert "CREATE INDEX" not in sql
     assert "CREATE UNIQUE INDEX" not in sql
+
+
+def test_postgres_startup_makes_removed_salary_column_insert_safe(monkeypatch):
+    connection = _Connection(roles=())
+    inspector = _Inspector(
+        ["profiles"],
+        {"profiles": [
+            {"name": "user_id", "nullable": False},
+            {"name": "salary_expectation", "nullable": False, "default": None},
+        ]},
+    )
+    monkeypatch.setattr(database_module, "inspect", lambda _connection: inspector)
+    monkeypatch.setattr(
+        database_module,
+        "_postgres_index_names",
+        lambda _connection, table: {"ix_profiles_user_id", "uq_profile_user_idx"} if table == "profiles" else set(),
+    )
+
+    database_module._postgres_multiuser_migration(connection)
+
+    sql = "\n".join(connection.statements)
+    assert "ALTER TABLE profiles ALTER COLUMN salary_expectation SET DEFAULT ''" in sql
+
+
+def test_postgres_startup_does_not_rewrite_existing_salary_default(monkeypatch):
+    connection = _Connection(roles=())
+    inspector = _Inspector(
+        ["profiles"],
+        {"profiles": [
+            {"name": "user_id", "nullable": False},
+            {"name": "salary_expectation", "nullable": False, "default": "''::character varying"},
+        ]},
+    )
+    monkeypatch.setattr(database_module, "inspect", lambda _connection: inspector)
+    monkeypatch.setattr(
+        database_module,
+        "_postgres_index_names",
+        lambda _connection, table: {"ix_profiles_user_id", "uq_profile_user_idx"} if table == "profiles" else set(),
+    )
+
+    database_module._postgres_multiuser_migration(connection)
+
+    sql = "\n".join(connection.statements)
+    assert "ALTER COLUMN salary_expectation SET DEFAULT" not in sql

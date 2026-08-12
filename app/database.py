@@ -288,6 +288,19 @@ def _postgres_multiuser_migration(connection) -> None:
             connection.execute(text(f"CREATE INDEX {index_name} ON {table}(user_id)"))
 
     if "profiles" in tables:
+        # ``salary_expectation`` existed before v0.3.2 and was intentionally removed
+        # from the product/model. Older cloud databases can still have that column as
+        # NOT NULL with no server default. Existing profiles continue to work, but a
+        # brand-new account/guest then fails on INSERT with PostgreSQL NotNullViolation
+        # because SQLAlchemy no longer sends a value for the retired field. Keep the
+        # legacy column harmless and backwards-compatible instead of rebuilding the
+        # table: a server default lets current code insert new profiles safely.
+        profile_columns = {c["name"]: c for c in inspect(connection).get_columns("profiles")}
+        legacy_salary = profile_columns.get("salary_expectation")
+        if legacy_salary is not None and legacy_salary.get("default") is None:
+            connection.execute(text(
+                "ALTER TABLE profiles ALTER COLUMN salary_expectation SET DEFAULT ''"
+            ))
         if "uq_profile_user_idx" not in _postgres_index_names(connection, "profiles"):
             connection.execute(text("CREATE UNIQUE INDEX uq_profile_user_idx ON profiles(user_id)"))
 
