@@ -5,31 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.42.1" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.43.0" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
     <div class="auth-shell">
-      <div class="auth-brand">
-        <span class="auth-logo">JP</span>
-        <div><strong>JobPilot</strong><small>החשבון הפרטי שלך לחיפוש והגשת משרות</small></div>
+      <div class="brand auth-brand" role="button" tabindex="0" aria-label="הפעל את מסלול JobPilot">
+        <span class="brand-mark auth-brand-mark">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <defs>
+              <linearGradient id="auth-jp-surface" x1="8" y1="5" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#123F65"/><stop offset=".55" stop-color="#0B3151"/><stop offset="1" stop-color="#06243E"/>
+              </linearGradient>
+              <linearGradient id="auth-jp-line" x1="18" y1="49" x2="50" y2="16" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8FD3F4"/><stop offset=".48" stop-color="#DDF5FF"/><stop offset="1" stop-color="#FFFFFF"/>
+              </linearGradient>
+            </defs>
+            <rect class="logo-surface" x="3" y="3" width="58" height="58" rx="18" fill="url(#auth-jp-surface)"/>
+            <path class="logo-route-depth" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+            <path class="logo-route" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+            <path class="logo-route-highlight" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/>
+          </svg>
+        </span>
+        <i class="brand-flight-dot" aria-hidden="true"></i>
+        <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot"></span></span>lot</strong><span class="brand-tagline">חיפוש משרות חכם, במקום אחד</span></div>
       </div>
       <div class="auth-card">
-        <span class="kicker">כניסה מאובטחת</span>
-        <h1>ברוך הבא</h1>
-        <p>התחבר כדי לקבל את הפרופיל, המשרות, המקורות וההגשות שלך מכל מכשיר.</p>
-        <button id="auth-google" class="auth-google" type="button"><span>G</span> המשך עם Google</button>
-        <button id="auth-guest" class="auth-guest" type="button"><span>◇</span><strong>המשך כאורח</strong><small>דמו מבודד לקריאה בלבד · בלי הגשות או שינוי מידע</small></button>
+        <div class="auth-heading">
+          <span class="auth-security"><i aria-hidden="true"></i> כניסה מאובטחת</span>
+          <h1>ברוך הבא ל־JobPilot</h1>
+          <p>הפרופיל, המשרות, המקורות וההגשות שלך מסונכרנים ומחכים לך מכל מכשיר.</p>
+        </div>
+        <div class="auth-confidence" aria-label="יתרונות החשבון">
+          <span>פרופיל ומשרות מסונכרנים</span><span>Agent ההגשות נשאר על ה־Mac</span>
+        </div>
+        <button id="auth-google" class="auth-google" type="button"><span aria-hidden="true">G</span><strong>המשך עם Google</strong></button>
         <div class="auth-divider"><span>או עם אימייל</span></div>
         <form id="auth-form" class="auth-form">
-          <label>אימייל<input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
-          <label>סיסמה<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" /></label>
-          <button class="btn primary" type="submit">התחבר</button>
+          <label><span>אימייל</span><input id="auth-email" type="email" inputmode="email" autocomplete="email" required placeholder="name@example.com" /></label>
+          <label><span>סיסמה</span><div class="auth-password-field"><input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" /><button id="auth-password-toggle" type="button" aria-label="הצג סיסמה" title="הצג סיסמה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 12s3.2-5.2 9.2-5.2S21.2 12 21.2 12 18 17.2 12 17.2 2.8 12 2.8 12Z"/><circle cx="12" cy="12" r="2.4"/></svg></button></div></label>
+          <button class="btn primary auth-submit" type="submit">התחבר</button>
         </form>
         <button id="auth-signup" class="text-btn auth-signup" type="button">אין חשבון? צור חשבון עם האימייל הזה</button>
-        <p id="auth-message" class="auth-message"></p>
+        <div class="auth-demo-divider"><span>רוצה רק להתרשם?</span></div>
+        <button id="auth-guest" class="auth-guest" type="button"><span aria-hidden="true">◇</span><strong>המשך כאורח</strong><small>דמו מבודד לקריאה בלבד · בלי הגשות או שינוי מידע</small></button>
+        <p id="auth-message" class="auth-message" role="status"></p>
       </div>
-      <small class="auth-footnote">JobPilot Cloud שומר את המידע ב־PostgreSQL ואת הקבצים הפרטיים ב־Storage. סוכן ההגשות נשאר על ה־Mac שלך.</small>
+      <small class="auth-footnote">המידע הפרטי נשמר בענן המאובטח של JobPilot; פעולות הדפדפן וההגשות נשארות בשליטת ה־Agent המקומי שלך.</small>
     </div>
   </section>
   <div class="app-shell" id="app-shell">
@@ -64,6 +86,9 @@
         <button data-view="sources"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.8 19.2a10.2 10.2 0 0 1 0-14.4M19.2 4.8a10.2 10.2 0 0 1 0 14.4"/><path class="nav-accent" d="m12 12 5.1-5.1"/></svg></span><span class="nav-label">מקורות<small>אתרי הקריירה שנסרקים</small></span><em id="source-error-badge" class="source-error-badge" hidden aria-label="יש מקורות עם שגיאה">!</em></button>
         <button data-view="profile"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="3"/><circle cx="9" cy="10" r="2.2"/><path d="M5.8 16c.7-2 2-3 3.2-3s2.5 1 3.2 3M15 9h3M15 13h3"/><circle class="nav-accent" cx="17.5" cy="17" r="1.3"/></svg></span><span class="nav-label">הפרופיל שלי<small>פרטים ושאלות הגשה</small></span><em id="profile-nav-unsaved" class="unsaved-nav-badge" hidden>!</em></button>
       </nav>
+      <div class="dock-utility" id="dock-utility" aria-label="פעולות מהירות">
+        <button class="icon-action notification-trigger has-tooltip" id="notification-trigger" type="button" aria-label="פתח מרכז התראות" aria-expanded="false" title="התראות" data-tooltip="התראות"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9.7a6 6 0 0 0-12 0c0 6-2.4 6.4-2.4 6.4h16.8S18 15.7 18 9.7Z"/><path d="M9.8 19.1a2.5 2.5 0 0 0 4.4 0"/></svg><em id="notification-count" hidden>0</em></button>
+      </div>
       <div class="sidebar-footer">
         <div class="agent-dot"><i></i><span>Agent מקומי</span><b id="agent-state">ממתין</b></div>
         <small>הגשה אוטומטית נעצרת ב־CAPTCHA ובשאלות לא מוכרות.</small>
@@ -87,9 +112,8 @@
             <div class="career-switcher-menu" id="career-switcher-menu" role="menu" hidden></div>
           </div>
           <button id="scan-status" class="scan-status" type="button" aria-label="מצב הסריקה. לחץ לפתיחת הדוח" title="לחץ לפתיחת דוח הסריקה"><span><b>טרם בוצעה סריקה</b><small>לחץ כאן לאחר סריקה כדי לראות את הדוח המלא</small></span><i class="scan-status-fill" aria-hidden="true"></i></button>
-          <button class="icon-action notification-trigger" id="notification-trigger" type="button" aria-label="פתח מרכז התראות" aria-expanded="false"><span aria-hidden="true">♢</span><em id="notification-count" hidden>0</em></button>
           <button class="account-chip" id="account-chip" type="button" hidden aria-label="חשבון JobPilot"><span id="account-avatar">A</span><strong id="account-email">חשבון</strong></button>
-          <button class="icon-action logout-action" id="logout-action" type="button" hidden aria-label="התנתקות" title="התנתקות"><span aria-hidden="true">↪</span></button>
+          <button class="icon-action logout-action has-tooltip" id="logout-action" type="button" hidden aria-label="התנתקות" title="התנתקות" data-tooltip="התנתקות"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4H6.7A1.7 1.7 0 0 0 5 5.7v12.6A1.7 1.7 0 0 0 6.7 20h3.8"/><path d="M14.2 8.2 18 12l-3.8 3.8M9.3 12H18"/></svg></button>
           <div class="theme-switch" id="theme-switch" role="group" aria-label="ערכת צבעים">
             <i class="theme-switch-thumb" aria-hidden="true"></i>
             <button type="button" data-theme="light" aria-label="מצב יום" title="מצב יום"><span aria-hidden="true">☀</span></button>
@@ -387,6 +411,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.22.0"></script>
+  <script src="/static/app.js?v=0.23.0"></script>
 </body>
 </html>

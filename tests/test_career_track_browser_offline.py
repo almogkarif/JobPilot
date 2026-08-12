@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.42.1" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.22.0"></script>', "")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.43.0" />', f"<style>{css}</style>")
+    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -139,7 +139,9 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         source_switch = rgb('.source-toggle input:checked + .source-toggle-track')
         source_switch_image = page.eval_on_selector('.source-toggle input:checked + .source-toggle-track', 'el => getComputedStyle(el).backgroundImage')
         assert not is_blue(source_switch)
-        assert '224, 173, 46' in source_switch_image or '173, 116, 10' in source_switch_image
+        assert 'linear-gradient' in source_switch_image
+        assert '225, 171, 43' in source_switch_image or '123, 89, 15' in source_switch_image
+        assert '35, 150, 209' not in source_switch_image and '142, 220, 255' not in source_switch_image
 
         # Full IEM palette regression: the large surfaces that previously leaked
         # several legacy CS blue shades must stay yellow/brown in dark mode too.

@@ -304,3 +304,93 @@ def test_languages_can_be_added_with_level_and_available_now(browser_page, live_
     assert {item["name"]: item["proficiency"] for item in profile["application_profile"]["languages"]} == {
         "Hebrew": "Native / Bilingual", "English": "Fluent", "Spanish": "Intermediate",
     }
+
+
+def _rgb_is_blue(value: str) -> bool:
+    import re
+    match = re.search(r"rgba?\((\d+),\s*(\d+),\s*(\d+)", value or "")
+    if not match:
+        return False
+    r, g, b = map(int, match.groups())
+    return b > r + 20 and b > g + 15
+
+
+def test_login_polish_uses_animated_real_logo_and_password_visibility(browser_page):
+    page, _ = browser_page
+    page.evaluate("showAuthGate('')")
+    page.locator("#auth-gate").wait_for(state="visible")
+    page.locator(".auth-brand .brand-mark").wait_for(state="visible")
+    page.wait_for_function("document.querySelector('.auth-brand')?.dataset.logoReady === 'true'")
+    assert page.locator(".auth-brand .logo-route").count() == 1
+    assert page.locator(".auth-brand .brand-flight-dot").count() == 1
+    assert page.locator(".auth-confidence span").count() == 2
+
+    password = page.locator("#auth-password")
+    toggle = page.locator("#auth-password-toggle")
+    assert password.get_attribute("type") == "password"
+    toggle.click()
+    assert password.get_attribute("type") == "text"
+    assert toggle.get_attribute("aria-label") == "הסתר סיסמה"
+    toggle.click()
+    assert password.get_attribute("type") == "password"
+    page.evaluate("hideAuthGate()")
+
+
+def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(browser_page):
+    page, _ = browser_page
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.wait_for_timeout(100)
+    nav = page.locator("#nav").bounding_box()
+    trigger = page.locator("#notification-trigger").bounding_box()
+    assert nav and trigger
+    assert trigger["y"] >= nav["y"] + nav["height"] + 8
+    assert 15 <= 1440 - (trigger["x"] + trigger["width"]) <= 40
+
+    page.locator("#notification-trigger").click()
+    center = page.locator("#notification-center")
+    center.wait_for(state="visible")
+    panel = center.bounding_box()
+    assert panel
+    assert panel["x"] + panel["width"] <= trigger["x"] - 4
+    page.locator("#notification-close").click()
+
+
+def test_iem_light_and_dark_interactive_chrome_has_no_legacy_blue(browser_page):
+    page, _ = browser_page
+    _open_profile(page)
+    page.evaluate("""() => {
+      document.body.classList.remove('track-computer-science', 'theme-dark');
+      document.body.classList.add('track-industrial-engineering');
+    }""")
+    # Let theme transitions settle before auditing computed colors.
+    page.wait_for_timeout(420)
+
+    def style(selector: str, prop: str) -> str:
+        return page.eval_on_selector(selector, "(el, prop) => getComputedStyle(el)[prop]", prop)
+
+    personal_input = 'input[name="email"]'
+    page.locator(personal_input).focus()
+    light_values = [
+        style(personal_input, "borderColor"),
+        style(".profile-detail-section h3", "color"),
+        style("#nav button.active .nav-accent", "stroke"),
+        style(".brand .logo-surface", "fill"),
+    ]
+    assert all(not _rgb_is_blue(value) for value in light_values), light_values
+
+    page.locator('#nav button[data-view="profile"]').evaluate("el => el.classList.add('is-dock-exit')")
+    transition_bg = style('#nav button[data-view="profile"]', "backgroundImage")
+    assert "23, 119, 181" not in transition_bg and "61, 160, 215" not in transition_bg
+
+    page.evaluate("document.body.classList.add('theme-dark')")
+    page.wait_for_timeout(420)
+    page.locator(personal_input).focus()
+    dark_values = [
+        style(personal_input, "backgroundColor"),
+        style(personal_input, "borderColor"),
+        style(".profile-detail-section h3", "color"),
+        style("#nav button.active .nav-accent", "stroke"),
+        style(".brand .logo-surface", "fill"),
+        style("#notification-trigger", "backgroundColor"),
+    ]
+    assert all(not _rgb_is_blue(value) for value in dark_values), dark_values

@@ -171,6 +171,7 @@ function showAuthGate(message = '', tone = 'error') {
   $('#app-shell')?.setAttribute('aria-hidden', 'true');
   const note = $('#auth-message');
   if (note) { note.textContent = message; note.className = `auth-message ${message ? tone : ''}`; }
+  requestAnimationFrame(initInteractiveLogos);
 }
 
 function hideAuthGate() {
@@ -2674,6 +2675,12 @@ $('#notification-trigger').onclick = () => {
   $('#notification-trigger').setAttribute('aria-expanded', String(open));
 };
 $('#notification-close').onclick = closeNotifications;
+document.addEventListener('pointerdown', (event) => {
+  const center = $('#notification-center');
+  if (!center?.classList.contains('open')) return;
+  if (event.target.closest('#notification-center, #notification-trigger')) return;
+  closeNotifications();
+});
 
 const COMMAND_VIEWS = [
   ['dashboard','לוח בקרה','תמונת מצב'], ['jobs','משרות','חיפוש והתאמות'], ['preferences','העדפות חיפוש','תפקידים ומיקום'],
@@ -2892,12 +2899,13 @@ window.createAgentDevice = createAgentDevice;
 window.revokeAgentDevice = revokeAgentDevice;
 window.openCloudAccount = openCloudAccount;
 
-function initInteractiveLogo() {
-  const brand = document.querySelector('.brand');
-  const mark = document.querySelector('#brand-mark');
-  const dot = document.querySelector('#brand-flight-dot');
-  const target = document.querySelector('#brand-i-dot');
-  if (!brand || !mark || !dot || !target) return;
+function initInteractiveLogo(brand) {
+  if (!brand || brand.dataset.logoReady === 'true') return;
+  const mark = brand.querySelector('.brand-mark');
+  const dot = brand.querySelector('.brand-flight-dot');
+  const target = brand.querySelector('.brand-i-dot');
+  if (!mark || !dot || !target || !brand.getClientRects().length) return;
+  brand.dataset.logoReady = 'true';
   let parked = false;
   let moving = false;
   let autoReturnTimer = null;
@@ -2988,7 +2996,11 @@ function initInteractiveLogo() {
   requestAnimationFrame(() => { positionDot(); scheduleAutoReturn(); });
 }
 
-initInteractiveLogo();
+function initInteractiveLogos() {
+  document.querySelectorAll('.brand').forEach((brand) => initInteractiveLogo(brand));
+}
+
+initInteractiveLogos();
 
 $('#restore-backup').onclick=()=>$('#restore-backup-file').click();
 $('#restore-backup-file').onchange=async(event)=>{const file=event.target.files[0];if(!file)return;if(!confirm('לשחזר את הפרופיל, ההעדפות והתשובות מהגיבוי?'))return;const body=new FormData();body.append('file',file);await api('/api/backup/restore',{method:'POST',body});toast('הגיבוי שוחזר');state.profileLoaded=false;await loadProfile();};
@@ -3004,6 +3016,18 @@ async function disableSiteLock(){await api('/api/security/lock',{method:'DELETE'
 
 async function ensureUnlocked(){const status=await api('/api/security/status');if(!status.locked)return true;modal(`<span class="kicker">JobPilot נעול</span><h2>הזן PIN מקומי</h2><input id="unlock-pin" type="password" autofocus /><button class="btn primary" onclick="unlockSite()">פתח</button>`);return false;}
 async function unlockSite(){try{await api('/api/security/unlock',{method:'POST',body:JSON.stringify({pin:$('#unlock-pin').value})});location.reload();}catch(error){toast(error.message);}}
+
+$('#auth-password-toggle').onclick = () => {
+  const input = $('#auth-password');
+  const button = $('#auth-password-toggle');
+  if (!input || !button) return;
+  const reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  button.setAttribute('aria-label', reveal ? 'הסתר סיסמה' : 'הצג סיסמה');
+  button.title = reveal ? 'הסתר סיסמה' : 'הצג סיסמה';
+  button.classList.toggle('is-revealed', reveal);
+  input.focus({ preventScroll: true });
+};
 
 $('#auth-form').onsubmit = async (event) => {
   event.preventDefault();
