@@ -9,7 +9,7 @@ import io
 import json
 import secrets
 import shutil
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -445,6 +445,68 @@ def auth_me(request: Request):
     }
 
 
+def _request_is_guest(request: Request) -> bool:
+    identity = getattr(request.state, "identity", None)
+    return bool(identity and (getattr(identity, "is_guest", False) or getattr(identity, "role", "") == "guest"))
+
+
+def _primary_admin_user_id(db: Session) -> str:
+    """Resolve the account whose live job catalog is exposed to read-only guests."""
+    owner_email = str(settings.owner_email or "").strip().casefold()
+    if owner_email:
+        owner_id = db.scalar(
+            select(AppIdentity.auth_user_id)
+            .where(func.lower(AppIdentity.email) == owner_email)
+            .order_by(AppIdentity.id)
+            .limit(1)
+        )
+        if owner_id:
+            return str(owner_id)
+    admin_id = db.scalar(
+        select(AppIdentity.auth_user_id)
+        .where(AppIdentity.role == "admin")
+        .order_by(AppIdentity.id)
+        .limit(1)
+    )
+    return str(admin_id or "")
+
+
+@contextmanager
+def _job_catalog_session(request: Request, request_db: Session):
+    """Yield the normal tenant DB, or the primary admin's catalog for a guest GET.
+
+    Only endpoints that explicitly opt into this helper can see the shared catalog.
+    Guest write protection remains enforced by middleware and all other tenant data
+    continues to use the anonymous user's isolated scope.
+    """
+    if not _request_is_guest(request):
+        yield request_db
+        return
+    admin_user_id = _primary_admin_user_id(request_db)
+    if not admin_user_id:
+        # A brand-new cloud instance may not have an admin yet. Preserve the guest's
+        # isolated demo catalog rather than failing the entire read-only experience.
+        yield request_db
+        return
+    catalog_db = SessionLocal()
+    set_user_scope(catalog_db, admin_user_id)
+    try:
+        yield catalog_db
+    finally:
+        catalog_db.close()
+
+
+def _job_payload_for_request(job: Job, request: Request, *, full: bool = False, profile: Profile | None = None) -> dict:
+    data = _job_dict(job, full=full, profile=None if _request_is_guest(request) else profile)
+    if _request_is_guest(request):
+        # Guests may inspect the admin's opportunities, but application state is
+        # private. Present every shared opportunity as a neutral read-only listing.
+        data["status"] = "new"
+        data["application_id"] = None
+        data["skill_gaps"] = []
+    return data
+
+
 @app.get("/api/admin/users")
 def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
@@ -601,49 +663,64 @@ def set_active_career_track(payload: CareerTrackSwitch, request: Request, db: Se
 def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     career_track = active_track(profile)
-    career_stats = _career_track_stats(db)
-    current_stats = career_stats.get(career_track, {})
-    career_track_info = _career_tracks_payload(db, profile, stats=career_stats)
-    status_counts = dict(db.execute(
-        select(Application.status, func.count()).join(Job, Application.job_id == Job.id)
-        .where(Job.career_track == career_track).group_by(Application.status)
-    ).all())
-    total_jobs = int(current_stats.get("jobs", 0))
-    strong_matches = int(current_stats.get("strong_matches", 0))
-    open_blockers = db.scalar(select(func.count()).select_from(Blocker)
-        .join(Application, Blocker.application_id == Application.id).join(Job, Application.job_id == Job.id)
-        .where(Blocker.status == "open", Job.career_track == career_track)) or 0
-    due_reminders = db.scalar(select(func.count()).select_from(Application).join(Job, Application.job_id == Job.id).where(
-        Application.reminder_at.is_not(None), Application.reminder_at <= utcnow(),
-        Application.status.not_in(["rejected"]), Job.career_track == career_track)) or 0
-    # "Worth checking today" is a ranked daily shortlist, not merely the last
-    # rows inserted. Build Israel-local day boundaries and compare them in UTC.
-    israel_tz = ZoneInfo(settings.timezone)
-    local_now = datetime.now(israel_tz)
-    local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    scan_cutoff = local_day_start.replace(hour=settings.scan_hour, minute=settings.scan_minute)
-    showing_previous_day = local_now < scan_cutoff
-    if showing_previous_day:
-        local_day_start -= timedelta(days=1)
-    day_start_utc = local_day_start.astimezone(timezone.utc)
-    day_end_utc = (local_day_start + timedelta(days=1)).astimezone(timezone.utc)
-    today_top_jobs = db.scalars(
-        select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-            Job.is_active.is_(True),
-            Job.career_track == career_track,
-            Job.discovered_at >= day_start_utc,
-            Job.discovered_at < day_end_utc,
-        ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at)).limit(5)
-    ).all()
-    if not today_top_jobs:
-        # Keep the dashboard useful on quiet days and brand-new/demo workspaces: show the
-        # latest active matches instead of an empty "recent jobs" panel. This fallback
-        # only costs an extra query when there truly were no discoveries today.
-        today_top_jobs = db.scalars(
+    guest_catalog = _request_is_guest(request)
+
+    # Guest mode mirrors the primary admin's live opportunity catalog while every
+    # personal surface (profile, applications, blockers, answers) stays isolated.
+    with _job_catalog_session(request, db) as catalog_db:
+        career_stats = _career_track_stats(catalog_db)
+        current_stats = career_stats.get(career_track, {})
+        total_jobs = int(current_stats.get("jobs", 0))
+        strong_matches = int(current_stats.get("strong_matches", 0))
+
+        # "Worth checking today" is a ranked daily shortlist, not merely the last
+        # rows inserted. Build Israel-local day boundaries and compare them in UTC.
+        israel_tz = ZoneInfo(settings.timezone)
+        local_now = datetime.now(israel_tz)
+        local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        scan_cutoff = local_day_start.replace(hour=settings.scan_hour, minute=settings.scan_minute)
+        showing_previous_day = local_now < scan_cutoff
+        if showing_previous_day:
+            local_day_start -= timedelta(days=1)
+        day_start_utc = local_day_start.astimezone(timezone.utc)
+        day_end_utc = (local_day_start + timedelta(days=1)).astimezone(timezone.utc)
+        today_top_jobs = catalog_db.scalars(
             select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-                Job.is_active.is_(True), Job.career_track == career_track
-            ).order_by(desc(Job.discovered_at), desc(Job.score), desc(Job.published_at)).limit(5)
+                Job.is_active.is_(True),
+                Job.career_track == career_track,
+                Job.discovered_at >= day_start_utc,
+                Job.discovered_at < day_end_utc,
+            ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at)).limit(5)
         ).all()
+        if not today_top_jobs:
+            today_top_jobs = catalog_db.scalars(
+                select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+                    Job.is_active.is_(True), Job.career_track == career_track
+                ).order_by(desc(Job.discovered_at), desc(Job.score), desc(Job.published_at)).limit(5)
+            ).all()
+        recent_jobs = [
+            _job_payload_for_request(job, request, profile=profile)
+            for job in today_top_jobs
+        ]
+
+    career_track_info = _career_tracks_payload(db, profile, stats=career_stats)
+    if guest_catalog:
+        # Never leak the admin's application pipeline through the demo dashboard.
+        status_counts = {}
+        open_blockers = 0
+        due_reminders = 0
+    else:
+        status_counts = dict(db.execute(
+            select(Application.status, func.count()).join(Job, Application.job_id == Job.id)
+            .where(Job.career_track == career_track).group_by(Application.status)
+        ).all())
+        open_blockers = db.scalar(select(func.count()).select_from(Blocker)
+            .join(Application, Blocker.application_id == Application.id).join(Job, Application.job_id == Job.id)
+            .where(Blocker.status == "open", Job.career_track == career_track)) or 0
+        due_reminders = db.scalar(select(func.count()).select_from(Application).join(Job, Application.job_id == Job.id).where(
+            Application.reminder_at.is_not(None), Application.reminder_at <= utcnow(),
+            Application.status.not_in(["rejected"]), Job.career_track == career_track)) or 0
+
     enabled_sources = int(current_stats.get("enabled_sources", 0))
     failed_sources = int(current_stats.get("source_errors", 0))
     required_profile_fields = (("full_name", "שם מלא"), ("email", "אימייל"), ("phone", "טלפון"), ("location", "מיקום"))
@@ -651,19 +728,21 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     profile_complete = not missing_profile_fields
     identity = getattr(request.state, "identity", None)
     agent_required = bool(
-        (settings.auth_mode != "supabase" or getattr(identity, "role", "") == "admin")
+        not guest_catalog
+        and (settings.auth_mode != "supabase" or getattr(identity, "role", "") == "admin")
         and application_agent_allowed(email=getattr(identity, "email", ""))
     )
     agent_token_secure = settings.agent_token != "change-me"
     readiness = {
-        "ready": bool(profile_complete and profile.cv_path and enabled_sources and (not agent_required or agent_token_secure)),
-        "profile_complete": profile_complete,
-        "missing_profile_fields": missing_profile_fields,
-        "resume_uploaded": bool(profile and profile.cv_path),
+        "ready": True if guest_catalog else bool(profile_complete and profile.cv_path and enabled_sources and (not agent_required or agent_token_secure)),
+        "profile_complete": True if guest_catalog else profile_complete,
+        "missing_profile_fields": [] if guest_catalog else missing_profile_fields,
+        "resume_uploaded": True if guest_catalog else bool(profile and profile.cv_path),
         "sources_enabled": enabled_sources,
         "sources_with_errors": failed_sources,
         "agent_required": agent_required,
         "agent_token_secure": agent_token_secure,
+        "guest_catalog": guest_catalog,
     }
     return {
         "total_jobs": total_jobs,
@@ -676,10 +755,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "scan": _effective_scan_status(db, current_user_id(db), career_track),
         "career_track": career_track,
         "career_track_info": career_track_info,
-        "recent_jobs": [_job_dict(j, profile=profile) for j in today_top_jobs],
+        "recent_jobs": recent_jobs,
         "recommendation_date": local_day_start.date().isoformat(),
         "recommendations_from_previous_day": showing_previous_day,
         "readiness": readiness,
+        "guest_catalog": guest_catalog,
     }
 
 
@@ -1126,6 +1206,7 @@ def get_scan_status(db: Session = Depends(get_db)):
 
 @app.get("/api/jobs")
 def list_jobs(
+    request: Request,
     min_score: int = Query(0, ge=0, le=100),
     status: str | None = None,
     query: str | None = None,
@@ -1139,44 +1220,54 @@ def list_jobs(
 ):
     profile = get_user_profile(db)
     career_track = active_track(profile)
-    statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(Job.score >= min_score, Job.career_track == career_track)
-    count_statement = select(func.count()).select_from(Job).where(Job.score >= min_score, Job.career_track == career_track)
-    if active_only:
-        statement = statement.where(Job.is_active.is_(True))
-        count_statement = count_statement.where(Job.is_active.is_(True))
-    if status:
-        statement = statement.where(Job.status == status)
-        count_statement = count_statement.where(Job.status == status)
-    if query:
-        pattern = f"%{query}%"
-        query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
-        statement = statement.where(query_filter)
-        count_statement = count_statement.where(query_filter)
+    guest_catalog = _request_is_guest(request)
 
-    sort_map = {
-        "score_desc": (desc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
-        "score_asc": (asc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
-        "newest": (desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id)),
-        "oldest": (asc(func.coalesce(Job.published_at, Job.discovered_at)), asc(Job.id)),
-        "discovered_desc": (desc(Job.discovered_at), desc(Job.id)),
-        "company_asc": (asc(func.lower(Job.company)), desc(Job.score), desc(Job.id)),
-        "title_asc": (asc(func.lower(Job.title)), desc(Job.score), desc(Job.id)),
-    }
-    if sort not in sort_map:
-        raise HTTPException(400, "Unsupported jobs sort option")
-    statement = statement.order_by(*sort_map[sort])
+    with _job_catalog_session(request, db) as catalog_db:
+        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+            Job.score >= min_score, Job.career_track == career_track
+        )
+        count_statement = select(func.count()).select_from(Job).where(
+            Job.score >= min_score, Job.career_track == career_track
+        )
+        if active_only:
+            statement = statement.where(Job.is_active.is_(True))
+            count_statement = count_statement.where(Job.is_active.is_(True))
+        # A guest sees neutral read-only opportunities, not the admin's private
+        # saved/submitted state. Ignore the status filter in shared-catalog mode.
+        if status and not guest_catalog:
+            statement = statement.where(Job.status == status)
+            count_statement = count_statement.where(Job.status == status)
+        if query:
+            pattern = f"%{query}%"
+            query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
+            statement = statement.where(query_filter)
+            count_statement = count_statement.where(query_filter)
 
-    if paginated:
-        total = int(db.scalar(count_statement) or 0)
-        pages = max(1, (total + page_size - 1) // page_size)
-        effective_page = min(page, pages)
-        jobs = db.scalars(statement.offset((effective_page - 1) * page_size).limit(page_size)).all()
-    else:
-        jobs = db.scalars(statement.limit(limit)).all()
-    items = [_job_dict(job, profile=profile) for job in jobs]
+        sort_map = {
+            "score_desc": (desc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
+            "score_asc": (asc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
+            "newest": (desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id)),
+            "oldest": (asc(func.coalesce(Job.published_at, Job.discovered_at)), asc(Job.id)),
+            "discovered_desc": (desc(Job.discovered_at), desc(Job.id)),
+            "company_asc": (asc(func.lower(Job.company)), desc(Job.score), desc(Job.id)),
+            "title_asc": (asc(func.lower(Job.title)), desc(Job.score), desc(Job.id)),
+        }
+        if sort not in sort_map:
+            raise HTTPException(400, "Unsupported jobs sort option")
+        statement = statement.order_by(*sort_map[sort])
+
+        if paginated:
+            total = int(catalog_db.scalar(count_statement) or 0)
+            pages = max(1, (total + page_size - 1) // page_size)
+            effective_page = min(page, pages)
+            jobs = catalog_db.scalars(statement.offset((effective_page - 1) * page_size).limit(page_size)).all()
+        else:
+            jobs = catalog_db.scalars(statement.limit(limit)).all()
+        items = [_job_payload_for_request(job, request, profile=profile) for job in jobs]
+
     if not paginated:
         return items
-    return {
+    response = {
         "items": items,
         "total": total,
         "page": effective_page,
@@ -1184,15 +1275,20 @@ def list_jobs(
         "pages": pages,
         "sort": sort,
     }
+    if guest_catalog:
+        response["guest_catalog"] = True
+    return response
 
 
 @app.get("/api/jobs/{job_id}")
-def get_job(job_id: int, db: Session = Depends(get_db)):
+def get_job(job_id: int, request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
-    job = db.get(Job, job_id, options=(joinedload(Job.source), joinedload(Job.application)))
-    if not job or job.career_track != active_track(profile):
-        raise HTTPException(404, "Job not found")
-    return _job_dict(job, full=True, profile=profile)
+    career_track = active_track(profile)
+    with _job_catalog_session(request, db) as catalog_db:
+        job = catalog_db.get(Job, job_id, options=(joinedload(Job.source), joinedload(Job.application)))
+        if not job or job.career_track != career_track:
+            raise HTTPException(404, "Job not found")
+        return _job_payload_for_request(job, request, full=True, profile=profile)
 
 
 @app.post("/api/jobs/import")

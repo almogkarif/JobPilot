@@ -184,19 +184,42 @@ function restoreStoredSession() {
   catch { saveAuthSession(null); }
 }
 
+function cleanOAuthCallbackUrl() {
+  const query = new URLSearchParams(location.search);
+  ['error', 'error_code', 'error_description', 'code', 'state'].forEach((key) => query.delete(key));
+  const suffix = query.toString();
+  history.replaceState({}, document.title, `${location.pathname}${suffix ? `?${suffix}` : ''}`);
+}
+
 function captureOAuthSession() {
-  if (!location.hash.includes('access_token=')) return false;
-  const params = new URLSearchParams(location.hash.slice(1));
-  const accessToken = params.get('access_token');
-  if (!accessToken) return false;
+  const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const queryParams = new URLSearchParams(location.search);
+  const callbackError = hashParams.get('error_description') || queryParams.get('error_description')
+    || hashParams.get('error') || queryParams.get('error') || '';
+  if (callbackError) {
+    cleanOAuthCallbackUrl();
+    return { handled: true, error: callbackError };
+  }
+
+  const accessToken = hashParams.get('access_token');
+  if (!accessToken) return { handled: false, error: '' };
   saveAuthSession({
     access_token: accessToken,
-    refresh_token: params.get('refresh_token') || '',
-    token_type: params.get('token_type') || 'bearer',
-    expires_in: Number(params.get('expires_in') || 3600),
+    refresh_token: hashParams.get('refresh_token') || '',
+    token_type: hashParams.get('token_type') || 'bearer',
+    expires_in: Number(hashParams.get('expires_in') || 3600),
   });
-  history.replaceState({}, document.title, `${location.pathname}${location.search}`);
-  return true;
+  cleanOAuthCallbackUrl();
+  return { handled: true, error: '' };
+}
+
+function googleAuthFailureMessage(error, email = '') {
+  const raw = String(error?.message || error || '').trim();
+  const account = email ? ` (${email})` : '';
+  if (/not invited/i.test(raw)) return `החשבון${account} אומת מול Google, אבל עדיין לא הוזמן ל-JobPilot.`;
+  if (/reached its .*user limit|user limit/i.test(raw)) return 'ההתחברות עם Google הצליחה, אבל JobPilot הגיע למגבלת המשתמשים המורשים.';
+  if (/session expired|invalid authenticated user|authentication required/i.test(raw)) return 'Google החזיר את החשבון, אבל ה-session לא אומת. נסה להתחבר שוב.';
+  return raw ? `ההתחברות עם Google חזרה ל-JobPilot, אבל אימות החשבון נכשל: ${raw}` : 'ההתחברות עם Google לא הושלמה.';
 }
 
 async function verifyCloudSession({ throwOnError = false } = {}) {
@@ -245,9 +268,24 @@ async function initAuthentication() {
     showAuthGate('Cloud Mode פעיל אבל Supabase עדיין לא הוגדר בשרת.');
     return false;
   }
-  captureOAuthSession();
+  const oauthCallback = captureOAuthSession();
+  if (oauthCallback.error) {
+    saveAuthSession(null);
+    showAuthGate(`ההתחברות עם Google נכשלה: ${oauthCallback.error}`, 'error');
+    return false;
+  }
   if (!authState.session) restoreStoredSession();
-  if (!await verifyCloudSession()) {
+  if (oauthCallback.handled && authState.session) {
+    try {
+      if (!await verifyCloudSession({ throwOnError: true })) throw new Error('JobPilot לא אישר את החשבון');
+    } catch (error) {
+      const email = String(parseJwt(authState.session?.access_token || '').email || '').trim();
+      saveAuthSession(null);
+      authState.user = null;
+      showAuthGate(googleAuthFailureMessage(error, email), 'error');
+      return false;
+    }
+  } else if (!await verifyCloudSession()) {
     showAuthGate('');
     return false;
   }
@@ -343,7 +381,7 @@ async function openCloudAccount() {
   const me = await api('/api/auth/me');
   if (me.user?.is_guest) {
     modal(`<span class="kicker">JobPilot Demo</span><h2>מצב אורח</h2>
-      <p>זו סביבת דמו מבודדת לקריאה בלבד. אפשר לעבור בין מסלולים ולהתרשם מהממשק, אבל שינוי פרופיל, מקורות, סריקות והגשות חסומים.</p>
+      <p>זהו מצב צפייה בלבד. המשרות מגיעות מהקטלוג החי של החשבון הראשי, בלי לחשוף את סטטוסי ההגשה או המידע האישי שלו. אפשר לעבור בין מסלולים ולעיין במשרות, אך שינוי נתונים, סריקות והגשות חסומים.</p>
       <div class="modal-actions"><button class="btn danger-outline" type="button" onclick="cloudSignOut()">יציאה ממצב אורח</button></div>`);
     return;
   }
@@ -828,6 +866,14 @@ function switchView(view, options = {}) {
   $(`#view-${contentView}`).classList.add('active');
   $$('#nav button').forEach((button) => button.classList.toggle('active', button.dataset.view === view));
   $$('#nav button').forEach((button) => button.setAttribute('aria-current', button.dataset.view === view ? 'page' : 'false'));
+  $$('[data-mobile-view]').forEach((button) => {
+    const active = button.dataset.mobileView === view;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  const mobileMoreViews = new Set(['preferences', 'blockers', 'skills', 'sources']);
+  $('#mobile-more')?.classList.toggle('active', mobileMoreViews.has(view));
+  setMobileNavSheet(false);
   $('#page-title').textContent = ({
     dashboard: 'לוח בקרה', jobs: 'משרות', applications: 'הגשות', blockers: 'דורש טיפול', skills: 'סקילים',
     sources: 'מקורות', preferences: 'העדפות חיפוש', profile: 'הפרופיל שלי',
@@ -855,6 +901,32 @@ function switchView(view, options = {}) {
 
 $$('[data-view]').forEach((button) => {
   button.onclick = () => switchView(button.dataset.view);
+});
+
+function setMobileNavSheet(open) {
+  const backdrop = $('#mobile-nav-backdrop');
+  const more = $('#mobile-more');
+  if (!backdrop) return;
+  const visible = Boolean(open);
+  backdrop.classList.toggle('open', visible);
+  backdrop.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  more?.setAttribute('aria-expanded', String(visible));
+  document.body.classList.toggle('mobile-nav-open', visible);
+}
+
+$$('[data-mobile-view]').forEach((button) => {
+  button.onclick = () => {
+    setMobileNavSheet(false);
+    switchView(button.dataset.mobileView);
+  };
+});
+$('#mobile-more').onclick = () => setMobileNavSheet(!$('#mobile-nav-backdrop')?.classList.contains('open'));
+$('#mobile-nav-close').onclick = () => setMobileNavSheet(false);
+$('#mobile-nav-backdrop').addEventListener('click', (event) => {
+  if (event.target.id === 'mobile-nav-backdrop') setMobileNavSheet(false);
+});
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 760) setMobileNavSheet(false);
 });
 
 function switchProfileSection(section) {
@@ -1055,7 +1127,10 @@ async function loadDashboard() {
   }
   renderReadiness(dashboard.readiness || {});
   renderSourceErrorBadge(Number(dashboard.readiness?.sources_with_errors || 0));
-  const metrics = [
+  const metrics = authState.user?.is_guest ? [
+    { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'מהקטלוג החי של האדמין', view: 'jobs', score: 0, status: '', tone: 'jobs' },
+    { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
+  ] : [
     { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
     { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
     { label: 'בתור להגשה', value: dashboard.queued, detail: 'ממתינות ל־Agent', view: 'applications', tone: 'queue' },
@@ -1098,6 +1173,12 @@ function renderSourceErrorBadge(count) {
 
 function renderReadiness(readiness) {
   const root = $('#readiness');
+  if (authState.user?.is_guest || readiness.guest_catalog) {
+    root.hidden = true;
+    root.className = 'readiness-panel';
+    root.innerHTML = '';
+    return;
+  }
   const missingProfile = Array.isArray(readiness.missing_profile_fields) ? readiness.missing_profile_fields : [];
   const profileLabel = missingProfile.length ? `פרטי קשר — חסר ${missingProfile.join(', ')}` : 'פרטי קשר';
   const checks = [
@@ -1396,6 +1477,23 @@ async function loadJobs(options = {}) {
   renderJobs();
 }
 
+function jobCardActions(job) {
+  if (authState.user?.is_guest) {
+    return `<div class="card-actions guest-job-actions" data-no-card-click>
+      <button class="btn primary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטי המשרה</button>
+      <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר החברה</a>
+    </div>`;
+  }
+  return `<div class="card-actions" data-no-card-click>
+    <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
+    ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'review')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'החזר לתור' : 'הגש'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
+    <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
+    <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
+    <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
+  </div>`;
+}
+
 function renderJobs() {
   const root = $('#jobs-list');
   renderActiveFilters();
@@ -1418,14 +1516,7 @@ function renderJobs() {
       <div class="skills">${job.skills.slice(0, 6).map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>
       ${job.skill_gaps?.length ? `<button class="skill-gap-alert" type="button" data-no-card-click onclick="event.stopPropagation();showSkillGaps(${job.id})">יש במשרה הזאת ${job.skill_gaps.length} סקילים שאין לך</button>` : ''}
       <div class="reason-list">${job.score_reasons.slice(0, 3).map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)}</div>`).join('')}</div>
-      <div class="card-actions" data-no-card-click>
-        <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
-        ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'review')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'החזר לתור' : 'הגש'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
-        <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
-        <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
-        <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
-        <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
-      </div>
+      ${jobCardActions(job)}
     </article>
   `).join('');
   $$('.interactive-card', root).forEach((card) => {

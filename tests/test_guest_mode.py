@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 import app.auth as auth
 import app.main as main
 from app.database import Base, SessionLocal, engine, ensure_compatibility_columns, user_session
-from app.models import AgentDevice, AnswerMemory, Application, AuditLog, Blocker, Job, OpenAnswerDraft, Profile, ResumeProfile, Source
+from app.models import AgentDevice, AnswerMemory, AppIdentity, Application, AuditLog, Blocker, Job, OpenAnswerDraft, Profile, ResumeProfile, Source
 
 
 def test_anonymous_supabase_claims_become_guest_identity(monkeypatch):
@@ -50,11 +50,15 @@ def _cleanup_guest(user_id: str) -> None:
         db.commit()
 
 
-def test_guest_workspace_is_lightweight_read_only_and_has_demo_jobs_for_both_tracks(monkeypatch):
+def test_guest_workspace_falls_back_to_read_only_demo_jobs_when_no_admin_catalog_exists(monkeypatch):
     user_id = 'guest-demo-workspace'
     _cleanup_guest(user_id)
     monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
     monkeypatch.setattr(main.settings, 'storage_mode', 'local')
+    # This test covers the explicit fallback path only. Other guest tests create
+    # temporary admin identities, so relying on global DB state makes this test
+    # order-dependent and can accidentally switch it to the live admin catalog.
+    monkeypatch.setattr(main, '_primary_admin_user_id', lambda _db: '')
     monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
         user_id=user_id, provider='anonymous', role='guest', is_guest=True
     ))
@@ -109,3 +113,74 @@ def test_guest_workspace_repairs_a_partial_profile_before_auth_completes(monkeyp
             assert len(jobs) >= 6
     finally:
         _cleanup_guest(user_id)
+
+
+def test_guest_reads_primary_admin_live_jobs_without_admin_application_state(monkeypatch):
+    guest_id = 'guest-live-admin-catalog'
+    admin_id = 'admin-live-catalog-owner'
+    owner_email = 'catalog-owner@example.com'
+    _cleanup_guest(guest_id)
+    _cleanup_guest(admin_id)
+    with SessionLocal() as db:
+        db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id.in_([admin_id])))
+        db.add(AppIdentity(auth_user_id=admin_id, email=owner_email, role='admin'))
+        db.commit()
+
+    with user_session(admin_id) as db:
+        db.add(Profile(full_name='Admin', email=owner_email, location='Israel', active_career_track='computer_science'))
+        source = Source(
+            name='Admin Live Source', kind='official_careers', identifier='admin-live-source',
+            company_name='AdminCo', career_track='computer_science', enabled=True,
+        )
+        db.add(source)
+        db.flush()
+        job = Job(
+            source_id=source.id, career_track='computer_science', external_id='admin-live-role-1',
+            title='Admin Live Platform Engineer', company='AdminCo', location='Tel Aviv, Israel',
+            workplace='hybrid', apply_url='https://example.com/admin-live-role', score=94,
+            status='submitted', is_active=True,
+        )
+        db.add(job)
+        db.flush()
+        db.add(Application(job_id=job.id, status='submitted', mode='review'))
+        db.commit()
+        admin_job_id = job.id
+
+    monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
+    monkeypatch.setattr(main.settings, 'storage_mode', 'local')
+    monkeypatch.setattr(main.settings, 'owner_email', owner_email)
+    monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
+        user_id=guest_id, provider='anonymous', role='guest', is_guest=True
+    ))
+    headers = {'Authorization': 'Bearer guest-live-token'}
+    try:
+        with TestClient(main.app) as client:
+            response = client.get('/api/jobs', headers=headers, params={'paginated': 'true', 'page_size': 20})
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload['guest_catalog'] is True
+            shared = next(item for item in payload['items'] if item['id'] == admin_job_id)
+            assert shared['title'] == 'Admin Live Platform Engineer'
+            assert shared['score'] == 94
+            assert shared['status'] == 'new'
+            assert shared['application_id'] is None
+            assert shared['skill_gaps'] == []
+
+            detail = client.get(f'/api/jobs/{admin_job_id}', headers=headers)
+            assert detail.status_code == 200
+            assert detail.json()['title'] == 'Admin Live Platform Engineer'
+            assert detail.json()['application_id'] is None
+
+            dashboard = client.get('/api/dashboard', headers=headers)
+            assert dashboard.status_code == 200
+            dashboard_payload = dashboard.json()
+            assert dashboard_payload['guest_catalog'] is True
+            assert dashboard_payload['total_jobs'] >= 1
+            assert any(item['id'] == admin_job_id for item in dashboard_payload['recent_jobs'])
+            assert dashboard_payload['submitted'] == 0
+    finally:
+        _cleanup_guest(guest_id)
+        _cleanup_guest(admin_id)
+        with SessionLocal() as db:
+            db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id == admin_id))
+            db.commit()

@@ -70,3 +70,21 @@ def test_mobile_layout_has_explicit_rtl_vertical_flow():
     assert 'main { order:1; width:100%; padding:18px 14px 92px; direction:rtl; text-align:right; }' in CSS
     assert '.auth-gate,.auth-shell,.auth-card,.auth-form { direction:rtl; }' in CSS
     assert '.auth-form input[type="email"],.auth-password-field input { direction:ltr; text-align:left; }' in CSS
+
+
+def test_mobile_redesign_uses_bottom_navigation_sheet_and_phone_first_job_layout():
+    assert 'id="mobile-bottom-nav"' in HTML
+    assert 'id="mobile-nav-sheet"' in HTML
+    assert 'data-mobile-view="jobs"' in HTML
+    assert 'viewport-fit=cover' in HTML
+    assert '/* v0.3.2 — mobile app redesign:' in CSS
+    assert '.mobile-bottom-nav {' in CSS
+    assert 'position:fixed; z-index:60;' in CSS
+    assert '.jobs-toolbar {' in CSS
+    assert 'position:sticky; top:72px;' in CSS
+    assert '.modal { align-items:flex-end; justify-content:center; padding:0; }' in CSS
+    assert "function setMobileNavSheet(open)" in JS
+    assert "$$('[data-mobile-view]')" in JS
+    assert "function jobCardActions(job)" in JS
+    assert 'app.js?v=0.26.0' in HTML
+    assert 'styles.css?v=0.45.0' in HTML
