@@ -73,3 +73,36 @@ def test_skill_add_and_remove_synchronize_all_resume_suggestions():
                 if resume:
                     db.delete(resume)
             db.commit()
+
+
+def test_resume_skill_suggestion_apply_endpoint_persists_skill_and_removes_suggestion():
+    with TestClient(app) as client:
+        skill = "ResumeSuggestionUniqueSkill"
+        client.delete("/api/profile/skills", params={"skill": skill})
+        with SessionLocal() as db:
+            resume = ResumeProfile(
+                label="suggestion-apply",
+                filename="suggestion.txt",
+                path="/tmp/suggestion.txt",
+                extracted_text=f"Backend Engineer\nPython {skill}",
+                skills_json=dumps(["python", skill]),
+                analysis_json=dumps({
+                    "skills": ["python", skill],
+                    "suggestions": [{"kind": "skill", "field": "skills", "value": skill, "label": f"להוסיף את {skill} לסקילים"}],
+                    "text_length": 40,
+                }),
+                is_default=False,
+            )
+            db.add(resume); db.commit(); resume_id = resume.id
+
+        response = client.post(f"/api/resumes/{resume_id}/suggestions/apply", json={"field": "skills", "value": skill})
+        assert response.status_code == 200, response.text
+        assert skill in response.json()["profile"]["skills"]
+        refreshed = next(item for item in client.get("/api/resumes").json() if item["id"] == resume_id)
+        assert not any(item.get("field") == "skills" and item.get("value") == skill for item in refreshed["analysis"].get("suggestions", []))
+
+        client.delete("/api/profile/skills", params={"skill": skill})
+        with SessionLocal() as db:
+            row = db.get(ResumeProfile, resume_id)
+            if row:
+                db.delete(row); db.commit()

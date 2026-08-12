@@ -58,7 +58,6 @@ class Profile(UserOwnedMixin, Base):
     years_experience_options_json: Mapped[str] = mapped_column(Text, default='["0"]')
     work_authorization: Mapped[bool] = mapped_column(Boolean, default=True)
     needs_sponsorship: Mapped[bool] = mapped_column(Boolean, default=False)
-    salary_expectation: Mapped[str] = mapped_column(String(160), default="")
     skills_json: Mapped[str] = mapped_column(Text, default="[]")
     desired_titles_json: Mapped[str] = mapped_column(Text, default="[]")
     preferred_locations_json: Mapped[str] = mapped_column(Text, default="[]")

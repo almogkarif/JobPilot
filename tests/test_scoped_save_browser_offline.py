@@ -21,7 +21,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.42.0" />', f'<style>{css}</style>')
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', '')
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', '')
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
@@ -41,7 +41,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
           let profile = {
             id:1,full_name:'Original Name',email:'owner@example.com',phone:'0500000000',location:'Israel',
             linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,
-            years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,salary_expectation:'',
+            years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,
             skills:['Python'],desired_titles:['software engineer'],preferred_locations:['Israel'],preferred_work_modes:['hybrid'],
             keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:false,application_profile:{},
             active_career_track:'computer_science',updated_at:now

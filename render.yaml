@@ -12,6 +12,8 @@ services:
         value: supabase
       - key: JOBPILOT_SCHEDULER_ENABLED
         value: "false"
+      - key: JOBPILOT_SCAN_EXECUTION_MODE
+        value: external
       - key: JOBPILOT_SCAN_HOUR
         value: "8"
       - key: JOBPILOT_SCAN_MINUTE
@@ -44,3 +46,11 @@ services:
         sync: false
       - key: JOBPILOT_CRON_SECRET
         sync: false
+      - key: JOBPILOT_GITHUB_ACTIONS_TOKEN
+        sync: false
+      - key: JOBPILOT_GITHUB_REPOSITORY
+        value: almogkarif/JobPilot
+      - key: JOBPILOT_GITHUB_SCAN_WORKFLOW
+        value: jobpilot-scan.yml
+      - key: JOBPILOT_GITHUB_REF
+        value: main

@@ -1,6 +1,6 @@
 # JobPilot Cloud v0.3.2 — מדריך התקנה ל־Multi‑User
 
-הגרסה הזו מיועדת גם לקבוצה קטנה של בערך **10 משתמשים**. האתר, מסד הנתונים וסריקת המשרות נמצאים בענן; לכל משתמש יש סביבת JobPilot פרטית לחלוטין, בעוד סוכן ההגשות שלו נשאר על ה־Mac האישי שלו.
+הגרסה הזו מיועדת גם לקבוצה קטנה של בערך **10 משתמשים**. האתר/API רצים ב־Render, מסד הנתונים ב־Supabase, וסריקת המשרות הכבדה רצה בנפרד ב־GitHub Actions; לכל משתמש יש סביבת JobPilot פרטית לחלוטין, בעוד סוכן ההגשות שלו נשאר על ה־Mac האישי שלו.
 
 ## מה מופרד בין המשתמשים
 
@@ -74,20 +74,40 @@ JOBPILOT_SUPABASE_URL
 JOBPILOT_SUPABASE_PUBLISHABLE_KEY
 JOBPILOT_SUPABASE_SECRET_KEY
 JOBPILOT_CRON_SECRET
+JOBPILOT_GITHUB_ACTIONS_TOKEN
 ```
 
-הגדרות ברירת המחדל לקבוצה קטנה הן:
+הגדרות Render החשובות הן:
 
 ```text
 JOBPILOT_MAX_USERS=10
-JOBPILOT_MAX_CONCURRENT_USER_SCANS=2
-JOBPILOT_SCAN_CONCURRENCY=3
+JOBPILOT_SCAN_EXECUTION_MODE=external
+JOBPILOT_MAX_CONCURRENT_USER_SCANS=1
+JOBPILOT_SCAN_CONCURRENCY=1
 JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS=45
 ```
 
-כלומר עד שני משתמשים נסרקים במקביל, ובכל סריקה עד שלושה מקורות רצים במקביל. זה מונע מעשרה משתמשים לפתוח בבת אחת עשרות Chromium/network collectors על שרת קטן.
+`external` הוא מנגנון הגנה חשוב: Render **לא** מפעיל Chromium/collectors. לחיצה על "סרוק עכשיו" רק יוצרת בקשת סריקה ב־PostgreSQL ומפעילה Workflow ב־GitHub. Progress ודוח הסיום נשמרים ב־DB ולכן אפשר לראות אותם מכמה מכשירים בלי להעמיס על ה־Web Service.
 
-## 5. התחברות
+## 5. GitHub Actions Scanner
+
+ב־GitHub → Settings → Secrets and variables → Actions הוסף Repository Secret בשם:
+
+```text
+JOBPILOT_DATABASE_URL
+```
+
+עם אותו Supabase Session Pooler URL שבו Render משתמש (כולל URL-encoding לסיסמה אם יש תווים מיוחדים). ה־Workflow מתקין את Chromium אצלו ומתחבר ישירות ל־PostgreSQL; הוא לא מריץ את הסריקה דרך Render.
+
+כדי שכפתור "סרוק עכשיו" באתר יפעיל את ה־Workflow מיד, צור Fine-grained GitHub Personal Access Token שמוגבל **רק** ל־JobPilot ונותן Repository permission של **Actions: Read and write**. שמור אותו ב־Render כ־:
+
+```text
+JOBPILOT_GITHUB_ACTIONS_TOKEN
+```
+
+אין לשים את ה־token ב־GitHub עצמו, בקוד או בדפדפן.
+
+## 6. התחברות
 
 כל משתמש נכנס עם Google או Email/Password. לאחר ההתחברות JobPilot יוצר לו workspace נפרד עם שני המסלולים:
 
@@ -105,7 +125,7 @@ User B
 
 בחשבון ה־admin חלון החשבון מציג גם מונה ורשימה של המשתמשים שנרשמו (למשל `3/10`) עם role ו־last seen. משתמש רגיל אינו יכול לקרוא את רשימת החשבונות. הוספה/הגבלה של כתובות נעשית דרך `JOBPILOT_ALLOWED_EMAILS`, כך שאין כפתור מחיקה מסוכן שמוחק בטעות workspace של משתמש.
 
-## 6. חיבור Agent לכל משתמש
+## 7. חיבור Agent לכל משתמש
 
 כל משתמש נכנס לחשבון שלו באתר ולוחץ **חבר Mac חדש**. ה־token שנוצר שייך רק אליו.
 
@@ -120,17 +140,20 @@ Agent של משתמש א׳ יכול לקבל רק הגשות של משתמש א�
 
 אפשר לחבר יותר ממחשב אחד לאותו חשבון ולבטל כל מכשיר בנפרד.
 
-## 7. סריקות אוטומטיות לכמה משתמשים
+## 8. סריקות אוטומטיות לכמה משתמשים
 
-GitHub Actions ממשיך לקרוא פעם בשעה ל־`/api/cron/scan`. השרת עובר על כל המשתמשים המורשים ובודק עבור כל אחד בנפרד:
+GitHub Actions מתעורר פעם בשעה בדקה `07`, מתחבר ישירות ל־PostgreSQL ובודק עבור כל משתמש רגיל בנפרד:
 
 - מהו המסלול הפעיל שלו
-- האם כבר בוצעה הסריקה היומית
-- האם כבר רצה עבורו סריקה אחרת
+- האם הגיעה שעת הסריקה היומית (`08:00` כברירת מחדל לפי `Asia/Jerusalem`)
+- האם קיימת כבר בקשת סריקה queued/running
+- האם הסריקה היומית כבר הסתיימה בהצלחה
 
-רק המסלול הפעיל של כל משתמש נסרק. CS ו־תעו״נ של אותו משתמש לעולם לא נסרקים יחד.
+הבדיקה הראשונית מתקינה רק תלויות DB/config קלות ולא מתקינה את חבילת הסורק או Chromium אם אין עבודה. רק כאשר סריקה באמת נדרשת ה־GitHub runner מתקין את שאר התלויות, את Chromium ומריץ את ה־collectors. משתמשי Guest אינם נכללים בסריקות אוטומטיות.
 
-## 8. אבטחה והפרדת מידע
+רק המסלול הפעיל של כל משתמש נסרק. CS ותעו״נ של אותו משתמש לא נסרקים במקביל. Render ממשיך לשרת את ה־UI/API בזמן הסריקה ואינו טוען את ה־collectors לזיכרון.
+
+## 9. אבטחה והפרדת מידע
 
 - לכל טבלת מידע פרטית יש `user_id`.
 - שכבת SQLAlchemy מוסיפה סינון tenant אוטומטי גם ל־SELECT וגם ל־UPDATE/DELETE.
@@ -141,7 +164,7 @@ GitHub Actions ממשיך לקרוא פעם בשעה ל־`/api/cron/scan`. הש�
 - ב־PostgreSQL/Supabase מופעל RLS ומבוטלת גישה ישירה של `anon`/`authenticated` לטבלאות JobPilot, כך שה־publishable key לא יכול לעקוף את ה־API.
 - סיסמת Google לא מגיעה ל־JobPilot.
 
-## 9. Local Mode
+## 10. Local Mode
 
 המצב המקומי נשאר נתמך בדיוק כמו קודם:
 

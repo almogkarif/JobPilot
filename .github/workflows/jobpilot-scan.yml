@@ -1,19 +1,103 @@
-name: JobPilot scheduled scan
+name: JobPilot scan worker
 
 on:
   schedule:
     - cron: '7 * * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Scan mode
+        required: true
+        default: queued
+        type: choice
+        options:
+          - queued
+          - scheduled
+          - all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobpilot-scan-worker
+  cancel-in-progress: false
 
 jobs:
-  wake-and-scan-if-due:
+  scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
+      JOBPILOT_AUTH_MODE: supabase
+      JOBPILOT_SCHEDULER_ENABLED: 'false'
+      JOBPILOT_SCAN_CONCURRENCY: '2'
+      JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS: '45'
+      JOBPILOT_TIMEZONE: Asia/Jerusalem
     steps:
-      - name: Trigger JobPilot scan if local schedule is due
+      - name: Checkout JobPilot
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install lightweight preflight dependencies
+        run: >-
+          python -m pip install
+          sqlalchemy==2.0.50
+          pydantic-settings==2.12.0
+          psycopg[binary]==3.2.9
+          beautifulsoup4==4.14.3
+
+      - name: Resolve requested scan mode
+        id: mode
         env:
-          JOBPILOT_URL: ${{ secrets.JOBPILOT_URL }}
-          JOBPILOT_CRON_SECRET: ${{ secrets.JOBPILOT_CRON_SECRET }}
+          REQUESTED_MODE: ${{ inputs.mode }}
         run: |
-          curl --fail-with-body --retry 2 --max-time 30 \
-            -X POST "$JOBPILOT_URL/api/cron/scan" \
-            -H "X-JobPilot-Cron-Secret: $JOBPILOT_CRON_SECRET"
+          if [[ "$GITHUB_EVENT_NAME" == "schedule" ]]; then
+            MODE="scheduled"
+          else
+            MODE="${REQUESTED_MODE:-queued}"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Resolved JobPilot scan mode: $MODE"
+
+      - name: Check whether scan work is due
+        id: work
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: |
+          if [[ -z "$JOBPILOT_DATABASE_URL" ]]; then
+            echo "JOBPILOT_DATABASE_URL repository secret is missing" >&2
+            exit 1
+          fi
+          set +e
+          python scripts/run_cloud_scan.py --mode "$MODE" --check-only
+          code=$?
+          set -e
+          if [[ "$code" -eq 0 ]]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$code" -eq 3 ]]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "No JobPilot scan work is due; skipping Chromium installation."
+          else
+            exit "$code"
+          fi
+
+      - name: Install scanner dependencies
+        if: steps.work.outputs.needed == 'true'
+        run: python -m pip install -r requirements.txt
+
+      - name: Install Chromium for collectors
+        if: steps.work.outputs.needed == 'true'
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run scans outside Render
+        if: steps.work.outputs.needed == 'true'
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: |
+          echo "Running JobPilot external scan worker in mode: $MODE"
+          python scripts/run_cloud_scan.py --mode "$MODE"

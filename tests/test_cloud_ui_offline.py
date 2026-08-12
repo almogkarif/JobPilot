@@ -29,7 +29,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.42.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:
@@ -47,7 +47,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
                 removeItem:key => memory.delete(key), clear:() => memory.clear()
               }});
               const now = new Date().toISOString();
-              const profile = {id:1,full_name:'Test',email:'owner@example.com',phone:'',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,salary_expectation:'',skills:['Python'],desired_titles:['software engineer'],preferred_locations:['Israel'],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:false,application_profile:{},active_career_track:'computer_science',updated_at:now};
+              const profile = {id:1,full_name:'Test',email:'owner@example.com',phone:'',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,skills:['Python'],desired_titles:['software engineer'],preferred_locations:['Israel'],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:false,application_profile:{},active_career_track:'computer_science',updated_at:now};
               const tracks={active_track:'computer_science',scanning:false,tracks:[{key:'computer_science',label:'מדעי המחשב',short_label:'CS',description:'תוכנה',active:true,search_agent_active:true,enabled_sources:2,source_errors:0,jobs:2},{key:'industrial_engineering',label:'תעשייה וניהול',short_label:'IEM',description:'תפעול',active:false,search_agent_active:false,enabled_sources:2,source_errors:0,jobs:0}]};
               window.fetch = async (input, options={}) => {
                 const url=String(input); let data={}; let status=200;
@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
     chromium = _chromium_path()
     if not chromium:
         pytest.skip("No system Chromium executable")
-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.25.0"></script>', "")
     js = (ROOT / "app" / "static" / "app.js").read_text()
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -119,7 +119,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.42.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:
@@ -137,7 +137,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
                 removeItem:key => memory.delete(key), clear:() => memory.clear()
               }});
               const now = new Date().toISOString();
-              const profile={id:2,full_name:'Friend',email:'friend@example.com',phone:'0500000000',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,salary_expectation:'',skills:['Python'],desired_titles:['software engineer'],preferred_locations:['Israel'],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:true,application_profile:{country:'Israel'},active_career_track:'computer_science',updated_at:now};
+              const profile={id:2,full_name:'Friend',email:'friend@example.com',phone:'0500000000',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,years_experience_options:['0'],work_authorization:true,needs_sponsorship:false,skills:['Python'],desired_titles:['software engineer'],preferred_locations:['Israel'],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:true,application_profile:{country:'Israel'},active_career_track:'computer_science',updated_at:now};
               const tracks={active_track:'computer_science',scanning:false,tracks:[{key:'computer_science',label:'מדעי המחשב',short_label:'CS',description:'תוכנה',active:true,search_agent_active:true,enabled_sources:2,source_errors:0,jobs:1},{key:'industrial_engineering',label:'תעשייה וניהול',short_label:'IEM',description:'תפעול',active:false,search_agent_active:false,enabled_sources:2,source_errors:0,jobs:0}]};
               window.fetch=async(input,options={})=>{
                 const url=String(input); let data={}; let status=200;

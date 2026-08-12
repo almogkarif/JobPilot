@@ -1,27 +1,48 @@
 # JobPilot Cloud setup (v0.3.2, multi-user)
 
-JobPilot Cloud supports a small private group (default: **10 users**). Each authenticated account has a completely isolated workspace: profile, career tracks, skills, preferences, sources, jobs, resumes, applications, blockers, answer memory, audit history and Agent devices. The Application Agent remains on each user's Mac.
+JobPilot Cloud is designed for a small private group (default: **10 users**). Every authenticated account gets an isolated workspace for profile data, career tracks, skills, preferences, sources, jobs, resumes, applications, blockers, answer memory, audit history, and Agent devices.
 
-## Supabase
+The cloud architecture intentionally separates browser-heavy work from the web service:
 
-Create a Supabase project and enable Email/Password and optionally Google Auth. Keep the Project URL, publishable key, server Secret key, and PostgreSQL Session Pooler connection string. JobPilot creates the schema and private Storage bucket automatically.
+```text
+Browser / phone ──► Render (FastAPI + UI) ──► Supabase PostgreSQL/Auth/Storage
+                          │
+                          └── dispatch only ──► GitHub Actions scan worker
 
-## Admission policy
+Mac Application Agent ──► authenticated Agent API on Render
+```
 
-Recommended Render environment values:
+Render never runs career-site collectors in cloud mode. GitHub Actions runs Playwright/Chromium and writes scan results and durable progress directly to the same tenant-scoped PostgreSQL database.
+
+## 1. Supabase
+
+Create a Supabase project and enable Email/Password and optionally Google Auth. Keep these values available:
+
+- Project URL
+- publishable key
+- server Secret key
+- PostgreSQL **Session Pooler** connection string
+
+JobPilot creates/updates its schema and private Storage bucket automatically.
+
+For Guest Mode, enable **Authentication → Sign In / Providers → Allow anonymous sign-ins**. Guest accounts are read-only demo workspaces and are excluded from scheduled scans.
+
+## 2. Admission policy
+
+Recommended Render values:
 
 ```text
 JOBPILOT_MAX_USERS=10
 JOBPILOT_ALLOWED_EMAILS=you@example.com,friend1@example.com,friend2@example.com
 JOBPILOT_OWNER_EMAIL=you@example.com
-JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=your-email@example.com
+JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL=you@example.com
 ```
 
-`JOBPILOT_ALLOWED_EMAILS` is an optional allowlist. If empty, any authenticated Supabase user may join until `JOBPILOT_MAX_USERS` is reached. `JOBPILOT_OWNER_EMAIL` marks an admin account; it no longer makes the instance single-owner. If no owner email is configured, the first admitted account becomes admin.
+`JOBPILOT_ALLOWED_EMAILS` is optional. If empty, any authenticated Supabase user may join until `JOBPILOT_MAX_USERS` is reached. `JOBPILOT_OWNER_EMAIL` marks the administrator; other admitted accounts remain normal users.
 
-## Migrate existing local data
+## 3. Migrate existing local data
 
-Run before normal cloud use:
+Run once before normal cloud use:
 
 ```bash
 source .venv/bin/activate
@@ -31,41 +52,90 @@ export JOBPILOT_SUPABASE_SECRET_KEY='sb_secret_...'
 python scripts/migrate_to_cloud.py
 ```
 
-By default migrated rows are assigned to `legacy-owner`; the first admitted cloud account automatically claims them on first login. You may instead set `JOBPILOT_MIGRATION_USER_ID` to a known Supabase user UUID.
+By default migrated rows are assigned to `legacy-owner`; the first admitted cloud account claims them on first login. You may instead set `JOBPILOT_MIGRATION_USER_ID` to a known Supabase user UUID.
 
-## Deploy
+## 4. Render web service
 
-Use `render.yaml`. For a small server the defaults intentionally bound concurrency:
+Deploy from `render.yaml`. Cloud mode sets:
 
 ```text
-JOBPILOT_MAX_CONCURRENT_USER_SCANS=2
-JOBPILOT_SCAN_CONCURRENCY=3
-JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS=45
+JOBPILOT_AUTH_MODE=supabase
+JOBPILOT_STORAGE_MODE=supabase
+JOBPILOT_SCHEDULER_ENABLED=false
+JOBPILOT_SCAN_EXECUTION_MODE=external
 ```
 
-The external `/api/cron/scan` trigger checks each account independently and starts only that account's active career track when due. Cron responses use short hashed account references rather than exposing raw Supabase user UUIDs in scheduler logs.
+The Render image intentionally does **not** install Chromium. It only serves the UI/API, performs lightweight database work, exposes durable scan status, and dispatches manual scan requests to GitHub Actions.
 
-The admin account can see a read-only registered-user roster/count (for example `3/10`) in the account modal. Ordinary users cannot access the roster. Admission remains controlled by `JOBPILOT_ALLOWED_EMAILS`; no destructive account-delete UI is added.
+Supply all `sync: false` values in Render, including the Supabase values and PostgreSQL Session Pooler URL.
 
-## Agent pairing
+### Manual scan dispatch token
 
-Each user opens their own account panel, creates a Mac Agent token, and runs:
+The **סרוק עכשיו / Scan now** button creates a durable queued scan in PostgreSQL and asks GitHub Actions to run it immediately. Render therefore needs a GitHub token that can dispatch only this repository's workflow.
+
+Create a **fine-grained personal access token** in GitHub:
+
+1. GitHub account **Settings → Developer settings → Personal access tokens → Fine-grained tokens**.
+2. Repository access: **Only select repositories → JobPilot**.
+3. Repository permissions: **Actions → Read and write**.
+4. Generate the token and store it only in Render as:
+
+```text
+JOBPILOT_GITHUB_ACTIONS_TOKEN=github_pat_...
+JOBPILOT_GITHUB_REPOSITORY=almogkarif/JobPilot
+JOBPILOT_GITHUB_SCAN_WORKFLOW=jobpilot-scan.yml
+JOBPILOT_GITHUB_REF=main
+```
+
+Do not commit or share this token.
+
+## 5. GitHub Actions scan worker
+
+Open **JobPilot → Settings → Secrets and variables → Actions** and create this repository secret:
+
+```text
+JOBPILOT_DATABASE_URL=<the same working Supabase Session Pooler URL used by Render>
+```
+
+If the database password contains reserved URL characters, keep the same percent-encoded form that works in Render.
+
+`.github/workflows/jobpilot-scan.yml` then handles both scheduled and manual work:
+
+- GitHub checks every hour at minute `07`.
+- Scheduled mode scans only when the configured local daily time is due (default `08:00`, `Asia/Jerusalem`).
+- Manual requests use `workflow_dispatch` and process durable queued requests immediately.
+- The workflow first installs only lightweight database/config dependencies and checks whether work exists. The full scanner dependencies and Chromium are installed only when an actual scan is due.
+- Scan progress/results are written to PostgreSQL, so multiple browsers/devices see the same status without relying on Render process memory.
+- Workflow-level concurrency prevents overlapping scan-worker runs.
+
+The older repository secrets `JOBPILOT_URL` and `JOBPILOT_CRON_SECRET` are not used by the new scan workflow. `JOBPILOT_CRON_SECRET` may remain temporarily in Render only for compatibility with the legacy `/api/cron/scan` endpoint; that endpoint never launches collectors when `JOBPILOT_SCAN_EXECUTION_MODE=external`.
+
+## 6. Verify the split architecture
+
+After Render is deployed with the new environment values:
+
+1. Open JobPilot and click **סרוק עכשיו**.
+2. The UI should show a queued/external-worker state.
+3. In GitHub **Actions**, a `JobPilot scan worker` run should start.
+4. While it scans, open JobPilot from another browser/phone and navigate through Jobs, Skills, Sources, and the dashboard.
+5. Render should remain responsive because Chromium and collectors run only on the GitHub runner.
+6. Both devices should see the same database-backed scan progress/status.
+
+## 7. Application Agent pairing
+
+The browser-filling Application Agent remains local on each permitted user's Mac:
 
 ```bash
 ./configure-cloud-agent.sh https://YOUR_JOBPILOT_HOST
 ./start-agent.sh
 ```
 
-The token is bound to that user; it cannot claim another user's application task.
+The one-time pairing token is bound to that user's workspace and cannot claim another user's application task. Application-Agent access can remain restricted during beta using `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL`.
 
-## Isolation boundary
+## 8. Isolation boundary
 
-All private mapped tables contain `user_id`. FastAPI creates a tenant-scoped SQLAlchemy Session for web requests, ORM SELECT/UPDATE/DELETE statements receive automatic user criteria, and new private rows are stamped with the authenticated user ID. Cloud writes without a user scope fail closed. Private Storage objects are namespaced under `users/<user-id>/...`. On PostgreSQL/Supabase, startup also enables RLS and revokes direct table privileges from the `anon` and `authenticated` roles, so the browser publishable key cannot bypass FastAPI to read JobPilot tables directly.
+All private mapped tables contain `user_id`. FastAPI creates tenant-scoped SQLAlchemy sessions, ORM SELECT/UPDATE/DELETE statements receive automatic user criteria, and new private rows are stamped with the authenticated user ID. Cloud writes without a user scope fail closed.
 
-Local mode remains available with `JOBPILOT_AUTH_MODE=local` and `JOBPILOT_STORAGE_MODE=local`.
+Private Storage objects are namespaced under `users/<user-id>/...`. On PostgreSQL/Supabase, startup also hardens table access with RLS and revoked direct browser-role privileges so the publishable key cannot bypass FastAPI to read JobPilot tables directly.
 
-
-## Application Agent beta access
-The browser-filling Application Agent is temporarily restricted to the account configured through `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL`. Other admitted users still get search, matching, sources and manual application links, but cannot pair an Agent device or queue an automatic application.
-
-Source enable/disable switches are tenant-owned: every user can independently turn a source on or off for the active career track without changing another user's workspace.
+Local mode remains available with `JOBPILOT_AUTH_MODE=local`, `JOBPILOT_STORAGE_MODE=local`, and the default local scan execution path.

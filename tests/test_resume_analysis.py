@@ -24,3 +24,54 @@ def test_resume_skills_contribute_to_job_match_score():
     with_resume = score_job(job, profile, ["python", "docker"])
     assert with_resume.score > without_resume.score
     assert any("קורות החיים" in reason["label"] for reason in with_resume.reasons)
+
+
+def _minimal_docx_bytes() -> bytes:
+    from io import BytesIO
+    import zipfile
+
+    document = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+      <w:body>
+        <w:p><w:r><w:t>Almog Karif</w:t></w:r></w:p>
+        <w:p><w:r><w:t>almog@example.com 052-1234567</w:t></w:r></w:p>
+        <w:p><w:r><w:t>Python Docker Power BI</w:t></w:r></w:p>
+        <w:p><w:hyperlink r:id="rId1"><w:r><w:t>LinkedIn</w:t></w:r></w:hyperlink></w:p>
+        <w:p><w:hyperlink r:id="rId2"><w:r><w:t>GitHub</w:t></w:r></w:hyperlink></w:p>
+      </w:body>
+    </w:document>'''
+    rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.linkedin.com/in/almog-karif" TargetMode="External"/>
+      <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://github.com/almogkarif" TargetMode="External"/>
+    </Relationships>'''
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("word/document.xml", document)
+        archive.writestr("word/_rels/document.xml.rels", rels)
+    return buffer.getvalue()
+
+
+def test_docx_resume_extracts_text_and_hyperlink_targets_for_profile_autofill():
+    from app.main import _autofill_profile_from_resume, _resume_content_type
+    from app.models import Profile
+    from app.services.resume_analysis import extract_resume_bytes
+
+    content = _minimal_docx_bytes()
+    text = extract_resume_bytes(content, "resume.docx")
+    assert "Almog Karif" in text
+    assert "https://www.linkedin.com/in/almog-karif" in text
+    assert "https://github.com/almogkarif" in text
+    assert _resume_content_type("resume.docx", "application/octet-stream") == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    profile = Profile(full_name="", email="", phone="", linkedin_url="", github_url="", portfolio_url="", skills_json="[]")
+    analysis = analyze_resume(text, profile)
+    applied = _autofill_profile_from_resume(profile, analysis)
+    assert {"full_name", "email", "phone", "linkedin_url", "github_url"} <= set(applied)
+    assert profile.full_name == "Almog Karif"
+    assert profile.email == "almog@example.com"
+    assert profile.github_url == "https://github.com/almogkarif"
+    # Skills remain explicit suggestions rather than being silently written.
+    assert profile.skills_json == "[]"
+    assert any(item["field"] == "skills" and item["value"].casefold() == "python" for item in analysis["suggestions"])

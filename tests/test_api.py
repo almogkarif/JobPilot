@@ -122,8 +122,7 @@ def test_profile_can_be_saved_after_jobs_are_loaded_from_sqlite():
         "years_experience_options": ["0", "1", "2"],
         "work_authorization": True,
         "needs_sponsorship": False,
-        "salary_expectation": "",
-        "skills": ["C++", "Python"],
+                "skills": ["C++", "Python"],
         "desired_titles": ["software", "developer"],
         "preferred_locations": ["Haifa", "Israel"],
         "preferred_work_modes": ["hybrid", "remote", "onsite"],
@@ -260,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.23.0" in index.text
+        assert "app.js?v=0.25.0" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 
@@ -339,8 +338,7 @@ def test_repeated_profile_saves_and_rescoring_remain_stable():
         "years_experience": 0,
         "work_authorization": True,
         "needs_sponsorship": False,
-        "salary_expectation": "",
-        "skills": ["C++", "Python"],
+                "skills": ["C++", "Python"],
         "desired_titles": ["software", "developer"],
         "preferred_locations": ["Haifa", "Israel"],
         "preferred_work_modes": ["hybrid", "remote", "onsite"],

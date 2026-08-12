@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -44,7 +44,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
                 {id: 901, title: 'Junior Python Developer', company: 'Alpha', location: 'Tel Aviv, Israel', workplace: 'hybrid', apply_url: 'https://example.com/901', source_url: '', published_at: now, discovered_at: now, experience_min: 0, experience_max: 1, skills: ['Python'], score: 91, score_reasons: [{type: 'positive', label: 'התאמה חזקה', points: 10}], status: 'new', is_active: true, source: {id: 1, name: 'Alpha', kind: 'greenhouse'}, application_id: null, description: 'Python role'},
                 {id: 902, title: 'Graduate C++ Engineer', company: 'Beta', location: 'Haifa', workplace: 'onsite', apply_url: 'https://example.com/902', source_url: '', published_at: now, discovered_at: now, experience_min: 0, experience_max: 1, skills: ['C++'], score: 88, score_reasons: [{type: 'positive', label: 'מתאים לג׳וניור', points: 8}], status: 'new', is_active: true, source: {id: 2, name: 'Beta', kind: 'ashby'}, application_id: null, description: 'C++ role'}
               ];
-              const profile = {id: 1, full_name: 'Test', email: 'test@example.com', phone: '', location: 'Israel', linkedin_url: '', github_url: '', portfolio_url: '', cv_path: '', cv_filename: '', years_experience: 0, work_authorization: true, needs_sponsorship: false, salary_expectation: '', skills: [], desired_titles: [], preferred_locations: [], preferred_work_modes: ['hybrid'], keywords: [], excluded_keywords: [], auto_apply_threshold: 82, auto_submit_enabled: false, updated_at: now};
+              const profile = {id: 1, full_name: 'Test', email: 'test@example.com', phone: '', location: 'Israel', linkedin_url: '', github_url: '', portfolio_url: '', cv_path: '', cv_filename: '', years_experience: 0, work_authorization: true, needs_sponsorship: false,  skills: [], desired_titles: [], preferred_locations: [], preferred_work_modes: ['hybrid'], keywords: [], excluded_keywords: [], auto_apply_threshold: 82, auto_submit_enabled: false, updated_at: now};
               window.fetch = async (input, options = {}) => {
                 const url = String(input);
                 const method = (options.method || 'GET').toUpperCase();
@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -130,7 +130,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
                 {id:801,job_id:901,status:'needs_input',mode:'review',attempt_count:1,updated_at:now,last_error:'[blocked:captcha] long raw error',job:job(901,'Captcha Role'),blocker:{id:1001,kind:'captcha',question:'נדרש אימות אנושי',explanation:'האתר הציג CAPTCHA או בדיקת אנושיות. הסוכן לא ינסה לעקוף אותה.',page_url:'https://careers.example.com/apply/step-4?token=exact',screenshot_url:''}},
                 {id:802,job_id:902,status:'needs_input',mode:'review',attempt_count:1,updated_at:now,last_error:'[blocked:review_before_submit] ready',job:job(902,'Review Role'),blocker:{id:1002,kind:'review_before_submit',question:'האם לאשר?',explanation:'כל השדות מולאו',page_url:'https://careers.example.com/apply/review',screenshot_url:''}}
               ];
-              const profile = {id:1,full_name:'Test',email:'test@example.com',phone:'',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,work_authorization:true,needs_sponsorship:false,salary_expectation:'',skills:[],desired_titles:[],preferred_locations:[],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:false,updated_at:now};
+              const profile = {id:1,full_name:'Test',email:'test@example.com',phone:'',location:'Israel',linkedin_url:'',github_url:'',portfolio_url:'',cv_path:'',cv_filename:'',years_experience:0,work_authorization:true,needs_sponsorship:false,skills:[],desired_titles:[],preferred_locations:[],preferred_work_modes:['hybrid'],keywords:[],excluded_keywords:[],auto_apply_threshold:82,auto_submit_enabled:false,updated_at:now};
               const calls = [];
               window.fetch = async (input, options = {}) => {
                 const url = String(input); const method = (options.method || 'GET').toUpperCase();

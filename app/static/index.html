@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.43.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.44.0" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -265,7 +265,7 @@
                   <fieldset class="experience-picker preference-group wide-field" data-field="years_experience_options"><legend>שנות ניסיון — אפשר לבחור כמה</legend><div class="option-grid experience-options">
                     <label><input type="checkbox" data-profile-option="years_experience_options" value="0" /> 0</label><label><input type="checkbox" data-profile-option="years_experience_options" value="1" /> 1</label><label><input type="checkbox" data-profile-option="years_experience_options" value="2" /> 2</label><label><input type="checkbox" data-profile-option="years_experience_options" value="3" /> 3</label><label><input type="checkbox" data-profile-option="years_experience_options" value="4" /> 4</label><label><input type="checkbox" data-profile-option="years_experience_options" value="5+" /> 5+</label>
                   </div><input name="years_experience_options" type="hidden" /><input name="years_experience" type="hidden" /></fieldset>
-                  <label>ציפיות שכר<input name="salary_expectation" placeholder="אופציונלי" /></label><label>תקופת הודעה מוקדמת<input name="extra_notice_period" /></label>
+                  <label>תקופת הודעה מוקדמת<input name="extra_notice_period" /></label>
                   <label>תאריך התחלה אפשרי<span class="date-with-action"><input name="extra_available_start_date" type="date" /><button class="btn secondary small" id="available-now" type="button">עכשיו</button></span></label>
                   <div class="check-row wide-field"><label><input name="work_authorization" type="checkbox" /> מורשה לעבוד בישראל</label><label><input name="needs_sponsorship" type="checkbox" /> נדרש Sponsorship</label></div>
                 </div>
@@ -283,13 +283,11 @@
                   <label>קידומת טלפון<input name="extra_phone_country_code" placeholder="+972" /></label>
                 </div>
               </section>
-              <section class="profile-detail-section">
-                <div class="profile-detail-head"><div><span class="profile-section-index">06</span><h3>ניסיון תעסוקתי נוכחי או אחרון</h3></div><button class="btn primary small" type="submit">שמור ניסיון</button></div><div class="form-grid">
-                  <label>תפקיד<input name="extra_current_job_title" /></label><label>חברה<input name="extra_current_company" /></label>
-                  <label>מיקום העבודה<input name="extra_employment_location" /></label><label>סוג העסקה<select name="extra_employment_type"><option value="">לא נבחר</option><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option><option>Self-employed</option></select></label>
-                  <label>תאריך התחלה<input name="extra_employment_start_date" type="month" /></label><label>תאריך סיום<input name="extra_employment_end_date" type="month" /><small>השאר ריק אם זו העבודה הנוכחית.</small></label>
-                  <label class="wide-field">תיאור תפקיד והישגים<textarea name="extra_employment_description" rows="3"></textarea></label>
-                </div>
+              <section class="profile-detail-section employment-history-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">06</span><h3>ניסיון תעסוקתי</h3></div><div class="card-head-actions"><button class="btn secondary small" id="add-employment" type="button">+ הוסף ניסיון</button><button class="btn primary small" type="submit">שמור ניסיון</button></div></div>
+                <p class="preference-help">אפשר להוסיף כמה מקומות עבודה שרוצים. הראשון ברשימה משמש כברירת מחדל בטפסים שמבקשים רק את התפקיד האחרון.</p>
+                <input name="extra_work_experiences" type="hidden" />
+                <div id="employment-entries" class="employment-entries"></div>
               </section>
               <section class="profile-detail-section">
                   <div class="profile-detail-head"><div><span class="profile-section-index">07</span><h3>השכלה</h3></div><button class="btn primary small" type="submit">שמור השכלה</button></div><div class="form-grid">
@@ -347,15 +345,15 @@
                 <label><input type="checkbox" data-profile-option="keywords" value="manager" /> Manager</label>
               </div><label class="custom-preference">מילות מפתח חיוביות נוספות<textarea name="keywords" rows="2" placeholder="למשל: infrastructure, developer tools"></textarea></label></fieldset>
 
-              <fieldset class="preference-group preference-exclude" data-field="excluded_keywords"><legend>רמות ניסיון שלא לחפש עבורך</legend><div class="option-grid">
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="student" /> Student / Intern</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="entry level" /> Entry Level / Graduate</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="junior" /> Junior</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="mid level" /> Mid Level</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="senior" /> Senior</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="lead" /> Lead</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="staff" /> Staff / Principal</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="manager" /> Manager</label>
+              <fieldset class="preference-group preference-exclude" data-field="excluded_keywords"><legend>רמות ניסיון ש<strong class="negative-word">לא</strong> לחפש עבורך</legend><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="student" /><span class="negative-x" aria-hidden="true">×</span> Student / Intern</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="entry level" /><span class="negative-x" aria-hidden="true">×</span> Entry Level / Graduate</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="junior" /><span class="negative-x" aria-hidden="true">×</span> Junior</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="mid level" /><span class="negative-x" aria-hidden="true">×</span> Mid Level</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="senior" /><span class="negative-x" aria-hidden="true">×</span> Senior</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="lead" /><span class="negative-x" aria-hidden="true">×</span> Lead</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="staff" /><span class="negative-x" aria-hidden="true">×</span> Staff / Principal</label>
+                <label><input type="checkbox" data-profile-option="excluded_keywords" value="manager" /><span class="negative-x" aria-hidden="true">×</span> Manager</label>
               </div><label class="custom-preference">תחומים לא רצויים בכותרת המשרה בלבד<textarea name="excluded_keywords" rows="2" placeholder="למשל: sales, manual QA"></textarea></label></fieldset>
 
               <fieldset class="preference-group" data-field="skills"><legend id="skills-preference-legend">טכנולוגיות וכישורים</legend><div class="option-grid" id="skill-options">
@@ -411,6 +409,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.23.0"></script>
+  <script src="/static/app.js?v=0.25.0"></script>
 </body>
 </html>

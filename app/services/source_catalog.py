@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..models import AuditLog, Source
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, DEFAULT_TRACK, normalize_track
+from ..utils import dumps, loads
 
 # Public ATS boards that regularly publish relevant roles in Israel.
 # Source rows are track-scoped: the same company may exist in both tracks with
@@ -90,40 +91,138 @@ RECOMMENDED_SOURCES_BY_TRACK = {
 RECOMMENDED_SOURCES = CS_RECOMMENDED_SOURCES
 
 
+def _source_key(source: Source | dict[str, str]) -> tuple[str, str]:
+    kind = str(source.kind if isinstance(source, Source) else source.get("kind", "")).strip().casefold()
+    identifier = str(source.identifier if isinstance(source, Source) else source.get("identifier", "")).strip().casefold()
+    return kind, identifier
+
+
+def _company_key(source: Source | dict[str, str]) -> str:
+    value = source.company_name if isinstance(source, Source) else source.get("company_name", "")
+    return "".join(ch for ch in str(value or "").casefold() if ch.isalnum())
+
+
+def _is_catalog_managed(source: Source) -> bool:
+    metadata = loads(source.metadata_json, {})
+    return isinstance(metadata, dict) and (metadata.get("preset") == "recommended" or metadata.get("duplicate_of"))
+
+
+def suppress_duplicate_sources(db: Session, career_track: str = DEFAULT_TRACK) -> int:
+    """Hide/disable duplicate source rows without deleting historical jobs.
+
+    Legacy installs can contain the same ATS board more than once after collector
+    migrations or repeated seed runs. Deleting those rows would risk historical job
+    relationships, so duplicates are marked and disabled while one canonical row is
+    kept visible and scan-enabled.
+    """
+    career_track = normalize_track(career_track)
+    catalog = recommended_sources_for_track(career_track)
+    catalog_by_key = {_source_key(item): item for item in catalog}
+    catalog_by_company = {_company_key(item): item for item in catalog if _company_key(item)}
+    rows = db.scalars(select(Source).where(Source.career_track == career_track).order_by(Source.id)).all()
+
+    # First collapse literal duplicates (same collector + identifier). Then collapse
+    # legacy recommended rows whose collector type changed over time, e.g. an old
+    # ``official_careers/taboola`` row next to today's ``greenhouse/taboola`` row.
+    # User-created custom sources are never hidden merely because the company name
+    # matches a preset; cross-kind reconciliation is restricted to catalog-managed
+    # rows so we do not erase an intentionally-added second board.
+    groups: list[tuple[dict[str, str] | None, list[Source]]] = []
+    exact_groups: dict[tuple[str, str], list[Source]] = {}
+    for source in rows:
+        exact_groups.setdefault(_source_key(source), []).append(source)
+    groups.extend((catalog_by_key.get(key), duplicates) for key, duplicates in exact_groups.items() if len(duplicates) > 1)
+
+    company_groups: dict[str, list[Source]] = {}
+    for source in rows:
+        key = _company_key(source)
+        if key in catalog_by_company and _is_catalog_managed(source):
+            company_groups.setdefault(key, []).append(source)
+    for key, duplicates in company_groups.items():
+        if len(duplicates) > 1:
+            groups.append((catalog_by_company[key], duplicates))
+
+    changed = 0
+    processed: set[tuple[int, ...]] = set()
+    for preferred, duplicates in groups:
+        signature = tuple(sorted(row.id for row in duplicates))
+        if signature in processed:
+            continue
+        processed.add(signature)
+        preferred_key = _source_key(preferred) if preferred else None
+        canonical = next((row for row in duplicates if preferred_key and _source_key(row) == preferred_key), None)
+        canonical = canonical or next((row for row in duplicates if preferred and row.name == preferred["name"]), duplicates[0])
+        if preferred:
+            if canonical.name != preferred["name"]:
+                canonical.name = preferred["name"]; changed += 1
+            if canonical.company_name != preferred["company_name"]:
+                canonical.company_name = preferred["company_name"]; changed += 1
+        canonical_meta = loads(canonical.metadata_json, {})
+        if not isinstance(canonical_meta, dict):
+            canonical_meta = {}
+        if canonical_meta.pop("duplicate_of", None) is not None:
+            canonical.metadata_json = dumps(canonical_meta)
+            changed += 1
+        for duplicate in duplicates:
+            if duplicate.id == canonical.id:
+                continue
+            meta = loads(duplicate.metadata_json, {})
+            if not isinstance(meta, dict):
+                meta = {}
+            if duplicate.enabled or meta.get("duplicate_of") != canonical.id:
+                duplicate.enabled = False
+                meta["duplicate_of"] = canonical.id
+                duplicate.metadata_json = dumps(meta)
+                changed += 1
+    return changed
+
+
 def recommended_sources_for_track(career_track: str = DEFAULT_TRACK) -> tuple[dict[str, str], ...]:
     return RECOMMENDED_SOURCES_BY_TRACK[normalize_track(career_track)]
 
 
 def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) -> int:
-    """Install missing recommended sources for one professional track."""
+    """Install/reconcile the recommended source catalog for one professional track."""
     career_track = normalize_track(career_track)
     catalog = recommended_sources_for_track(career_track)
     if not catalog:
         return 0
     kinds = {item["kind"] for item in catalog}
     identifiers = {item["identifier"] for item in catalog}
-    existing_pairs = {
-        (source.kind, source.identifier)
-        for source in db.scalars(select(Source).where(
-            Source.career_track == career_track,
-            Source.kind.in_(kinds),
-            Source.identifier.in_(identifiers),
-        )).all()
-    }
+    existing_rows = db.scalars(select(Source).where(
+        Source.career_track == career_track,
+        Source.kind.in_(kinds),
+        Source.identifier.in_(identifiers),
+    ).order_by(Source.id)).all()
+    existing_by_pair: dict[tuple[str, str], Source] = {}
+    for source in existing_rows:
+        existing_by_pair.setdefault(_source_key(source), source)
+
     installed = 0
+    reconciled = 0
     for item in catalog:
-        pair = (item["kind"], item["identifier"])
-        if pair in existing_pairs:
+        pair = _source_key(item)
+        existing = existing_by_pair.get(pair)
+        if existing is not None:
+            # Keep current enable/error state but refresh catalog display metadata.
+            if existing.name != item["name"] or existing.company_name != item["company_name"]:
+                existing.name = item["name"]
+                existing.company_name = item["company_name"]
+                reconciled += 1
             continue
-        db.add(Source(**item, career_track=career_track, enabled=True,
-                      metadata_json='{"preset":"recommended"}'))
-        existing_pairs.add(pair)
+        source = Source(**item, career_track=career_track, enabled=True, metadata_json='{"preset":"recommended"}')
+        db.add(source)
+        db.flush()
+        existing_by_pair[pair] = source
         installed += 1
-    if installed:
+
+    deduped = suppress_duplicate_sources(db, career_track)
+    if installed or reconciled or deduped:
         db.add(AuditLog(
             event_type="recommended_sources_installed",
-            message=f"Installed {installed} recommended sources for {career_track}",
-            details_json=f'{{"career_track":"{career_track}"}}',
+            message=f"Reconciled recommended sources for {career_track}",
+            details_json=dumps({"career_track": career_track, "installed": installed,
+                                "reconciled": reconciled, "duplicates_suppressed": deduped}),
         ))
         db.commit()
     return installed
@@ -136,14 +235,16 @@ def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) ->
         return []
     kinds = {item["kind"] for item in catalog}
     identifiers = {item["identifier"] for item in catalog}
-    existing_by_pair = {
-        (source.kind, source.identifier): source
-        for source in db.scalars(select(Source).where(
-            Source.career_track == career_track,
-            Source.kind.in_(kinds),
-            Source.identifier.in_(identifiers),
-        )).all()
-    }
+    existing_by_pair: dict[tuple[str, str], Source] = {}
+    for source in db.scalars(select(Source).where(
+        Source.career_track == career_track,
+        Source.kind.in_(kinds),
+        Source.identifier.in_(identifiers),
+    ).order_by(Source.id)).all():
+        meta = loads(source.metadata_json, {})
+        if isinstance(meta, dict) and meta.get("duplicate_of"):
+            continue
+        existing_by_pair.setdefault((source.kind, source.identifier), source)
     rows: list[dict] = []
     for item in catalog:
         existing = existing_by_pair.get((item["kind"], item["identifier"]))

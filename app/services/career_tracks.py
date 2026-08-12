@@ -46,7 +46,6 @@ CAREER_TRACK_BY_KEY = {track.key: track for track in CAREER_TRACKS}
 TRACK_FIELDS = (
     "years_experience",
     "years_experience_options_json",
-    "salary_expectation",
     "skills_json",
     "desired_titles_json",
     "preferred_locations_json",
@@ -62,7 +61,6 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     COMPUTER_SCIENCE: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
-        "salary_expectation": "",
         "skills_json": dumps(["C++", "Python", "Git", "Linux", "Data Structures", "REST API"]),
         "desired_titles_json": dumps([
             "software engineer", "backend", "r&d", "research engineer",
@@ -79,7 +77,6 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     INDUSTRIAL_ENGINEERING: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
-        "salary_expectation": "",
         "skills_json": dumps([
             "Excel", "SQL", "Power BI", "Data Analysis", "ERP", "SAP",
             "Process Improvement", "Project Management",

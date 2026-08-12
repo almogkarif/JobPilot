@@ -48,9 +48,11 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
     # portfolio sessions stay intentionally lightweight: they get only demo rows,
     # so opening the public demo cannot create dozens of source records per visitor.
     if not demo_only:
-        has_cs_source = db.scalar(select(Source.id).where(Source.kind != "demo", Source.career_track == COMPUTER_SCIENCE).limit(1))
-        if not has_cs_source:
-            install_recommended_sources(db, COMPUTER_SCIENCE)
+        # Reconcile the catalog on every workspace initialization. The operation is
+        # idempotent and cheap, and it ensures newly-added presets (for example
+        # Rafael) appear for existing users while legacy duplicate boards are
+        # suppressed instead of being scanned twice.
+        install_recommended_sources(db, COMPUTER_SCIENCE)
         install_recommended_sources(db, INDUSTRIAL_ENGINEERING)
 
     demo_tracks = [COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING] if demo_only else [COMPUTER_SCIENCE]

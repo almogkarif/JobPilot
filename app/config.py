@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "jobpilot-private"
     storage_mode: str = "local"  # local | supabase
     cron_secret: str = ""
+    scan_execution_mode: str = "local"  # local | external
+    github_actions_token: str = ""
+    github_repository: str = "almogkarif/JobPilot"
+    github_scan_workflow: str = "jobpilot-scan.yml"
+    github_ref: str = "main"
     agent_poll_seconds: int = 15
     scan_concurrency: int = 4
     source_scan_timeout_seconds: int = 45

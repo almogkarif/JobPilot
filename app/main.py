@@ -38,6 +38,7 @@ from .schemas import (
     ProfilePatch,
     ProfileUpdate,
     QueueApplicationRequest,
+    ResumeSuggestionApply,
     ResolveBlockerRequest,
     SkillUpdateRequest,
     SourceCreate,
@@ -53,9 +54,10 @@ from .services.career_tracks import (
     INDUSTRIAL_ENGINEERING, TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
     persist_active_track, switch_track, track_public_dict,
 )
-from .services.resume_analysis import analyze_resume, extract_resume_text
+from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
-from .services.scanner import scan_all_sources
+from .services.scan_runtime import create_scan_run, persistent_scan_status, update_scan_run
+from .services.github_actions import dispatch_scan_workflow
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
@@ -143,6 +145,12 @@ def _scan_status_payload(
     return payload
 
 
+
+def _effective_scan_status(db: Session, user_id: str, career_track: str) -> dict:
+    if settings.scan_execution_mode.strip().lower() == "external":
+        return persistent_scan_status(db, career_track)
+    return _scan_status_payload(user_id, career_track, active_career_track=career_track)
+
 def _ensure_dirs() -> None:
     RESUME_DIR.mkdir(parents=True, exist_ok=True)
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -194,6 +202,9 @@ async def _run_scan(
             # Each scan already has its own source-level concurrency, so this keeps a
             # free/small server from launching dozens of Chromium/network collectors.
             async with global_user_scan_semaphore:
+                # Import collectors lazily. In cloud/external mode the Render web process
+                # never loads Playwright collectors at all; GitHub Actions owns scanning.
+                from .services.scanner import scan_all_sources
                 with user_session(user_id) as db:
                     result = await scan_all_sources(
                         db, source_ids=source_ids, career_track=career_track,
@@ -587,7 +598,7 @@ def set_active_career_track(payload: CareerTrackSwitch, request: Request, db: Se
 
 
 @app.get("/api/dashboard")
-def dashboard(db: Session = Depends(get_db)):
+def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     career_track = active_track(profile)
     career_stats = _career_track_stats(db)
@@ -635,14 +646,24 @@ def dashboard(db: Session = Depends(get_db)):
         ).all()
     enabled_sources = int(current_stats.get("enabled_sources", 0))
     failed_sources = int(current_stats.get("source_errors", 0))
-    profile_complete = bool(profile and all(str(value or "").strip() for value in [profile.full_name, profile.email, profile.phone, profile.location]))
+    required_profile_fields = (("full_name", "שם מלא"), ("email", "אימייל"), ("phone", "טלפון"), ("location", "מיקום"))
+    missing_profile_fields = [label for field, label in required_profile_fields if not str(getattr(profile, field, "") or "").strip()] if profile else [label for _field, label in required_profile_fields]
+    profile_complete = not missing_profile_fields
+    identity = getattr(request.state, "identity", None)
+    agent_required = bool(
+        (settings.auth_mode != "supabase" or getattr(identity, "role", "") == "admin")
+        and application_agent_allowed(email=getattr(identity, "email", ""))
+    )
+    agent_token_secure = settings.agent_token != "change-me"
     readiness = {
-        "ready": bool(profile_complete and profile.cv_path and enabled_sources and settings.agent_token != "change-me"),
+        "ready": bool(profile_complete and profile.cv_path and enabled_sources and (not agent_required or agent_token_secure)),
         "profile_complete": profile_complete,
+        "missing_profile_fields": missing_profile_fields,
         "resume_uploaded": bool(profile and profile.cv_path),
         "sources_enabled": enabled_sources,
         "sources_with_errors": failed_sources,
-        "agent_token_secure": settings.agent_token != "change-me",
+        "agent_required": agent_required,
+        "agent_token_secure": agent_token_secure,
     }
     return {
         "total_jobs": total_jobs,
@@ -652,7 +673,7 @@ def dashboard(db: Session = Depends(get_db)):
         "submitted": status_counts.get("submitted", 0),
         "needs_input": status_counts.get("needs_input", 0),
         "open_blockers": open_blockers, "due_reminders": due_reminders,
-        "scan": _scan_status_payload(current_user_id(db), career_track, active_career_track=career_track),
+        "scan": _effective_scan_status(db, current_user_id(db), career_track),
         "career_track": career_track,
         "career_track_info": career_track_info,
         "recent_jobs": [_job_dict(j, profile=profile) for j in today_top_jobs],
@@ -691,6 +712,36 @@ def patch_profile(payload: ProfilePatch, db: Session = Depends(get_db)):
     )
 
 
+def _normalize_work_experiences(value) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    allowed = ("job_title", "company", "location", "employment_type", "start_date", "end_date", "description")
+    result: list[dict[str, str]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        item = {key: str(raw.get(key, "") or "").strip()[:2000] for key in allowed}
+        if any(item.values()):
+            result.append(item)
+    return result
+
+
+def _mirror_latest_work_experience(application_profile: dict) -> dict:
+    experiences = _normalize_work_experiences(application_profile.get("work_experiences"))
+    application_profile["work_experiences"] = experiences
+    latest = experiences[0] if experiences else {}
+    application_profile.update({
+        "current_job_title": latest.get("job_title", ""),
+        "current_company": latest.get("company", ""),
+        "employment_location": latest.get("location", ""),
+        "employment_type": latest.get("employment_type", ""),
+        "employment_start_date": latest.get("start_date", ""),
+        "employment_end_date": latest.get("end_date", ""),
+        "employment_description": latest.get("description", ""),
+    })
+    return application_profile
+
+
 def _apply_profile_changes(
     profile: Profile,
     values: dict,
@@ -711,7 +762,7 @@ def _apply_profile_changes(
 
     scalar_fields = {
         "full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url",
-        "years_experience", "work_authorization", "needs_sponsorship", "salary_expectation",
+        "years_experience", "work_authorization", "needs_sponsorship",
         "auto_apply_threshold", "auto_submit_enabled",
     }
     for field in scalar_fields & values.keys():
@@ -741,6 +792,8 @@ def _apply_profile_changes(
 
     if "application_profile" in values and values["application_profile"] is not None:
         incoming = dict(values["application_profile"] or {})
+        if "work_experiences" in incoming:
+            incoming = _mirror_latest_work_experience(incoming)
         if replace_application_profile:
             profile.application_profile_json = dumps(incoming)
         else:
@@ -748,6 +801,8 @@ def _apply_profile_changes(
             if not isinstance(merged, dict):
                 merged = {}
             merged.update(incoming)
+            if "work_experiences" in incoming:
+                merged = _mirror_latest_work_experience(merged)
             profile.application_profile_json = dumps(merged)
 
     # Track-local search preferences/skills must be captured on every relevant save,
@@ -769,6 +824,38 @@ def _apply_profile_changes(
     return _profile_dict(profile)
 
 
+def _autofill_profile_from_resume(profile: Profile, analysis: dict) -> list[str]:
+    """Fill only blank personal fields discovered confidently in a CV.
+
+    Skills intentionally remain explicit suggestions: professional skills are
+    subjective and users should approve them one-by-one. Identity/contact fields
+    are deterministic enough to populate when the profile has no value yet.
+    """
+    detected = analysis.get("detected_profile") if isinstance(analysis, dict) else {}
+    if not isinstance(detected, dict):
+        return []
+    allowed = ("full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url")
+    applied: list[str] = []
+    for field in allowed:
+        value = str(detected.get(field, "") or "").strip()
+        if value and not str(getattr(profile, field, "") or "").strip():
+            setattr(profile, field, value)
+            applied.append(field)
+    return applied
+
+
+def _resume_content_type(filename: str, supplied: str | None) -> str:
+    suffix = Path(filename).suffix.casefold()
+    known = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc": "application/msword",
+        ".txt": "text/plain",
+        ".rtf": "application/rtf",
+    }
+    return known.get(suffix) or supplied or "application/octet-stream"
+
+
 @app.post("/api/profile/resume")
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
     allowed = {".pdf", ".doc", ".docx", ".txt", ".rtf"}
@@ -779,7 +866,17 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     if not content or len(content) > 10 * 1024 * 1024:
         raise HTTPException(400 if not content else 413, "Resume must be 1 byte–10 MB")
     safe_name = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
-    stored_ref = save_bytes("resumes", safe_name, content, file.content_type, owner_key=current_user_id(db))
+    original_name = file.filename or safe_name
+    try:
+        extracted_text = extract_resume_bytes(content, original_name)
+    except Exception as exc:
+        # A valid upload should never be rejected only because text extraction failed.
+        # Keep the file and surface the parser error inside its analysis instead.
+        extracted_text = ""
+        extraction_error = str(exc)[:300]
+    else:
+        extraction_error = ""
+    stored_ref = save_bytes("resumes", safe_name, content, _resume_content_type(original_name, file.content_type), owner_key=current_user_id(db))
     profile = get_user_profile(db)
     career_track = active_track(profile)
     profile.cv_path = stored_ref
@@ -796,12 +893,18 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     else:
         resume = ResumeProfile(label="כללי", filename=file.filename or safe_name, path=stored_ref,
                                career_track=career_track, skills_json="[]", is_default=True)
-    _analyze_resume_record(resume, profile)
+    _analyze_resume_record(resume, profile, extracted_text=extracted_text, extraction_error=extraction_error)
+    analysis = loads(resume.analysis_json, {})
+    autofilled = _autofill_profile_from_resume(profile, analysis)
+    if autofilled:
+        _analyze_resume_record(resume, profile, extracted_text=extracted_text, extraction_error=extraction_error)
+        analysis = loads(resume.analysis_json, {})
     db.add(resume)
-    db.add(AuditLog(event_type="resume_uploaded", entity_type="profile", entity_id="1", message=safe_name))
+    db.add(AuditLog(event_type="resume_uploaded", entity_type="profile", entity_id="1", message=safe_name,
+                    details_json=dumps({"autofilled_fields": autofilled, "format": suffix})))
     db.commit()
-    return {"id": resume.id, "filename": file.filename or safe_name, "path": stored_ref,
-            "analysis": loads(resume.analysis_json, {})}
+    return {"id": resume.id, "filename": original_name, "path": stored_ref,
+            "analysis": analysis, "autofilled_fields": autofilled, "profile": _profile_dict(profile)}
 
 
 @app.get("/api/resumes")
@@ -829,16 +932,26 @@ async def add_resume(label: str = Form(...), skills: str = Form(""), is_default:
     if not content or len(content) > 10 * 1024 * 1024:
         raise HTTPException(400 if not content else 413, "Resume must be 1 byte–10 MB")
     safe_name = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
-    stored_ref = save_bytes("resumes", safe_name, content, file.content_type, owner_key=current_user_id(db))
+    original_name = file.filename or safe_name
+    try:
+        extracted_text = extract_resume_bytes(content, original_name)
+    except Exception as exc:
+        extracted_text = ""; extraction_error = str(exc)[:300]
+    else:
+        extraction_error = ""
+    stored_ref = save_bytes("resumes", safe_name, content, _resume_content_type(original_name, file.content_type), owner_key=current_user_id(db))
     profile = get_user_profile(db)
     career_track = active_track(profile)
     if is_default:
         for existing in db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all():
             existing.is_default = False
     parsed_skills = [value.strip() for value in skills.split(",") if value.strip()]
-    resume = ResumeProfile(label=label.strip(), filename=file.filename or safe_name,
+    resume = ResumeProfile(label=label.strip(), filename=original_name,
                            path=stored_ref, career_track=career_track, skills_json=dumps(parsed_skills), is_default=is_default)
-    _analyze_resume_record(resume, profile, parsed_skills)
+    _analyze_resume_record(resume, profile, parsed_skills, extracted_text=extracted_text, extraction_error=extraction_error)
+    autofilled = _autofill_profile_from_resume(profile, loads(resume.analysis_json, {}))
+    if autofilled:
+        _analyze_resume_record(resume, profile, parsed_skills, extracted_text=extracted_text, extraction_error=extraction_error)
     if is_default or not profile.cv_path:
         profile.cv_path = stored_ref
         persist_active_track(profile)
@@ -858,26 +971,34 @@ def reanalyze_resume(resume_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/resumes/{resume_id}/suggestions/apply")
-async def apply_resume_suggestion(resume_id: int, request: Request, db: Session = Depends(get_db)):
-    resume = db.get(ResumeProfile, resume_id); profile = get_user_profile(db)
-    if not resume or resume.career_track != active_track(profile): raise HTTPException(404, "Resume not found")
-    payload = await request.json(); field = str(payload.get("field", "")); value = str(payload.get("value", "")).strip()
-    allowed_profile = {"email", "phone", "linkedin_url", "github_url"}
+def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, db: Session = Depends(get_db)):
+    """Apply one explicit CV suggestion without blocking FastAPI's event loop.
+
+    The route is intentionally synchronous so FastAPI executes the potentially
+    expensive skill re-score in its worker thread pool instead of freezing health
+    checks and unrelated users while the active track is recalculated.
+    """
+    resume = db.get(ResumeProfile, resume_id)
+    profile = get_user_profile(db)
+    if not resume or resume.career_track != active_track(profile):
+        raise HTTPException(404, "Resume not found")
+    field = str(payload.field or "").strip()
+    value = str(payload.value or "").strip()
+    allowed_profile = {"full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url"}
     if field == "skills":
-        values = loads(profile.skills_json, [])
-        if value.casefold() not in {item.casefold() for item in values}: values.append(value)
+        values = [str(item).strip() for item in loads(profile.skills_json, []) if str(item).strip()]
+        if value.casefold() not in {item.casefold() for item in values}:
+            values.append(value)
         profile.skills_json = dumps(values)
+        persist_active_track(profile)
+        _rescore_all_jobs(db, profile)
     elif field in allowed_profile:
         setattr(profile, field, value)
-    else: raise HTTPException(400, "Unsupported suggestion")
-    if field == "skills":
-        persist_active_track(profile)
-    # A contact-field suggestion does not affect job ranking. Only skills require a
-    # ranking refresh; all supported fields can affect CV-analysis suggestions.
-    if field == "skills":
-        _rescore_all_jobs(db, profile)
+    else:
+        raise HTTPException(400, "Unsupported suggestion")
     _refresh_resume_analyses(db, profile)
     db.commit()
+    db.refresh(profile)
     return {"applied": True, "profile": _profile_dict(profile), "resume": _resume_dict(resume)}
 
 
@@ -897,7 +1018,13 @@ def list_sources(db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     track = active_track(profile)
     sources = db.scalars(select(Source).where(Source.career_track == track).order_by(Source.name)).all()
-    return [_source_dict(source) for source in sources]
+    visible = []
+    for source in sources:
+        metadata = loads(source.metadata_json, {})
+        if isinstance(metadata, dict) and metadata.get("duplicate_of"):
+            continue
+        visible.append(source)
+    return [_source_dict(source) for source in visible]
 
 
 @app.get("/api/sources/recommended")
@@ -971,6 +1098,19 @@ def delete_source(source_id: int, db: Session = Depends(get_db)):
 async def trigger_scan(db: Session = Depends(get_db)):
     user_id = current_user_id(db)
     track = active_track(get_user_profile(db))
+    if settings.scan_execution_mode.strip().lower() == "external":
+        log, created = create_scan_run(db, track, trigger="manual")
+        if not created:
+            return {"status": "already_running", "career_track": track, "run_id": log.entity_id, "worker": "github_actions"}
+        try:
+            await run_in_threadpool(dispatch_scan_workflow, "queued")
+        except Exception as exc:  # noqa: BLE001
+            update_scan_run(
+                db, log.entity_id, track, status="failed", error=str(exc), finished=True,
+                result={"status": "failed", "error": "Could not start the external scan worker", "career_track": track},
+            )
+            raise HTTPException(503, f"לא ניתן להפעיל את סורק GitHub Actions: {exc}") from exc
+        return {"status": "queued", "career_track": track, "run_id": log.entity_id, "worker": "github_actions"}
     if _user_scan_lock(user_id).locked():
         return {"status": "already_running", "career_track": track}
     asyncio.create_task(_run_scan(career_track=track, user_id=user_id))
@@ -981,7 +1121,7 @@ async def trigger_scan(db: Session = Depends(get_db)):
 def get_scan_status(db: Session = Depends(get_db)):
     user_id = current_user_id(db)
     track = active_track(get_user_profile(db))
-    return _scan_status_payload(user_id, track, active_career_track=track)
+    return _effective_scan_status(db, user_id, track)
 
 
 @app.get("/api/jobs")
@@ -1643,7 +1783,7 @@ async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get
 
     if not track_bundle:
         legacy_scalar_fields = [
-            "years_experience", "salary_expectation", "auto_apply_threshold", "auto_submit_enabled",
+            "years_experience", "auto_apply_threshold", "auto_submit_enabled",
         ]
         for field in legacy_scalar_fields:
             if field in saved:
@@ -1864,6 +2004,12 @@ async def cron_scan(request: Request):
     provided = request.headers.get("X-JobPilot-Cron-Secret", "").strip()
     if not configured or not hmac.compare_digest(provided, configured):
         raise HTTPException(401, "Invalid cron secret")
+
+    if settings.scan_execution_mode.strip().lower() == "external":
+        # Scheduled scans are executed directly by GitHub Actions. Keep this endpoint
+        # as a safe compatibility target for an older workflow during rollout, but
+        # never launch a heavy collector inside the Render web service.
+        return {"status": "external_worker", "worker": "github_actions"}
 
     tz = ZoneInfo(settings.timezone)
     now_local = datetime.now(tz)
@@ -2123,7 +2269,7 @@ def _profile_dict(p: Profile) -> dict:
         "cv_path": p.cv_path, "cv_filename": Path(p.cv_path).name if p.cv_path else "",
         "years_experience": p.years_experience, "work_authorization": p.work_authorization,
         "years_experience_options": loads(p.years_experience_options_json, [str(int(p.years_experience or 0))]),
-        "needs_sponsorship": p.needs_sponsorship, "salary_expectation": p.salary_expectation,
+        "needs_sponsorship": p.needs_sponsorship,
         "skills": loads(p.skills_json, []), "desired_titles": loads(p.desired_titles_json, []),
         "preferred_locations": loads(p.preferred_locations_json, []),
         "preferred_work_modes": loads(p.preferred_work_modes_json, []), "keywords": loads(p.keywords_json, []),
@@ -2274,13 +2420,21 @@ def _best_resume_for_job(db: Session, job: Job) -> ResumeProfile | None:
     return max(resumes, key=lambda resume: (_resume_fit(resume, job)["score"], bool(resume.is_default), resume.created_at))
 
 
-def _analyze_resume_record(resume: ResumeProfile, profile: Profile, manual_skills: list[str] | None = None) -> None:
+def _analyze_resume_record(
+    resume: ResumeProfile, profile: Profile, manual_skills: list[str] | None = None,
+    *, extracted_text: str | None = None, extraction_error: str = "",
+) -> None:
     try:
-        with materialized_file(resume.path, resume.filename or "resume.pdf") as local_path:
-            text = extract_resume_text(local_path)
+        if extracted_text is None:
+            with materialized_file(resume.path, resume.filename or "resume.pdf") as local_path:
+                text = extract_resume_text(local_path)
+        else:
+            text = extracted_text
         analysis = analyze_resume(text, profile)
+        if extraction_error:
+            analysis["warning"] = extraction_error
     except Exception as exc:  # corrupted/encrypted documents remain uploadable and explain why analysis failed
-        text = ""; analysis = {"skills": [], "suggestions": [], "text_length": 0, "error": str(exc)[:300]}
+        text = ""; analysis = {"skills": [], "suggestions": [], "detected_profile": {}, "text_length": 0, "error": str(exc)[:300]}
     combined = list(dict.fromkeys([*(manual_skills or []), *analysis.get("skills", [])]))
     resume.extracted_text = text[:250_000]
     resume.skills_json = dumps(combined)

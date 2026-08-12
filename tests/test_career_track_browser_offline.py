@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.43.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.23.0"></script>', "")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.44.0" />', f"<style>{css}</style>")
+    html = html.replace('<script src="/static/app.js?v=0.25.0"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -53,7 +53,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
               const profileFor = track => ({
                 id:1, full_name:'Test', email:'test@example.com', phone:'0500000000', location:'Israel',
                 linkedin_url:'', github_url:'', portfolio_url:'', cv_path:'', cv_filename:'', years_experience:0,
-                years_experience_options:['0'], work_authorization:true, needs_sponsorship:false, salary_expectation:'',
+                years_experience_options:['0'], work_authorization:true, needs_sponsorship:false,
                 skills: track === 'industrial_engineering' ? ['Excel','Power BI','ERP'] : ['Python','C++'],
                 desired_titles: track === 'industrial_engineering' ? ['industrial engineer','supply chain'] : ['software engineer','backend'],
                 preferred_locations:['Israel'], preferred_work_modes:['hybrid'], keywords:[], excluded_keywords:[],
@@ -100,6 +100,11 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert "תעו״נ" in page.locator("#scan-btn").inner_text()
         light_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
         assert light_brand == "#b87908"
+        # IEM light mode must keep the explanatory dock text visible and warm.
+        dock_subtitle = page.locator('#nav button.active .nav-label small')
+        assert dock_subtitle.is_visible()
+        subtitle_color = dock_subtitle.evaluate("el => getComputedStyle(el).color")
+        assert "rgb(23, 105, 170)" not in subtitle_color and "rgb(79, 130, 168)" not in subtitle_color
 
         page.locator('#theme-switch [data-theme="dark"]').click()
         page.wait_for_function("document.body.classList.contains('theme-dark')")
@@ -159,6 +164,34 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         # the profile completion card or its navigation, even with a real warning.
         page.evaluate("switchView('profile')")
         page.wait_for_selector('[data-profile-pane="personal"].active')
+        # Previously these specific profile/theme/preference controls stayed blue
+        # in IEM dark mode. Guard them with real computed-style checks.
+        assert not is_blue(rgb('.profile-section-index'))
+        assert not is_blue(rgb('.theme-switch-thumb'))
+        assert not is_blue(rgb('.profile-detail-section input[name="full_name"]'))
+        # The experience checkbox must show its tick immediately on the same click.
+        experience_three = page.locator('[data-profile-option="years_experience_options"][value="3"]')
+        experience_three.click()
+        assert experience_three.is_checked()
+        assert 'is-option-checked' in (experience_three.locator('xpath=ancestor::label[1]').get_attribute('class') or '')
+        check_transform = experience_three.evaluate("el => getComputedStyle(el, '::after').transform")
+        assert check_transform != 'none'
+
+        # Collapsing one CV/profile card must never geometrically overlap the next.
+        sections = page.locator('.personal-profile-layout > .profile-detail-section')
+        first_toggle = sections.nth(0).locator('.section-collapse')
+        first_toggle.click()
+        boxes = page.evaluate("""() => {
+          const rows=[...document.querySelectorAll('.personal-profile-layout > .profile-detail-section')].slice(0,2).map(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right};});
+          return rows;
+        }""")
+        a,b = boxes
+        overlaps = not (a['right'] <= b['left'] or b['right'] <= a['left'] or a['bottom'] <= b['top'] or b['bottom'] <= a['top'])
+        assert not overlaps
+        first_toggle.click()
+
+        page.evaluate("document.querySelector('[data-profile-section=preferences]')?.click()")
+        page.evaluate("switchView('profile')")
         page.locator('#profile-unsaved-count').evaluate("el => el.textContent = '2 נתונים לא נשמרו'")
         rects = page.evaluate("""() => {
           const box = id => { const r=document.querySelector(id).getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}; };

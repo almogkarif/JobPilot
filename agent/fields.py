@@ -100,7 +100,6 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["github", "git hub"], profile.get("github_url", ""), "profile"),
         (["portfolio", "website", "personal site", "אתר אישי"], profile.get("portfolio_url", ""), "profile"),
         (["years of experience", "years experience", "שנות ניסיון"], str(profile.get("years_experience", 0)), "profile"),
-        (["salary", "compensation", "ציפיות שכר", "שכר"], profile.get("salary_expectation", ""), "profile"),
         (["skills", "technical skills"], ", ".join(profile.get("skills", [])), "profile"),
     ]
     for needles, value, source in mapping:

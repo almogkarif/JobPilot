@@ -144,7 +144,7 @@ def test_track_state_keeps_all_search_settings_and_cv_separate_but_contact_share
         skills_json=dumps(["Python"]), desired_titles_json=dumps(["backend"]), keywords_json=dumps(["junior"]),
         excluded_keywords_json=dumps(["senior"]), preferred_locations_json=dumps(["Haifa"]),
         preferred_work_modes_json=dumps(["hybrid"]), auto_apply_threshold=84, auto_submit_enabled=True,
-        cv_path="/tmp/cs.pdf", salary_expectation="CS salary", years_experience=2, years_experience_options_json=dumps(["2"]),
+        cv_path="/tmp/cs.pdf", years_experience=2, years_experience_options_json=dumps(["2"]),
         active_career_track=COMPUTER_SCIENCE,
     )
     ensure_track_state(profile)
@@ -161,21 +161,20 @@ def test_track_state_keeps_all_search_settings_and_cv_separate_but_contact_share
     profile.auto_apply_threshold = 73
     profile.auto_submit_enabled = False
     profile.cv_path = "/tmp/iem.pdf"
-    profile.salary_expectation = "IEM salary"
     persist_active_track(profile)
 
     switch_track(profile, COMPUTER_SCIENCE)
     assert loads(profile.skills_json, []) == ["Python"]
     assert loads(profile.desired_titles_json, []) == ["backend"]
     assert profile.auto_apply_threshold == 84 and profile.auto_submit_enabled is True
-    assert profile.cv_path == "/tmp/cs.pdf" and profile.salary_expectation == "CS salary"
+    assert profile.cv_path == "/tmp/cs.pdf"
     assert profile.email == "shared@example.com" and profile.phone == "0501234567"
 
     switch_track(profile, INDUSTRIAL_ENGINEERING)
     assert loads(profile.skills_json, []) == ["Excel", "SAP", "Power BI"]
     assert loads(profile.desired_titles_json, []) == ["industrial engineer", "supply chain"]
     assert profile.auto_apply_threshold == 73
-    assert profile.cv_path == "/tmp/iem.pdf" and profile.salary_expectation == "IEM salary"
+    assert profile.cv_path == "/tmp/iem.pdf"
 
 
 def test_shared_company_sources_have_independent_enabled_state_per_track():

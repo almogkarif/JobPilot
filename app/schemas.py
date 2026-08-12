@@ -28,7 +28,6 @@ class ProfileUpdate(BaseModel):
         return cleaned
     work_authorization: bool = True
     needs_sponsorship: bool = False
-    salary_expectation: str = ""
     skills: list[str] = Field(default_factory=list)
     desired_titles: list[str] = Field(default_factory=list)
     preferred_locations: list[str] = Field(default_factory=list)
@@ -59,7 +58,6 @@ class ProfilePatch(BaseModel):
     years_experience_options: list[str] | None = None
     work_authorization: bool | None = None
     needs_sponsorship: bool | None = None
-    salary_expectation: str | None = None
     skills: list[str] | None = None
     desired_titles: list[str] | None = None
     preferred_locations: list[str] | None = None
@@ -126,6 +124,11 @@ class SkillUpdateRequest(BaseModel):
 
 class DesiredTitleUpdateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=100)
+
+
+class ResumeSuggestionApply(BaseModel):
+    field: str = Field(min_length=1, max_length=80)
+    value: str = Field(min_length=1, max_length=1000)
 
 
 class ResolveBlockerRequest(BaseModel):

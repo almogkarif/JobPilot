@@ -28,8 +28,8 @@ The project combines product work, backend engineering, browser automation, data
 - **Human-in-the-loop browser automation** using a persistent local Playwright agent for application preparation.
 - **Fail-closed automation controls** for unknown required questions, CAPTCHA detection, ambiguous submissions, and final-submit approval.
 - **Local + cloud modes** using the same application codebase: SQLite/local storage for a personal installation, or PostgreSQL/Supabase for deployment.
-- **Background scanning** with bounded concurrency, stale-job cleanup, per-source error isolation, and external cron triggering.
-- **Dockerized deployment** with Render Blueprint configuration and GitHub Actions for scheduled wake-and-scan requests.
+- **Background scanning** runs in GitHub Actions, isolated from the Render web process, with bounded concurrency, stale-job cleanup, per-source error isolation, and durable progress stored in PostgreSQL.
+- **Dockerized web deployment** on Render plus a separate GitHub Actions scan worker, so browser-heavy collectors cannot exhaust the web service memory.
 - **Custom build-free frontend** with Hebrew RTL support, light/dark themes, command palette, keyboard navigation, responsive layouts, and persistent UI state.
 - **Automated test coverage** across API behavior, matching, tenant isolation, cloud auth/storage contracts, browser automation, collectors, and UI flows.
 
@@ -219,7 +219,7 @@ Browser profiles, resumes, application passwords, database files, and applicatio
 | Collection/parsing | HTTPX / BeautifulSoup / Playwright where rendering is required |
 | Frontend | Vanilla JavaScript / HTML / CSS, Hebrew RTL |
 | Deployment | Docker / Render |
-| Scheduling | GitHub Actions + authenticated cron endpoint |
+| Scanning | GitHub Actions worker + PostgreSQL-backed scan queue/status |
 | Testing | Pytest + FastAPI TestClient + browser/UI tests |
 
 ## Quick start — local mode
@@ -293,7 +293,7 @@ Render Blueprint ──────► FastAPI server
       │                       ├──► PostgreSQL
       │                       └──► Supabase Storage
       │
-      └── GitHub Actions ───► authenticated /api/cron/scan
+      └── GitHub Actions ───► collectors + matching ───► PostgreSQL
 
 Local Mac ─────────────► authenticated Agent API ─► Playwright/Chromium
 ```
@@ -320,7 +320,9 @@ For the complete setup, see:
 | `JOBPILOT_SUPABASE_URL` | Supabase project URL |
 | `JOBPILOT_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase key |
 | `JOBPILOT_SUPABASE_SECRET_KEY` | Server-only Supabase key |
-| `JOBPILOT_CRON_SECRET` | Secret used by the scheduled scan endpoint |
+| `JOBPILOT_CRON_SECRET` | Compatibility secret for the legacy cron endpoint |
+| `JOBPILOT_GITHUB_ACTIONS_TOKEN` | Fine-grained GitHub token used by Render only to dispatch a manual scan workflow |
+| `JOBPILOT_SCAN_EXECUTION_MODE` | Set to `external` in cloud so Render never runs collectors |
 | `JOBPILOT_AUTO_SUBMIT` | Local agent final-submit permission; default false |
 
 See `.env.example` and `.env.cloud.example` for safe templates.
@@ -416,7 +418,7 @@ The current release focuses on cloud hardening and the transition from a persona
 - local per-device application agents with revocable tokens;
 - bounded multi-user scan concurrency;
 - Docker/Render deployment configuration;
-- external scheduled scanning through GitHub Actions;
+- browser-heavy scanning isolated in GitHub Actions, with durable DB-backed progress;
 - improved collector URL identity and official-career parsing;
 - UI hardening across desktop/mobile and both professional themes.
 

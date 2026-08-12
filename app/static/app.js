@@ -1097,14 +1097,17 @@ function renderSourceErrorBadge(count) {
 
 function renderReadiness(readiness) {
   const root = $('#readiness');
+  const missingProfile = Array.isArray(readiness.missing_profile_fields) ? readiness.missing_profile_fields : [];
+  const profileLabel = missingProfile.length ? `פרטי קשר — חסר ${missingProfile.join(', ')}` : 'פרטי קשר';
   const checks = [
-    { ok: readiness.profile_complete, label: 'פרטי קשר מלאים', action: "switchView('profile')" },
-    { ok: readiness.resume_uploaded, label: 'קורות חיים הועלו', action: "switchView('profile')" },
-    { ok: readiness.sources_enabled > 0, label: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
-    { ok: readiness.agent_token_secure, label: 'Token מאובטח ל־Agent', action: null },
+    { ok: readiness.profile_complete, label: profileLabel, action: "switchView('profile')" },
+    { ok: readiness.resume_uploaded, label: 'קורות חיים', action: "switchView('profile')" },
+    { ok: readiness.sources_enabled > 0, label: 'מקורות פעילים', successLabel: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
   ];
-  const missing = checks.filter((check) => !check.ok).length;
-  if (!missing) {
+  const showAgentToken = Boolean(readiness.agent_required) && authState.user?.role === 'admin' && applicationAgentAllowed();
+  if (showAgentToken) checks.push({ ok: readiness.agent_token_secure, label: 'Token מאובטח ל־Agent', action: null });
+  const missingChecks = checks.filter((check) => !check.ok);
+  if (!missingChecks.length) {
     root.hidden = true;
     root.className = 'readiness-panel';
     root.innerHTML = '';
@@ -1112,14 +1115,18 @@ function renderReadiness(readiness) {
   }
   root.hidden = false;
   root.className = 'readiness-panel readiness-incomplete';
+  const missingText = missingChecks.map((check) => check.label).join(' · ');
   root.innerHTML = `
     <div class="readiness-copy"><span class="readiness-icon">!</span>
       <div><strong>נשארו כמה צעדים לפני הגשה בטוחה</strong>
-      <small>${missing} הגדרות דורשות השלמה. אפשר עדיין לעיין ולסרוק משרות.</small></div>
+      <small>חסר: ${esc(missingText)}. אפשר עדיין לעיין ולסרוק משרות.</small></div>
     </div>
-    <div class="readiness-checks">${checks.map((check) => check.action
-      ? `<button type="button" class="readiness-check ${check.ok ? 'ok' : 'missing'}" onclick="${check.action}">${check.ok ? '✓' : '○'} ${esc(check.label)}</button>`
-      : `<span class="readiness-check ${check.ok ? 'ok' : 'missing'}">${check.ok ? '✓' : '○'} ${esc(check.label)}</span>`).join('')}</div>`;
+    <div class="readiness-checks">${checks.map((check) => {
+      const label = check.ok && check.successLabel ? check.successLabel : check.label;
+      return check.action
+        ? `<button type="button" class="readiness-check ${check.ok ? 'ok' : 'missing'}" onclick="${check.action}">${check.ok ? '✓' : '○'} ${esc(label)}</button>`
+        : `<span class="readiness-check ${check.ok ? 'ok' : 'missing'}">${check.ok ? '✓' : '○'} ${esc(label)}</span>`;
+    }).join('')}</div>`;
 }
 
 function renderRecent(jobs, showingPreviousDay = false) {
@@ -1174,11 +1181,13 @@ function renderScan(scan) {
     const source = current.current_source || activeSources[0] || '';
     const phase = current.phase || 'starting';
     const percent = total ? Math.min(100, Math.max(0, Math.round((completed / total) * 100))) : 0;
-    const counter = total ? `${Math.min(completed, total)} מתוך ${total}` : 'מכין מקורות';
+    const counter = phase === 'queued' ? 'ממתין ל־worker' : (total ? `${Math.min(completed, total)} מתוך ${total}` : 'מכין מקורות');
     const parallel = activeSources.length > 1 ? ` · עוד ${activeSources.length - 1} במקביל` : '';
-    const detail = phase === 'finalizing'
-      ? 'מסיים שמירה ודירוג של המשרות…'
-      : source ? `סורק עכשיו: ${source}${parallel}` : 'מכין את רשימת המקורות…';
+    const detail = phase === 'queued'
+      ? 'הבקשה נשלחה ל־GitHub Actions. האתר נשאר פנוי בזמן שהסריקה מתחילה…'
+      : phase === 'finalizing'
+        ? 'מסיים שמירה ודירוג של המשרות…'
+        : source ? `סורק עכשיו: ${source}${parallel}` : 'מכין את רשימת המקורות…';
 
     element.classList.add('is-running');
     element.style.setProperty('--scan-progress', `${percent}%`);
@@ -1303,10 +1312,11 @@ $('#scan-status').onclick = () => {
 
 $('#scan-btn').onclick = async () => {
   try {
-    await api('/api/scan', { method: 'POST' });
+    const started = await api('/api/scan', { method: 'POST' });
     lastScanCompleted = 0;
-    toast('הסריקה התחילה');
-    renderScan({ running: true, progress: { phase: 'starting', current: 0, completed: 0, total: 0, current_source: null } });
+    const external = started?.worker === 'github_actions';
+    toast(external ? 'בקשת הסריקה נשלחה ל־GitHub Actions' : 'הסריקה התחילה');
+    renderScan({ running: true, progress: { phase: external ? 'queued' : 'starting', current: 0, completed: 0, total: 0, current_source: null } });
     pollScan();
   } catch (error) {
     toast(error.message);
@@ -1318,7 +1328,9 @@ async function pollScan() {
   scanPollActive = true;
   try {
     while (true) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Multiple devices may watch the same durable scan. Poll gently so phones and
+      // background tabs do not generate unnecessary traffic while GitHub Actions works.
+      await new Promise((resolve) => setTimeout(resolve, document.hidden ? 6000 : 2000));
       const scan = await api('/api/scan/status');
       renderScan(scan);
       const completed = Math.max(0, Number(scan.progress?.completed || 0));
@@ -1888,13 +1900,12 @@ const LEGACY_PROFILE_DRAFT_KEY = 'jobpilot.profileDraft.v1';
 const profileDraftKey = () => `jobpilot.profileDraft.v3.${state.activeCareerTrack || 'computer_science'}`;
 const PROFILE_TEXT_FIELDS = [
   'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
-  'application_password', 'years_experience_options', 'salary_expectation', 'skills', 'desired_titles', 'preferred_locations',
+  'application_password', 'years_experience_options', 'skills', 'desired_titles', 'preferred_locations',
   'preferred_work_modes', 'keywords', 'excluded_keywords', 'auto_apply_threshold',
 ];
 const APPLICATION_PROFILE_FIELDS = [
   'preferred_name', 'pronouns', 'country', 'city', 'address_line1', 'address_line2', 'state', 'postal_code',
-  'phone_country_code', 'website_url', 'current_job_title', 'current_company', 'employment_location',
-  'employment_type', 'employment_start_date', 'employment_end_date', 'employment_description',
+  'phone_country_code', 'website_url', 'work_experiences',
   'education_school', 'education_degree', 'education_field', 'education_grade', 'education_start_date',
   'education_end_date', 'languages', 'certifications', 'notice_period', 'available_start_date',
 ];
@@ -1912,6 +1923,7 @@ function profileForm() {
 
 function savedProfileFormValue(name) {
   if (name === 'extra_languages') return JSON.stringify(normalizeLanguages(state.profile?.application_profile?.languages));
+  if (name === 'extra_work_experiences') return JSON.stringify(normalizeWorkExperiences(state.profile?.application_profile));
   if (name.startsWith('extra_')) return String(state.profile?.application_profile?.[name.slice(6)] ?? '');
   if (name === 'application_password') return '';
   if (PROFILE_CHECK_FIELDS.includes(name)) return !!state.profile?.[name];
@@ -1923,6 +1935,7 @@ function currentProfileFormValue(name) {
   const control = profileForm()?.elements[name];
   if (!control) return '';
   if (name === 'extra_languages') return JSON.stringify(collectLanguages());
+  if (name === 'extra_work_experiences') return JSON.stringify(collectWorkExperiences());
   if (PROFILE_ARRAY_FIELDS.has(name)) {
     const selected = $$(`[data-profile-option="${name}"]:checked`, profileForm()).map((item) => item.value);
     const custom = String(control.value || '').split(',').map((item) => item.trim()).filter(Boolean);
@@ -1940,6 +1953,7 @@ function normalizedProfileValue(name, value) {
   if (PROFILE_NUMBER_FIELDS.has(name)) return Number(value || 0);
   if (name === 'extra_languages') return normalizeLanguages(value)
     .sort((a, b) => a.name.localeCompare(b.name));
+  if (name === 'extra_work_experiences') return normalizeWorkExperiences(value);
   return String(value ?? '');
 }
 
@@ -1962,12 +1976,20 @@ function setFieldUnsaved(name, isUnsaved) {
   control.setAttribute('aria-invalid', isUnsaved ? 'true' : 'false');
 }
 
+function syncProfileOptionVisual(control) {
+  if (!control?.dataset?.profileOption) return;
+  const label = control.closest('label');
+  label?.classList.toggle('is-option-checked', control.checked);
+  label?.setAttribute('aria-checked', String(control.checked));
+}
+
 function applyArrayFieldToControls(name, values) {
   const normalized = (values || []).map((value) => String(value).trim()).filter(Boolean);
   const options = $$(`[data-profile-option="${name}"]`, profileForm());
   const known = new Set(options.map((option) => option.value.toLowerCase()));
   options.forEach((option) => {
     option.checked = normalized.some((value) => value.toLowerCase() === option.value.toLowerCase());
+    syncProfileOptionVisual(option);
   });
   const custom = normalized.filter((value) => !known.has(value.toLowerCase()));
   profileForm().elements[name].value = custom.join(', ');
@@ -2047,6 +2069,92 @@ function bindLanguageRows() {
   });
 }
 
+function normalizeWorkExperiences(value) {
+  let source = value;
+  if (typeof source === 'string') {
+    try { source = JSON.parse(source); } catch { source = []; }
+  }
+  if (source && !Array.isArray(source) && typeof source === 'object') {
+    if (Array.isArray(source.work_experiences)) source = source.work_experiences;
+    else {
+      const legacy = {
+        job_title: source.current_job_title || '', company: source.current_company || '',
+        location: source.employment_location || '', employment_type: source.employment_type || '',
+        start_date: source.employment_start_date || '', end_date: source.employment_end_date || '',
+        description: source.employment_description || '',
+      };
+      source = Object.values(legacy).some(Boolean) ? [legacy] : [];
+    }
+  }
+  return (Array.isArray(source) ? source : []).map((item) => ({
+    job_title: String(item?.job_title || item?.title || '').trim(),
+    company: String(item?.company || '').trim(),
+    location: String(item?.location || '').trim(),
+    employment_type: String(item?.employment_type || item?.type || '').trim(),
+    start_date: String(item?.start_date || '').trim(),
+    end_date: String(item?.end_date || '').trim(),
+    description: String(item?.description || '').trim(),
+  })).filter((item) => Object.values(item).some(Boolean));
+}
+
+function employmentEntry(item = {}, index = 0) {
+  const typeOptions = ['', 'Full-time', 'Part-time', 'Contract', 'Internship', 'Self-employed']
+    .map((value) => `<option value="${esc(value)}" ${value === item.employment_type ? 'selected' : ''}>${esc(value || 'לא נבחר')}</option>`).join('');
+  return `<article class="employment-entry" data-employment-entry>
+    <div class="employment-entry-head"><strong>ניסיון ${index + 1}</strong><button class="btn danger-outline small" type="button" data-remove-employment>הסר</button></div>
+    <div class="form-grid">
+      <label>תפקיד<input data-work-field="job_title" value="${esc(item.job_title || '')}" /></label>
+      <label>חברה<input data-work-field="company" value="${esc(item.company || '')}" /></label>
+      <label>מיקום העבודה<input data-work-field="location" value="${esc(item.location || '')}" /></label>
+      <label>סוג העסקה<select data-work-field="employment_type">${typeOptions}</select></label>
+      <label>תאריך התחלה<input data-work-field="start_date" type="month" value="${esc(item.start_date || '')}" /></label>
+      <label>תאריך סיום<input data-work-field="end_date" type="month" value="${esc(item.end_date || '')}" /><small>השאר ריק אם זו העבודה הנוכחית.</small></label>
+      <label class="wide-field">תיאור תפקיד והישגים<textarea data-work-field="description" rows="3">${esc(item.description || '')}</textarea></label>
+    </div>
+  </article>`;
+}
+
+function collectWorkExperiences() {
+  return $$('[data-employment-entry]', $('#employment-entries')).map((entry) => {
+    const value = (field) => $(`[data-work-field="${field}"]`, entry)?.value?.trim() || '';
+    return {
+      job_title: value('job_title'), company: value('company'), location: value('location'),
+      employment_type: value('employment_type'), start_date: value('start_date'), end_date: value('end_date'),
+      description: value('description'),
+    };
+  }).filter((item) => Object.values(item).some(Boolean));
+}
+
+function syncEmploymentHidden() {
+  const hidden = profileForm()?.elements?.extra_work_experiences;
+  if (hidden) hidden.value = JSON.stringify(collectWorkExperiences());
+}
+
+function bindEmploymentEntries() {
+  $$('[data-remove-employment]', $('#employment-entries')).forEach((button) => {
+    button.onclick = () => {
+      button.closest('[data-employment-entry]')?.remove();
+      if (!$('#employment-entries').children.length) renderWorkExperiences([]);
+      else {
+        $$('[data-employment-entry] .employment-entry-head strong', $('#employment-entries')).forEach((title,index) => { title.textContent = `ניסיון ${index + 1}`; });
+        syncEmploymentHidden(); updateProfileDirtyState(); updateProfileSectionSummaries();
+      }
+    };
+  });
+  $$('[data-work-field]', $('#employment-entries')).forEach((control) => {
+    control.addEventListener('input', () => { syncEmploymentHidden(); updateProfileDirtyState(); updateProfileSectionSummaries(); });
+    control.addEventListener('change', () => { syncEmploymentHidden(); updateProfileDirtyState(); updateProfileSectionSummaries(); });
+  });
+}
+
+function renderWorkExperiences(applicationProfile = {}) {
+  const items = normalizeWorkExperiences(applicationProfile);
+  const visible = items.length ? items : [{}];
+  $('#employment-entries').innerHTML = visible.map((item,index) => employmentEntry(item,index)).join('');
+  bindEmploymentEntries();
+  syncEmploymentHidden();
+}
+
 function captureProfileDraft() {
   const values = {};
   PROFILE_FIELDS.filter((name) => name !== 'application_password')
@@ -2054,12 +2162,24 @@ function captureProfileDraft() {
   return values;
 }
 
+function profileFieldValuesEqual(name, current, saved) {
+  // Skill order is presentation-only. Custom skills live in a free-text control and
+  // are rendered after the preset checkboxes, so the same saved skill set can
+  // legitimately come back in a different UI order. Do not manufacture a dirty
+  // state from that representation detail.
+  if (name === 'skills') {
+    const canonical = (values) => [...values].map((value) => String(value).trim().toLowerCase()).filter(Boolean).sort();
+    return JSON.stringify(canonical(current)) === JSON.stringify(canonical(saved));
+  }
+  return JSON.stringify(current) === JSON.stringify(saved);
+}
+
 function getDirtyProfileFields() {
   if (!state.profileLoaded) return [];
   return PROFILE_FIELDS.filter((name) => {
     const current = normalizedProfileValue(name, currentProfileFormValue(name));
     const saved = normalizedProfileValue(name, savedProfileFormValue(name));
-    return JSON.stringify(current) !== JSON.stringify(saved);
+    return !profileFieldValuesEqual(name, current, saved);
   });
 }
 
@@ -2095,13 +2215,32 @@ function updateProfileDirtyState() {
   updateProfileCompletion();
 }
 
+function profileFieldLabel(name) {
+  const explicit = {
+    full_name:'שם מלא', email:'אימייל', phone:'טלפון', location:'מיקום נוכחי', linkedin_url:'LinkedIn',
+    github_url:'GitHub', portfolio_url:'Portfolio', application_password:'סיסמה לאתרי הגשה',
+    years_experience_options:'שנות ניסיון', work_authorization:'אישור עבודה בישראל', needs_sponsorship:'Sponsorship',
+    skills:'סקילים', desired_titles:'סוגי תפקידים', preferred_locations:'מיקומים', preferred_work_modes:'אופי עבודה',
+    keywords:'רמות ניסיון רצויות', excluded_keywords:'רמות ניסיון שלא לחפש', auto_apply_threshold:'סף התאמה',
+    auto_submit_enabled:'תור אוטומטי', extra_work_experiences:'ניסיון תעסוקתי', extra_languages:'שפות',
+  };
+  if (explicit[name]) return explicit[name];
+  const control = profileForm()?.elements?.[name];
+  const label = control?.closest('label');
+  if (label) return [...label.childNodes].filter((node)=>node.nodeType===Node.TEXT_NODE).map((node)=>node.textContent.trim()).filter(Boolean).join(' ') || name;
+  return String(name).replace(/^extra_/,'').replaceAll('_',' ');
+}
+
 function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   const total = dirtyFields.length + (state.answersDirty ? 1 : 0);
   const preferenceDirty = dirtyFields.filter((field) => SEARCH_PREFERENCE_FIELDS.has(field));
   const personalDirty = dirtyFields.filter((field) => !SEARCH_PREFERENCE_FIELDS.has(field));
   const parts = [];
-  if (dirtyFields.length) parts.push(`${dirtyFields.length} שדות לא נשמרו`);
-  if (state.answersDirty) parts.push('שינויים בשאלות לא נשמרו');
+  if (dirtyFields.length) {
+    const labels = dirtyFields.map(profileFieldLabel).filter(Boolean);
+    parts.push(`לא נשמרו: ${labels.slice(0,4).join(' · ')}${labels.length > 4 ? ` · ועוד ${labels.length - 4}` : ''}`);
+  }
+  if (state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
   $('#profile-unsaved-count').textContent = parts.join(' · ');
   $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
   $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
@@ -2116,8 +2255,7 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
 
 const PROFILE_COMPLETION_FIELDS = [
   ['full_name','שם מלא'], ['email','אימייל'], ['phone','טלפון'], ['location','מיקום'],
-  ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_current_job_title','תפקיד אחרון'],
-  ['extra_current_company','חברה אחרונה'], ['extra_education_school','מוסד לימודים'],
+  ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_education_school','מוסד לימודים'],
   ['extra_education_degree','השכלה'], ['extra_languages','שפות'],
 ];
 function updateProfileCompletion() {
@@ -2133,13 +2271,18 @@ function updateProfileCompletion() {
     fieldLabel?.classList.toggle('is-recommended-missing', !complete);
     if (fieldLabel) fieldLabel.title = complete ? '' : `${label} הוא פרט נפוץ בטפסי מועמדות ומומלץ להשלים אותו`;
   });
+  const work = collectWorkExperiences();
+  const workComplete = work.some((item) => item.job_title && item.company);
+  if (!workComplete) missing.push('ניסיון תעסוקתי');
   const resumeComplete = Boolean(state.profile?.cv_filename || $('#resume-name')?.textContent !== 'לא הועלה קובץ');
   if (!resumeComplete) missing.push('קורות חיים');
-  const total = PROFILE_COMPLETION_FIELDS.length + 1;
+  const total = PROFILE_COMPLETION_FIELDS.length + 2;
   const percent = Math.round((total - missing.length) / total * 100);
+  const completion = $('#profile-completion');
   $('#profile-completion-value').textContent = `${percent}%`;
   $('#profile-completion-bar').style.width = `${percent}%`;
-  $('#profile-completion-copy').textContent = missing.length ? `מומלץ להשלים: ${missing.slice(0,3).join(' · ')}${missing.length > 3 ? ` ועוד ${missing.length - 3}` : ''}` : 'כל הפרטים המרכזיים מוכנים למילוי טפסים';
+  $('#profile-completion-copy').textContent = missing.length ? `מומלץ להשלים: ${missing.slice(0,3).join(' · ')}${missing.length > 3 ? ` ועוד ${missing.length - 3}` : ''}` : 'הפרופיל מלא ומוכן למילוי טפסים';
+  completion.hidden = percent >= 100;
   renderNotificationCenter();
 }
 
@@ -2184,8 +2327,10 @@ function applyProfileToForm(profile) {
     }
   }
   APPLICATION_PROFILE_FIELDS.forEach((name) => {
+    if (name === 'work_experiences') return;
     if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name] ?? '';
   });
+  renderWorkExperiences(profile.application_profile || {});
   renderLanguages(profile.application_profile?.languages);
   $('#threshold-value').textContent = profile.auto_apply_threshold ?? 82;
   $('#resume-name').textContent = profile.cv_filename || 'לא הועלה קובץ';
@@ -2211,6 +2356,8 @@ function restoreProfileDraft() {
     const control = form.elements[name];
     if (name === 'extra_languages') {
       renderLanguages(draft.values[name]);
+    } else if (name === 'extra_work_experiences') {
+      renderWorkExperiences(draft.values[name]);
     } else if (PROFILE_ARRAY_FIELDS.has(name)) {
       applyArrayFieldToControls(name, normalizedProfileValue(name, draft.values[name]));
     } else if (control.type === 'checkbox') control.checked = !!draft.values[name];
@@ -2241,16 +2388,26 @@ async function loadResumeInsights(){
   const allSuggestions=resumes.flatMap(resume=>(resume.analysis?.suggestions||[]).map(item=>({...item,resume_id:resume.id,resume_label:resume.label})));
   const suggestions=[...new Map(allSuggestions.map(item=>[`${item.field}:${String(item.value).toLowerCase()}`,item])).values()];
   if(!resumes.length){root.innerHTML='';return;}
-  root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" onclick="$('#privacy-center').click()">ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>הצעות שנמצאו בקורות החיים — שום דבר לא נוסף אוטומטית</span>${suggestions.map(item=>`<button type="button" onclick="applyResumeSuggestion(${item.resume_id},decodeURIComponent('${encodeURIComponent(item.field)}'),decodeURIComponent('${encodeURIComponent(item.value)}'))"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הקבצים נותחו. אין כרגע פרטים חדשים שממתינים לאישור.</p>`}`;
+  root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" data-resume-manager>ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>סקילים ופרטים שסותרים מידע קיים מחכים לאישור שלך</span>${suggestions.map(item=>`<button type="button" data-resume-suggestion data-resume-id="${item.resume_id}" data-field="${esc(item.field)}" data-value="${encodeURIComponent(String(item.value))}"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הקבצים נותחו. פרטי קשר חסרים מולאו אוטומטית ואין כרגע הצעות שממתינות לאישור.</p>`}`;
+  $('[data-resume-manager]',root)?.addEventListener('click',()=>$('#privacy-center').click());
+  $$('[data-resume-suggestion]',root).forEach((button)=>{button.onclick=()=>applyResumeSuggestion(Number(button.dataset.resumeId),button.dataset.field,decodeURIComponent(button.dataset.value||''));});
 }
 async function applyResumeSuggestion(resumeId,field,value){
-  const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});
-  state.profile=result.profile; state.profileLoaded=true;
-  if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
-  else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
-  updateProfileDirtyState(); updateProfileSectionSummaries();
-  await loadResumeInsights();
-  toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
+  const button = $(`[data-resume-suggestion][data-resume-id="${resumeId}"][data-field="${CSS.escape(field)}"]`);
+  if (button) { button.disabled = true; button.classList.add('is-saving'); }
+  try {
+    const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});
+    state.profile=result.profile; state.profileLoaded=true;
+    if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
+    else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
+    updateProfileDirtyState(); updateProfileSectionSummaries(); updateProfileCompletion();
+    await loadResumeInsights();
+    toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
+  } catch (error) {
+    toast(`לא ניתן להוסיף את ההצעה: ${error.message}`);
+  } finally {
+    if (button?.isConnected) { button.disabled = false; button.classList.remove('is-saving'); }
+  }
 }
 
 function allProfileSaveButtons() {
@@ -2295,7 +2452,7 @@ function buildProfilePayload(fields = PROFILE_FIELDS) {
   };
   const scalar = [
     'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
-    'salary_expectation', 'auto_apply_threshold', 'work_authorization', 'needs_sponsorship', 'auto_submit_enabled',
+    'auto_apply_threshold', 'work_authorization', 'needs_sponsorship', 'auto_submit_enabled',
   ];
   scalar.forEach((name) => {
     if (!wanted.has(name)) return;
@@ -2318,7 +2475,9 @@ function buildProfilePayload(fields = PROFILE_FIELDS) {
   if (applicationFields.length) {
     payload.application_profile = Object.fromEntries(applicationFields.map((field) => {
       const name = field.slice(6);
-      return [name, name === 'languages' ? collectLanguages() : (form.elements[field]?.value || '')];
+      if (name === 'languages') return [name, collectLanguages()];
+      if (name === 'work_experiences') return [name, collectWorkExperiences()];
+      return [name, form.elements[field]?.value || ''];
     }));
   }
   return payload;
@@ -2361,8 +2520,9 @@ $$('.profile-detail-section', profileElement).forEach((section) => {
     toggle.setAttribute('aria-label', collapsed ? 'פתח את הרובריקה' : 'צמצם את הרובריקה');
     toggle.title = collapsed ? 'פתח' : 'צמצם';
     localStorage.setItem(`jobpilot-collapse-${sectionKey}`, collapsed ? '1' : '0');
-    section.style.gridRowEnd = collapsed ? 'span 1' : '';
-    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+    // Natural grid rows handle the collapsed height; forcing a masonry span here
+    // can overlap the card below while the collapse animation is still settling.
+    section.style.gridRowEnd = '';
   };
   const actions = document.createElement('div');
   actions.className = 'card-head-actions';
@@ -2469,24 +2629,9 @@ $$('.panel').forEach((panel, panelIndex) => {
   actions.appendChild(toggle);
 });
 const personalProfileLayout = $('.personal-profile-layout', profileElement);
-if (personalProfileLayout && 'ResizeObserver' in window) {
-  const masonryGap = 14;
-  const masonryRow = 8;
-  const resizeProfileCard = (section) => {
-    if (window.matchMedia('(max-width: 760px)').matches) {
-      section.style.gridRowEnd = '';
-      return;
-    }
-    const span = Math.ceil((section.getBoundingClientRect().height + masonryGap) / (masonryRow + masonryGap));
-    section.style.gridRowEnd = `span ${Math.max(1, span)}`;
-  };
-  const profileMasonryObserver = new ResizeObserver((entries) => entries.forEach((entry) => resizeProfileCard(entry.target)));
-  $$('.profile-detail-section', personalProfileLayout).forEach((section) => {
-    profileMasonryObserver.observe(section);
-    resizeProfileCard(section);
-  });
-  window.addEventListener('resize', () => $$('.profile-detail-section', personalProfileLayout).forEach(resizeProfileCard));
-}
+// Natural CSS Grid rows are intentionally used here. The old JavaScript masonry
+// span calculation could race with collapse animations and make cards overlap.
+$$('.profile-detail-section', personalProfileLayout).forEach((section) => { section.style.gridRowEnd = ''; });
 updateProfileSectionSummaries();
 
 // A single, calm selection state helps the eye keep its place in dense forms.
@@ -2513,15 +2658,23 @@ $('#available-now').onclick = () => {
   profileElement.elements.extra_available_start_date.value = localDate;
   profileElement.elements.extra_available_start_date.dispatchEvent(new Event('input', { bubbles: true }));
 };
+$('#add-employment').onclick = () => {
+  const entries = $('#employment-entries');
+  entries.insertAdjacentHTML('beforeend', employmentEntry({}, entries.children.length));
+  bindEmploymentEntries(); syncEmploymentHidden(); updateProfileDirtyState(); updateProfileSectionSummaries();
+  entries.lastElementChild?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
 profileElement.addEventListener('input', (event) => {
   $('#toast').classList.remove('show');
   $('#toast').textContent = '';
+  if (event.target.dataset?.profileOption) syncProfileOptionVisual(event.target);
   if (event.target.name === 'auto_apply_threshold') $('#threshold-value').textContent = event.target.value;
   updateProfileDirtyState();
   updateProfileSectionSummaries();
 });
 profileElement.addEventListener('change', (event) => {
   const field = event.target.dataset.profileOption;
+  if (field) syncProfileOptionVisual(event.target);
   if (field && PRIORITY_PROFILE_ARRAY_FIELDS.has(field)) {
     const selectedOrder = $$(`[data-profile-option="${field}"]:checked`, profileElement).map((item) => item.value);
     syncPreferenceOptionOrder(field, selectedOrder, true);
@@ -2535,6 +2688,8 @@ $$('[form="profile-form"]').forEach((control) => {
   });
   control.addEventListener('change', updateProfileDirtyState);
 });
+$$('[data-profile-option]', profileElement).forEach(syncProfileOptionVisual);
+
 $$('[data-profile-option="keywords"], [data-profile-option="excluded_keywords"]', profileElement).forEach((control) => {
   control.addEventListener('change', () => {
     if (!control.checked) return;
@@ -2838,10 +2993,14 @@ $('#resume-file').onchange = async (event) => {
     const result = await api('/api/profile/resume', { method: 'POST', body: formData });
     $('#resume-name').textContent = result.filename;
     if (state.profile) state.profile.cv_filename = result.filename;
-    state.profileLoaded=false;
+    state.profile=result.profile||state.profile; state.profileLoaded=false;
     await loadProfile();
     const count=result.analysis?.suggestions?.length||0;
-    toast(count?`קורות החיים נותחו · נמצאו ${count} הצעות לאישור`:'קורות החיים הועלו ונותחו');
+    const filled=(result.autofilled_fields||[]).length;
+    const parts=['קורות החיים הועלו ונותחו'];
+    if(filled) parts.push(`${filled} פרטים אישיים מולאו אוטומטית`);
+    if(count) parts.push(`${count} הצעות מחכות לאישור`);
+    toast(parts.join(' · '));
   } catch (error) {
     toast(error.message);
   }

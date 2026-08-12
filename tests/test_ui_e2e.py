@@ -123,6 +123,9 @@ def _open_profile(page: Page) -> None:
 def test_unsaved_field_is_marked_and_survives_tabs_and_reload(browser_page):
     page, _ = browser_page
     _open_profile(page)
+    # Loading the saved profile itself must not manufacture a dirty field.
+    assert page.locator("#profile-nav-unsaved").is_hidden()
+
     email = page.locator('input[name="email"]')
     new_email = "draft-not-saved@example.com"
     email.fill(new_email)
@@ -131,7 +134,9 @@ def test_unsaved_field_is_marked_and_survives_tabs_and_reload(browser_page):
     assert email_label.get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
     assert email.get_attribute("aria-invalid") == "true"
     assert page.locator("#profile-nav-unsaved").is_visible()
-    assert "שדות לא נשמרו" in page.locator("#profile-unsaved-count").inner_text()
+    unsaved = page.locator("#profile-unsaved-count").inner_text()
+    assert "לא נשמרו: אימייל" in unsaved
+    assert "סקילים" not in unsaved
 
     for _ in range(12):
         page.locator('#nav button[data-view="sources"]').click()
