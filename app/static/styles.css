@@ -2455,3 +2455,23 @@ body.theme-dark.track-industrial-engineering :where(
   .preference-help,.preference-group-summary,.profile-section-summary,.panel-collapse-summary,
   .form-stack label>small,.form-grid label>small,.resume-safe-note,.employment-history-section .preference-help
 ) { color:#c7b57a !important; }
+
+
+/* v0.3.2 — mobile RTL flow hardening. On narrow screens use an explicit vertical
+   document flow instead of relying on RTL CSS-grid auto-placement, and isolate
+   Latin credential fields so their characters never render visually reversed. */
+@media (max-width:760px) {
+  html, body { direction:rtl; }
+  .app-shell { display:flex; flex-direction:column; min-height:100dvh; }
+  .sidebar { order:0; min-height:0; width:100%; }
+  main { order:1; width:100%; padding:18px 14px 92px; direction:rtl; text-align:right; }
+  .sidebar nav { direction:rtl; justify-content:flex-start; }
+  .topbar { width:100%; align-items:stretch; text-align:right; }
+  .top-actions { width:100%; justify-content:flex-start; direction:rtl; }
+  .guest-mode-banner { align-items:flex-start; flex-direction:column; }
+  .auth-gate,.auth-shell,.auth-card,.auth-form { direction:rtl; }
+  .auth-shell { display:grid; grid-template-columns:minmax(0,1fr); width:100%; }
+  .auth-brand.brand { direction:rtl; flex-direction:row; }
+  .auth-card { width:100%; max-width:100%; }
+  .auth-form input[type="email"],.auth-password-field input { direction:ltr; text-align:left; }
+}

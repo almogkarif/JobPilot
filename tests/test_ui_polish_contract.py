@@ -62,3 +62,11 @@ def test_iem_final_specificity_guard_overrides_legacy_blue_dock_and_notification
     assert "stroke: var(--dock-accent) !important" in css
     assert "body.theme-dark.track-industrial-engineering .notification-trigger" in css
     assert "background: var(--accent-soft) !important" in css
+
+
+def test_mobile_layout_has_explicit_rtl_vertical_flow():
+    assert '/* v0.3.2 — mobile RTL flow hardening.' in CSS
+    assert '.app-shell { display:flex; flex-direction:column; min-height:100dvh; }' in CSS
+    assert 'main { order:1; width:100%; padding:18px 14px 92px; direction:rtl; text-align:right; }' in CSS
+    assert '.auth-gate,.auth-shell,.auth-card,.auth-form { direction:rtl; }' in CSS
+    assert '.auth-form input[type="email"],.auth-password-field input { direction:ltr; text-align:left; }' in CSS

@@ -80,3 +80,32 @@ def test_guest_workspace_is_lightweight_read_only_and_has_demo_jobs_for_both_tra
             assert {source.career_track for source in sources} == {'computer_science', 'industrial_engineering'}
     finally:
         _cleanup_guest(user_id)
+
+
+def test_guest_workspace_repairs_a_partial_profile_before_auth_completes(monkeypatch):
+    user_id = 'guest-partial-workspace'
+    _cleanup_guest(user_id)
+    monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
+    monkeypatch.setattr(main.settings, 'storage_mode', 'local')
+    monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
+        user_id=user_id, provider='anonymous', role='guest', is_guest=True
+    ))
+    try:
+        # Simulate an older interrupted guest bootstrap: the profile exists but the
+        # demo sources/jobs do not. Authorization must reconcile it automatically.
+        with user_session(user_id) as db:
+            db.add(Profile(full_name='', email='', location='Israel'))
+            db.commit()
+
+        with TestClient(main.app) as client:
+            response = client.get('/api/auth/me', headers={'Authorization': 'Bearer guest-demo-token'})
+            assert response.status_code == 200
+            assert response.json()['user']['is_guest'] is True
+
+        with user_session(user_id) as db:
+            sources = db.scalars(select(Source)).all()
+            jobs = db.scalars(select(Job)).all()
+            assert {source.career_track for source in sources} == {'computer_science', 'industrial_engineering'}
+            assert len(jobs) >= 6
+    finally:
+        _cleanup_guest(user_id)

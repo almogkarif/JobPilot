@@ -36,13 +36,19 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
             active_career_track=COMPUTER_SCIENCE,
         )
         db.add(profile)
-        db.commit()
+        if demo_only:
+            db.flush()
+        else:
+            db.commit()
 
     if email and not profile.email:
         profile.email = email
     ensure_track_state(profile)
     db.add(profile)
-    db.commit()
+    if demo_only:
+        db.flush()
+    else:
+        db.commit()
 
     # Real accounts receive tenant-owned copies of the source catalog. Anonymous
     # portfolio sessions stay intentionally lightweight: they get only demo rows,
@@ -99,4 +105,13 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
             job.experience_min = result.experience_min
             job.experience_max = result.experience_max
             db.add(job)
+        if demo_only:
+            db.flush()
+        else:
+            db.commit()
+
+    if demo_only:
+        # Guest bootstrap is one transaction: either the profile and all demo rows
+        # become visible together or none of them do. This prevents a half-created
+        # guest environment from poisoning the next login attempt.
         db.commit()

@@ -199,7 +199,7 @@ function captureOAuthSession() {
   return true;
 }
 
-async function verifyCloudSession() {
+async function verifyCloudSession({ throwOnError = false } = {}) {
   if (!authState.session) return false;
   try {
     await ensureCloudAccessToken();
@@ -207,7 +207,8 @@ async function verifyCloudSession() {
     authState.user = result.user || null;
     authState.capabilities = result.capabilities || { application_agent: true };
     return Boolean(authState.user);
-  } catch {
+  } catch (error) {
+    if (throwOnError) throw error;
     return false;
   }
 }
@@ -296,7 +297,7 @@ async function cloudGuestLogin() {
   }
   if (!payload.access_token) throw new Error('Supabase לא החזיר session למצב האורח');
   saveAuthSession(payload);
-  if (!await verifyCloudSession()) throw new Error('JobPilot לא הצליח לפתוח סביבת אורח');
+  if (!await verifyCloudSession({ throwOnError: true })) throw new Error('JobPilot לא הצליח לפתוח סביבת אורח');
   hideAuthGate();
   renderCloudAccount();
   location.reload();
@@ -2401,8 +2402,9 @@ async function applyResumeSuggestion(resumeId,field,value){
     if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
     else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
     updateProfileDirtyState(); updateProfileSectionSummaries(); updateProfileCompletion();
-    await loadResumeInsights();
+    if (button?.isConnected) button.remove();
     toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
+    loadResumeInsights().catch((error) => console.warn('Resume insights refresh failed', error));
   } catch (error) {
     toast(`לא ניתן להוסיף את ההצעה: ${error.message}`);
   } finally {
@@ -2638,6 +2640,10 @@ updateProfileSectionSummaries();
 // Clicking a field highlights its nearest card; clicking the page clears it.
 const selectableCardSelector = '.profile-detail-section, .preference-group, .answer-card, .job-card, .source-item, .blocker-card, .panel';
 function highlightSelectedCard(target) {
+  if (target?.closest?.('input, button, select, textarea, a, label, [role="button"]')) {
+    $$('.is-card-selected').forEach((card) => card.classList.remove('is-card-selected'));
+    return;
+  }
   const selected = target?.closest?.(selectableCardSelector);
   $$('.is-card-selected').forEach((card) => {
     if (card !== selected) card.classList.remove('is-card-selected');

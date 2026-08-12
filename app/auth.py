@@ -11,6 +11,7 @@ import jwt
 from fastapi import HTTPException, Request
 from jwt import PyJWKClient
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -128,12 +129,29 @@ def _claim_legacy_rows(db: Session, user_id: str) -> None:
 
 def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool) -> None:
     set_user_scope(db, identity.user_id)
+
+    # Guest workspaces are intentionally disposable, so their bootstrap must also be
+    # self-healing. A previous request may have been interrupted after creating the
+    # profile but before the demo rows were committed. Always reconcile guest demo
+    # data instead of treating the mere presence of a profile as "ready".
+    if identity.is_guest:
+        from .services.seed import initialize_database
+        try:
+            initialize_database(db, full_name="", email="", demo_only=True)
+        except IntegrityError:
+            # Two first requests for the same freshly-issued anonymous Supabase user
+            # can race on the unique profile row. The winner commits a valid tenant;
+            # the loser rolls back and then idempotently reconciles that workspace.
+            db.rollback()
+            initialize_database(db, full_name="", email="", demo_only=True)
+        return
+
     profile = db.scalar(select(Profile).limit(1))
     if profile is None:
         # Import lazily to avoid database/models/service import cycles.
         from .services.seed import initialize_database
-        initialize_database(db, full_name="", email=identity.email, demo_only=identity.is_guest)
-    elif profile is not None and identity.email and not profile.email:
+        initialize_database(db, full_name="", email=identity.email, demo_only=False)
+    elif identity.email and not profile.email:
         profile.email = identity.email
         db.commit()
 

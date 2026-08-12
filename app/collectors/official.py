@@ -34,16 +34,16 @@ PRESETS = {
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000},
     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/[^/?#]+/([^/?#]+)", "company": "monday.com"},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco"},
-    "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items")},
-    "salesforce": {"url": "https://careers.salesforce.com/en/jobs/?country=Israel", "selector": 'a[href*="jr"], [data-href*="jr"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
+    "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
+    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="jr"], [data-href*="jr"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True},
     "meta": {"url": "https://metacareers.dejobs.org/locations/tel-aviv-isr/jobs/", "selector": 'a[href*="/tel-aviv-isr/"][href*="/job/"]', "id_pattern": r"/([A-Fa-f0-9]{16,})/job/", "company": "Meta"},
     "qualcomm": {"url": "https://careers.qualcomm.com/careers?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Qualcomm"},
     "samsung": {"url": "https://research.samsung.com/sril/careers", "selector": 'a[href*="career"], a[href*="job"]', "id_pattern": r"(?:job|career)[^0-9]*([A-Za-z0-9_-]{4,})", "company": "Samsung Research Israel"},
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
-    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"[?&]jid=(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90},
-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Israel Aerospace Industries"},
+    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"[?&]jid=/?(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True},
+    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
@@ -131,6 +131,15 @@ class OfficialCareersCollector:
                         except Exception:
                             break
 
+                if preset.get("dynamic_scroll"):
+                    for fraction in (0.25, 0.5, 0.75, 1.0):
+                        await page.evaluate(
+                            "(fraction) => window.scrollTo(0, Math.max(document.body.scrollHeight, document.documentElement.scrollHeight) * fraction)",
+                            fraction,
+                        )
+                        await page.wait_for_timeout(550)
+                    await page.evaluate("window.scrollTo(0, 0)")
+                    await page.wait_for_timeout(350)
                 links = page.locator(preset["selector"])
                 try:
                     await links.first.wait_for(state="attached", timeout=int(preset.get("selector_timeout_ms", 12_000)))
@@ -139,13 +148,13 @@ class OfficialCareersCollector:
                     empty_markers = tuple(str(marker).casefold() for marker in preset.get("empty_markers", ()))
                     if preset.get("allow_empty") and any(marker in body_text.casefold() for marker in empty_markers):
                         return []
-                    generic_rows = await page.locator("a[href], [onclick]").evaluate_all(
+                    generic_rows = await page.locator("a[href], [onclick], [data-href], [data-url]").evaluate_all(
                         """els => els.map(a => {
                           let container = a;
                           let node = a;
                           for (let i = 0; i < 6 && node && node.parentElement; i++) {
                             const parent = node.parentElement;
-                            const clickable = parent.querySelectorAll('a[href], [onclick]').length;
+                            const clickable = parent.querySelectorAll('a[href], [onclick], [data-href], [data-url]').length;
                             if (clickable > 3) break;
                             container = parent;
                             node = parent;
@@ -220,10 +229,10 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
         # Selector drift is common on careers pages. The external-id regex is the
         # stronger contract, so fall back to any clickable element whose URL/action
         # still contains a valid job identifier.
-        generic = soup.select("a[href], [onclick]")
+        generic = soup.select("a[href], [onclick], [data-href], [data-url]")
         candidates = [element for element in generic if re.search(
             str(preset["id_pattern"]),
-            " ".join((str(element.get("href") or ""), str(element.get("onclick") or ""))),
+            " ".join((str(element.get("href") or ""), str(element.get("data-href") or ""), str(element.get("data-url") or ""), str(element.get("onclick") or ""))),
         )]
     rows: list[dict] = []
     for element in candidates:
@@ -249,6 +258,8 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
         heading = container.select_one("h1,h2,h3,h4,[role='heading']") if hasattr(container, "select_one") else None
         rows.append({
             "href": str(element.get("href") or ""),
+            "dataHref": str(element.get("data-href") or ""),
+            "dataUrl": str(element.get("data-url") or ""),
             "onclick": str(element.get("onclick") or ""),
             "title": heading.get_text(" ", strip=True) if heading else "",
             "linkText": element.get_text(" ", strip=True),
@@ -337,10 +348,13 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
 
 def _resolve_row_href(row: dict, preset: dict) -> tuple[str, re.Match[str] | None]:
     raw_href = str(row.get("href") or "").strip()
+    data_href = str(row.get("dataHref") or row.get("data-href") or "").strip()
+    data_url = str(row.get("dataUrl") or row.get("data-url") or "").strip()
     onclick = str(row.get("onclick") or "").strip()
     base_url = str(preset["url"])
-    href = urljoin(base_url, raw_href) if raw_href else ""
-    searchable = " ".join(part for part in (href, raw_href, onclick) if part)
+    raw_target = raw_href or data_href or data_url
+    href = urljoin(base_url, raw_target) if raw_target else ""
+    searchable = " ".join(part for part in (href, raw_href, data_href, data_url, onclick) if part)
     match = re.search(str(preset["id_pattern"]), searchable)
     if match and (not href or not re.search(str(preset["id_pattern"]), href)):
         template = str(preset.get("href_template") or "")
