@@ -181,13 +181,56 @@ def _sqlite_additive_migrations(connection) -> None:
         connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_user_id ON {table}(user_id)"))
 
 
+def _postgres_table_rls_enabled(connection, table: str) -> bool:
+    """Return whether RLS is already enabled for a table in the active schema."""
+    return bool(connection.execute(text("""
+        SELECT c.relrowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = current_schema()
+          AND c.relname = :table
+          AND c.relkind IN ('r', 'p')
+    """), {"table": table}).scalar())
+
+
+def _postgres_role_has_table_grants(connection, table: str, role: str) -> bool:
+    """Avoid repeated REVOKE DDL once the direct PostgREST role grants are gone."""
+    return bool(connection.execute(text("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.role_table_grants
+            WHERE table_schema = current_schema()
+              AND table_name = :table
+              AND grantee = :role
+        )
+    """), {"table": table, "role": role}).scalar())
+
+
+def _postgres_index_names(connection, table: str) -> set[str]:
+    return set(connection.execute(text("""
+        SELECT indexname
+        FROM pg_indexes
+        WHERE schemaname = current_schema() AND tablename = :table
+    """), {"table": table}).scalars().all())
+
+
 def _postgres_multiuser_migration(connection) -> None:
     """Upgrade a v0.3.0 single-owner PostgreSQL DB in place.
 
     Existing rows are assigned to the existing AppIdentity when possible. If data was
     migrated before the first cloud login, rows use ``legacy-owner`` and are claimed by
     the first admitted account in auth.authorize_web_request.
+
+    This migration runs during application startup. Keep already-applied DDL out of the
+    hot path so Render's old and new instances can overlap during zero-downtime deploys
+    without repeatedly requesting AccessExclusiveLock on active tables.
     """
+    # Serialize JobPilot schema migrations with each other. This does not block normal
+    # application traffic and is released automatically when engine.begin() commits.
+    connection.execute(text(
+        "SELECT pg_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
+    ))
+
     inspector = inspect(connection)
     tables = set(inspector.get_table_names())
     if not tables:
@@ -210,7 +253,7 @@ def _postgres_multiuser_migration(connection) -> None:
         configured_owner = str(settings.owner_email or "").strip().casefold()
         if configured_owner:
             connection.execute(
-                text("UPDATE app_identity SET role='admin' WHERE LOWER(email)=:owner"),
+                text("UPDATE app_identity SET role='admin' WHERE LOWER(email)=:owner AND role IS DISTINCT FROM 'admin'"),
                 {"owner": configured_owner},
             )
         else:
@@ -223,15 +266,30 @@ def _postgres_multiuser_migration(connection) -> None:
     for table in user_owned_tables:
         if table not in tables:
             continue
-        cols = {c["name"] for c in inspect(connection).get_columns(table)}
-        if "user_id" not in cols:
+        column_map = {c["name"]: c for c in inspect(connection).get_columns(table)}
+        user_id_column = column_map.get("user_id")
+        if user_id_column is None:
             connection.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR(160)"))
-        connection.execute(text(f"UPDATE {table} SET user_id=:uid WHERE user_id IS NULL OR user_id=''"), {"uid": owner})
-        connection.execute(text(f"ALTER TABLE {table} ALTER COLUMN user_id SET NOT NULL"))
-        connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_user_id ON {table}(user_id)"))
+            user_id_column = {"nullable": True}
+
+        missing_owner = connection.execute(text(
+            f"SELECT 1 FROM {table} WHERE user_id IS NULL OR user_id='' LIMIT 1"
+        )).first()
+        if missing_owner:
+            connection.execute(text(
+                f"UPDATE {table} SET user_id=:uid WHERE user_id IS NULL OR user_id=''"
+            ), {"uid": owner})
+
+        if bool(user_id_column.get("nullable", True)):
+            connection.execute(text(f"ALTER TABLE {table} ALTER COLUMN user_id SET NOT NULL"))
+
+        index_name = f"ix_{table}_user_id"
+        if index_name not in _postgres_index_names(connection, table):
+            connection.execute(text(f"CREATE INDEX {index_name} ON {table}(user_id)"))
 
     if "profiles" in tables:
-        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_user_idx ON profiles(user_id)"))
+        if "uq_profile_user_idx" not in _postgres_index_names(connection, "profiles"):
+            connection.execute(text("CREATE UNIQUE INDEX uq_profile_user_idx ON profiles(user_id)"))
 
     if "answer_memories" in tables:
         # v0.3.0 used a global unique(question_pattern), which would make one user's
@@ -242,15 +300,17 @@ def _postgres_multiuser_migration(connection) -> None:
             FROM pg_constraint c
             JOIN pg_class t ON c.conrelid=t.oid
             JOIN pg_namespace n ON t.relnamespace=n.oid
-            WHERE t.relname='answer_memories' AND c.contype='u'
+            WHERE n.nspname=current_schema()
+              AND t.relname='answer_memories' AND c.contype='u'
               AND pg_get_constraintdef(c.oid) = 'UNIQUE (question_pattern)'
         """)).scalars().all()
         for name in constraints:
             safe = str(name).replace('"', '""')
             connection.execute(text(f'ALTER TABLE answer_memories DROP CONSTRAINT IF EXISTS "{safe}"'))
-        connection.execute(text(
-            "CREATE UNIQUE INDEX IF NOT EXISTS uq_answer_memory_user_pattern_idx ON answer_memories(user_id, question_pattern)"
-        ))
+        if "uq_answer_memory_user_pattern_idx" not in _postgres_index_names(connection, "answer_memories"):
+            connection.execute(text(
+                "CREATE UNIQUE INDEX uq_answer_memory_user_pattern_idx ON answer_memories(user_id, question_pattern)"
+            ))
 
     # The browser uses Supabase only for Auth; private JobPilot tables are accessed
     # exclusively through FastAPI. Lock down Supabase/PostgREST roles so an
@@ -266,8 +326,11 @@ def _postgres_multiuser_migration(connection) -> None:
         for table in private_tables:
             if table not in tables:
                 continue
-            connection.execute(text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY'))
+            if not _postgres_table_rls_enabled(connection, table):
+                connection.execute(text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY'))
             for role in direct_api_roles:
+                if not _postgres_role_has_table_grants(connection, table, role):
+                    continue
                 safe_role = role.replace('"', '""')
                 connection.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM "{safe_role}"'))
 
