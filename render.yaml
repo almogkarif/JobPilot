@@ -17,7 +17,7 @@ services:
       - key: JOBPILOT_SCAN_MINUTE
         value: "0"
       - key: JOBPILOT_SCAN_CONCURRENCY
-        value: "3"
+        value: "1"
       - key: JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS
         value: "45"
       - key: JOBPILOT_TIMEZONE
@@ -25,7 +25,7 @@ services:
       - key: JOBPILOT_MAX_USERS
         value: "10"
       - key: JOBPILOT_MAX_CONCURRENT_USER_SCANS
-        value: "2"
+        value: "1"
       - key: JOBPILOT_ALLOWED_EMAILS
         sync: false
       - key: JOBPILOT_OWNER_EMAIL

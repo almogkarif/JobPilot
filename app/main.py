@@ -296,7 +296,7 @@ async def lifespan(_: FastAPI):
     for user_id in _known_user_ids():
         try:
             startup_track, repaired = _prepare_user_workspace(user_id)
-            if repaired:
+            if repaired and settings.scheduler_enabled:
                 task = asyncio.create_task(_run_targeted_scan(user_id, set(repaired), startup_track))
                 startup_retry_tasks.add(task)
                 task.add_done_callback(startup_retry_tasks.discard)
