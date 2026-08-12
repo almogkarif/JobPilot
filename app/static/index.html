@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.41.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.42.1" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -19,7 +19,8 @@
         <h1>ברוך הבא</h1>
         <p>התחבר כדי לקבל את הפרופיל, המשרות, המקורות וההגשות שלך מכל מכשיר.</p>
         <button id="auth-google" class="auth-google" type="button"><span>G</span> המשך עם Google</button>
-        <div class="auth-divider"><span>או</span></div>
+        <button id="auth-guest" class="auth-guest" type="button"><span>◇</span><strong>המשך כאורח</strong><small>דמו מבודד לקריאה בלבד · בלי הגשות או שינוי מידע</small></button>
+        <div class="auth-divider"><span>או עם אימייל</span></div>
         <form id="auth-form" class="auth-form">
           <label>אימייל<input id="auth-email" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
           <label>סיסמה<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required placeholder="••••••••" /></label>
@@ -88,6 +89,7 @@
           <button id="scan-status" class="scan-status" type="button" aria-label="מצב הסריקה. לחץ לפתיחת הדוח" title="לחץ לפתיחת דוח הסריקה"><span><b>טרם בוצעה סריקה</b><small>לחץ כאן לאחר סריקה כדי לראות את הדוח המלא</small></span><i class="scan-status-fill" aria-hidden="true"></i></button>
           <button class="icon-action notification-trigger" id="notification-trigger" type="button" aria-label="פתח מרכז התראות" aria-expanded="false"><span aria-hidden="true">♢</span><em id="notification-count" hidden>0</em></button>
           <button class="account-chip" id="account-chip" type="button" hidden aria-label="חשבון JobPilot"><span id="account-avatar">A</span><strong id="account-email">חשבון</strong></button>
+          <button class="icon-action logout-action" id="logout-action" type="button" hidden aria-label="התנתקות" title="התנתקות"><span aria-hidden="true">↪</span></button>
           <div class="theme-switch" id="theme-switch" role="group" aria-label="ערכת צבעים">
             <i class="theme-switch-thumb" aria-hidden="true"></i>
             <button type="button" data-theme="light" aria-label="מצב יום" title="מצב יום"><span aria-hidden="true">☀</span></button>
@@ -99,6 +101,7 @@
         </div>
         <div id="scan-progress" class="scan-progress" hidden><i></i><span>סורק את מקורות המשרות…</span></div>
       </header>
+      <div id="guest-mode-banner" class="guest-mode-banner" hidden><span><strong>מצב אורח</strong><small>אפשר להתרשם מהמערכת ולעבור בין המסלולים, אבל שינוי נתונים, סריקה והגשות חסומים.</small></span><button type="button" onclick="cloudSignOut()">יציאה ממצב אורח</button></div>
 
       <section id="view-dashboard" class="view active">
         <div id="readiness" class="readiness-panel" aria-live="polite" hidden></div>
@@ -146,7 +149,7 @@
               <span class="automation-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/><path d="M12 7v5l3.2 2M16.5 3.5H21V8"/></svg></span>
               <div><span class="kicker">בקרת התור</span><h2>הגשה אוטומטית</h2><p>קבע אילו משרות ייכנסו אוטומטית לתור ההגשות.</p></div>
             </div>
-            <div class="card-head-actions"><button class="btn primary small" type="submit" form="profile-form">שמור הגדרות</button></div>
+            <div class="card-head-actions"><button class="btn primary small" type="submit" form="profile-form" data-save-fields="auto_apply_threshold,auto_submit_enabled">שמור הגדרות</button></div>
           </div>
           <div class="automation-controls">
             <label class="threshold-control">
@@ -367,7 +370,7 @@
           </article>
 
           <article class="panel auto-card profile-pane" data-profile-pane="automation">
-            <div class="panel-head"><div><span class="kicker">מאגר תשובות אישי</span><h2>שאלות נפוצות</h2></div><button class="btn primary small" type="submit">שמור שינויים</button></div>
+            <div class="panel-head"><div><span class="kicker">מאגר תשובות אישי</span><h2>שאלות נפוצות</h2></div><button class="btn primary small" id="save-answer-pane" type="button">שמור שינויים</button></div>
             <div id="profile-answer-panel" class="embedded-answer-panel">
               <div class="panel-head"><div><span class="kicker">תשובות לטפסי מועמדות</span><h3>התשובות שלך</h3></div><button class="btn primary small" id="save-all-answers" type="button">שמור את כל התשובות</button></div>
               <p class="preference-help">הסוכן מזהה גם ניסוחים דומים. רק תשובה שסימנת לשימוש אוטומטי תשמש למילוי.</p>
@@ -384,6 +387,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.21.0"></script>
+  <script src="/static/app.js?v=0.22.0"></script>
 </body>
 </html>

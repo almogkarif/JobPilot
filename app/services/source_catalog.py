@@ -97,17 +97,27 @@ def recommended_sources_for_track(career_track: str = DEFAULT_TRACK) -> tuple[di
 def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) -> int:
     """Install missing recommended sources for one professional track."""
     career_track = normalize_track(career_track)
-    installed = 0
-    for item in recommended_sources_for_track(career_track):
-        exists = db.scalar(select(Source).where(
+    catalog = recommended_sources_for_track(career_track)
+    if not catalog:
+        return 0
+    kinds = {item["kind"] for item in catalog}
+    identifiers = {item["identifier"] for item in catalog}
+    existing_pairs = {
+        (source.kind, source.identifier)
+        for source in db.scalars(select(Source).where(
             Source.career_track == career_track,
-            Source.kind == item["kind"],
-            Source.identifier == item["identifier"],
-        ))
-        if exists:
+            Source.kind.in_(kinds),
+            Source.identifier.in_(identifiers),
+        )).all()
+    }
+    installed = 0
+    for item in catalog:
+        pair = (item["kind"], item["identifier"])
+        if pair in existing_pairs:
             continue
         db.add(Source(**item, career_track=career_track, enabled=True,
                       metadata_json='{"preset":"recommended"}'))
+        existing_pairs.add(pair)
         installed += 1
     if installed:
         db.add(AuditLog(
@@ -121,13 +131,22 @@ def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) 
 
 def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) -> list[dict]:
     career_track = normalize_track(career_track)
-    rows: list[dict] = []
-    for item in recommended_sources_for_track(career_track):
-        existing = db.scalar(select(Source).where(
+    catalog = recommended_sources_for_track(career_track)
+    if not catalog:
+        return []
+    kinds = {item["kind"] for item in catalog}
+    identifiers = {item["identifier"] for item in catalog}
+    existing_by_pair = {
+        (source.kind, source.identifier): source
+        for source in db.scalars(select(Source).where(
             Source.career_track == career_track,
-            Source.kind == item["kind"],
-            Source.identifier == item["identifier"],
-        ))
+            Source.kind.in_(kinds),
+            Source.identifier.in_(identifiers),
+        )).all()
+    }
+    rows: list[dict] = []
+    for item in catalog:
+        existing = existing_by_pair.get((item["kind"], item["identifier"]))
         rows.append({**item, "career_track": career_track, "installed": existing is not None,
                      "enabled": bool(existing.enabled) if existing else False})
     return rows

@@ -1153,7 +1153,7 @@ body.theme-dark .documents-card .resume-profile-card { background:#122e43 !impor
 body.theme-dark .documents-card .resume-profile-card strong { color:#e9f4fa !important; }
 body.theme-dark .profile-section-nav button.active { background:#17384e !important; color:#8fd5f8 !important; box-shadow:0 8px 22px rgba(0,7,13,.24),inset 0 0 0 1px #38627b !important; }
 body.theme-dark .profile-section-nav button.active strong { color:#e9f4fa !important; }
-.notification-trigger { position:fixed; z-index:72; right:27px; bottom:22px; width:48px; height:48px; min-width:48px; padding:0; border-radius:15px; background:rgba(232,245,252,.94); border-color:#b9d9eb; color:#2479aa; box-shadow:0 12px 30px rgba(25,72,106,.14),inset 0 1px rgba(255,255,255,.94); backdrop-filter:blur(18px); }
+.notification-trigger { position:fixed; z-index:72; right:112px; bottom:22px; width:48px; height:48px; min-width:48px; padding:0; border-radius:15px; background:rgba(232,245,252,.94); border-color:#b9d9eb; color:#2479aa; box-shadow:0 12px 30px rgba(25,72,106,.14),inset 0 1px rgba(255,255,255,.94); backdrop-filter:blur(18px); }
 .notification-trigger > span { font-size:21px; }
 .notification-trigger:hover,.notification-trigger:focus-visible { background:#1769aa; border-color:#1769aa; color:#fff; box-shadow:0 15px 34px rgba(23,105,170,.28),inset 0 1px rgba(255,255,255,.25); transform:translateY(-2px) scale(1.035); }
 .notification-trigger[aria-expanded="true"] { background:#1769aa; border-color:#1769aa; color:#fff; box-shadow:0 13px 32px rgba(23,105,170,.25),0 0 0 3px rgba(23,105,170,.1); }
@@ -1707,3 +1707,81 @@ body.track-industrial-engineering.theme-dark .theme-switch button.active { color
   .scan-status { flex:1 0 100%; width:100%; max-width:100%; }
   .top-actions > :not(.scan-status) { max-width:100%; }
 }
+
+/* v0.3.2 — portfolio guest mode + explicit session controls. */
+.auth-guest { width:100%; min-height:48px; display:grid; grid-template-columns:34px 1fr; grid-template-rows:auto auto; column-gap:10px; align-items:center; margin-top:9px; padding:8px 12px; border:1px solid #c9ddea; border-radius:14px; background:#f7fbfe; color:#274d68; text-align:right; cursor:pointer; font:inherit; transition:border-color var(--motion-fast) var(--ease-apple),background var(--motion-fast) var(--ease-apple),transform var(--motion-fast) var(--ease-apple-out); }
+.auth-guest:hover,.auth-guest:focus-visible { border-color:#78b5d7; background:#edf7fd; transform:translateY(-1px); outline:none; }
+.auth-guest > span { grid-row:1 / span 2; width:30px; height:30px; display:grid; place-items:center; border-radius:10px; background:#e8f4fb; color:#217cb4; font-weight:900; }
+.auth-guest strong { font-size:12px; }
+.auth-guest small { color:#748b9b; font-size:9px; line-height:1.4; }
+.logout-action { flex:0 0 auto; }
+.guest-mode-banner { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:0 0 14px; padding:10px 14px; border:1px solid #d7c992; border-radius:14px; background:#fff9e8; color:#6d5519; }
+.guest-mode-banner[hidden] { display:none; }
+.guest-mode-banner span { display:grid; gap:2px; }
+.guest-mode-banner strong { color:#61480d; font-size:12px; }
+.guest-mode-banner small { color:#8a7542; font-size:10px; }
+.guest-mode-banner button { border:0; background:transparent; color:#8a5d08; font:inherit; font-size:10px; font-weight:850; cursor:pointer; }
+body.guest-mode .btn[disabled],body.guest-mode button[disabled] { cursor:not-allowed; opacity:.58; }
+body.theme-dark .auth-guest { background:#102a3e; border-color:#34576e; color:#dcecf5; }
+body.theme-dark .auth-guest > span { background:#183d54; color:#91d4f5; }
+body.theme-dark .auth-guest small { color:#9eb4c2; }
+body.theme-dark .guest-mode-banner { background:#302b20; border-color:#6c5b34; color:#efdba7; }
+body.theme-dark .guest-mode-banner strong { color:#ffe7a6; }
+body.theme-dark .guest-mode-banner small { color:#cbb98b; }
+body.theme-dark .guest-mode-banner button { color:#f0ca67; }
+
+/* v0.3.2 — final Industrial Engineering palette pass. These selectors live last
+   so generic dark-mode blue rules cannot leak through on cards, statuses or notices. */
+body.track-industrial-engineering :where(.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,.flow-list li,.skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,.queue-progress-meta,.application-option,.application-option-auto,.scan-report-details,.notification-center,.command-card) {
+  border-color:#e3d19a;
+}
+body.track-industrial-engineering :where(.flow-list li,.empty-state,.skeleton-item,.skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,.queue-progress-meta,.application-option) {
+  background-color:#fff9e8;
+  background-image:none;
+}
+body.track-industrial-engineering .metrics { background:rgba(255,249,229,.84); border-color:#dfcf9b; box-shadow:0 8px 24px rgba(111,77,8,.08); }
+body.track-industrial-engineering .metric-link:hover,body.track-industrial-engineering .metric-link:focus-visible { background:#fff2c9; box-shadow:inset 0 0 0 1px #dfc77c; }
+body.track-industrial-engineering .metric-copy b { color:#654d17; }
+body.track-industrial-engineering .metric-copy small { color:#917c49; }
+body.track-industrial-engineering .flow-list b { background:linear-gradient(145deg,#d9a72a,#9f6807); color:#fff9e2; }
+body.track-industrial-engineering .flow-list span,body.track-industrial-engineering .empty-state p { color:#8a7749; }
+body.track-industrial-engineering .empty-state-icon { background:#fff1c0; border-color:#e1c979; color:#95630a; box-shadow:0 7px 17px rgba(105,72,7,.07); }
+body.track-industrial-engineering .empty-state strong { color:#65480b; }
+body.track-industrial-engineering :where(.status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,.job-search-field small,.readiness-check) { background:#fff5d4; border-color:#e5d19a; color:#80621b; }
+body.track-industrial-engineering .notification-center { background:rgba(255,252,239,.97); border-color:#dfca88; box-shadow:0 28px 80px rgba(85,58,7,.18); }
+body.track-industrial-engineering .notification-item { background:#fffaf0; border-color:#e5d6a8; }
+body.track-industrial-engineering .notification-item strong { color:#674b0d; }
+body.track-industrial-engineering .notification-item small { color:#8b7748; }
+body.track-industrial-engineering .notification-item > b { color:#9d6808; }
+body.track-industrial-engineering .guest-mode-banner { background:#fff5d4; border-color:#dfc570; }
+body.track-industrial-engineering .auth-guest { background:#fffaf0; border-color:#dfca88; color:#694d0e; }
+body.track-industrial-engineering .auth-guest > span { background:#fff0bd; color:#9d6808; }
+body.track-industrial-engineering .auth-guest small { color:#8b7748; }
+
+body.theme-dark.track-industrial-engineering :where(.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,.flow-list li,.skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,.queue-progress-meta,.application-option,.application-option-auto,.scan-report-details,.notification-center,.command-card) {
+  background-color:#241d0c !important;
+  background-image:none !important;
+  border-color:#50431e !important;
+  color:#fff3c8 !important;
+}
+body.theme-dark.track-industrial-engineering :where(.flow-list li,.empty-state,.skeleton-item,.skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,.queue-progress-meta,.application-option) { background-color:#2a220d !important; border-color:#5d4d20 !important; }
+body.theme-dark.track-industrial-engineering .metrics { background:#211a09 !important; border-color:#5c4b20 !important; box-shadow:0 8px 24px rgba(0,0,0,.2) !important; }
+body.theme-dark.track-industrial-engineering .metric-link:hover,body.theme-dark.track-industrial-engineering .metric-link:focus-visible { background:#3a2f0d !important; box-shadow:inset 0 0 0 1px #7a6220 !important; }
+body.theme-dark.track-industrial-engineering .metric-copy b { color:#f2dda0 !important; }
+body.theme-dark.track-industrial-engineering .metric-copy small { color:#bda96d !important; }
+body.theme-dark.track-industrial-engineering .flow-list b { background:linear-gradient(145deg,#b98922,#684906) !important; color:#fff0b0 !important; }
+body.theme-dark.track-industrial-engineering .flow-list span,body.theme-dark.track-industrial-engineering .empty-state p { color:#c4b176 !important; }
+body.theme-dark.track-industrial-engineering .empty-state-icon { background:#392f0e !important; border-color:#6b5822 !important; color:#efd070 !important; box-shadow:none !important; }
+body.theme-dark.track-industrial-engineering .empty-state strong { color:#ffe9a5 !important; }
+body.theme-dark.track-industrial-engineering :where(.status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,.job-search-field small,.readiness-check) { background:#342a0c !important; border-color:#665522 !important; color:#ecd481 !important; }
+body.theme-dark.track-industrial-engineering .notification-center { background:rgba(31,25,9,.98) !important; border-color:#5c4b20 !important; box-shadow:0 30px 90px rgba(0,0,0,.48) !important; }
+body.theme-dark.track-industrial-engineering .notification-item { background:#2a220d !important; border-color:#5f4e20 !important; color:#fff3c8 !important; }
+body.theme-dark.track-industrial-engineering .notification-item strong { color:#ffe9a5 !important; }
+body.theme-dark.track-industrial-engineering .notification-item small { color:#c4b176 !important; }
+body.theme-dark.track-industrial-engineering .notification-item > b { color:#f0d270 !important; }
+body.theme-dark.track-industrial-engineering .auth-guest { background:#2b230c; border-color:#665323; color:#f0d98a; }
+body.theme-dark.track-industrial-engineering .auth-guest > span { background:#392f0e; color:#efd070; }
+body.theme-dark.track-industrial-engineering .auth-guest small { color:#c4b176; }
+body.theme-dark.track-industrial-engineering .guest-mode-banner { background:#30270d; border-color:#6f5920; color:#ecd481; }
+body.track-industrial-engineering .toast { background:rgba(111,77,10,.96); border-color:#c99d35; color:#fff7dc; box-shadow:0 14px 35px rgba(92,61,5,.22); }
+body.theme-dark.track-industrial-engineering .toast { background:rgba(58,47,13,.98) !important; border-color:#745e22 !important; color:#fff0b0 !important; box-shadow:0 16px 38px rgba(0,0,0,.38) !important; }

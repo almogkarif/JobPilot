@@ -51,7 +51,7 @@ const CAREER_TRACK_UI = Object.freeze({
   },
 });
 
-window.jobPilotReloadAfterCareerSwitch = window.jobPilotReloadAfterCareerSwitch || (() => window.location.reload());
+window.jobPilotReloadAfterCareerSwitch = window.jobPilotReloadAfterCareerSwitch || refreshAfterCareerSwitch;
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -121,6 +121,11 @@ async function ensureCloudAccessToken() {
 }
 
 const api = async (path, options = {}) => {
+  const method = String(options.method || 'GET').toUpperCase();
+  const guestWriteAllowed = path === '/api/career-tracks/active' && method === 'PUT';
+  if (authState.user?.is_guest && !['GET', 'HEAD', 'OPTIONS'].includes(method) && !guestWriteAllowed) {
+    throw new Error('מצב אורח הוא לקריאה בלבד. התחבר לחשבון כדי לשמור, לסרוק או להגיש.');
+  }
   if (authState.config?.mode === 'supabase') await ensureCloudAccessToken();
   const response = await fetch(path, {
     ...options,
@@ -208,13 +213,25 @@ async function verifyCloudSession() {
 
 function renderCloudAccount() {
   const button = $('#account-chip');
+  const logout = $('#logout-action');
+  const guestBanner = $('#guest-mode-banner');
   if (!button) return;
-  if (authState.config?.mode !== 'supabase' || !authState.user) { button.hidden = true; return; }
+  if (authState.config?.mode !== 'supabase' || !authState.user) {
+    button.hidden = true;
+    if (logout) logout.hidden = true;
+    if (guestBanner) guestBanner.hidden = true;
+    document.body.classList.remove('guest-mode');
+    return;
+  }
+  const guest = Boolean(authState.user.is_guest);
   button.hidden = false;
-  const email = authState.user.email || 'JobPilot';
-  $('#account-email').textContent = email;
-  $('#account-avatar').textContent = email.slice(0, 1).toUpperCase() || 'A';
-  button.title = `${email} · חשבון ענן`;
+  if (logout) logout.hidden = false;
+  if (guestBanner) guestBanner.hidden = !guest;
+  document.body.classList.toggle('guest-mode', guest);
+  const label = guest ? 'מצב אורח' : (authState.user.email || 'JobPilot');
+  $('#account-email').textContent = label;
+  $('#account-avatar').textContent = guest ? '◇' : (label.slice(0, 1).toUpperCase() || 'A');
+  button.title = guest ? 'מצב אורח · צפייה בלבד' : `${label} · חשבון ענן`;
 }
 
 async function initAuthentication() {
@@ -265,6 +282,25 @@ async function cloudSignup(email, password) {
   showAuthGate('החשבון נוצר. אם אימות אימייל פעיל ב-Supabase, אשר את ההודעה שנשלחה אליך ואז התחבר.', 'success');
 }
 
+async function cloudGuestLogin() {
+  if (!authState.config?.guest_enabled) throw new Error('מצב אורח אינו פעיל כרגע');
+  const response = await supabaseFetch('/signup', { method: 'POST', body: JSON.stringify({}) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = payload.msg || payload.message || payload.error_description || '';
+    if (/anonymous|disabled|signups/i.test(message)) {
+      throw new Error('מצב אורח עדיין לא הופעל ב-Supabase. הפעל Allow anonymous sign-ins ונסה שוב.');
+    }
+    throw new Error(message || 'הכניסה כאורח נכשלה');
+  }
+  if (!payload.access_token) throw new Error('Supabase לא החזיר session למצב האורח');
+  saveAuthSession(payload);
+  if (!await verifyCloudSession()) throw new Error('JobPilot לא הצליח לפתוח סביבת אורח');
+  hideAuthGate();
+  renderCloudAccount();
+  location.reload();
+}
+
 function cloudGoogleLogin() {
   const base = String(authState.config?.supabase_url || '').replace(/\/$/, '');
   const key = authState.config?.supabase_publishable_key || '';
@@ -285,6 +321,12 @@ async function cloudSignOut() {
 
 async function refreshAgentStatus() {
   if (authState.config?.mode !== 'supabase') return;
+  if (authState.user?.is_guest) {
+    const label = $('#agent-state');
+    if (label) label.textContent = 'לא זמין במצב אורח';
+    document.querySelector('.agent-dot')?.classList.add('restricted');
+    return;
+  }
   try {
     const status = await api('/api/agent/status');
     const label = $('#agent-state');
@@ -297,6 +339,12 @@ async function refreshAgentStatus() {
 async function openCloudAccount() {
   if (authState.config?.mode !== 'supabase') return;
   const me = await api('/api/auth/me');
+  if (me.user?.is_guest) {
+    modal(`<span class="kicker">JobPilot Demo</span><h2>מצב אורח</h2>
+      <p>זו סביבת דמו מבודדת לקריאה בלבד. אפשר לעבור בין מסלולים ולהתרשם מהממשק, אבל שינוי פרופיל, מקורות, סריקות והגשות חסומים.</p>
+      <div class="modal-actions"><button class="btn danger-outline" type="button" onclick="cloudSignOut()">יציאה ממצב אורח</button></div>`);
+    return;
+  }
   const [devices, adminUsers] = await Promise.all([
     api('/api/agent-devices'),
     me.user?.role === 'admin' ? api('/api/admin/users') : Promise.resolve(null),
@@ -445,6 +493,22 @@ async function switchCareerTrack(target) {
   } finally {
     $('#career-switcher-trigger').disabled = false;
   }
+}
+
+async function refreshAfterCareerSwitch() {
+  // A career-track toggle used to hard-reload the entire SPA. That repeated auth,
+  // career-track, dashboard, profile and active-view requests at once and could
+  // overwhelm a small cloud instance. Refresh only the data that actually changed.
+  state.jobsPaging.page = 1;
+  state.profileLoaded = false;
+  await loadDashboard();
+  if (state.activeView === 'dashboard') return;
+  if (state.activeView === 'jobs') return loadJobs({ resetPage: true });
+  if (state.activeView === 'applications') return loadApplications();
+  if (state.activeView === 'blockers') return loadBlockers();
+  if (state.activeView === 'skills') return loadSkills();
+  if (state.activeView === 'sources') return loadSources();
+  if (state.activeView === 'preferences' || state.activeView === 'profile') return loadProfile();
 }
 
 const JOB_DESCRIPTION_HEADINGS = [
@@ -915,7 +979,7 @@ async function loadAnswerLibrary() {
       collapse.title = next ? 'פתח' : 'מזער';
       localStorage.setItem(`jobpilot-collapse-answer-${key}`, next ? '1' : '0');
     };
-    $('.answer-save', card).onclick = saveAllAnswers;
+    $('.answer-save', card).onclick = () => saveAnswerCard(card);
   });
   updateAnswerDirtyState();
 }
@@ -938,6 +1002,32 @@ function updateAnswerDirtyState() {
   syncProfileUnsavedUI();
 }
 
+async function saveAnswerCard(card) {
+  const key = card?.dataset.answerKey;
+  if (!key) return;
+  const payload = {
+    answer: $('[data-answer]', card)?.value || '',
+    enabled: Boolean($('[data-enabled]', card)?.checked),
+  };
+  const button = $('.answer-save', card);
+  const original = button?.textContent || 'שמור';
+  if (button) { button.disabled = true; button.textContent = 'שומר…'; }
+  try {
+    await api(`/api/answer-library/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify(payload) });
+    const current = state.answerLibrary.find((item) => item.key === key);
+    const saved = state.answerLibrarySaved.find((item) => item.key === key);
+    if (current) Object.assign(current, payload);
+    if (saved) Object.assign(saved, payload);
+    updateAnswerDirtyState();
+    if (button) button.textContent = 'נשמר ✓';
+    toast('התשובה נשמרה');
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    if (button) window.setTimeout(() => { button.disabled = false; button.textContent = original; }, 900);
+  }
+}
+
 async function saveAllAnswers() {
   try {
     await api('/api/answer-library/save-all', { method: 'POST', body: JSON.stringify({ answers: currentAnswerLibraryPayload() }) });
@@ -947,6 +1037,7 @@ async function saveAllAnswers() {
 }
 
 $('#save-all-answers').onclick = saveAllAnswers;
+$('#save-answer-pane').onclick = saveAllAnswers;
 
 async function loadDashboard() {
   if (state.activeView === 'dashboard') {
@@ -2013,9 +2104,12 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   $('#profile-unsaved-count').textContent = parts.join(' · ');
   $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
   $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
-  $$('button[type="submit"]', profileForm()).forEach((button) => {
-    button.disabled = dirtyFields.length === 0;
-    button.classList.toggle('save-ready', dirtyFields.length > 0);
+  allProfileSaveButtons().forEach((button) => {
+    const owned = profileSaveFieldsForButton(button);
+    const hasOwnedDirty = owned.some((field) => dirtyFields.includes(field));
+    button.disabled = authState.user?.is_guest || !hasOwnedDirty;
+    button.classList.toggle('save-ready', hasOwnedDirty && !authState.user?.is_guest);
+    button.title = authState.user?.is_guest ? 'מצב אורח הוא לקריאה בלבד' : '';
   });
 }
 
@@ -2089,8 +2183,7 @@ function applyProfileToForm(profile) {
     }
   }
   APPLICATION_PROFILE_FIELDS.forEach((name) => {
-    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name]
-      || (name === 'country' ? profile.location : '');
+    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name] ?? '';
   });
   renderLanguages(profile.application_profile?.languages);
   $('#threshold-value').textContent = profile.auto_apply_threshold ?? 82;
@@ -2149,40 +2242,85 @@ async function loadResumeInsights(){
   if(!resumes.length){root.innerHTML='';return;}
   root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" onclick="$('#privacy-center').click()">ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>הצעות שנמצאו בקורות החיים — שום דבר לא נוסף אוטומטית</span>${suggestions.map(item=>`<button type="button" onclick="applyResumeSuggestion(${item.resume_id},decodeURIComponent('${encodeURIComponent(item.field)}'),decodeURIComponent('${encodeURIComponent(item.value)}'))"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הקבצים נותחו. אין כרגע פרטים חדשים שממתינים לאישור.</p>`}`;
 }
-async function applyResumeSuggestion(resumeId,field,value){const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});state.profile=result.profile;applyProfileToForm(state.profile);clearProfileDirtyState();await loadResumeInsights();toast('ההצעה נוספה לפרופיל והמשרות דורגו מחדש');}
+async function applyResumeSuggestion(resumeId,field,value){
+  const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});
+  state.profile=result.profile; state.profileLoaded=true;
+  if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
+  else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
+  updateProfileDirtyState(); updateProfileSectionSummaries();
+  await loadResumeInsights();
+  toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
+}
 
-function buildProfilePayload() {
+function allProfileSaveButtons() {
+  return [...new Set([
+    ...$$('button[type="submit"]', profileForm()),
+    ...$$('button[type="submit"][form="profile-form"]'),
+  ])];
+}
+
+function profileFieldsInContainer(container) {
+  if (!container) return [];
+  const fields = new Set();
+  if (container.matches?.('.preference-group[data-field]')) fields.add(container.dataset.field);
+  $$('[name]', container).forEach((control) => {
+    if (PROFILE_FIELDS.includes(control.name)) fields.add(control.name);
+  });
+  $$('[data-profile-option]', container).forEach((control) => {
+    if (PROFILE_FIELDS.includes(control.dataset.profileOption)) fields.add(control.dataset.profileOption);
+  });
+  return [...fields];
+}
+
+function profileSaveFieldsForButton(button) {
+  const explicit = String(button?.dataset?.saveFields || '').split(',').map((item) => item.trim()).filter(Boolean);
+  if (explicit.length) return explicit.filter((field) => PROFILE_FIELDS.includes(field));
+  const preference = button?.closest?.('.preference-group[data-field]');
+  if (preference) return profileFieldsInContainer(preference);
+  const section = button?.closest?.('.profile-detail-section');
+  if (section) return profileFieldsInContainer(section);
+  const pane = button?.closest?.('.profile-pane');
+  if (pane) return profileFieldsInContainer(pane);
+  return getDirtyProfileFields();
+}
+
+function buildProfilePayload(fields = PROFILE_FIELDS) {
   const form = profileForm();
+  const wanted = new Set(fields);
+  const payload = {};
   const array = (name) => {
     const values = normalizedProfileValue(name, currentProfileFormValue(name));
     return name === 'years_experience_options' && !values.length ? ['0'] : values;
   };
-  return {
-    full_name: form.elements.full_name.value,
-    email: form.elements.email.value,
-    phone: form.elements.phone.value,
-    location: form.elements.location.value,
-    linkedin_url: form.elements.linkedin_url.value,
-    github_url: form.elements.github_url.value,
-    portfolio_url: form.elements.portfolio_url.value,
-    application_password: form.elements.application_password.value || null,
-    years_experience_options: array('years_experience_options'),
-    years_experience: Math.max(...array('years_experience_options').map((value) => value === '5+' ? 5 : Number(value))),
-    work_authorization: form.elements.work_authorization.checked,
-    needs_sponsorship: form.elements.needs_sponsorship.checked,
-    salary_expectation: form.elements.salary_expectation.value,
-    skills: array('skills'),
-    desired_titles: array('desired_titles'),
-    preferred_locations: array('preferred_locations'),
-    preferred_work_modes: array('preferred_work_modes'),
-    keywords: array('keywords'),
-    excluded_keywords: array('excluded_keywords'),
-    auto_apply_threshold: Number(form.elements.auto_apply_threshold.value || 82),
-    auto_submit_enabled: form.elements.auto_submit_enabled.checked,
-    application_profile: Object.fromEntries(APPLICATION_PROFILE_FIELDS.map((name) => [
-      name, name === 'languages' ? collectLanguages() : (form.elements[`extra_${name}`]?.value || ''),
-    ])),
-  };
+  const scalar = [
+    'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
+    'salary_expectation', 'auto_apply_threshold', 'work_authorization', 'needs_sponsorship', 'auto_submit_enabled',
+  ];
+  scalar.forEach((name) => {
+    if (!wanted.has(name)) return;
+    const control = form.elements[name];
+    if (!control) return;
+    if (PROFILE_CHECK_FIELDS.includes(name)) payload[name] = control.checked;
+    else if (PROFILE_NUMBER_FIELDS.has(name)) payload[name] = Number(control.value || 0);
+    else payload[name] = control.value;
+  });
+  if (wanted.has('application_password') && form.elements.application_password.value) {
+    payload.application_password = form.elements.application_password.value;
+  }
+  PROFILE_ARRAY_FIELDS.forEach((name) => {
+    if (wanted.has(name)) payload[name] = array(name);
+  });
+  if (wanted.has('years_experience_options')) {
+    payload.years_experience_options = array('years_experience_options');
+  }
+  const applicationFields = [...wanted].filter((name) => name.startsWith('extra_'));
+  if (applicationFields.length) {
+    payload.application_profile = Object.fromEntries(applicationFields.map((field) => {
+      const name = field.slice(6);
+      return [name, name === 'languages' ? collectLanguages() : (form.elements[field]?.value || '')];
+    }));
+  }
+  return payload;
 }
 
 const profileElement = profileForm();
@@ -2457,31 +2595,36 @@ function bindPreferencePriorityDragging() {
 bindPreferencePriorityDragging();
 profileElement.onsubmit = async (event) => {
   event.preventDefault();
-  // Hide a previous save notification so repeated saves have a distinct,
-  // accessible completion signal instead of reusing the old visible toast.
+  const submitter = event.submitter;
+  if (!submitter) return;
+  if (authState.user?.is_guest) { toast('מצב אורח הוא לקריאה בלבד'); return; }
   $('#toast').classList.remove('show');
   $('#toast').textContent = '';
-  const buttons = $$('button[type="submit"]', profileElement);
-  const submitter = event.submitter;
-  buttons.forEach((button) => { button.disabled = true; button.dataset.originalText = button.textContent; button.textContent = 'שומר…'; });
+  const dirty = new Set(getDirtyProfileFields());
+  const ownedFields = profileSaveFieldsForButton(submitter);
+  const fields = ownedFields.filter((field) => dirty.has(field));
+  if (!fields.length) { toast('אין שינויים בכרטיס הזה'); updateProfileDirtyState(); return; }
+  const originalText = submitter.textContent;
+  submitter.disabled = true;
+  submitter.textContent = 'שומר…';
   try {
-    const saved = await api('/api/profile', { method: 'PUT', body: JSON.stringify(buildProfilePayload()) });
+    const payload = buildProfilePayload(fields);
+    const saved = await api('/api/profile', { method: 'PATCH', body: JSON.stringify(payload) });
     state.profile = saved;
     state.profileLoaded = true;
-    applyProfileToForm(saved);
-    clearProfileDirtyState();
-    toast('הפרופיל נשמר והמשרות דורגו מחדש');
-    if (submitter) submitter.textContent = 'נשמר ✓';
-    await loadDashboard();
+    if (fields.includes('application_password')) profileElement.elements.application_password.value = '';
+    updateProfileDirtyState();
+    updateProfileSectionSummaries();
+    submitter.textContent = 'נשמר ✓';
+    toast(fields.length === 1 ? 'ההגדרה נשמרה' : 'הכרטיס נשמר');
   } catch (error) {
     toast(`השמירה נכשלה: ${error.message}`);
     updateProfileDirtyState();
   } finally {
-    buttons.forEach((button) => {
-      button.disabled = false;
-      if (button === submitter && button.textContent === 'נשמר ✓') window.setTimeout(() => { button.textContent = button.dataset.originalText || 'שמור שינויים'; }, 1400);
-      else button.textContent = button.dataset.originalText || 'שמור שינויים';
-    });
+    window.setTimeout(() => {
+      submitter.textContent = originalText || 'שמור';
+      updateProfileDirtyState();
+    }, 1100);
   }
 };
 
@@ -2879,7 +3022,12 @@ $('#auth-signup').onclick = async () => {
   catch (error) { showAuthGate(error.message, 'error'); }
 };
 $('#auth-google').onclick = () => cloudGoogleLogin();
+$('#auth-guest').onclick = async () => {
+  try { showAuthGate('פותח סביבת אורח…', 'success'); await cloudGuestLogin(); }
+  catch (error) { showAuthGate(error.message, 'error'); }
+};
 $('#account-chip').onclick = () => openCloudAccount().catch((error) => toast(error.message));
+$('#logout-action').onclick = () => cloudSignOut();
 
 $('#career-switcher-trigger').onclick = (event) => { event.stopPropagation(); setCareerMenu($('#career-switcher-menu').hidden); };
 document.addEventListener('click', (event) => { if (!event.target.closest('#career-switcher')) setCareerMenu(false); });

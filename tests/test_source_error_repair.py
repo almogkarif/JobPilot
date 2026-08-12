@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -116,13 +117,12 @@ class _FakeSmartClient:
         })
 
 
-@pytest.mark.asyncio
-async def test_smartrecruiters_collector_uses_public_posting_api_and_parses_israel_job(monkeypatch):
+def test_smartrecruiters_collector_uses_public_posting_api_and_parses_israel_job(monkeypatch):
     from app.collectors import smartrecruiters as module
 
     _FakeSmartClient.calls = []
     monkeypatch.setattr(module.httpx, "AsyncClient", _FakeSmartClient)
-    jobs = await SmartRecruitersCollector().collect("Cyberark1", "CyberArk")
+    jobs = asyncio.run(SmartRecruitersCollector().collect("Cyberark1", "CyberArk"))
 
     assert len(jobs) == 1
     job = jobs[0]
@@ -152,13 +152,12 @@ class _FakeGreenhouseClient:
         return _FakeResponse({"jobs": []})
 
 
-@pytest.mark.asyncio
-async def test_greenhouse_eu_prefix_uses_documented_job_board_api_host(monkeypatch):
+def test_greenhouse_eu_prefix_uses_documented_job_board_api_host(monkeypatch):
     from app.collectors import greenhouse as module
 
     _FakeGreenhouseClient.urls = []
     monkeypatch.setattr(module.httpx, "AsyncClient", _FakeGreenhouseClient)
-    await GreenhouseCollector().collect("eu:outbraininc", "Outbrain")
+    asyncio.run(GreenhouseCollector().collect("eu:outbraininc", "Outbrain"))
     assert _FakeGreenhouseClient.urls == ["https://boards-api.greenhouse.io/v1/boards/outbraininc/jobs"]
 
 
@@ -184,18 +183,16 @@ class _FakeLeverClient:
         return _FakeResponse([])
 
 
-@pytest.mark.asyncio
-async def test_lever_eu_prefix_uses_european_api_host(monkeypatch):
+def test_lever_eu_prefix_uses_european_api_host(monkeypatch):
     from app.collectors import lever as module
 
     _FakeLeverClient.urls = []
     monkeypatch.setattr(module.httpx, "AsyncClient", _FakeLeverClient)
-    await LeverCollector().collect("eu:mobileye", "Mobileye")
+    asyncio.run(LeverCollector().collect("eu:mobileye", "Mobileye"))
     assert _FakeLeverClient.urls == ["https://api.eu.lever.co/v0/postings/mobileye"]
 
 
-@pytest.mark.asyncio
-async def test_greenhouse_prefers_first_published_over_updated_at(monkeypatch):
+def test_greenhouse_prefers_first_published_over_updated_at(monkeypatch):
     from app.collectors import greenhouse as module
 
     class Client(_FakeGreenhouseClient):
@@ -208,5 +205,5 @@ async def test_greenhouse_prefers_first_published_over_updated_at(monkeypatch):
             }]})
 
     monkeypatch.setattr(module.httpx, "AsyncClient", Client)
-    jobs = await GreenhouseCollector().collect("taboola", "Taboola")
+    jobs = asyncio.run(GreenhouseCollector().collect("taboola", "Taboola"))
     assert jobs[0].published_at.isoformat().startswith("2026-08-01T10:00:00")

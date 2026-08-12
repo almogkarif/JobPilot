@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.41.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.21.0"></script>', "")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.42.1" />', f"<style>{css}</style>")
+    html = html.replace('<script src="/static/app.js?v=0.22.0"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -141,6 +141,18 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert not is_blue(source_switch)
         assert '224, 173, 46' in source_switch_image or '173, 116, 10' in source_switch_image
 
+        # Full IEM palette regression: the large surfaces that previously leaked
+        # several legacy CS blue shades must stay yellow/brown in dark mode too.
+        page.evaluate("switchView('jobs')")
+        assert page.locator('.flow-list li').count() >= 1
+        assert not is_blue(rgb('.flow-list li'))
+        assert not is_blue(rgb('.flow-list li b'))
+        assert not is_blue(rgb('.empty-state'))
+        assert not is_blue(rgb('.empty-state-icon'))
+        assert not is_blue(rgb('.metrics'))
+        assert not is_blue(rgb('#notification-center'))
+        assert not is_blue(rgb('#toast'))
+
         # The unsaved banner must stay in normal document flow and never overlap
         # the profile completion card or its navigation, even with a real warning.
         page.evaluate("switchView('profile')")
@@ -209,6 +221,13 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert not is_blue(rgb('#brand-i-dot'))
         assert not is_blue(rgb('#notification-trigger', 'color'))
         assert not is_blue(rgb('#nav button.active .nav-accent', 'stroke'))
+        page.evaluate("switchView('jobs')")
+        assert not is_blue(rgb('.flow-list li'))
+        assert not is_blue(rgb('.empty-state'))
+        assert not is_blue(rgb('.empty-state-icon'))
+        assert not is_blue(rgb('.metrics'))
+        assert not is_blue(rgb('#notification-center'))
+        assert not is_blue(rgb('#toast'))
 
         assert errors == []
         browser.close()

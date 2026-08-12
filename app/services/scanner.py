@@ -5,15 +5,15 @@ import asyncio
 import re
 from collections.abc import Callable
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from ..collectors import COLLECTORS
-from ..models import AuditLog, Job, Profile, ResumeProfile, Source
+from ..models import Application, AuditLog, Job, Profile, ResumeProfile, Source
 from ..database import get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import delete_job_tree, purge_stale_jobs
 from .location_filter import is_israel_location
-from .matching import hard_exclusion_reason, score_job, track_job_relevance
+from .matching import build_match_context, hard_exclusion_reason, score_job, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
 from .source_quality import SourceDataQualityError, validate_source_payload
 
@@ -43,7 +43,8 @@ async def scan_all_sources(
         ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track
     ))
     default_resume_skills = loads(default_resume.skills_json, []) if default_resume else []
-    stale_deleted = purge_stale_jobs(db, days=2)
+    match_context = build_match_context(profile, default_resume_skills, career_track=career_track)
+    stale_deleted = 0
 
     now = datetime.now(timezone.utc)
     source_query = select(Source).where(
@@ -84,6 +85,7 @@ async def scan_all_sources(
             "current_source": None,
         })
     if not snapshots:
+        stale_deleted = purge_stale_jobs(db, days=2)
         return {
             "status": "no_sources",
             "sources": 0,
@@ -221,19 +223,23 @@ async def scan_all_sources(
                 total_filtered_foreign += source_filtered_foreign
                 eligible_items = [
                     item for item in israel_items
-                    if not hard_exclusion_reason(item, profile) and track_job_relevance(item, career_track)[0]
+                    if not hard_exclusion_reason(item, profile, match_context.excluded) and track_job_relevance(item, career_track)[0]
                 ]
                 source_filtered_mismatch = len(israel_items) - len(eligible_items)
                 total_filtered_mismatch += source_filtered_mismatch
                 total_found += len(eligible_items)
                 seen_external_ids = set()
                 seen_at = datetime.now(timezone.utc)
+                source_jobs = db.scalars(
+                    select(Job)
+                    .options(joinedload(Job.application).selectinload(Application.blockers))
+                    .where(Job.source_id == source.id)
+                ).all()
+                jobs_by_external_id = {job.external_id: job for job in source_jobs}
 
-                for item in eligible_items:
+                for item_index, item in enumerate(eligible_items, start=1):
                     seen_external_ids.add(item.external_id)
-                    job = db.scalar(
-                        select(Job).where(Job.source_id == source.id, Job.external_id == item.external_id)
-                    )
+                    job = jobs_by_external_id.get(item.external_id)
                     if not job:
                         fingerprint = _job_fingerprint(item.title, item.company, item.location)
                         job = fingerprint_index.get(fingerprint)
@@ -259,7 +265,8 @@ async def scan_all_sources(
                                 discovered_at=seen_at, updated_at=seen_at,
                             )
                             db.add(job)
-                            db.flush()
+                            source_jobs.append(job)
+                            jobs_by_external_id[item.external_id] = job
                             fingerprint_index[fingerprint] = job
                             total_new += 1
                             source_new += 1
@@ -278,7 +285,7 @@ async def scan_all_sources(
                         total_updated += 1
                         source_updated += 1
 
-                    result = score_job(job, profile, default_resume_skills)
+                    result = score_job(job, profile, context=match_context)
                     job.score = result.score
                     job.score_reasons_json = dumps(result.reasons)
                     job.match_breakdown_json = dumps(result.breakdown)
@@ -286,19 +293,25 @@ async def scan_all_sources(
                     job.experience_min = result.experience_min
                     job.experience_max = result.experience_max
 
+                    # Scoring a large source is CPU work inside an async scan. Yield
+                    # cooperatively so lightweight web/health requests stay responsive.
+                    if item_index % 10 == 0:
+                        await asyncio.sleep(0)
+
                 # Foreign jobs from older versions are removed permanently. Israeli jobs
                 # that disappeared from this ATS are kept only as inactive history.
-                old_jobs = db.scalars(select(Job).where(Job.source_id == source.id)).all()
-                for old in old_jobs:
+                for old_index, old in enumerate(source_jobs, start=1):
                     if not is_israel_location(old.location):
                         delete_job_tree(db, old)
-                    elif hard_exclusion_reason(old, profile):
+                    elif hard_exclusion_reason(old, profile, match_context.excluded):
                         if old.application:
                             old.is_active = False
                         else:
                             delete_job_tree(db, old)
                     elif old.external_id not in seen_external_ids:
                         old.is_active = False
+                    if old_index % 20 == 0:
+                        await asyncio.sleep(0)
 
                 source.last_scanned_at = datetime.now(timezone.utc)
                 source.last_error = ""
@@ -413,24 +426,29 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
 
     career_track = active_track(profile)
     jobs = db.scalars(
-        select(Job).where(
+        select(Job).options(joinedload(Job.application)).where(
             Job.is_active.is_(True), Job.status == "new", Job.score >= profile.auto_apply_threshold,
             Job.career_track == career_track,
         )
     ).all()
     count = 0
     resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all()
+    resume_candidates = [
+        (resume, {skill.casefold() for skill in loads(resume.skills_json, [])})
+        for resume in resumes
+    ]
     for job in jobs:
         if job.application:
             continue
         required = {skill.casefold() for skill in loads(job.skills_json, [])}
-        selected = max(resumes, key=lambda resume: (
-            len(required & {skill.casefold() for skill in loads(resume.skills_json, [])}),
-            bool(resume.is_default),
+        selected = max(resume_candidates, key=lambda candidate: (
+            len(required & candidate[1]),
+            bool(candidate[0].is_default),
         ), default=None)
+        selected_resume = selected[0] if selected else None
         db.add(Application(job_id=job.id, mode="auto",
-                           resume_id=selected.id if selected else None,
-                           resume_path=selected.path if selected else profile.cv_path))
+                           resume_id=selected_resume.id if selected_resume else None,
+                           resume_path=selected_resume.path if selected_resume else profile.cv_path))
         job.status = "queued"
         count += 1
     if count:

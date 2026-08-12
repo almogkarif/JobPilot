@@ -40,6 +40,48 @@ class ProfileUpdate(BaseModel):
     application_profile: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProfilePatch(BaseModel):
+    """Partial profile update used by per-card save buttons.
+
+    Every field is optional so a card can persist only the values it owns without
+    sending stale values from another open card back to the server.
+    """
+
+    full_name: str | None = None
+    email: EmailStr | str | None = None
+    phone: str | None = None
+    location: str | None = None
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    portfolio_url: str | None = None
+    application_password: str | None = Field(default=None, max_length=500)
+    years_experience: float | None = None
+    years_experience_options: list[str] | None = None
+    work_authorization: bool | None = None
+    needs_sponsorship: bool | None = None
+    salary_expectation: str | None = None
+    skills: list[str] | None = None
+    desired_titles: list[str] | None = None
+    preferred_locations: list[str] | None = None
+    preferred_work_modes: list[str] | None = None
+    keywords: list[str] | None = None
+    excluded_keywords: list[str] | None = None
+    auto_apply_threshold: int | None = Field(default=None, ge=0, le=100)
+    auto_submit_enabled: bool | None = None
+    application_profile: dict[str, Any] | None = None
+
+    @field_validator("years_experience_options")
+    @classmethod
+    def validate_experience_options(cls, values: list[str] | None) -> list[str] | None:
+        if values is None:
+            return None
+        allowed = {"0", "1", "2", "3", "4", "5+"}
+        cleaned = list(dict.fromkeys(str(value).strip() for value in values))
+        if not cleaned or any(value not in allowed for value in cleaned):
+            raise ValueError("Choose one or more of: 0, 1, 2, 3, 4, 5+")
+        return cleaned
+
+
 
 
 class CareerTrackSwitch(BaseModel):

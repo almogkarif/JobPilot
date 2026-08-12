@@ -260,7 +260,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.21.0" in index.text
+        assert "app.js?v=0.22.0" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 

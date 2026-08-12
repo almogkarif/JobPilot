@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..models import Application, AuditLog, Job
 from ..storage import delete_ref
@@ -22,13 +22,14 @@ def delete_job_tree(db: Session, job: Job) -> None:
                 except Exception:  # noqa: BLE001 - stale remote/local files must never block DB cleanup
                     pass
         db.delete(application)
-        db.flush()
     db.delete(job)
 
 
 def purge_foreign_jobs(db: Session, *, audit: bool = True) -> int:
     """Permanently remove legacy jobs whose location is not clearly in Israel."""
-    jobs = db.scalars(select(Job)).all()
+    jobs = db.scalars(
+        select(Job).options(joinedload(Job.application).selectinload(Application.blockers))
+    ).all()
     foreign_jobs = [job for job in jobs if not is_israel_location(job.location)]
     if not foreign_jobs:
         return 0
@@ -60,13 +61,17 @@ def purge_stale_jobs(db: Session, *, days: int = 2, audit: bool = True) -> int:
     cleanup now applies only to those inactive rows.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    stale_jobs = db.scalars(select(Job).where(
-        Job.is_active.is_(False),
-        or_(
-            and_(Job.published_at.isnot(None), Job.published_at < cutoff),
-            and_(Job.published_at.is_(None), Job.updated_at < cutoff),
-        ),
-    )).all()
+    stale_jobs = db.scalars(
+        select(Job)
+        .options(joinedload(Job.application).selectinload(Application.blockers))
+        .where(
+            Job.is_active.is_(False),
+            or_(
+                and_(Job.published_at.isnot(None), Job.published_at < cutoff),
+                and_(Job.published_at.is_(None), Job.updated_at < cutoff),
+            ),
+        )
+    ).all()
     if not stale_jobs:
         return 0
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
+from threading import Lock
 
 import httpx
 import jwt
@@ -23,6 +24,7 @@ class AuthIdentity:
     email: str = ""
     provider: str = "local"
     role: str = "user"
+    is_guest: bool = False
 
 
 def auth_public_config() -> dict:
@@ -31,6 +33,7 @@ def auth_public_config() -> dict:
         "supabase_url": settings.supabase_url if settings.auth_mode == "supabase" else "",
         "supabase_publishable_key": settings.supabase_publishable_key if settings.auth_mode == "supabase" else "",
         "google_enabled": bool(settings.auth_mode == "supabase" and settings.supabase_url and settings.supabase_publishable_key),
+        "guest_enabled": bool(settings.auth_mode == "supabase" and settings.supabase_url and settings.supabase_publishable_key),
         "max_users": max(1, int(settings.max_users or 10)) if settings.auth_mode == "supabase" else 1,
         "registration_restricted": bool(_allowed_email_set()),
     }
@@ -51,6 +54,8 @@ def _bearer_token(request: Request) -> str:
 
 
 _jwks_client: PyJWKClient | None = None
+_jwks_lock = Lock()
+_LAST_SEEN_WRITE_INTERVAL = timedelta(minutes=5)
 
 
 def _verify_supabase_token_locally(token: str) -> dict:
@@ -59,7 +64,9 @@ def _verify_supabase_token_locally(token: str) -> dict:
         raise HTTPException(503, "Supabase authentication is not configured")
     issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1"
     if _jwks_client is None:
-        _jwks_client = PyJWKClient(f"{issuer}/.well-known/jwks.json", cache_keys=True)
+        with _jwks_lock:
+            if _jwks_client is None:
+                _jwks_client = PyJWKClient(f"{issuer}/.well-known/jwks.json", cache_keys=True)
     key = _jwks_client.get_signing_key_from_jwt(token)
     return jwt.decode(
         token,
@@ -89,6 +96,7 @@ def _verify_supabase_token_remote(token: str) -> dict:
         "sub": user.get("id", ""),
         "email": user.get("email", ""),
         "app_metadata": user.get("app_metadata", {}),
+        "is_anonymous": bool(user.get("is_anonymous")),
     }
 
 
@@ -103,8 +111,9 @@ def verify_supabase_token(token: str) -> AuthIdentity:
     email = str(claims.get("email") or "").strip().casefold()
     if not user_id:
         raise HTTPException(401, "Invalid authenticated user")
-    provider = str((claims.get("app_metadata") or {}).get("provider") or "supabase")
-    return AuthIdentity(user_id=user_id, email=email, provider=provider)
+    is_guest = bool(claims.get("is_anonymous"))
+    provider = "anonymous" if is_guest else str((claims.get("app_metadata") or {}).get("provider") or "supabase")
+    return AuthIdentity(user_id=user_id, email=email, provider=provider, role="guest" if is_guest else "user", is_guest=is_guest)
 
 
 def _claim_legacy_rows(db: Session, user_id: str) -> None:
@@ -123,10 +132,46 @@ def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool)
     if profile is None:
         # Import lazily to avoid database/models/service import cycles.
         from .services.seed import initialize_database
-        initialize_database(db, full_name="", email=identity.email)
+        initialize_database(db, full_name="", email=identity.email, demo_only=identity.is_guest)
     elif profile is not None and identity.email and not profile.email:
         profile.email = identity.email
         db.commit()
+
+
+def _ensure_workspace_once(db: Session, identity: AuthIdentity, *, new_account: bool) -> None:
+    """Cheaply verify the tenant workspace on each authenticated request.
+
+    A process-global "ready" cache is tempting here, but it can leave an account
+    pointing at a missing/partially restored workspace after maintenance or recovery.
+    The scoped profile existence check is one small query and keeps persistence
+    self-healing without re-running seed work for healthy accounts.
+    """
+    _ensure_workspace(db, identity, new_account=new_account)
+
+
+def _touch_account(account: AppIdentity, verified: AuthIdentity) -> bool:
+    """Update mutable identity metadata without writing last_seen on every request."""
+    changed = False
+    if verified.email and account.email != verified.email:
+        account.email = verified.email
+        changed = True
+    owner_email = settings.owner_email.strip().casefold()
+    if owner_email and verified.email == owner_email and account.role != "admin":
+        account.role = "admin"
+        changed = True
+
+    now = utcnow()
+    last_seen = account.last_seen_at
+    if last_seen is None:
+        account.last_seen_at = now
+        changed = True
+    else:
+        if last_seen.tzinfo is None:
+            last_seen = last_seen.replace(tzinfo=timezone.utc)
+        if now - last_seen >= _LAST_SEEN_WRITE_INTERVAL:
+            account.last_seen_at = now
+            changed = True
+    return changed
 
 
 def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
@@ -134,6 +179,11 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
         return AuthIdentity(LOCAL_USER_ID, provider="local", role="admin")
 
     verified = verify_supabase_token(_bearer_token(request))
+    if verified.is_guest:
+        identity = AuthIdentity(verified.user_id, "", "anonymous", "guest", True)
+        _ensure_workspace_once(db, identity, new_account=True)
+        return identity
+
     owner_email = settings.owner_email.strip().casefold()
     allowed = _allowed_email_set()
     if allowed and verified.email not in allowed and verified.email != owner_email:
@@ -151,11 +201,9 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
             new_account = account is None
             if account is not None:
                 identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user")
-                account.last_seen_at = utcnow()
-                if verified.email and account.email != verified.email:
-                    account.email = verified.email
-                db.commit()
-                _ensure_workspace(db, identity, new_account=False)
+                if _touch_account(account, verified):
+                    db.commit()
+                _ensure_workspace_once(db, identity, new_account=False)
                 return identity
         max_users = max(1, int(settings.max_users or 10))
         count = int(db.scalar(select(func.count()).select_from(AppIdentity)) or 0)
@@ -181,20 +229,11 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
             _claim_legacy_rows(db, verified.user_id)
         db.commit()
     else:
-        changed = False
-        if verified.email and account.email != verified.email:
-            account.email = verified.email
-            changed = True
-        if owner_email and verified.email == owner_email and account.role != "admin":
-            account.role = "admin"
-            changed = True
-        account.last_seen_at = utcnow()
-        changed = True
-        if changed:
+        if _touch_account(account, verified):
             db.commit()
 
     identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user")
-    _ensure_workspace(db, identity, new_account=new_account)
+    _ensure_workspace_once(db, identity, new_account=new_account)
     # Return the DB to an unscoped state before middleware closes it; request endpoint
     # dependencies create their own tenant-scoped Session.
     return identity

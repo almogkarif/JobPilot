@@ -9,3 +9,5 @@ data/resumes/*
 data/screenshots/*
 !data/screenshots/.gitkeep
 agent/browser-profile/
+
+.DS_Store

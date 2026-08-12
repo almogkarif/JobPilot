@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from datetime import datetime, timezone
 from ..utils import loads
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, active_track
@@ -150,6 +151,55 @@ class MatchResult:
     breakdown: dict[str, int]
 
 
+@dataclass(slots=True)
+class MatchContext:
+    """Pre-parsed profile inputs reused while scoring a batch of jobs."""
+
+    profile_skills_ranked: list[str]
+    profile_skills: set[str]
+    effective_skills: set[str]
+    desired_titles: list[str]
+    locations: list[str]
+    keywords: list[str]
+    excluded: list[str]
+    preferred_work_modes: list[str]
+    desired_levels: set[str]
+    excluded_levels: set[str]
+    career_track: str
+    years_experience: float
+    now: datetime
+
+
+def build_match_context(
+    profile,
+    resume_skills: list[str] | None = None,
+    *,
+    career_track: str | None = None,
+    now: datetime | None = None,
+) -> MatchContext:
+    """Build immutable-for-a-batch matching inputs once instead of once per job."""
+    profile_skills_ranked = [str(value).casefold() for value in loads(profile.skills_json, [])]
+    profile_skills = set(profile_skills_ranked)
+    cv_skills = {str(skill).casefold() for skill in (resume_skills or [])}
+    keywords = [str(value).casefold() for value in loads(profile.keywords_json, [])]
+    excluded = [str(value).casefold() for value in loads(profile.excluded_keywords_json, [])]
+    return MatchContext(
+        profile_skills_ranked=profile_skills_ranked,
+        profile_skills=profile_skills,
+        effective_skills=profile_skills | cv_skills,
+        desired_titles=[str(value).casefold() for value in loads(profile.desired_titles_json, [])],
+        locations=[str(value).casefold() for value in loads(profile.preferred_locations_json, [])],
+        keywords=keywords,
+        excluded=excluded,
+        preferred_work_modes=[str(value).casefold() for value in loads(getattr(profile, "preferred_work_modes_json", "[]"), [])],
+        desired_levels={level for level in SENIORITY_LEVELS if level in keywords},
+        excluded_levels={level for level in SENIORITY_LEVELS if level in excluded},
+        career_track=career_track or active_track(profile),
+        years_experience=float(profile.years_experience or 0),
+        now=now or datetime.now(timezone.utc),
+    )
+
+
 def _score_breakdown(reasons: list[dict]) -> dict[str, int]:
     """Convert explainable scoring events into stable 0–100 category bars.
 
@@ -206,10 +256,18 @@ def extract_skills(text: str) -> list[str]:
     return found
 
 
+@lru_cache(maxsize=512)
+def _compiled_variant_pattern(variant: str):
+    value = variant.casefold()
+    if value and value[0].isalnum() and value[-1].isalnum():
+        return re.compile(rf"(?<![\w]){re.escape(value)}(?![\w])")
+    return None
+
+
 def _contains_variant(text: str, variant: str) -> bool:
-    escaped = re.escape(variant.casefold())
-    if variant[0].isalnum() and variant[-1].isalnum():
-        return re.search(rf"(?<![\w]){escaped}(?![\w])", text) is not None
+    pattern = _compiled_variant_pattern(variant)
+    if pattern is not None:
+        return pattern.search(text) is not None
     return variant.casefold() in text
 
 
@@ -256,10 +314,11 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
     return False, "outside_iem_scope"
 
 
-def hard_exclusion_reason(job, profile) -> str | None:
+def hard_exclusion_reason(job, profile, excluded_keywords: list[str] | None = None) -> str | None:
     """Return a reason when the job title matches a profile exclusion."""
     title = str(getattr(job, "title", "") or "").casefold()
-    excluded = [str(value).casefold().strip() for value in loads(profile.excluded_keywords_json, []) if str(value).strip()]
+    raw_excluded = excluded_keywords if excluded_keywords is not None else loads(profile.excluded_keywords_json, [])
+    excluded = [str(value).casefold().strip() for value in raw_excluded if str(value).strip()]
     excluded_levels = {level for level in SENIORITY_LEVELS if level in excluded}
     for level in excluded_levels:
         if any(term in title for term in SENIORITY_LEVELS[level]):
@@ -270,20 +329,26 @@ def hard_exclusion_reason(job, profile) -> str | None:
     return None
 
 
-def score_job(job, profile, resume_skills: list[str] | None = None) -> MatchResult:
+def score_job(
+    job,
+    profile,
+    resume_skills: list[str] | None = None,
+    *,
+    context: MatchContext | None = None,
+) -> MatchResult:
+    context = context or build_match_context(profile, resume_skills)
     title = job.title.lower()
     text = f"{job.title} {job.description} {job.location}".lower()
-    profile_skills_ranked = [s.lower() for s in loads(profile.skills_json, [])]
-    profile_skills = set(profile_skills_ranked)
-    cv_skills = {str(skill).casefold() for skill in (resume_skills or [])}
-    effective_skills = profile_skills | cv_skills
-    desired_titles = [s.lower() for s in loads(profile.desired_titles_json, [])]
-    locations = [s.lower() for s in loads(profile.preferred_locations_json, [])]
-    keywords = [s.lower() for s in loads(profile.keywords_json, [])]
-    excluded = [s.lower() for s in loads(profile.excluded_keywords_json, [])]
-    preferred_work_modes = [s.lower() for s in loads(getattr(profile, "preferred_work_modes_json", "[]"), [])]
-    desired_levels = {level for level in SENIORITY_LEVELS if level in keywords}
-    excluded_levels = {level for level in SENIORITY_LEVELS if level in excluded}
+    profile_skills_ranked = context.profile_skills_ranked
+    profile_skills = context.profile_skills
+    effective_skills = context.effective_skills
+    desired_titles = context.desired_titles
+    locations = context.locations
+    keywords = context.keywords
+    excluded = context.excluded
+    preferred_work_modes = context.preferred_work_modes
+    desired_levels = context.desired_levels
+    excluded_levels = context.excluded_levels
     detected_levels = {
         level for level, variants in SENIORITY_LEVELS.items() if any(term in title for term in variants)
     }
@@ -308,7 +373,7 @@ def score_job(job, profile, resume_skills: list[str] | None = None) -> MatchResu
         score += 10
         reasons.append({"type": "positive", "label": "משרת כניסה/בוגרים", "points": 10})
 
-    career_track = active_track(profile)
+    career_track = context.career_track
     if career_track == COMPUTER_SCIENCE and any(term in title for term in DEV_TERMS):
         score += 5
         reasons.append({"type": "positive", "label": "תפקיד פיתוח רלוונטי", "points": 5})
@@ -362,14 +427,14 @@ def score_job(job, profile, resume_skills: list[str] | None = None) -> MatchResu
     exp_min, exp_max = extract_experience(text)
     if exp_min is None:
         reasons.append({"type": "neutral", "label": "דרישת הניסיון לא חד-משמעית", "points": 0})
-    elif exp_min <= max(1.0, profile.years_experience + 1):
+    elif exp_min <= max(1.0, context.years_experience + 1):
         score += 10
         reasons.append({"type": "positive", "label": f"ניסיון מתאים ({exp_min:g}+ שנים)", "points": 10})
-    elif exp_min <= profile.years_experience + 2:
+    elif exp_min <= context.years_experience + 2:
         score += 3
         reasons.append({"type": "neutral", "label": f"דרישת ניסיון מעט גבוהה ({exp_min:g}+)", "points": 3})
     else:
-        penalty = min(30, int((exp_min - profile.years_experience) * 8))
+        penalty = min(30, int((exp_min - context.years_experience) * 8))
         score -= penalty
         reasons.append({"type": "negative", "label": f"דרישת ניסיון גבוהה ({exp_min:g}+)", "points": -penalty})
 
@@ -413,7 +478,7 @@ def score_job(job, profile, resume_skills: list[str] | None = None) -> MatchResu
             published_at = published_at.replace(tzinfo=timezone.utc)
         else:
             published_at = published_at.astimezone(timezone.utc)
-        age_days = max(0, (datetime.now(timezone.utc) - published_at).days)
+        age_days = max(0, (context.now - published_at).days)
         if age_days <= 3:
             score += 5
             reasons.append({"type": "positive", "label": "משרה חדשה", "points": 5, "breakdown_points": 25})
@@ -439,7 +504,7 @@ def score_job(job, profile, resume_skills: list[str] | None = None) -> MatchResu
                 last_seen = last_seen.replace(tzinfo=timezone.utc)
             else:
                 last_seen = last_seen.astimezone(timezone.utc)
-            seen_age_days = max(0, (datetime.now(timezone.utc) - last_seen).days)
+            seen_age_days = max(0, (context.now - last_seen).days)
             if seen_age_days <= 2:
                 score += 2
                 reasons.append({

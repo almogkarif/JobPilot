@@ -87,6 +87,16 @@ def browser_page(live_server):
             launch_kwargs["executable_path"] = browser_path
         browser = playwright.chromium.launch(**launch_kwargs)
         context = browser.new_context(locale="he-IL")
+        # Company logos are cosmetic and use Google's remote favicon endpoint. Make
+        # the E2E suite deterministic/offline without weakening console-error checks.
+        context.route(
+            "https://www.google.com/s2/favicons**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="image/svg+xml",
+                body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"></svg>',
+            ),
+        )
         page = context.new_page()
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(f"pageerror: {error}"))
@@ -144,18 +154,26 @@ def test_each_white_profile_panel_has_save_and_save_clears_only_after_success(br
 
     panels = page.locator("#profile-form > article.panel")
     assert panels.count() == 3
-    for index in range(3):
-        assert panels.nth(index).locator('button[type="submit"]').count() >= 1
+    # Personal and preferences use scoped PATCH submit buttons; the answer-library pane
+    # intentionally uses explicit non-submit save actions because it persists a different resource.
+    assert panels.nth(0).locator('button[type="submit"]').count() >= 1
+    assert panels.nth(1).locator('button[type="submit"]').count() >= 1
+    # The answer-library pane is hidden while another profile section is active,
+    # so use stable DOM ids for presence and role-based checks after opening it.
+    assert panels.nth(2).locator("#save-answer-pane").count() == 1
     page.locator('[data-profile-section="automation"]').click()
+    assert panels.nth(2).get_by_role("button", name="שמור שינויים").is_visible()
     assert panels.nth(2).get_by_role("button", name="שמור את כל התשובות").count() == 1
     page.locator('[data-profile-section="personal"]').click()
     assert page.locator("#profile-form > button[type='submit']").count() == 0
+    # Loading saved data must not manufacture unsaved fields.
+    assert page.locator("#profile-nav-unsaved").is_hidden()
 
     email = page.locator('input[name="email"]')
     email.fill("saved@example.com")
     personal_panel = email.locator("xpath=ancestor::article[1]")
     personal_panel.get_by_role("button", name="שמור פרטים").click()
-    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    page.get_by_text("ההגדרה נשמרה", exact=True).wait_for(state="visible")
     assert email.locator("xpath=ancestor::label[1]").locator(".unsaved-note").count() == 0
     assert email.get_attribute("aria-invalid") == "false"
 
@@ -164,7 +182,7 @@ def test_each_white_profile_panel_has_save_and_save_clears_only_after_success(br
     skills.fill(skills.input_value() + ", Playwright")
     assert skills.locator("xpath=ancestor::label[1]").get_by_text("הנתון לא נשמר עדיין", exact=True).is_visible()
     skills.locator("xpath=ancestor::article[1]").get_by_role("button", name="שמור התאמה").click()
-    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    page.get_by_text("ההגדרה נשמרה", exact=True).wait_for(state="visible")
     assert skills.locator("xpath=ancestor::label[1]").locator(".unsaved-note").count() == 0
 
     page.locator('#nav button[data-view="applications"]').click()
@@ -187,13 +205,13 @@ def test_failed_save_keeps_draft_and_red_warning(browser_page):
     phone = page.locator('input[name="phone"]')
     phone.fill("0501234567")
 
-    def fail_profile_put(route: Route):
-        if route.request.method == "PUT":
+    def fail_profile_patch(route: Route):
+        if route.request.method == "PATCH":
             route.fulfill(status=500, content_type="application/json", body='{"detail":"forced test failure"}')
         else:
             route.continue_()
 
-    page.route("**/api/profile", fail_profile_put)
+    page.route("**/api/profile", fail_profile_patch)
     phone.locator("xpath=ancestor::article[1]").get_by_role("button", name="שמור פרטים").click()
     page.get_by_text("השמירה נכשלה: forced test failure", exact=True).wait_for(state="visible")
     assert phone.input_value() == "0501234567"
@@ -202,7 +220,7 @@ def test_failed_save_keeps_draft_and_red_warning(browser_page):
     page.get_by_role("button", name="מקורות").click()
     page.get_by_role("button", name="הפרופיל שלי").click()
     assert phone.input_value() == "0501234567"
-    page.unroute("**/api/profile", fail_profile_put)
+    page.unroute("**/api/profile", fail_profile_patch)
     errors[:] = [item for item in errors if "500 (Internal Server Error)" not in item]
 
 
@@ -223,8 +241,12 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     page.locator("#view-jobs.active").wait_for(state="visible")
     assert page.locator("#score-filter").input_value() == "80"
 
-    # Entire job cards are clickable, not only their small buttons.
+    # A fresh test workspace can legitimately have zero >=80 matches. Reset the
+    # filter before validating the independent "entire card is clickable" contract.
+    page.locator("#score-filter").select_option("0")
+    page.locator("#score-filter").dispatch_event("change")
     card = page.locator("#jobs-list .job-card").first
+    card.wait_for(state="visible")
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     page.get_by_role("button", name="הגשה עם בקרה").click()
@@ -232,6 +254,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
 
     # Application rows open job details.
     page.get_by_role("button", name="הגשות").click()
+    page.locator("#table-view").click()
     row = page.locator("#applications-list tbody tr").first
     row.wait_for(state="visible")
     row.click(position={"x": 200, "y": 20})
@@ -276,7 +299,7 @@ def test_languages_can_be_added_with_level_and_available_now(browser_page, live_
     page.locator("#available-now").click()
     assert page.locator('input[name="extra_available_start_date"]').input_value()
     page.get_by_role("button", name="שמור שפות והסמכות").click()
-    page.get_by_text("הפרופיל נשמר והמשרות דורגו מחדש", exact=True).wait_for(state="visible")
+    page.get_by_text("ההגדרה נשמרה", exact=True).wait_for(state="visible")
     profile = page.request.get(f"{live_server}/api/profile").json()
     assert {item["name"]: item["proficiency"] for item in profile["application_profile"]["languages"]} == {
         "Hebrew": "Native / Bilingual", "English": "Fluent", "Spanish": "Intermediate",
