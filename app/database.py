@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from fastapi import Request
-from sqlalchemy import create_engine, event, inspect, select, text
+from sqlalchemy import Text, create_engine, event, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker, with_loader_criteria
 
 from .config import settings
