@@ -296,6 +296,9 @@ def _postgres_multiuser_migration(connection) -> None:
         # legacy column harmless and backwards-compatible instead of rebuilding the
         # table: a server default lets current code insert new profiles safely.
         profile_columns = {c["name"]: c for c in inspect(connection).get_columns("profiles")}
+        password_column = profile_columns.get("application_password")
+        if password_column is not None and not isinstance(password_column.get("type"), Text):
+            connection.execute(text("ALTER TABLE profiles ALTER COLUMN application_password TYPE TEXT"))
         legacy_salary = profile_columns.get("salary_expectation")
         if legacy_salary is not None and legacy_salary.get("default") is None:
             connection.execute(text(
@@ -348,6 +351,30 @@ def _postgres_multiuser_migration(connection) -> None:
                 connection.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM "{safe_role}"'))
 
 
+
+def _migrate_plaintext_application_passwords(connection) -> None:
+    """Encrypt legacy profile credentials in place when stable key material exists."""
+    inspector = inspect(connection)
+    if "profiles" not in set(inspector.get_table_names()):
+        return
+    columns = {c["name"] for c in inspector.get_columns("profiles")}
+    if "application_password" not in columns:
+        return
+    from .security import credential_encryption_available, encrypt_credential, is_encrypted_credential
+    if not credential_encryption_available():
+        return
+    rows = connection.execute(text(
+        "SELECT id, application_password FROM profiles WHERE application_password IS NOT NULL AND application_password <> ''"
+    )).all()
+    for profile_id, value in rows:
+        value = str(value or "")
+        if not value or is_encrypted_credential(value):
+            continue
+        connection.execute(
+            text("UPDATE profiles SET application_password=:encrypted WHERE id=:profile_id"),
+            {"encrypted": encrypt_credential(value), "profile_id": profile_id},
+        )
+
 def ensure_compatibility_columns() -> None:
     """Apply additive compatibility migrations for local and cloud installations."""
     with engine.begin() as connection:
@@ -355,6 +382,7 @@ def ensure_compatibility_columns() -> None:
             _sqlite_additive_migrations(connection)
         elif engine.dialect.name == "postgresql":
             _postgres_multiuser_migration(connection)
+        _migrate_plaintext_application_passwords(connection)
 
 
 def get_db(request: Request):

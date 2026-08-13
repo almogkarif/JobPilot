@@ -847,7 +847,7 @@ $('#modal').addEventListener('click', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeModal();
+  if (event.key === 'Escape') { closeModal(); setMobileTabMenu(false); }
   if (event.key === 'Tab' && $('#modal').classList.contains('open')) {
     const focusable = $$('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]', $('#modal'));
     if (!focusable.length) return;
@@ -871,9 +871,8 @@ function switchView(view, options = {}) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
-  const mobileMoreViews = new Set(['preferences', 'blockers', 'skills', 'sources']);
-  $('#mobile-more')?.classList.toggle('active', mobileMoreViews.has(view));
-  setMobileNavSheet(false);
+  updateMobileTabDock(view);
+  setMobileTabMenu(false);
   $('#page-title').textContent = ({
     dashboard: 'לוח בקרה', jobs: 'משרות', applications: 'הגשות', blockers: 'דורש טיפול', skills: 'סקילים',
     sources: 'מקורות', preferences: 'העדפות חיפוש', profile: 'הפרופיל שלי',
@@ -903,30 +902,51 @@ $$('[data-view]').forEach((button) => {
   button.onclick = () => switchView(button.dataset.view);
 });
 
-function setMobileNavSheet(open) {
+const MOBILE_VIEW_META = {
+  dashboard: { label: 'לוח בקרה', icon: '⌂' },
+  jobs: { label: 'משרות', icon: '▣' },
+  preferences: { label: 'העדפות חיפוש', icon: '≡' },
+  applications: { label: 'הגשות', icon: '✓' },
+  blockers: { label: 'דורש טיפול', icon: '!' },
+  skills: { label: 'סקילים', icon: '◇' },
+  sources: { label: 'מקורות', icon: '◎' },
+  profile: { label: 'הפרופיל שלי', icon: '◉' },
+};
+
+function updateMobileTabDock(view) {
+  const meta = MOBILE_VIEW_META[view] || MOBILE_VIEW_META.dashboard;
+  const label = $('#mobile-tab-current-label');
+  const icon = $('#mobile-tab-current-icon');
+  if (label) label.textContent = meta.label;
+  if (icon) icon.textContent = meta.icon;
+}
+
+function setMobileTabMenu(open) {
   const backdrop = $('#mobile-nav-backdrop');
-  const more = $('#mobile-more');
-  if (!backdrop) return;
-  const visible = Boolean(open);
+  const dock = $('#mobile-tab-dock');
+  const menu = $('#mobile-tab-menu');
+  const trigger = $('#mobile-tab-trigger');
+  if (!backdrop || !dock || !menu || !trigger) return;
+  const visible = Boolean(open) && window.innerWidth <= 760;
+  if (visible) { closeNotifications(); setCareerMenu(false); }
   backdrop.classList.toggle('open', visible);
   backdrop.setAttribute('aria-hidden', visible ? 'false' : 'true');
-  more?.setAttribute('aria-expanded', String(visible));
+  dock.classList.toggle('open', visible);
+  menu.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  trigger.setAttribute('aria-expanded', String(visible));
   document.body.classList.toggle('mobile-nav-open', visible);
 }
 
 $$('[data-mobile-view]').forEach((button) => {
   button.onclick = () => {
-    setMobileNavSheet(false);
+    setMobileTabMenu(false);
     switchView(button.dataset.mobileView);
   };
 });
-$('#mobile-more').onclick = () => setMobileNavSheet(!$('#mobile-nav-backdrop')?.classList.contains('open'));
-$('#mobile-nav-close').onclick = () => setMobileNavSheet(false);
-$('#mobile-nav-backdrop').addEventListener('click', (event) => {
-  if (event.target.id === 'mobile-nav-backdrop') setMobileNavSheet(false);
-});
+$('#mobile-tab-trigger').onclick = () => setMobileTabMenu(!$('#mobile-tab-dock')?.classList.contains('open'));
+$('#mobile-nav-backdrop').addEventListener('click', () => setMobileTabMenu(false));
 window.addEventListener('resize', () => {
-  if (window.innerWidth > 760) setMobileNavSheet(false);
+  if (window.innerWidth > 760) setMobileTabMenu(false);
 });
 
 function switchProfileSection(section) {
@@ -2921,6 +2941,7 @@ function closeNotifications() {
   $('#notification-trigger').setAttribute('aria-expanded','false');
 }
 $('#notification-trigger').onclick = () => {
+  setMobileTabMenu(false);
   renderNotificationCenter();
   const open = $('#notification-center').classList.toggle('open');
   $('#notification-center').setAttribute('aria-hidden', String(!open));

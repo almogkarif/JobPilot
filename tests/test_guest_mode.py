@@ -59,6 +59,7 @@ def test_guest_workspace_falls_back_to_read_only_demo_jobs_when_no_admin_catalog
     # temporary admin identities, so relying on global DB state makes this test
     # order-dependent and can accidentally switch it to the live admin catalog.
     monkeypatch.setattr(main, '_primary_admin_user_id', lambda _db: '')
+    monkeypatch.setattr(auth, '_guest_has_live_admin_catalog', lambda _db: False)
     monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
         user_id=user_id, provider='anonymous', role='guest', is_guest=True
     ))
@@ -91,6 +92,7 @@ def test_guest_workspace_repairs_a_partial_profile_before_auth_completes(monkeyp
     _cleanup_guest(user_id)
     monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
     monkeypatch.setattr(main.settings, 'storage_mode', 'local')
+    monkeypatch.setattr(auth, '_guest_has_live_admin_catalog', lambda _db: False)
     monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
         user_id=user_id, provider='anonymous', role='guest', is_guest=True
     ))
@@ -178,6 +180,10 @@ def test_guest_reads_primary_admin_live_jobs_without_admin_application_state(mon
             assert dashboard_payload['total_jobs'] >= 1
             assert any(item['id'] == admin_job_id for item in dashboard_payload['recent_jobs'])
             assert dashboard_payload['submitted'] == 0
+
+        with user_session(guest_id) as db:
+            assert db.scalars(select(Source)).all() == []
+            assert db.scalars(select(Job)).all() == []
     finally:
         _cleanup_guest(guest_id)
         _cleanup_guest(admin_id)

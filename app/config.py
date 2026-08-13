@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     allowed_emails: str = ""  # comma-separated; empty means any authenticated user up to max_users
     max_concurrent_user_scans: int = 2
     application_agent_owner_email: str = ""
+    credential_encryption_key: str = ""  # stable secret for encrypting application passwords at rest
     allow_legacy_agent_token: bool = False
     supabase_url: str = ""
     supabase_publishable_key: str = ""

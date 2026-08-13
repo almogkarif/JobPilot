@@ -9,6 +9,7 @@ import io
 import json
 import secrets
 import shutil
+import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -65,6 +66,7 @@ from .utils import dumps, loads
 from .auth import (application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
                    create_agent_device, device_dict, require_application_agent_owner)
 from .storage import cloud_storage_enabled, delete_ref, ensure_cloud_bucket, materialized_file, read_bytes, save_bytes
+from .security import decrypt_credential, encrypt_credential
 
 STATIC_DIR = BASE_DIR / "app" / "static"
 DATA_DIR = BASE_DIR / "data"
@@ -349,12 +351,16 @@ def favicon():
 
 @app.middleware("http")
 async def disable_frontend_cache(request: Request, call_next):
-    """Always serve the newest local UI after an update or repair."""
+    """Always serve the newest local UI and attach baseline browser security headers."""
     response = await call_next(request)
     if request.url.path == "/" or request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     return response
 
 
@@ -857,7 +863,7 @@ def _apply_profile_changes(
 
     # Blank/omitted means keep the encrypted-at-rest application password value.
     if values.get("application_password"):
-        profile.application_password = values["application_password"]
+        profile.application_password = encrypt_credential(values["application_password"])
 
     list_fields = {"skills", "desired_titles", "preferred_locations", "preferred_work_modes", "keywords", "excluded_keywords"}
     for field in list_fields & values.keys():
@@ -936,6 +942,48 @@ def _resume_content_type(filename: str, supplied: str | None) -> str:
     return known.get(suffix) or supplied or "application/octet-stream"
 
 
+def _validate_resume_bytes(content: bytes, suffix: str) -> None:
+    """Reject extension-spoofed or obviously malformed resume uploads."""
+    suffix = suffix.casefold()
+    valid = False
+    if suffix == ".pdf":
+        valid = content.startswith(b"%PDF-") and b"%%EOF" in content[-2048:]
+    elif suffix == ".rtf":
+        valid = content.lstrip().startswith(b"{\\rtf") and content.rstrip().endswith(b"}")
+    elif suffix == ".doc":
+        valid = content.startswith(bytes.fromhex("D0CF11E0A1B11AE1"))
+    elif suffix == ".docx":
+        if content.startswith(b"PK\x03\x04"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                    names = set(archive.namelist())
+                    valid = "[Content_Types].xml" in names and "word/document.xml" in names
+            except (zipfile.BadZipFile, OSError):
+                valid = False
+    elif suffix == ".txt":
+        if b"\x00" not in content:
+            try:
+                content.decode("utf-8-sig")
+                valid = True
+            except UnicodeDecodeError:
+                valid = False
+    if not valid:
+        raise HTTPException(400, "Resume content does not match its file type")
+
+
+def _detect_image_type(content: bytes) -> tuple[str, str]:
+    if (len(content) >= 24 and content.startswith(b"\x89PNG\r\n\x1a\n")
+            and content[12:16] == b"IHDR" and b"IEND" in content[-32:]):
+        return ".png", "image/png"
+    if len(content) >= 4 and content.startswith(b"\xff\xd8\xff") and content.endswith(b"\xff\xd9"):
+        return ".jpg", "image/jpeg"
+    if len(content) >= 20 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        declared_size = int.from_bytes(content[4:8], "little") + 8
+        if declared_size == len(content):
+            return ".webp", "image/webp"
+    raise HTTPException(400, "Screenshot must be a valid PNG, JPEG or WebP image")
+
+
 @app.post("/api/profile/resume")
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
     allowed = {".pdf", ".doc", ".docx", ".txt", ".rtf"}
@@ -945,6 +993,7 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     content = await file.read(10 * 1024 * 1024 + 1)
     if not content or len(content) > 10 * 1024 * 1024:
         raise HTTPException(400 if not content else 413, "Resume must be 1 byte–10 MB")
+    _validate_resume_bytes(content, suffix)
     safe_name = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
     original_name = file.filename or safe_name
     try:
@@ -1011,6 +1060,7 @@ async def add_resume(label: str = Form(...), skills: str = Form(""), is_default:
     content = await file.read(10 * 1024 * 1024 + 1)
     if not content or len(content) > 10 * 1024 * 1024:
         raise HTTPException(400 if not content else 413, "Resume must be 1 byte–10 MB")
+    _validate_resume_bytes(content, suffix)
     safe_name = f"resume_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
     original_name = file.filename or safe_name
     try:
@@ -1685,7 +1735,11 @@ def blocker_screenshot(blocker_id: int, db: Session = Depends(get_db)):
         content = read_bytes(blocker.screenshot_path)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(404, "Screenshot not found") from exc
-    return Response(content=content, media_type="image/png", headers={"Cache-Control": "private, no-store"})
+    try:
+        _, media_type = _detect_image_type(content)
+    except HTTPException as exc:
+        raise HTTPException(404, "Screenshot not found") from exc
+    return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 
 @app.post("/api/blockers/{blocker_id}/resolve")
@@ -1835,7 +1889,8 @@ def create_backup(db: Session = Depends(get_db)):
     payload = {
         "version": 2,
         "created_at": utcnow().isoformat(),
-        "profile": _agent_profile_dict(profile),
+        # Credentials are intentionally excluded from portable backups.
+        "profile": _profile_dict(profile),
         "career_tracks": {
             "active_track": active_track(profile),
             "profiles": track_states,
@@ -1869,11 +1924,13 @@ async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get
     # when no multi-track bundle exists.
     shared_scalar_fields = [
         "full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url",
-        "application_password", "work_authorization", "needs_sponsorship",
+        "work_authorization", "needs_sponsorship",
     ]
     for field in shared_scalar_fields:
         if field in saved:
             setattr(profile, field, saved[field])
+    if saved.get("application_password"):
+        profile.application_password = encrypt_credential(saved["application_password"])
     if "application_profile" in saved:
         profile.application_profile_json = dumps(saved["application_profile"])
 
@@ -1914,7 +1971,13 @@ async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get
             continue
         suffix = Path(item.get("filename") or "resume.pdf").suffix.lower()
         if suffix not in {".pdf", ".doc", ".docx", ".txt", ".rtf"}:
-            suffix = ".pdf"
+            continue
+        try:
+            _validate_resume_bytes(content, suffix)
+        except HTTPException:
+            # Portable backups are user-supplied input too. Never let restore bypass
+            # the same file-signature checks enforced by normal resume uploads.
+            continue
         safe_name = f"restored_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
         stored_ref = save_bytes("resumes", safe_name, content, "application/pdf" if suffix == ".pdf" else "application/octet-stream", owner_key=current_user_id(db))
         resume = ResumeProfile(
@@ -2179,8 +2242,9 @@ async def agent_upload_screenshot(application_id: int, token: str = Form(...), a
     content = await file.read(8 * 1024 * 1024 + 1)
     if not content or len(content) > 8 * 1024 * 1024:
         raise HTTPException(413 if content else 400, "Screenshot must be 1 byte–8 MB")
-    name = f"application_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.png"
-    stored_ref = save_bytes("screenshots", name, content, file.content_type or "image/png", owner_key=current_user_id(db))
+    suffix, content_type = _detect_image_type(content)
+    name = f"application_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
+    stored_ref = save_bytes("screenshots", name, content, content_type, owner_key=current_user_id(db))
     return {"screenshot_ref": stored_ref}
 
 
@@ -2379,7 +2443,7 @@ def _profile_dict(p: Profile) -> dict:
 
 def _agent_profile_dict(p: Profile) -> dict:
     data = _profile_dict(p)
-    data["application_password"] = p.application_password
+    data["application_password"] = decrypt_credential(p.application_password)
     return data
 
 

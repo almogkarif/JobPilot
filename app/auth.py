@@ -127,6 +127,12 @@ def _claim_legacy_rows(db: Session, user_id: str) -> None:
         db.execute(text(f"UPDATE {table} SET user_id=:uid WHERE user_id='legacy-owner'"), {"uid": user_id})
 
 
+def _guest_has_live_admin_catalog(db: Session) -> bool:
+    owner_email = str(settings.owner_email or "").strip().casefold()
+    predicate = (func.lower(AppIdentity.email) == owner_email) if owner_email else (AppIdentity.role == "admin")
+    return bool(db.scalar(select(AppIdentity.id).where(predicate).limit(1)))
+
+
 def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool) -> None:
     set_user_scope(db, identity.user_id)
 
@@ -136,14 +142,19 @@ def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool)
     # data instead of treating the mere presence of a profile as "ready".
     if identity.is_guest:
         from .services.seed import initialize_database
+        admin_exists = _guest_has_live_admin_catalog(db)
         try:
-            initialize_database(db, full_name="", email="", demo_only=True)
+            initialize_database(
+                db, full_name="", email="", demo_only=not admin_exists, profile_only=admin_exists
+            )
         except IntegrityError:
             # Two first requests for the same freshly-issued anonymous Supabase user
             # can race on the unique profile row. The winner commits a valid tenant;
             # the loser rolls back and then idempotently reconciles that workspace.
             db.rollback()
-            initialize_database(db, full_name="", email="", demo_only=True)
+            initialize_database(
+                db, full_name="", email="", demo_only=not admin_exists, profile_only=admin_exists
+            )
         return
 
     profile = db.scalar(select(Profile).limit(1))

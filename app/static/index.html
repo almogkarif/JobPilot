@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.45.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.45.2" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -76,6 +76,23 @@
         <i class="brand-flight-dot" id="brand-flight-dot" aria-hidden="true"></i>
         <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot" id="brand-i-dot"></span></span>lot</strong><span class="brand-tagline" id="brand-tagline">חיפוש משרות חכם</span></div>
       </div>
+      <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט בין אזורים במובייל">
+        <button id="mobile-tab-trigger" class="mobile-tab-trigger" type="button" aria-label="פתח תפריט ניווט בין אזורים" aria-describedby="mobile-tab-current-label" aria-expanded="false" aria-controls="mobile-tab-menu">
+          <span id="mobile-tab-current-icon" class="mobile-tab-current-icon" aria-hidden="true">⌂</span>
+          <span class="mobile-tab-current-copy"><small>אתה נמצא ב</small><strong id="mobile-tab-current-label">לוח בקרה</strong></span>
+          <span class="mobile-tab-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div id="mobile-tab-menu" class="mobile-tab-menu" aria-hidden="true">
+          <button type="button" data-mobile-view="dashboard" data-mobile-icon="⌂" class="active"><span aria-hidden="true">⌂</span><strong>לוח בקרה</strong><small>תמונת מצב כללית</small></button>
+          <button type="button" data-mobile-view="jobs" data-mobile-icon="▣"><span aria-hidden="true">▣</span><strong>משרות</strong><small>התאמות והזדמנויות</small></button>
+          <button type="button" data-mobile-view="preferences" data-mobile-icon="≡"><span aria-hidden="true">≡</span><strong>העדפות חיפוש</strong><small>תפקידים, ניסיון ומיקום</small></button>
+          <button type="button" data-mobile-view="applications" data-mobile-icon="✓"><span aria-hidden="true">✓</span><strong>הגשות</strong><small>מעקב אחר מועמדויות</small></button>
+          <button type="button" data-mobile-view="blockers" data-mobile-icon="!"><span aria-hidden="true">!</span><strong>דורש טיפול</strong><small>פעולות שממתינות לך</small></button>
+          <button type="button" data-mobile-view="skills" data-mobile-icon="◇"><span aria-hidden="true">◇</span><strong>סקילים</strong><small>יכולות ופערי ידע</small></button>
+          <button type="button" data-mobile-view="sources" data-mobile-icon="◎"><span aria-hidden="true">◎</span><strong>מקורות</strong><small>אתרי הקריירה והסריקות</small></button>
+          <button type="button" data-mobile-view="profile" data-mobile-icon="◉"><span aria-hidden="true">◉</span><strong>הפרופיל שלי</strong><small>פרטים ושאלות הגשה</small></button>
+        </div>
+      </nav>
       <nav id="nav">
         <button data-view="dashboard" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="6.5" rx="2"/><rect x="13.5" y="4" width="7" height="10" rx="2"/><rect x="3.5" y="13.5" width="7" height="6.5" rx="2"/><path class="nav-accent" d="M14.8 18.5h4.4M17 16.3v4.4"/></svg></span><span class="nav-label">לוח בקרה<small>תמונת מצב כללית</small></span></button>
         <button data-view="jobs"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.8h18v10a2.2 2.2 0 0 1-2.2 2.2H5.2A2.2 2.2 0 0 1 3 17.8v-10Z"/><path d="M8.5 7.8V6.2A1.7 1.7 0 0 1 10.2 4.5h3.6a1.7 1.7 0 0 1 1.7 1.7v1.6M3 12c5.2 2.35 12.8 2.35 18 0"/><circle class="nav-accent" cx="12" cy="13" r="1.35"/></svg></span><span class="nav-label">משרות<small>התאמות והזדמנויות</small></span></button>
@@ -405,32 +422,12 @@
     </main>
   </div>
 
-  <nav id="mobile-bottom-nav" class="mobile-bottom-nav" aria-label="ניווט ראשי במובייל">
-    <button type="button" data-mobile-view="dashboard" class="active" aria-label="לוח בקרה"><span aria-hidden="true">⌂</span><small>בית</small></button>
-    <button type="button" data-mobile-view="jobs" aria-label="משרות"><span aria-hidden="true">▣</span><small>משרות</small></button>
-    <button type="button" data-mobile-view="applications" aria-label="הגשות"><span aria-hidden="true">✓</span><small>הגשות</small></button>
-    <button type="button" data-mobile-view="profile" aria-label="הפרופיל שלי"><span aria-hidden="true">◉</span><small>פרופיל</small></button>
-    <button type="button" id="mobile-more" aria-label="עוד אפשרויות" aria-expanded="false"><span aria-hidden="true">•••</span><small>עוד</small></button>
-  </nav>
-
-  <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true">
-    <section id="mobile-nav-sheet" class="mobile-nav-sheet" role="dialog" aria-modal="true" aria-label="עוד אזורים ב־JobPilot">
-      <div class="mobile-sheet-handle" aria-hidden="true"></div>
-      <div class="mobile-sheet-head"><div><span class="kicker">JobPilot</span><h2>כלים נוספים</h2></div><button type="button" id="mobile-nav-close" aria-label="סגור">×</button></div>
-      <div class="mobile-menu-grid">
-        <button type="button" data-mobile-view="preferences"><span aria-hidden="true">≡</span><strong>העדפות חיפוש</strong><small>תפקידים, ניסיון ומיקום</small></button>
-        <button type="button" data-mobile-view="blockers"><span aria-hidden="true">!</span><strong>דורש טיפול</strong><small>פעולות שממתינות לך</small></button>
-        <button type="button" data-mobile-view="skills"><span aria-hidden="true">◇</span><strong>סקילים</strong><small>יכולות ופערי ידע</small></button>
-        <button type="button" data-mobile-view="sources"><span aria-hidden="true">◎</span><strong>מקורות</strong><small>אתרי הקריירה והסריקות</small></button>
-      </div>
-      <p class="mobile-sheet-note">הניווט התחתון שומר את האזורים המרכזיים בהישג אגודל; כל שאר הכלים נמצאים כאן בלי להעמיס על המסך.</p>
-    </section>
-  </div>
+  <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true"></div>
 
   <div id="modal" class="modal" aria-hidden="true"><div class="modal-card"><button class="modal-close">×</button><div id="modal-content"></div></div></div>
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.26.0"></script>
+  <script src="/static/app.js?v=0.26.1"></script>
 </body>
 </html>

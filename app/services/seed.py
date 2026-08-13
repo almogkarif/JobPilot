@@ -12,7 +12,7 @@ from .source_catalog import install_recommended_sources
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ensure_track_state
 
 
-def initialize_database(db: Session, *, full_name: str | None = None, email: str = "", demo_only: bool = False) -> None:
+def initialize_database(db: Session, *, full_name: str | None = None, email: str = "", demo_only: bool = False, profile_only: bool = False) -> None:
     """Ensure the currently scoped user has a complete JobPilot workspace.
 
     Local mode preserves the original starter profile. Cloud accounts start neutral so
@@ -49,6 +49,12 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
         db.flush()
     else:
         db.commit()
+
+    if profile_only:
+        # Guests backed by a live admin catalog need only an isolated profile to hold
+        # their active career-track selection. Avoid creating disposable sources/jobs.
+        db.commit()
+        return
 
     # Real accounts receive tenant-owned copies of the source catalog. Anonymous
     # portfolio sessions stay intentionally lightweight: they get only demo rows,

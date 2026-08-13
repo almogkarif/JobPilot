@@ -72,19 +72,31 @@ def test_mobile_layout_has_explicit_rtl_vertical_flow():
     assert '.auth-form input[type="email"],.auth-password-field input { direction:ltr; text-align:left; }' in CSS
 
 
-def test_mobile_redesign_uses_bottom_navigation_sheet_and_phone_first_job_layout():
-    assert 'id="mobile-bottom-nav"' in HTML
-    assert 'id="mobile-nav-sheet"' in HTML
+def test_mobile_redesign_uses_top_right_floating_tab_dock_and_phone_first_job_layout():
+    assert 'id="mobile-tab-dock"' in HTML
+    assert 'id="mobile-tab-trigger"' in HTML
+    assert 'aria-label="פתח תפריט ניווט בין אזורים"' in HTML
+    assert 'id="mobile-tab-menu"' in HTML
+    assert 'id="mobile-bottom-nav"' not in HTML
     assert 'data-mobile-view="jobs"' in HTML
+    assert 'data-mobile-view="profile"' in HTML
     assert 'viewport-fit=cover' in HTML
     assert '/* v0.3.2 — mobile app redesign:' in CSS
-    assert '.mobile-bottom-nav {' in CSS
-    assert 'position:fixed; z-index:60;' in CSS
+    assert '/* The current tab is the mobile dock:' in CSS
+    assert '.mobile-tab-dock {' in CSS
+    assert 'position:relative; z-index:82;' in CSS
+    assert '.mobile-tab-menu {' in CSS
+    assert 'top:calc(100% + 9px); right:0;' in CSS
+    assert '.mobile-nav-backdrop {' in CSS
+    assert 'z-index:39;' in CSS
     assert '.jobs-toolbar {' in CSS
     assert 'position:sticky; top:72px;' in CSS
     assert '.modal { align-items:flex-end; justify-content:center; padding:0; }' in CSS
-    assert "function setMobileNavSheet(open)" in JS
+    assert 'function setMobileTabMenu(open)' in JS
+    assert 'function updateMobileTabDock(view)' in JS
+    assert 'if (visible) { closeNotifications(); setCareerMenu(false); }' in JS
+    assert "setMobileTabMenu(false);\n  renderNotificationCenter();" in JS
     assert "$$('[data-mobile-view]')" in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.26.0' in HTML
-    assert 'styles.css?v=0.45.0' in HTML
+    assert 'app.js?v=0.26.1' in HTML
+    assert 'styles.css?v=0.45.2' in HTML

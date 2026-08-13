@@ -2478,28 +2478,67 @@ body.theme-dark.track-industrial-engineering :where(
 
 /* v0.3.2 — mobile app redesign: mobile is a dedicated information architecture,
    not a compressed desktop canvas. */
-.mobile-bottom-nav,.mobile-nav-backdrop { display:none; }
+.mobile-tab-dock,.mobile-nav-backdrop { display:none; }
 
 @media (max-width:760px) {
   :root { --mobile-safe-bottom:max(10px,env(safe-area-inset-bottom)); }
   html,body { min-height:100%; overflow-x:hidden; }
-  body { padding-bottom:calc(78px + var(--mobile-safe-bottom)); }
+  body { padding-bottom:0; }
 
   .app-shell { display:flex; flex-direction:column; min-height:100dvh; width:100%; }
   .sidebar {
     position:sticky !important; top:0; z-index:40; order:0; width:100%; height:64px; min-height:64px;
     display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 14px;
     border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--panel) 92%,transparent);
-    box-shadow:0 8px 24px rgba(20,59,88,.08); backdrop-filter:blur(20px);
+    box-shadow:0 8px 24px rgba(0,0,0,.08); backdrop-filter:blur(20px);
   }
-  .sidebar .brand { position:relative; inset:auto; width:auto; min-width:0; gap:8px; }
+  .sidebar .brand { position:relative; inset:auto; width:42px; min-width:42px; min-height:42px; flex:0 0 42px; gap:0; padding:0; }
   .sidebar .brand-mark { width:42px; height:42px; flex:0 0 42px; border-radius:13px; }
-  .sidebar .brand strong { font-size:18px; line-height:1; }
-  .sidebar .brand-tagline { margin-top:2px; font-size:8px; white-space:nowrap; }
-  .sidebar .brand-flight-dot { transform:scale(.72); transform-origin:center; }
+  .sidebar .brand > div,.sidebar .brand-flight-dot { display:none !important; }
   .sidebar #nav,.sidebar-footer { display:none !important; }
-  .dock-utility { position:static !important; inset:auto !important; display:flex; margin:0; }
+  .dock-utility { position:static !important; inset:auto !important; display:flex; margin:0; margin-inline-start:auto; flex:0 0 auto; }
   .dock-utility .icon-action { width:42px; height:42px; border-radius:13px; }
+
+  /* The current tab is the mobile dock: a sticky top-right pill with a downward floating menu. */
+  .mobile-tab-dock {
+    position:relative; z-index:82; order:-1; display:block; width:min(174px,calc(100vw - 138px)); min-width:126px; flex:0 1 174px;
+  }
+  .mobile-tab-trigger {
+    width:100%; height:46px; display:grid; grid-template-columns:30px minmax(0,1fr) 18px; align-items:center; gap:7px;
+    padding:5px 9px; border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line)); border-radius:15px;
+    background:color-mix(in srgb,var(--panel) 95%,transparent); color:var(--ink); box-shadow:0 9px 24px rgba(0,0,0,.13);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); text-align:right; font:inherit; cursor:pointer;
+  }
+  .mobile-tab-current-icon { width:30px; height:30px; display:grid; place-items:center; border-radius:10px; background:var(--brand-soft); color:var(--brand); font-size:16px; font-weight:900; }
+  .mobile-tab-current-copy { min-width:0; display:grid; gap:0; line-height:1.08; }
+  .mobile-tab-current-copy small { color:var(--muted); font-size:7px; font-weight:700; }
+  .mobile-tab-current-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; font-weight:850; }
+  .mobile-tab-chevron { display:grid; place-items:center; color:var(--muted); font-size:15px; transition:transform .2s var(--ease-apple-out); }
+  .mobile-tab-dock.open .mobile-tab-chevron { transform:rotate(180deg); }
+  .mobile-tab-dock.open .mobile-tab-trigger { border-color:color-mix(in srgb,var(--brand) 45%,var(--line)); box-shadow:0 14px 34px rgba(0,0,0,.18); }
+  .mobile-tab-menu {
+    position:absolute; top:calc(100% + 9px); right:0; width:min(286px,calc(100vw - 24px)); max-height:calc(100dvh - 86px); overflow:auto;
+    display:grid; gap:5px; padding:8px; border:1px solid var(--line); border-radius:19px; background:color-mix(in srgb,var(--panel) 97%,transparent);
+    box-shadow:0 22px 58px rgba(5,28,45,.24); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+    opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-7px) scale(.98); transform-origin:top right;
+    transition:opacity .16s ease,transform .2s var(--ease-apple-out),visibility .16s ease; overscroll-behavior:contain;
+  }
+  .mobile-tab-dock.open .mobile-tab-menu { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+  .mobile-tab-menu button {
+    width:100%; min-height:52px; display:grid; grid-template-columns:34px minmax(0,1fr); grid-template-rows:auto auto; column-gap:9px;
+    align-items:center; padding:8px 9px; border:1px solid transparent; border-radius:14px; background:transparent; color:var(--ink); text-align:right; font:inherit; cursor:pointer;
+  }
+  .mobile-tab-menu button > span { grid-row:1 / span 2; width:34px; height:34px; display:grid; place-items:center; border-radius:11px; background:var(--surface-soft); color:var(--muted); font-size:15px; font-weight:900; }
+  .mobile-tab-menu button strong { font-size:10px; line-height:1.2; }
+  .mobile-tab-menu button small { color:var(--muted); font-size:8px; line-height:1.3; }
+  .mobile-tab-menu button.active { border-color:color-mix(in srgb,var(--brand) 34%,var(--line)); background:color-mix(in srgb,var(--brand-soft) 66%,var(--panel)); }
+  .mobile-tab-menu button.active > span { background:var(--brand-soft); color:var(--brand); }
+  .mobile-nav-backdrop {
+    position:fixed; z-index:39; inset:0; display:block; background:rgba(3,16,26,.10); opacity:0; visibility:hidden; pointer-events:none;
+    backdrop-filter:blur(1.5px); -webkit-backdrop-filter:blur(1.5px); transition:opacity .16s ease,visibility .16s ease;
+  }
+  .mobile-nav-backdrop.open { opacity:1; visibility:visible; pointer-events:auto; }
+  body.mobile-nav-open { overflow:hidden; }
 
   main { order:1; width:100%; min-width:0; padding:10px 12px 22px; text-align:right; }
   .topbar {
@@ -2573,7 +2612,7 @@ body.theme-dark.track-industrial-engineering :where(
   .jobs-toolbar {
     position:sticky; top:72px; z-index:18; display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
     gap:8px; padding:10px; margin-bottom:8px; border-radius:18px; background:color-mix(in srgb,var(--panel) 96%,transparent);
-    box-shadow:0 10px 24px rgba(20,59,88,.09); backdrop-filter:blur(18px);
+    box-shadow:0 10px 24px rgba(0,0,0,.09); backdrop-filter:blur(18px);
   }
   .job-search-field { grid-column:1 / -1; width:100%; min-height:48px; }
   .filter-control { width:100%; min-width:0; min-height:44px; }
@@ -2632,53 +2671,13 @@ body.theme-dark.track-industrial-engineering :where(
   .auth-google,.auth-submit,.auth-guest { min-height:50px; }
   .auth-footnote { padding-inline:8px; font-size:8px; line-height:1.45; }
 
-  /* Fixed bottom navigation for thumb reach. */
-  .mobile-bottom-nav {
-    position:fixed; z-index:60; right:10px; left:10px; bottom:var(--mobile-safe-bottom); height:64px;
-    display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:center; gap:2px; padding:5px;
-    border:1px solid color-mix(in srgb,var(--line) 88%,transparent); border-radius:22px;
-    background:color-mix(in srgb,var(--panel) 94%,transparent); box-shadow:0 16px 42px rgba(10,42,65,.19); backdrop-filter:blur(22px);
-  }
-  .mobile-bottom-nav button {
-    min-width:0; height:54px; display:grid; place-items:center; align-content:center; gap:2px; padding:2px;
-    border:0; border-radius:17px; background:transparent; color:var(--muted); font:inherit;
-  }
-  .mobile-bottom-nav button > span { min-width:28px; height:28px; display:grid; place-items:center; border-radius:10px; font-size:17px; font-weight:850; }
-  .mobile-bottom-nav button small { font-size:8px; font-weight:780; }
-  .mobile-bottom-nav button.active { color:var(--brand); }
-  .mobile-bottom-nav button.active > span { background:var(--brand-soft); color:var(--brand); }
-
-  .mobile-nav-backdrop {
-    position:fixed; z-index:70; inset:0; display:flex; align-items:flex-end; justify-content:center; padding:0;
-    background:rgba(3,16,26,.38); opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s ease,visibility .2s ease;
-  }
-  .mobile-nav-backdrop.open { opacity:1; visibility:visible; pointer-events:auto; }
-  .mobile-nav-sheet {
-    width:100%; padding:8px 14px calc(18px + env(safe-area-inset-bottom)); border:1px solid var(--line); border-bottom:0;
-    border-radius:26px 26px 0 0; background:var(--panel); box-shadow:0 -18px 50px rgba(5,24,38,.2);
-    transform:translateY(22px); transition:transform .24s var(--ease-apple-out);
-  }
-  .mobile-nav-backdrop.open .mobile-nav-sheet { transform:translateY(0); }
-  .mobile-sheet-handle { width:44px; height:4px; margin:0 auto 10px; border-radius:999px; background:var(--line-strong); }
-  .mobile-sheet-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-  .mobile-sheet-head h2 { margin:1px 0 0; font-size:18px; }
-  .mobile-sheet-head > button { width:36px; height:36px; border:1px solid var(--line); border-radius:12px; background:var(--surface-soft); color:var(--ink); font-size:20px; }
-  .mobile-menu-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-  .mobile-menu-grid button { min-width:0; min-height:84px; display:grid; grid-template-columns:34px minmax(0,1fr); grid-template-rows:auto auto; column-gap:8px; align-items:center; padding:10px; text-align:right; border:1px solid var(--line); border-radius:17px; background:var(--surface-soft); color:var(--ink); font:inherit; }
-  .mobile-menu-grid button > span { grid-row:1 / span 2; width:34px; height:34px; display:grid; place-items:center; border-radius:11px; background:var(--brand-soft); color:var(--brand); font-weight:900; }
-  .mobile-menu-grid strong { font-size:10px; }
-  .mobile-menu-grid small { color:var(--muted); font-size:8px; line-height:1.35; }
-  .mobile-menu-grid button.active { border-color:color-mix(in srgb,var(--brand) 45%,var(--line)); background:color-mix(in srgb,var(--brand-soft) 62%,var(--panel)); }
-  .mobile-sheet-note { margin:10px 2px 0; color:var(--muted); font-size:8px; line-height:1.45; }
-  body.mobile-nav-open { overflow:hidden; }
-
-  .notification-center { position:fixed; right:10px; left:10px; bottom:calc(78px + var(--mobile-safe-bottom)); width:auto; max-height:65dvh; border-radius:20px; }
+  .notification-center { position:fixed; right:10px; left:10px; top:74px; bottom:auto; width:auto; max-height:calc(100dvh - 88px); border-radius:20px; }
 }
 
-body.theme-dark .mobile-bottom-nav,body.theme-dark .mobile-nav-sheet { background:color-mix(in srgb,var(--panel) 95%,#071522); }
-body.track-industrial-engineering .mobile-bottom-nav button.active,body.track-industrial-engineering .mobile-menu-grid button > span { color:var(--accent); }
-body.track-industrial-engineering .mobile-bottom-nav button.active > span { background:var(--accent-soft); color:var(--accent); }
-body.track-industrial-engineering .mobile-menu-grid button.active { border-color:var(--accent-border); background:var(--accent-soft-2); }
+body.theme-dark .mobile-tab-trigger,body.theme-dark .mobile-tab-menu { background:color-mix(in srgb,var(--panel) 96%,#000); }
+body.track-industrial-engineering .mobile-tab-current-icon,body.track-industrial-engineering .mobile-tab-menu button.active > span { color:var(--accent); }
+body.track-industrial-engineering .mobile-tab-current-icon,body.track-industrial-engineering .mobile-tab-menu button.active > span { background:var(--accent-soft); color:var(--accent); }
+body.track-industrial-engineering .mobile-tab-menu button.active { border-color:var(--accent-border); background:var(--accent-soft-2); }
 
 /* Shared admin catalog has no guest-owned application status to filter by. */
 body.guest-mode .job-status-control { display:none !important; }
