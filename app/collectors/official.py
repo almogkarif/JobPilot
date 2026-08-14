@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import html as html_lib
 import re
+import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import httpx
@@ -29,21 +30,21 @@ PRESETS = {
     },
     "microsoft": {"url": "https://careers.microsoft.com/v2/global/en/locations/israel.html", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Microsoft"},
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2},
-    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*ID\s*:\s*(\d+)"},
+    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*ID\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/")},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks"},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/[^/?#]+/([^/?#]+)", "company": "monday.com"},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco"},
     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
-    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="JR"], a[href*="jr"], [data-href*="JR"], [data-href*="jr"], [data-url*="JR"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True, "capture_network": True, "href_template": "https://www.salesforce.com/company/careers/jobs/{id}/"},
+    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="JR"], a[href*="jr"], [data-href*="JR"], [data-href*="jr"], [data-url*="JR"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True, "capture_network": True, "href_template": "https://www.salesforce.com/company/careers/jobs/{id}/", "text_id_pattern": r"(?i)\b(JR\d{5,})\b", "sitemap_candidates": ("https://www.salesforce.com/sitemap.xml",)},
     "meta": {"url": "https://metacareers.dejobs.org/locations/tel-aviv-isr/jobs/", "selector": 'a[href*="/tel-aviv-isr/"][href*="/job/"]', "id_pattern": r"/([A-Fa-f0-9]{16,})/job/", "company": "Meta"},
     "qualcomm": {"url": "https://careers.qualcomm.com/careers?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Qualcomm"},
     "samsung": {"url": "https://research.samsung.com/sril/careers", "selector": 'a[href*="career"], a[href*="job"]', "id_pattern": r"(?:job|career)[^0-9]*([A-Za-z0-9_-]{4,})", "company": "Samsung Research Israel"},
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
-    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True},
-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100},
+    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml", "https://elbitsystemscareer.com/sitemap_index.xml")},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml")},
+    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
@@ -76,8 +77,19 @@ class OfficialCareersCollector:
             except Exception:
                 rows = []
 
+        rendered_error: Exception | None = None
         if not rows:
-            rows = await self._collect_rendered_rows(identifier, preset)
+            try:
+                rows = await self._collect_rendered_rows(identifier, preset)
+            except RuntimeError as exc:
+                rendered_error = exc
+                rows = []
+
+        if not rows and preset.get("sitemap_candidates"):
+            rows = await _collect_sitemap_rows(preset)
+
+        if not rows and rendered_error is not None:
+            raise rendered_error
 
         if preset.get("hydrate_details") and rows:
             rows = await _hydrate_detail_rows(rows, preset)
@@ -111,7 +123,16 @@ class OfficialCareersCollector:
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(headless=True)
             try:
-                page = await browser.new_page(locale="en-US")
+                context = await browser.new_context(
+                    locale="en-US",
+                    user_agent=(
+                        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36"
+                    ),
+                    viewport={"width": 1280, "height": 900},
+                    extra_http_headers={"Accept-Language": "en-US,en;q=0.9,he;q=0.8"},
+                )
+                page = await context.new_page()
                 network_responses = []
                 if preset.get("capture_network"):
                     def remember_response(response):
@@ -241,6 +262,52 @@ class OfficialCareersCollector:
         return rows
 
 
+async def _collect_sitemap_rows(preset: dict) -> list[dict]:
+    """Discover official detail URLs from sitemap indexes when the jobs UI is JS-only.
+
+    This is intentionally restricted to fixed, preset-owned sitemap URLs. It never
+    follows arbitrary URLs supplied by a user.
+    """
+    queue = [(str(url), 0) for url in preset.get("sitemap_candidates", ())]
+    seen: set[str] = set()
+    rows: list[dict] = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; JobPilot/0.3; +official-careers-discovery)",
+        "Accept": "application/xml,text/xml,text/html;q=0.9,*/*;q=0.5",
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=12.0, headers=headers) as client:
+        while queue and len(seen) < 36 and len(rows) < int(preset.get("max_detail_jobs", 100)) * 3:
+            url, depth = queue.pop(0)
+            if url in seen or depth > 2:
+                continue
+            seen.add(url)
+            try:
+                response = await client.get(url)
+                if response.status_code >= 400 or len(response.content) > 12_000_000:
+                    continue
+                raw = response.text
+            except Exception:
+                continue
+            locations: list[str] = []
+            try:
+                root = ET.fromstring(raw)
+                locations = [str(node.text or "").strip() for node in root.iter() if node.tag.rsplit("}", 1)[-1] == "loc"]
+            except Exception:
+                soup = BeautifulSoup(raw, "html.parser")
+                locations = [node.get_text(strip=True) for node in soup.select("loc")]
+            for location in locations:
+                if not location:
+                    continue
+                if location.lower().split("?", 1)[0].endswith(".xml"):
+                    if depth < 2:
+                        queue.append((location, depth + 1))
+                    continue
+                row = {"href": location, "onclick": "", "title": "", "linkText": "", "text": ""}
+                if _resolve_row_href(row, preset)[1]:
+                    rows.append(row)
+    return _dedupe_rows(rows, preset)
+
+
 async def _collect_network_rows(responses: list, preset: dict) -> list[dict]:
     """Recover job URLs/IDs from XHR/fetch payloads used by dynamic careers boards.
 
@@ -335,7 +402,7 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
             "linkText": element.get_text(" ", strip=True),
             "text": container.get_text(" ", strip=True),
         })
-    return _dedupe_rows(rows + _extract_raw_rows(response.text, preset), preset)
+    return _dedupe_rows(rows + _extract_raw_rows(response.text, preset) + _extract_text_id_rows(BeautifulSoup(response.text, "html.parser").get_text(" ", strip=True), preset), preset)
 
 
 def _extract_raw_rows(raw_html: str, preset: dict) -> list[dict]:
