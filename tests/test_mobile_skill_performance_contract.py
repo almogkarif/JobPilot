@@ -7,13 +7,16 @@ HTML = (ROOT / 'app/static/index.html').read_text()
 MAIN = (ROOT / 'app/main.py').read_text()
 
 
-def test_mobile_floating_dock_uses_opaque_surfaces_and_stronger_backdrop():
-    assert '.mobile-tab-trigger {' in CSS
-    assert 'background:var(--panel); color:var(--ink);' in CSS
-    assert '.mobile-tab-menu {' in CSS
-    assert 'background:var(--panel);' in CSS
-    assert 'background:rgba(3,16,26,.28);' in CSS
-    assert 'backdrop-filter:blur(5px)' in CSS
+def test_mobile_dock_is_simple_fixed_opaque_and_reserves_content_space():
+    assert '/* v0.3.2 — simple mobile dock:' in CSS
+    assert 'position:fixed !important;' in CSS
+    assert 'background:var(--panel) !important;' in CSS
+    assert 'overflow-x:auto !important;' in CSS
+    assert '--mobile-dock-space:' in CSS
+    assert 'body { padding-bottom: var(--mobile-dock-space) !important; }' in CSS
+    assert '.mobile-tab-trigger,.mobile-tab-menu,.mobile-nav-backdrop { display:none !important; }' in CSS
+    assert 'id="mobile-tab-trigger"' not in HTML
+    assert 'id="mobile-tab-menu"' not in HTML
 
 
 def test_profile_and_preferences_unsaved_summaries_are_scoped_to_active_tab():
@@ -42,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
 
 
 def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
-    assert 'styles.css?v=0.45.3' in HTML
-    assert 'app.js?v=0.26.3' in HTML
+    assert 'styles.css?v=0.45.4' in HTML
+    assert 'app.js?v=0.26.4' in HTML

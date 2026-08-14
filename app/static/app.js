@@ -902,51 +902,18 @@ $$('[data-view]').forEach((button) => {
   button.onclick = () => switchView(button.dataset.view);
 });
 
-const MOBILE_VIEW_META = {
-  dashboard: { label: 'לוח בקרה', icon: '⌂' },
-  jobs: { label: 'משרות', icon: '▣' },
-  preferences: { label: 'העדפות חיפוש', icon: '≡' },
-  applications: { label: 'הגשות', icon: '✓' },
-  blockers: { label: 'דורש טיפול', icon: '!' },
-  skills: { label: 'סקילים', icon: '◇' },
-  sources: { label: 'מקורות', icon: '◎' },
-  profile: { label: 'הפרופיל שלי', icon: '◉' },
-};
-
 function updateMobileTabDock(view) {
-  const meta = MOBILE_VIEW_META[view] || MOBILE_VIEW_META.dashboard;
-  const label = $('#mobile-tab-current-label');
-  const icon = $('#mobile-tab-current-icon');
-  if (label) label.textContent = meta.label;
-  if (icon) icon.textContent = meta.icon;
+  const active = document.querySelector(`[data-mobile-view="${view}"]`);
+  if (!active || window.innerWidth > 760) return;
+  // Keep the selected destination visible in the horizontally scrollable dock.
+  requestAnimationFrame(() => active.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'}));
 }
 
-function setMobileTabMenu(open) {
-  const backdrop = $('#mobile-nav-backdrop');
-  const dock = $('#mobile-tab-dock');
-  const menu = $('#mobile-tab-menu');
-  const trigger = $('#mobile-tab-trigger');
-  if (!backdrop || !dock || !menu || !trigger) return;
-  const visible = Boolean(open) && window.innerWidth <= 760;
-  if (visible) { closeNotifications(); setCareerMenu(false); }
-  backdrop.classList.toggle('open', visible);
-  backdrop.setAttribute('aria-hidden', visible ? 'false' : 'true');
-  dock.classList.toggle('open', visible);
-  menu.setAttribute('aria-hidden', visible ? 'false' : 'true');
-  trigger.setAttribute('aria-expanded', String(visible));
-  document.body.classList.toggle('mobile-nav-open', visible);
-}
+// Kept as a harmless compatibility hook for callers that used to close the old floating menu.
+function setMobileTabMenu() {}
 
 $$('[data-mobile-view]').forEach((button) => {
-  button.onclick = () => {
-    setMobileTabMenu(false);
-    switchView(button.dataset.mobileView);
-  };
-});
-$('#mobile-tab-trigger').onclick = () => setMobileTabMenu(!$('#mobile-tab-dock')?.classList.contains('open'));
-$('#mobile-nav-backdrop').addEventListener('click', () => setMobileTabMenu(false));
-window.addEventListener('resize', () => {
-  if (window.innerWidth > 760) setMobileTabMenu(false);
+  button.onclick = () => switchView(button.dataset.mobileView);
 });
 
 function switchProfileSection(section) {

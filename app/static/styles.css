@@ -2681,3 +2681,47 @@ body.track-industrial-engineering .mobile-tab-menu button.active { border-color:
 
 /* Shared admin catalog has no guest-owned application status to filter by. */
 body.guest-mode .job-status-control { display:none !important; }
+
+
+/* v0.3.2 — simple mobile dock: fixed, opaque, no popovers and no content overlap. */
+@media (max-width:760px) {
+  :root { --mobile-dock-space: calc(82px + env(safe-area-inset-bottom)); }
+  body { padding-bottom: var(--mobile-dock-space) !important; }
+  main { padding-bottom: calc(var(--mobile-dock-space) + 18px) !important; }
+
+  .mobile-tab-dock {
+    position:fixed !important;
+    z-index:78 !important;
+    right:8px !important; left:8px !important; bottom:8px !important; top:auto !important;
+    width:auto !important; min-width:0 !important; max-width:none !important; height:auto !important;
+    display:flex !important; align-items:stretch !important; gap:4px !important;
+    overflow-x:auto !important; overflow-y:hidden !important; overscroll-behavior-x:contain;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom)) !important;
+    border:1px solid var(--line) !important; border-radius:18px !important;
+    background:var(--panel) !important; box-shadow:0 10px 28px rgba(0,0,0,.18) !important;
+    backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    scrollbar-width:none; direction:rtl;
+  }
+  .mobile-tab-dock::-webkit-scrollbar { display:none; }
+  .mobile-tab-dock > button {
+    flex:0 0 68px; min-width:68px; height:52px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    margin:0; padding:5px 4px; border:0; border-radius:13px;
+    background:transparent; color:var(--muted); font:inherit; text-align:center; cursor:pointer;
+    box-shadow:none;
+  }
+  .mobile-tab-dock > button > span {
+    width:auto; height:auto; display:block; background:none; color:inherit;
+    font-size:17px; line-height:1; font-weight:900;
+  }
+  .mobile-tab-dock > button > strong {
+    display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    color:inherit; font-size:9px; line-height:1.1; font-weight:800;
+  }
+  .mobile-tab-dock > button.active { background:var(--brand-soft); color:var(--brand); }
+  .mobile-tab-dock > button:focus-visible { outline:2px solid var(--brand); outline-offset:-2px; }
+
+  /* The previous floating-menu layers are intentionally disabled. */
+  .mobile-tab-trigger,.mobile-tab-menu,.mobile-nav-backdrop { display:none !important; }
+  body.mobile-nav-open { overflow:auto !important; }
+}
