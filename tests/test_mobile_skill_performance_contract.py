@@ -32,7 +32,7 @@ def test_skill_addition_updates_every_visible_surface_immediately():
 
 
 def test_cloud_profile_changes_defer_expensive_derived_refresh_until_after_response():
-    assert 'background_tasks.add_task(' in MAIN
+    assert '_queue_profile_derived_refresh(' in MAIN
     assert '_refresh_profile_derived_background' in MAIN
     assert 'if settings.auth_mode == "supabase" and background_tasks is not None' in MAIN
 
@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
 
 
 def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
-    assert 'styles.css?v=0.47.0' in HTML
-    assert 'app.js?v=0.28.0' in HTML
+    assert 'styles.css?v=0.47.2' in HTML
+    assert 'app.js?v=0.28.2' in HTML

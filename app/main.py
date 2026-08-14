@@ -976,10 +976,7 @@ def _apply_profile_changes(
     if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
         db.commit()
         db.refresh(profile)
-        background_tasks.add_task(
-            _refresh_profile_derived_background, user_id, track,
-            matching_changed, resume_analysis_changed,
-        )
+        _queue_profile_derived_refresh(user_id, track, matching_changed, resume_analysis_changed)
         return _profile_dict(profile)
 
     if matching_changed:
@@ -1222,7 +1219,7 @@ def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, back
             resume.analysis_json = dumps(analysis)
         db.commit()
         db.refresh(profile)
-        background_tasks.add_task(_refresh_profile_derived_background, user_id, track, skill_changed, True)
+        _queue_profile_derived_refresh(user_id, track, skill_changed, True)
     else:
         if skill_changed:
             _rescore_all_jobs(db, profile)
@@ -1512,7 +1509,7 @@ def add_desired_title(payload: DesiredTitleUpdateRequest, background_tasks: Back
         db.add(AuditLog(event_type="desired_title_added", entity_type="profile", entity_id="1", message=title))
         if settings.auth_mode == "supabase":
             db.commit()
-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, False)
+            _queue_profile_derived_refresh(user_id, track, True, False)
         else:
             _rescore_all_jobs(db, profile)
             db.commit()
@@ -1534,7 +1531,7 @@ def add_profile_skill(payload: SkillUpdateRequest, background_tasks: BackgroundT
         db.add(AuditLog(event_type="profile_skill_added", entity_type="profile", entity_id="1", message=skill))
         if settings.auth_mode == "supabase":
             db.commit()
-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
+            _queue_profile_derived_refresh(user_id, track, True, True)
         else:
             _rescore_all_jobs(db, profile)
             _refresh_resume_analyses(db, profile)
@@ -1556,7 +1553,7 @@ def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(.
         db.add(AuditLog(event_type="profile_skill_removed", entity_type="profile", entity_id="1", message=skill.strip()))
         if settings.auth_mode == "supabase":
             db.commit()
-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
+            _queue_profile_derived_refresh(user_id, track, True, True)
         else:
             _rescore_all_jobs(db, profile)
             _refresh_resume_analyses(db, profile)
@@ -2519,6 +2516,54 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     db.commit(); return _application_dict(application, db)
 
 
+_profile_refresh_pending: dict[tuple[str, str], dict[str, bool]] = {}
+_profile_refresh_workers: dict[tuple[str, str], threading.Thread] = {}
+_profile_refresh_queue_lock = threading.Lock()
+
+
+def _queue_profile_derived_refresh(
+    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
+) -> None:
+    """Coalesce expensive derived work and run it outside the request lifecycle.
+
+    Saving the user's edit is the synchronous transaction. Scores/CV-derived data
+    then catch up incrementally in a daemon worker, so FastAPI BackgroundTasks
+    cannot occupy the only Render worker after the response was sent.
+    """
+    key = (user_id, normalize_track(career_track))
+    with _profile_refresh_queue_lock:
+        pending = _profile_refresh_pending.setdefault(key, {"rescore_jobs": False, "refresh_resumes": False})
+        pending["rescore_jobs"] = pending["rescore_jobs"] or bool(rescore_jobs)
+        pending["refresh_resumes"] = pending["refresh_resumes"] or bool(refresh_resumes)
+        worker = _profile_refresh_workers.get(key)
+        if worker and worker.is_alive():
+            return
+        worker = threading.Thread(target=_profile_refresh_worker, args=key, daemon=True, name=f"profile-refresh-{key[0][:8]}-{key[1]}")
+        _profile_refresh_workers[key] = worker
+        worker.start()
+
+
+def _profile_refresh_worker(user_id: str, career_track: str) -> None:
+    key = (user_id, career_track)
+    try:
+        while True:
+            with _profile_refresh_queue_lock:
+                pending = _profile_refresh_pending.pop(key, None)
+            if not pending:
+                return
+            _refresh_profile_derived_background(
+                user_id, career_track,
+                pending["rescore_jobs"], pending["refresh_resumes"],
+            )
+    finally:
+        with _profile_refresh_queue_lock:
+            _profile_refresh_workers.pop(key, None)
+            # A save can race with the worker's final empty check. Restart if needed.
+            pending = _profile_refresh_pending.get(key)
+        if pending:
+            _queue_profile_derived_refresh(user_id, career_track, False, False)
+
+
 def _refresh_profile_derived_background(
     user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
 ) -> None:
@@ -2534,7 +2579,7 @@ def _refresh_profile_derived_background(
                 if not profile:
                     return
                 if rescore_jobs:
-                    _rescore_all_jobs(db, profile, career_track=career_track)
+                    _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
                 if refresh_resumes:
                     _refresh_resume_analyses(db, profile, career_track=career_track)
                 db.commit()
@@ -2543,14 +2588,14 @@ def _refresh_profile_derived_background(
         print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
 
 
-def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None) -> None:
+def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0) -> None:
     track = normalize_track(career_track or active_track(profile))
     default_resume = db.scalar(select(ResumeProfile).where(
         ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
     ))
     resume_skills = loads(default_resume.skills_json, []) if default_resume else []
     context = build_match_context(profile, resume_skills, career_track=track)
-    for job in db.scalars(select(Job).where(Job.career_track == track)).all():
+    for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
         result = score_job(job, profile, context=context)
         job.score = result.score
         job.score_reasons_json = dumps(result.reasons)
@@ -2558,6 +2603,8 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = 
         job.skills_json = dumps(result.skills)
         job.experience_min = result.experience_min
         job.experience_max = result.experience_max
+        if commit_every and index % commit_every == 0:
+            db.commit()
 
 
 def _profile_dict(p: Profile) -> dict:

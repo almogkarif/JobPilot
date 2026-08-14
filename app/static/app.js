@@ -512,7 +512,12 @@ async function switchCareerTrack(target) {
   if (!target || target === state.activeCareerTrack) { setCareerMenu(false); return; }
   const dirty = typeof getDirtyProfileFields === 'function' ? getDirtyProfileFields() : [];
   if (dirty.length || state.answersDirty) {
-    toast('יש שינויים שלא נשמרו. שמור או בטל אותם לפני החלפת מסלול מקצועי.');
+    const labels = dirty.map(profileFieldLabel).filter(Boolean);
+    const details = [
+      labels.length ? `לא נשמרו: ${labels.join(' · ')}` : '',
+      state.answersDirty ? 'שאלות ההגשה כוללות שינויים שלא נשמרו' : '',
+    ].filter(Boolean).join(' | ');
+    toast(`אי אפשר להחליף מסלול עדיין. ${details}. שמור או בטל את השינויים ואז נסה שוב.`);
     return;
   }
   const targetTrack = state.careerTracks.find((track) => track.key === target);
@@ -3340,6 +3345,14 @@ function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.tri
 function onboardingTrackConfig(key=state.activeCareerTrack){ return CAREER_TRACK_UI[key] || CAREER_TRACK_UI.computer_science; }
 function onboardingPresetSkills(){ return (onboardingTrackConfig().skills||[]).map(([value])=>value); }
 function onboardingSkillValues(){ return [...new Set([...onboardingPresetSkills(), ...onboardingState.selectedSkills])]; }
+function onboardingChoiceValues(items=[]){return (items||[]).map(item=>Array.isArray(item)?item:[item,item]).filter(([v])=>v)}
+function onboardingChoiceBox(kind,value,label,selected){
+  return `<button type="button" class="onboarding-choice ${selected?'selected':''}" data-ob-choice="${kind}" data-value="${encodeURIComponent(value)}"><span class="onboarding-choice-check">✓</span><strong>${esc(label)}</strong></button>`;
+}
+function onboardingToggleChoice(button){
+  button.classList.toggle('selected');
+}
+
 function onboardingApplyTrackTheme(key){ state.activeCareerTrack=key; applyCareerTrackTheme(); document.querySelector('.onboarding-shell')?.setAttribute('data-track',key); }
 async function onboardingChooseTrack(key){
   if(!key || key===state.activeCareerTrack){ onboardingApplyTrackTheme(key||state.activeCareerTrack); onboardingSetStep(1); return; }
@@ -3361,8 +3374,8 @@ function onboardingSetStep(index){
     content.innerHTML=`<div class="onboarding-hero compact"><span class="kicker">מתחילים מהכיוון שלך</span><h1 id="onboarding-title">באיזה תחום מחפשים את התפקיד הבא?</h1><p>הבחירה מתאימה מיד את הצבעים, הסקילים, המקורות והעדפות החיפוש. המבנה מוכן למסלולים נוספים בהמשך.</p><div class="onboarding-track-grid">${tracks.map(t=>{const ui=onboardingTrackConfig(t.key);return `<button class="onboarding-track-card ${t.key===state.activeCareerTrack?'active':''}" type="button" data-ob-track="${esc(t.key)}"><span class="onboarding-track-symbol">${esc(ui.symbol)}</span><span><strong>${esc(t.label||ui.label)}</strong><small>${esc(t.description||ui.description)}</small></span><i>בחירה</i></button>`}).join('')}</div></div>`;
     $$('[data-ob-track]',content).forEach(b=>b.onclick=()=>onboardingChooseTrack(b.dataset.obTrack));
   }else if(step==='resume'){
-    const uploaded=onboardingState.resume;
-    content.innerHTML=`<span class="kicker">קורות חיים</span><h1 id="onboarding-title">נכיר את הניסיון שלך</h1><p>העלה PDF או DOCX. JobPilot יקרא את הקובץ ויציע סקילים — שום סקיל לא מתווסף בלי בחירה שלך.</p><label class="onboarding-upload ${uploaded?'uploaded':''}"><input id="onboarding-resume-file" type="file" accept=".pdf,.docx,.doc,.txt,.rtf"><span class="onboarding-upload-icon">${uploaded?'✓':'↑'}</span><strong>${uploaded?esc(uploaded.filename||'קורות החיים הועלו'):'בחר קובץ או גרור לכאן'}</strong><small>${uploaded?'הקובץ נקלט ונותח בהצלחה · אפשר להחליף אותו':'PDF או DOCX מומלצים · עד 10MB'}</small>${uploaded?'<em>מוכן להמשך</em>':''}</label>`;
+    const uploaded=onboardingState.resume || (profile.cv_filename ? {filename:profile.cv_filename, persisted:true} : null);
+    content.innerHTML=`<span class="kicker">קורות חיים</span><h1 id="onboarding-title">נכיר את הניסיון שלך</h1><p>העלה PDF או DOCX. JobPilot יקרא את הקובץ ויציע סקילים — שום סקיל לא מתווסף בלי בחירה שלך.</p><label class="onboarding-upload ${uploaded?'uploaded':''}"><input id="onboarding-resume-file" type="file" accept=".pdf,.docx,.doc,.txt,.rtf"><span class="onboarding-upload-icon">${uploaded?'✓':'↑'}</span><strong>${uploaded?esc(uploaded.filename||uploaded.cv_filename||'קורות החיים הועלו'):'בחר קובץ או גרור לכאן'}</strong><small>${uploaded?'הקובץ נשמר ונקרא בהצלחה · לחץ כדי להחליף':'PDF או DOCX מומלצים · עד 10MB'}</small>${uploaded?'<span class="onboarding-upload-success"><b>✓</b> קורות החיים מוכנים</span>':''}</label>`;
     $('#onboarding-resume-file').onchange=onboardingResume;
   }else if(step==='skills'){
     const values=onboardingSkillValues();
@@ -3370,23 +3383,29 @@ function onboardingSetStep(index){
     $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill)});
   }else if(step==='preferences'){
     const modes=new Set(profile.preferred_work_modes||['hybrid','remote','onsite']);
-    content.innerHTML=`<span class="kicker">העדפות · ${esc(track.label)}</span><h1 id="onboarding-title">נחדד את החיפוש</h1><p>כמה פרטים קצרים שמשפיעים ישירות על הסינון והדירוג.</p><div class="onboarding-form polished">
-      <label><span>תפקידים רצויים</span><input id="ob-titles" value="${esc((profile.desired_titles||[]).join(', '))}" placeholder="${esc(track.desiredPlaceholder||'Software Engineer')}"></label>
+    const titles=new Set(profile.desired_titles||[]);
+    const keywords=new Set(profile.keywords||[]);
+    const excluded=new Set(profile.excluded_keywords||[]);
+    const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
+    const keywordChoices=onboardingChoiceValues(track.skills||[]).slice(0,14);
+    const commonExcluded=[['senior','Senior'],['lead','Lead'],['manager','Manager'],['manual qa','Manual QA'],['sales','Sales'],['support representative','Support']];
+    content.innerHTML=`<span class="kicker">העדפות · ${esc(track.label)}</span><h1 id="onboarding-title">נחדד את החיפוש</h1><p>בחר בכמה לחיצות את מה שמתאים לך. אפשר לדייק הכול גם אחר כך בהעדפות החיפוש.</p><div class="onboarding-form polished choice-form">
+      <fieldset class="onboarding-choice-field full"><legend>תפקידים רצויים</legend><div class="onboarding-choice-grid">${titleChoices.map(([v,l])=>onboardingChoiceBox('title',v,l,titles.has(v))).join('')}</div><label class="onboarding-other"><span>משהו נוסף?</span><input id="ob-titles-extra" value="${esc((profile.desired_titles||[]).filter(v=>!titleChoices.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף תפקיד שלא מופיע ברשימה"></label></fieldset>
       <label><span>אזורי חיפוש</span><input id="ob-locations" value="${esc((profile.preferred_locations||[]).join(', ')||profile.location||'Israel')}" placeholder="חיפה, תל אביב, מרכז"></label>
       <label><span>רמת ניסיון</span><select id="ob-experience">${['0','1','2','3','4','5+'].map(v=>`<option ${(profile.years_experience_options||['0']).includes(v)?'selected':''}>${v}</option>`).join('')}</select></label>
-      <fieldset><legend>אופן עבודה</legend><div class="onboarding-chips">${[['hybrid','היברידי'],['remote','מרחוק'],['onsite','מהמשרד']].map(([v,l])=>`<button type="button" class="onboarding-chip ${modes.has(v)?'selected':''}" data-ob-mode="${v}">${l}</button>`).join('')}</div></fieldset>
-      <label><span>חשוב לי למצוא</span><input id="ob-keywords" value="${esc((profile.keywords||[]).join(', '))}" placeholder="טכנולוגיות, תחומים או מאפיינים חשובים"></label>
-      <label><span>לא מתאים לי</span><input id="ob-excluded" value="${esc((profile.excluded_keywords||[]).join(', '))}" placeholder="תפקידים או תחומים שלא תרצה לראות"></label>
+      <fieldset class="full"><legend>אופן עבודה</legend><div class="onboarding-chips">${[['hybrid','היברידי'],['remote','מרחוק'],['onsite','מהמשרד']].map(([v,l])=>`<button type="button" class="onboarding-chip ${modes.has(v)?'selected':''}" data-ob-mode="${v}">${l}</button>`).join('')}</div></fieldset>
+      <fieldset class="onboarding-choice-field full"><legend>חשוב לי למצוא</legend><div class="onboarding-choice-grid compact">${keywordChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח נוספות</span><input id="ob-keywords-extra" value="${esc((profile.keywords||[]).filter(v=>!keywordChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל תחום, כלי או טכנולוגיה"></label></fieldset>
+      <fieldset class="onboarding-choice-field full"><legend>לא מתאים לי</legend><div class="onboarding-choice-grid compact">${commonExcluded.map(([v,l])=>onboardingChoiceBox('excluded',v,l,excluded.has(v))).join('')}</div><label class="onboarding-other"><span>דברים נוספים שלא תרצה לראות</span><input id="ob-excluded-extra" value="${esc((profile.excluded_keywords||[]).filter(v=>!commonExcluded.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף מילות סינון"></label></fieldset>
     </div>`;
     $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>b.classList.toggle('selected'));
+    $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>onboardingToggleChoice(b));
   }else if(step==='review'){
     const d=onboardingState.draft;
-    content.innerHTML=`<span class="kicker">סיכום</span><h1 id="onboarding-title">החיפוש שלך מוכן</h1><p>זה הפרופיל ש־JobPilot ישתמש בו לסריקה ולדירוג. אפשר לשנות הכול אחר כך.</p><div class="onboarding-review-hero"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><strong>${esc(track.label)}</strong><small>${onboardingState.selectedSkills.size} סקילים נבחרו</small></div></div><div class="onboarding-summary refined">
-      <article><small>תפקידים</small><strong>${esc((d.desired_titles||[]).join(' · ')||'לא הוגדר')}</strong></article><article><small>מיקום</small><strong>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')}</strong></article>
-      <article><small>אופן עבודה</small><strong>${esc((d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v)).join(' · ')||'לא הוגדר')}</strong></article><article><small>ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · '))} שנים</strong></article>
-      <article><small>חשוב לי</small><strong>${esc((d.keywords||[]).join(' · ')||'—')}</strong></article><article><small>לא מתאים לי</small><strong>${esc((d.excluded_keywords||[]).join(' · ')||'—')}</strong></article></div>`;
+    content.innerHTML=`<div class="onboarding-ready"><span class="kicker">הכול מסודר</span><h1 id="onboarding-title">החיפוש שלך מוכן</h1><p>בנינו סביבך פרופיל חיפוש ראשוני. מכאן JobPilot יסנן, ידרג ויציג קודם את ההזדמנויות שהכי מתאימות לך.</p><div class="onboarding-ready-banner"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><small>${esc(track.label)}</small><strong>${esc((d.desired_titles||[]).slice(0,3).join(' · ')||'העדפות החיפוש שלך')}</strong><span>${onboardingState.selectedSkills.size} סקילים · ${(d.preferred_locations||[]).slice(0,2).join(' · ')||'ישראל'}</span></div><i>מוכן לסריקה ✓</i></div><div class="onboarding-summary refined">
+      <article><span class="summary-icon">◎</span><small>תפקידים</small><strong>${esc((d.desired_titles||[]).slice(0,5).join(' · ')||'לא הוגדר')}</strong></article><article><span class="summary-icon">⌖</span><small>אזורי חיפוש</small><strong>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')}</strong></article>
+      <article><span class="summary-icon">◫</span><small>אופן עבודה</small><strong>${esc((d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v)).join(' · ')||'לא הוגדר')}</strong></article><article><span class="summary-icon">↗</span><small>ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · '))} שנים</strong></article></div><p class="onboarding-ready-note">אפשר לשנות כל פרט אחר כך — בלי להתחיל מחדש.</p></div>`;
   }else{
-    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-radar" aria-hidden="true"><i></i><i></i><i></i><b></b></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
+    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-source-scan" aria-hidden="true"><div class="source-scan-orbit"><span class="source-scan-core">JP</span><i></i><i></i><i></i><i></i></div><div class="source-scan-progress"><span><b id="onboarding-source-count">0</b><small>מקורות נסרקו</small></span><div><i id="onboarding-source-progress"></i></div></div></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
     $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
   }
 }
@@ -3397,7 +3416,7 @@ async function onboardingResume(event){
   const label=event.target.closest('.onboarding-upload'); label?.classList.add('uploading');
   const body=new FormData(); body.append('file',file);
   try{
-    const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume=result; state.profile=result.profile||state.profile;
+    const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
     const suggestions=result.analysis?.suggestions||[];
     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
     onboardingState.selectedSkills=new Set(found); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
@@ -3409,7 +3428,8 @@ async function onboardingSaveSkills(){
   }
 }
 function onboardingCollectPreferences(){
-  onboardingState.draft={desired_titles:onboardingSplit($('#ob-titles').value),preferred_locations:onboardingSplit($('#ob-locations').value),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:onboardingSplit($('#ob-keywords').value),excluded_keywords:onboardingSplit($('#ob-excluded').value)};return onboardingState.draft;
+  const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
+  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:onboardingSplit($('#ob-locations').value),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
 }
 async function onboardingFinish(skipped=false){
   if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
@@ -3420,8 +3440,9 @@ async function onboardingWatchScan(){
   try{
     const scan=await api('/api/scan/status'), p=scan.progress||{}, total=Number(p.total||0), done=Number(p.completed||0), percent=total?Math.round(done/total*100):0, copy=$('#onboarding-scan-copy');
     if(copy) copy.textContent=scan.running?`${p.current_source?`סורק עכשיו: ${p.current_source} · `:''}${done}/${total||'…'} מקורות · ${percent}%`:'הסריקה הסתיימה — המשרות שלך מחכות';
+    const progress=$('#onboarding-source-progress');if(progress)progress.style.width=`${percent}%`;const count=$('#onboarding-source-count');if(count)count.textContent=String(done);
     if(scan.running){onboardingState.scanTimer=setTimeout(onboardingWatchScan,1800);return}
-    const stage=$('.onboarding-scan-stage');stage?.classList.add('complete');const radar=$('.onboarding-radar');if(radar)radar.classList.add('complete');
+    const stage=$('.onboarding-scan-stage');stage?.classList.add('complete');
     const button=$('#onboarding-start-scan');if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
     const enter=$('#onboarding-enter-site');if(enter)enter.hidden=true;
   }catch(e){const copy=$('#onboarding-scan-copy');if(copy)copy.textContent='הסריקה ממשיכה ברקע. אפשר להיכנס לאתר ולעקוב משם.';const b=$('#onboarding-start-scan');if(b){b.disabled=false;b.textContent='כניסה ללוח הבקרה';b.onclick=async()=>{await onboardingFinish();switchView('dashboard')}}}
@@ -3445,8 +3466,27 @@ async function loadDeveloperUsers(){
   try{const payload=await api('/api/admin/users');count.textContent=String(payload.count||0);root.innerHTML=(payload.users||[]).map(u=>`<article class="developer-user-row"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה לאחרונה ${esc(new Date(u.last_seen_at).toLocaleString('he-IL'))}`:'טרם התחבר'}</small></span></article>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
 }
 $('#developer-refresh-users').onclick=loadDeveloperUsers;
+$('#developer-preview-non-admin').onclick=enterNonAdminPreview;
+$('#admin-preview-exit').onclick=exitNonAdminPreview;
+const ADMIN_PREVIEW_KEY='jobpilot-preview-non-admin';
+function adminPreviewActive(){try{return sessionStorage.getItem(ADMIN_PREVIEW_KEY)==='1'}catch{return false}}
+function applyAdminPreviewMode(){
+  const active=adminPreviewActive();
+  document.body.classList.toggle('preview-non-admin',active);
+  const exit=$('#admin-preview-exit'); if(exit) exit.hidden=!active;
+}
+function enterNonAdminPreview(){
+  try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}
+  applyAdminPreviewMode(); switchView('dashboard');
+  toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.');
+}
+function exitNonAdminPreview(){
+  try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}
+  applyAdminPreviewMode(); toast('חזרת לתצוגת Admin');
+}
 function configureDeveloperTools(){
-  const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
+  const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
 }
 
 (async () => {

@@ -28,7 +28,7 @@ def test_real_animated_logo_is_used_in_onboarding():
     assert '<strong>JP</strong><span>JobPilot</span>' not in HTML
 
 def test_scan_has_animation_and_post_scan_jobs_cta():
-    assert 'onboarding-radar' in JS
+    assert 'onboarding-source-scan' in JS
     assert 'onboardingWatchScan' in JS
     assert 'למשרות שנבחרו עבורך' in JS
 
@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
     assert 'max-height:292px' in CSS
 
 def test_assets_bumped():
-    assert 'app.js?v=0.28.0' in HTML
-    assert 'styles.css?v=0.47.0' in HTML
+    assert 'app.js?v=0.28.2' in HTML
+    assert 'styles.css?v=0.47.2' in HTML
