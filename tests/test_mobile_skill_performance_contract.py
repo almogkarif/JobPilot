@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
 
 
 def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
-    assert 'styles.css?v=0.47.3' in HTML
-    assert 'app.js?v=0.28.3' in HTML
+    assert 'styles.css?v=0.47.4' in HTML
+    assert 'app.js?v=0.28.4' in HTML

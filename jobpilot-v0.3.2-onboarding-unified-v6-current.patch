@@ -1,0 +1,374 @@
+diff --git a/app/static/app.js b/app/static/app.js
+index ff88501..d3baa57 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -3369,6 +3369,7 @@ function onboardingSetStep(index){
+   $('#onboarding-skip').hidden=onboardingState.preview || step==='scan';
+   $('#onboarding-next').hidden=step==='track' || step==='scan';
+   const content=$('#onboarding-content');
++  content.className=`onboarding-content onboarding-step onboarding-step-${step}`;
+   if(step==='track'){
+     const tracks=(state.careerTracks||[]).filter(t=>CAREER_TRACK_UI[t.key]);
+     content.innerHTML=`<div class="onboarding-hero compact"><span class="kicker">מתחילים מהכיוון שלך</span><h1 id="onboarding-title">באיזה תחום מחפשים את התפקיד הבא?</h1><p>הבחירה מתאימה מיד את הצבעים, הסקילים, המקורות והעדפות החיפוש. המבנה מוכן למסלולים נוספים בהמשך.</p><div class="onboarding-track-grid">${tracks.map(t=>{const ui=onboardingTrackConfig(t.key);return `<button class="onboarding-track-card ${t.key===state.activeCareerTrack?'active':''}" type="button" data-ob-track="${esc(t.key)}"><span class="onboarding-track-symbol">${esc(ui.symbol)}</span><span><strong>${esc(t.label||ui.label)}</strong><small>${esc(t.description||ui.description)}</small></span><i>בחירה</i></button>`}).join('')}</div></div>`;
+@@ -3390,7 +3391,7 @@ function onboardingSetStep(index){
+     const locationChoices=[['Israel','ישראל'],['Haifa','חיפה'],['Tel Aviv','תל אביב'],['Jerusalem','ירושלים']];
+     const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
+     const keywordChoices=onboardingChoiceValues(track.skills||[]).slice(0,14);
+-    const commonExcluded=[['senior','Senior'],['lead','Lead'],['manager','Manager'],['manual qa','Manual QA'],['sales','Sales'],['support representative','Support']];
++    const commonExcluded=[['student','סטודנט'],['entry level','Entry Level'],['junior','Junior'],['mid','Mid'],['senior','Senior'],['lead','Lead'],['manager','Manager'],['manual qa','Manual QA'],['sales','Sales'],['support representative','Support']];
+     content.innerHTML=`<span class="kicker">העדפות · ${esc(track.label)}</span><h1 id="onboarding-title">נחדד את החיפוש</h1><p>בחר בכמה לחיצות את מה שמתאים לך. אפשר לדייק הכול גם אחר כך בהעדפות החיפוש.</p><div class="onboarding-form polished choice-form">
+       <fieldset class="onboarding-choice-field full"><legend>תפקידים רצויים</legend><div class="onboarding-choice-grid">${titleChoices.map(([v,l])=>onboardingChoiceBox('title',v,l,titles.has(v))).join('')}</div><label class="onboarding-other"><span>משהו נוסף?</span><input id="ob-titles-extra" value="${esc((profile.desired_titles||[]).filter(v=>!titleChoices.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף תפקיד שלא מופיע ברשימה"></label></fieldset>
+       <fieldset class="onboarding-choice-field full onboarding-location-field"><legend>אזורי חיפוש</legend><div class="onboarding-choice-grid locations">${locationChoices.map(([v,l])=>onboardingChoiceBox('location',v,l,locations.has(v)||locations.has(l)||(v==='Israel'&&!locations.size))).join('')}</div></fieldset>
+@@ -3410,7 +3411,7 @@ function onboardingSetStep(index){
+       <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
+       <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נסרוק את המקורות הפעילים, נחשב התאמה לכל משרה ונציג קודם את התוצאות החזקות ביותר.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
+   }else{
+-    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-source-scan" aria-hidden="true"><div class="source-scan-orbit"><span class="source-scan-core">JP</span><i></i><i></i><i></i><i></i></div><div class="source-scan-progress"><span><b id="onboarding-source-count">0</b><small>מקורות נסרקו</small></span><div><i id="onboarding-source-progress"></i></div></div></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
++    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-source-scan" aria-hidden="true"><div class="source-scan-orbit"><span class="source-scan-core">JP</span><i></i><i></i><i></i><i></i></div><div class="source-scan-progress waiting" id="onboarding-source-status"><span><b id="onboarding-source-count">•••</b><small id="onboarding-source-label">ממתין לשרת</small></span><div><i id="onboarding-source-progress"></i></div></div></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
+     $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
+   }
+ }
+@@ -3444,8 +3445,17 @@ async function onboardingFinish(skipped=false){
+ async function onboardingWatchScan(){
+   try{
+     const scan=await api('/api/scan/status'), p=scan.progress||{}, total=Number(p.total||0), done=Number(p.completed||0), percent=total?Math.round(done/total*100):0, copy=$('#onboarding-scan-copy');
+-    if(copy) copy.textContent=scan.running?`${p.current_source?`סורק עכשיו: ${p.current_source} · `:''}${done}/${total||'…'} מקורות · ${percent}%`:'הסריקה הסתיימה — המשרות שלך מחכות';
+-    const progress=$('#onboarding-source-progress');if(progress)progress.style.width=`${percent}%`;const count=$('#onboarding-source-count');if(count)count.textContent=String(done);
++    const status=$('#onboarding-source-status'), label=$('#onboarding-source-label'), progress=$('#onboarding-source-progress'), count=$('#onboarding-source-count');
++    if(scan.running && !total){
++      status?.classList.add('waiting'); if(count)count.textContent='•••'; if(label)label.textContent='ממתין לשרת'; if(progress)progress.style.width='0%';
++      if(copy)copy.textContent='השרת מכין את רשימת המקורות לסריקה…';
++    }else if(scan.running){
++      status?.classList.remove('waiting'); if(count)count.textContent=String(done); if(label)label.textContent=`מתוך ${total} מקורות`; if(progress)progress.style.width=`${percent}%`;
++      if(copy)copy.textContent=`${p.current_source?`סורק עכשיו: ${p.current_source} · `:''}${done}/${total} מקורות · ${percent}%`;
++    }else{
++      status?.classList.remove('waiting'); if(count)count.textContent=String(done); if(label)label.textContent=total?`מתוך ${total} מקורות`:'הסריקה הושלמה'; if(progress)progress.style.width='100%';
++      if(copy)copy.textContent='הסריקה הסתיימה — המשרות שלך מחכות';
++    }
+     if(scan.running){onboardingState.scanTimer=setTimeout(onboardingWatchScan,1800);return}
+     const stage=$('.onboarding-scan-stage');stage?.classList.add('complete');
+     const button=$('#onboarding-start-scan');if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
+@@ -3454,7 +3464,8 @@ async function onboardingWatchScan(){
+ }
+ async function onboardingStartScan(){
+   const b=$('#onboarding-start-scan');b.disabled=true;b.textContent='הסריקה יצאה לדרך…';$('.onboarding-scan-stage')?.classList.add('scanning');
+-  try{await api('/api/scan',{method:'POST'});const copy=$('#onboarding-scan-copy');if(copy)copy.textContent='מתחבר למקורות ומתחיל לאסוף משרות…';onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
++  const status=$('#onboarding-source-status'),count=$('#onboarding-source-count'),label=$('#onboarding-source-label'),copy=$('#onboarding-scan-copy');status?.classList.add('waiting');if(count)count.textContent='•••';if(label)label.textContent='ממתין לשרת';if(copy)copy.textContent='מתחבר לשרת ומכין את המקורות לסריקה…';
++  try{await api('/api/scan',{method:'POST'});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
+ }
+ async function openOnboarding(preview=false){
+   if(authState.user?.is_guest)return;onboardingState.preview=preview;onboardingState.step=0;onboardingState.resume=null;onboardingState.selectedSkills=new Set();onboardingState.draft={};onboardingApplyTrackTheme(state.activeCareerTrack);
+diff --git a/app/static/index.html b/app/static/index.html
+index 73494ce..1d73cd3 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.47.3" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.47.4" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -440,6 +440,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.28.3"></script>
++  <script src="/static/app.js?v=0.28.4"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 5a29cf8..329309e 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2917,3 +2917,24 @@ body.guest-mode .job-status-control { display:none !important; }
+ @keyframes readyPulse{50%{opacity:.45;transform:scale(.82)}}
+ @media(max-width:760px){.onboarding-choice-grid.locations{grid-template-columns:repeat(2,minmax(0,1fr))}.ready-spotlight{align-items:flex-start;padding:17px}.ready-spotlight-main strong{font-size:16px}.ready-pulse{position:absolute;top:12px;inset-inline-start:12px}.ready-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.ready-next{align-items:flex-start}}
+ @media(prefers-reduced-motion:reduce){.ready-pulse i{animation:none}}
++
++
++/* Onboarding v6 — one visual language across the full first-run journey */
++.onboarding-step{position:relative;padding:8px 4px 4px}
++.onboarding-step:not(.onboarding-step-review):not(.onboarding-step-scan)>:is(.kicker,.onboarding-hero .kicker){display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-weight:850}
++.onboarding-step:not(.onboarding-step-review):not(.onboarding-step-scan)>h1,.onboarding-step .onboarding-hero>h1{letter-spacing:-.025em}
++.onboarding-step-resume .onboarding-upload,.onboarding-step-skills .onboarding-skill-checks,.onboarding-step-preferences .onboarding-form,.onboarding-step-track .onboarding-track-grid{margin-top:22px}
++.onboarding-step-resume .onboarding-upload,.onboarding-step-preferences .onboarding-form>fieldset,.onboarding-step-preferences .onboarding-form>label,.onboarding-step-skills .onboarding-skill-check,.onboarding-step-track .onboarding-track-card{box-shadow:0 10px 30px rgba(25,65,95,.055)}
++.onboarding-step-preferences .onboarding-form>fieldset,.onboarding-step-preferences .onboarding-form>label{border-color:var(--line);background:linear-gradient(145deg,var(--panel),var(--panel-2));border-radius:20px}
++.onboarding-step-preferences fieldset>legend{padding-inline:7px;color:var(--text);font-weight:900}
++.onboarding-step-skills .onboarding-skill-checks{padding:16px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,var(--panel),var(--panel-2))}
++.onboarding-step-track .onboarding-track-card.active,.onboarding-step-skills .onboarding-skill-check.selected,.onboarding-step-preferences .onboarding-choice.selected{box-shadow:0 12px 30px var(--accent-glow)}
++.onboarding-step-scan .onboarding-scan-stage{max-width:900px;margin:auto;text-align:center}
++.onboarding-step-scan .onboarding-scan-stage>p{margin-inline:auto;text-align:center}
++.source-scan-progress.waiting>span b{font-size:17px;letter-spacing:4px;animation:onboardingWaitingPulse 1.15s ease-in-out infinite}
++.source-scan-progress.waiting>div i{width:28%!important;animation:onboardingWaitingBar 1.35s ease-in-out infinite}
++.source-scan-progress.waiting small{color:var(--brand);font-weight:800}
++@keyframes onboardingWaitingPulse{50%{opacity:.35}}
++@keyframes onboardingWaitingBar{0%{transform:translateX(260%)}50%{transform:translateX(0)}100%{transform:translateX(-260%)}}
++@media(max-width:700px){.onboarding-step{padding-inline:0}.onboarding-step-skills .onboarding-skill-checks{padding:10px}.onboarding-step-preferences .onboarding-form>fieldset,.onboarding-step-preferences .onboarding-form>label{border-radius:17px}}
++@media(prefers-reduced-motion:reduce){.source-scan-progress.waiting>span b,.source-scan-progress.waiting>div i{animation:none!important}}
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 0f962f1..3d37aa5 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.28.3" in index.text
++        assert "app.js?v=0.28.4" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index e07bf4f..6eb0787 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.4" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 9fbd284..1822c58 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.4" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.4" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 63963e5..1ce9132 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.47.3' in HTML
+-    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
++    assert 'app.js?v=0.28.4' in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index 084043d..89a9260 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.28.3' in HTML
++    assert 'app.js?v=0.28.4' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+index ff9fbf7..090a6f4 100644
+--- a/tests/test_mobile_logo_contract.py
++++ b/tests/test_mobile_logo_contract.py
+@@ -6,7 +6,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
+ 
+ 
+ def test_mobile_header_keeps_full_animated_jobpilot_brand():
+-    assert 'styles.css?v=0.47.3' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
+     assert '.sidebar .brand > div { display:block !important;' in CSS
+     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
+     assert '.sidebar .brand strong { display:block;' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 2dc2901..8aaffa8 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.47.3' in HTML
+-    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
++    assert 'app.js?v=0.28.4' in HTML
+diff --git a/tests/test_onboarding_ready_locations_v5.py b/tests/test_onboarding_ready_locations_v5.py
+index 5d89ac8..663a545 100644
+--- a/tests/test_onboarding_ready_locations_v5.py
++++ b/tests/test_onboarding_ready_locations_v5.py
+@@ -21,5 +21,5 @@ def test_ready_screen_is_launchpad_style():
+     assert '.ready-spotlight' in CSS
+ 
+ def test_assets_bumped_v5():
+-    assert 'app.js?v=0.28.3' in HTML
+-    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.4' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 38543a7..7b72bbd 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.28.3" in HTML
++    assert "app.js?v=0.28.4" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_ui_refinement.py b/tests/test_onboarding_ui_refinement.py
+index 7592f73..d1d8877 100644
+--- a/tests/test_onboarding_ui_refinement.py
++++ b/tests/test_onboarding_ui_refinement.py
+@@ -27,5 +27,5 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
+     assert "top:8px" in CSS and "right:41px" in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.28.3" in HTML
+-    assert "styles.css?v=0.47.3" in HTML
++    assert "app.js?v=0.28.4" in HTML
++    assert "styles.css?v=0.47.4" in HTML
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 497b8f3..75b179a 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,8 +10,8 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.28.3' in HTML
+-    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.4' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+     assert ".onboarding-gate" in CSS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 3e8bc8e..8e331bb 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.28.3' in HTML
+-    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.4' in HTML
++    assert 'styles.css?v=0.47.4' in HTML
+diff --git a/jp_v6_work/tests/test_onboarding_v6_polish.py b/tests/test_onboarding_v6_polish.py
+new file mode 100644
+index 0000000..403cbf4
+--- /dev/null
++++ b/tests/test_onboarding_v6_polish.py
+@@ -0,0 +1,23 @@
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[1]
++JS=(ROOT/"app/static/app.js").read_text()
++CSS=(ROOT/"app/static/styles.css").read_text()
++HTML=(ROOT/"app/static/index.html").read_text()
++
++def test_excluded_has_junior_and_mid_choices():
++    assert "['junior','Junior']" in JS
++    assert "['mid','Mid']" in JS
++
++def test_all_steps_receive_shared_visual_step_class():
++    assert "onboarding-step-${step}" in JS
++    assert ".onboarding-step{" in CSS
++
++def test_scan_waits_for_server_before_showing_counts():
++    assert "ממתין לשרת" in JS
++    assert "השרת מכין את רשימת המקורות לסריקה" in JS
++    assert "source-scan-progress waiting" in JS
++    assert "onboardingWaitingBar" in CSS
++
++def test_assets_bumped():
++    assert "app.js?v=0.28.4" in HTML
++    assert "styles.css?v=0.47.4" in HTML
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+index 3d371a3..f37d9fe 100644
+--- a/tests/test_save_responsiveness_and_admin_preview.py
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+     assert "הרשאות השרת שלך נשארו Admin" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.28.3" in HTML
+-    assert "styles.css?v=0.47.3" in HTML
++    assert "app.js?v=0.28.4" in HTML
++    assert "styles.css?v=0.47.4" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 1d4acbc..0b05549 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.4" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index f513ca1..216d794 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.4"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 097f6f0..fae7ab3 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.28.3' in HTML
+-    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.4' in HTML
++    assert 'styles.css?v=0.47.4' in HTML

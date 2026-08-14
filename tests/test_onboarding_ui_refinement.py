@@ -27,5 +27,5 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
     assert "top:8px" in CSS and "right:41px" in CSS
 
 def test_assets_bumped():
-    assert "app.js?v=0.28.3" in HTML
-    assert "styles.css?v=0.47.3" in HTML
+    assert "app.js?v=0.28.4" in HTML
+    assert "styles.css?v=0.47.4" in HTML
