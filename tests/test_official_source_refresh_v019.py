@@ -72,3 +72,27 @@ def test_script_json_job_urls_are_recovered_when_dom_selectors_change():
         assert rows, identifier
         _, match = _resolve_row_href(rows[0], PRESETS[identifier])
         assert match is not None, identifier
+
+
+def test_dynamic_board_payload_ids_are_recovered_without_dom_links():
+    fixtures = {
+        "checkpoint": '{"joborderid":"25962","title":"AI Builder Director"}',
+        "elbit": '{"jid":20895,"title":"Senior System Engineer"}',
+        "rafael": '{"url":"https://career.rafael.co.il/job/11430/"}',
+        "iai": '{"url":"https://jobs.iai.co.il/job/76048939/"}',
+        "salesforce": '{"url":"https://www.salesforce.com/company/careers/jobs/JR352800/technical-architect/"}',
+    }
+    for identifier, payload in fixtures.items():
+        rows = _extract_raw_rows(payload, PRESETS[identifier])
+        assert rows, identifier
+        href, match = _resolve_row_href(rows[0], PRESETS[identifier])
+        assert match is not None, identifier
+        assert href.startswith("http"), identifier
+
+
+def test_dynamic_sources_have_canonical_detail_templates_when_ids_arrive_without_links():
+    assert PRESETS["checkpoint"]["href_template"].startswith("https://careers.checkpoint.com/")
+    assert PRESETS["elbit"]["href_template"].startswith("https://elbitsystemscareer.com/job/")
+    assert PRESETS["rafael"]["href_template"].startswith("https://career.rafael.co.il/job/")
+    assert PRESETS["iai"]["href_template"].startswith("https://jobs.iai.co.il/job/")
+    assert PRESETS["salesforce"]["href_template"].startswith("https://www.salesforce.com/company/careers/jobs/")

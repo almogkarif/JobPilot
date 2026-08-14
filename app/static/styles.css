@@ -2725,3 +2725,82 @@ body.guest-mode .job-status-control { display:none !important; }
   .mobile-tab-trigger,.mobile-tab-menu,.mobile-nav-backdrop { display:none !important; }
   body.mobile-nav-open { overflow:auto !important; }
 }
+
+/* v0.3.2 — mobile dock reliability: viewport-owned bottom dock with neutral active light. */
+@media (max-width:760px) {
+  :root { --mobile-dock-clearance: calc(104px + env(safe-area-inset-bottom)); }
+  body { padding-bottom:0 !important; }
+  main { padding-bottom:var(--mobile-dock-clearance) !important; }
+
+  /* The dock lives outside .sidebar so backdrop-filter/sticky ancestors cannot
+     turn position:fixed into a top-anchored containing block on mobile browsers. */
+  #mobile-tab-dock.mobile-tab-dock {
+    position:fixed !important;
+    z-index:78 !important;
+    top:auto !important;
+    right:10px !important;
+    left:10px !important;
+    bottom:calc(10px + env(safe-area-inset-bottom)) !important;
+    width:auto !important;
+    min-width:0 !important;
+    max-width:none !important;
+    height:64px !important;
+    display:flex !important;
+    align-items:stretch !important;
+    gap:3px !important;
+    padding:5px !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    border:1px solid var(--line) !important;
+    border-radius:20px !important;
+    background:var(--panel) !important;
+    box-shadow:0 12px 30px rgba(0,0,0,.20) !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    isolation:isolate;
+    direction:rtl;
+    scrollbar-width:none;
+  }
+  #mobile-tab-dock.mobile-tab-dock::-webkit-scrollbar { display:none; }
+  #mobile-tab-dock.mobile-tab-dock > button {
+    position:relative;
+    flex:0 0 66px;
+    min-width:66px;
+    height:54px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    padding:6px 4px 5px;
+    border:0;
+    border-radius:14px;
+    background:transparent;
+    color:var(--muted);
+    box-shadow:none !important;
+    font:inherit;
+    text-align:center;
+  }
+  #mobile-tab-dock.mobile-tab-dock > button::before {
+    content:"";
+    position:absolute;
+    top:2px;
+    left:50%;
+    width:22px;
+    height:3px;
+    border-radius:999px;
+    background:transparent;
+    transform:translateX(-50%);
+  }
+  #mobile-tab-dock.mobile-tab-dock > button.active {
+    background:var(--brand-soft) !important;
+    color:var(--brand) !important;
+  }
+  #mobile-tab-dock.mobile-tab-dock > button.active::before { background:currentColor; }
+  #mobile-tab-dock.mobile-tab-dock > button > span { font-size:17px; line-height:1; }
+  #mobile-tab-dock.mobile-tab-dock > button > strong { font-size:9px; line-height:1.1; }
+  body.track-industrial-engineering #mobile-tab-dock.mobile-tab-dock > button.active {
+    background:var(--accent-soft) !important;
+    color:var(--accent) !important;
+  }
+}

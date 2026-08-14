@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.45.4" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.45.5" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -76,16 +76,7 @@
         <i class="brand-flight-dot" id="brand-flight-dot" aria-hidden="true"></i>
         <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot" id="brand-i-dot"></span></span>lot</strong><span class="brand-tagline" id="brand-tagline">חיפוש משרות חכם</span></div>
       </div>
-      <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט ראשי במובייל">
-        <button type="button" data-mobile-view="dashboard" class="active" aria-current="page"><span aria-hidden="true">⌂</span><strong>בית</strong></button>
-        <button type="button" data-mobile-view="jobs"><span aria-hidden="true">▣</span><strong>משרות</strong></button>
-        <button type="button" data-mobile-view="preferences"><span aria-hidden="true">≡</span><strong>העדפות</strong></button>
-        <button type="button" data-mobile-view="applications"><span aria-hidden="true">✓</span><strong>הגשות</strong></button>
-        <button type="button" data-mobile-view="blockers"><span aria-hidden="true">!</span><strong>טיפול</strong></button>
-        <button type="button" data-mobile-view="skills"><span aria-hidden="true">◇</span><strong>סקילים</strong></button>
-        <button type="button" data-mobile-view="sources"><span aria-hidden="true">◎</span><strong>מקורות</strong></button>
-        <button type="button" data-mobile-view="profile"><span aria-hidden="true">◉</span><strong>פרופיל</strong></button>
-      </nav>
+
       <nav id="nav">
         <button data-view="dashboard" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="6.5" rx="2"/><rect x="13.5" y="4" width="7" height="10" rx="2"/><rect x="3.5" y="13.5" width="7" height="6.5" rx="2"/><path class="nav-accent" d="M14.8 18.5h4.4M17 16.3v4.4"/></svg></span><span class="nav-label">לוח בקרה<small>תמונת מצב כללית</small></span></button>
         <button data-view="jobs"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.8h18v10a2.2 2.2 0 0 1-2.2 2.2H5.2A2.2 2.2 0 0 1 3 17.8v-10Z"/><path d="M8.5 7.8V6.2A1.7 1.7 0 0 1 10.2 4.5h3.6a1.7 1.7 0 0 1 1.7 1.7v1.6M3 12c5.2 2.35 12.8 2.35 18 0"/><circle class="nav-accent" cx="12" cy="13" r="1.35"/></svg></span><span class="nav-label">משרות<small>התאמות והזדמנויות</small></span></button>
@@ -415,6 +406,16 @@
     </main>
   </div>
 
+  <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט ראשי במובייל">
+        <button type="button" data-mobile-view="dashboard" class="active" aria-current="page"><span aria-hidden="true">⌂</span><strong>בית</strong></button>
+        <button type="button" data-mobile-view="jobs"><span aria-hidden="true">▣</span><strong>משרות</strong></button>
+        <button type="button" data-mobile-view="preferences"><span aria-hidden="true">≡</span><strong>העדפות</strong></button>
+        <button type="button" data-mobile-view="applications"><span aria-hidden="true">✓</span><strong>הגשות</strong></button>
+        <button type="button" data-mobile-view="blockers"><span aria-hidden="true">!</span><strong>טיפול</strong></button>
+        <button type="button" data-mobile-view="skills"><span aria-hidden="true">◇</span><strong>סקילים</strong></button>
+        <button type="button" data-mobile-view="sources"><span aria-hidden="true">◎</span><strong>מקורות</strong></button>
+        <button type="button" data-mobile-view="profile"><span aria-hidden="true">◉</span><strong>פרופיל</strong></button>
+      </nav>
 
   <div id="modal" class="modal" aria-hidden="true"><div class="modal-card"><button class="modal-close">×</button><div id="modal-content"></div></div></div>
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
