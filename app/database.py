@@ -125,6 +125,14 @@ def _sqlite_additive_migrations(connection) -> None:
         connection.execute(text(
             "ALTER TABLE profiles ADD COLUMN track_profiles_json TEXT NOT NULL DEFAULT '{}'"
         ))
+    if "onboarding_version" not in columns:
+        connection.execute(text(
+            "ALTER TABLE profiles ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0"
+        ))
+    if "onboarding_state_json" not in columns:
+        connection.execute(text(
+            "ALTER TABLE profiles ADD COLUMN onboarding_state_json TEXT NOT NULL DEFAULT '{}'"
+        ))
     additive = {
         "sources": {
             "career_track": "VARCHAR(40) NOT NULL DEFAULT 'computer_science'",
@@ -295,6 +303,11 @@ def _postgres_multiuser_migration(connection) -> None:
         # because SQLAlchemy no longer sends a value for the retired field. Keep the
         # legacy column harmless and backwards-compatible instead of rebuilding the
         # table: a server default lets current code insert new profiles safely.
+        profile_columns = {c["name"]: c for c in inspect(connection).get_columns("profiles")}
+        if "onboarding_version" not in profile_columns:
+            connection.execute(text("ALTER TABLE profiles ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0"))
+        if "onboarding_state_json" not in profile_columns:
+            connection.execute(text("ALTER TABLE profiles ADD COLUMN onboarding_state_json TEXT NOT NULL DEFAULT '{}'"))
         profile_columns = {c["name"]: c for c in inspect(connection).get_columns("profiles")}
         password_column = profile_columns.get("application_password")
         if password_column is not None and not isinstance(password_column.get("type"), Text):

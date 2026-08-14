@@ -39,6 +39,7 @@ from .schemas import (
     ImportJobRequest,
     ProfilePatch,
     ProfileUpdate,
+    OnboardingUpdate,
     QueueApplicationRequest,
     ResumeSuggestionApply,
     ResolveBlockerRequest,
@@ -448,10 +449,27 @@ def auth_me(request: Request):
         },
         "capabilities": {
             "application_agent": False if is_guest else application_agent_allowed(email=identity.email),
+            "developer_tools": False if is_guest else _developer_tools_allowed(identity),
             "write": not is_guest,
         },
     }
 
+
+
+def _developer_tools_allowed(identity) -> bool:
+    """Developer tools are restricted to the configured owner/admin account."""
+    if settings.auth_mode != "supabase":
+        return True
+    if not identity or getattr(identity, "is_guest", False):
+        return False
+    email = str(getattr(identity, "email", "") or "").strip().casefold()
+    owner_email = str(settings.owner_email or "").strip().casefold()
+    agent_owner = str(settings.application_agent_owner_email or "").strip().casefold()
+    return bool(
+        getattr(identity, "role", "") == "admin"
+        or (owner_email and email == owner_email)
+        or (agent_owner and email == agent_owner)
+    )
 
 def _request_is_guest(request: Request) -> bool:
     identity = getattr(request.state, "identity", None)
@@ -631,6 +649,64 @@ def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats
             jobs=track_stats.get("jobs", 0),
         ))
     return {"active_track": current, "tracks": rows, "scanning": _user_scan_lock(current_user_id(db)).locked()}
+
+
+ONBOARDING_VERSION = 2
+
+
+def _onboarding_payload(profile: Profile | None) -> dict:
+    state = loads(profile.onboarding_state_json, {}) if profile else {}
+    if not isinstance(state, dict):
+        state = {}
+    version = int(profile.onboarding_version or 0) if profile else 0
+    return {
+        "version": version,
+        "current_version": ONBOARDING_VERSION,
+        "completed": version >= ONBOARDING_VERSION,
+        "step": str(state.get("step") or "welcome"),
+        "skipped": bool(state.get("skipped", False)),
+    }
+
+
+@app.get("/api/onboarding")
+def onboarding_status(request: Request, db: Session = Depends(get_db)):
+    if _request_is_guest(request):
+        return {"version": ONBOARDING_VERSION, "current_version": ONBOARDING_VERSION, "completed": True, "step": "done", "skipped": True}
+    return _onboarding_payload(get_user_profile(db))
+
+
+@app.put("/api/onboarding")
+def update_onboarding(payload: OnboardingUpdate, request: Request, db: Session = Depends(get_db)):
+    if _request_is_guest(request):
+        raise HTTPException(403, "Guest mode does not use onboarding")
+    profile = get_user_profile(db)
+    if not profile:
+        raise HTTPException(404, "Profile not found")
+    profile.onboarding_state_json = dumps({
+        "step": payload.step,
+        "skipped": bool(payload.skipped),
+        "updated_at": utcnow().isoformat(),
+    })
+    if payload.completed or payload.skipped:
+        profile.onboarding_version = ONBOARDING_VERSION
+    db.commit()
+    db.refresh(profile)
+    return _onboarding_payload(profile)
+
+
+@app.post("/api/admin/onboarding/preview")
+def admin_onboarding_preview(request: Request, db: Session = Depends(get_db)):
+    identity = getattr(request.state, "identity", None)
+    if not _developer_tools_allowed(identity):
+        raise HTTPException(403, "Admin access required")
+    profile = get_user_profile(db)
+    return {
+        "ok": True,
+        "current_version": ONBOARDING_VERSION,
+        "role": getattr(identity, "role", "admin") if identity else "admin",
+        "email": getattr(identity, "email", "") if identity else "",
+        "onboarding": _onboarding_payload(profile),
+    }
 
 
 @app.get("/api/career-tracks")
@@ -2499,6 +2575,7 @@ def _profile_dict(p: Profile) -> dict:
         "excluded_keywords": loads(p.excluded_keywords_json, []), "auto_apply_threshold": p.auto_apply_threshold,
         "auto_submit_enabled": p.auto_submit_enabled, "updated_at": p.updated_at,
         "application_profile": loads(p.application_profile_json, {}),
+        "onboarding_version": int(p.onboarding_version or 0),
         "active_career_track": active_track(p),
         "career_track": track_public_dict(CAREER_TRACK_BY_KEY[active_track(p)], active=True),
     }

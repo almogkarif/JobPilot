@@ -80,6 +80,10 @@ class ProfilePatch(BaseModel):
         return cleaned
 
 
+class OnboardingUpdate(BaseModel):
+    completed: bool = False
+    skipped: bool = False
+    step: str = Field(default="welcome", max_length=40)
 
 
 class CareerTrackSwitch(BaseModel):

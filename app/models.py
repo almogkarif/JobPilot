@@ -67,6 +67,8 @@ class Profile(UserOwnedMixin, Base):
     application_profile_json: Mapped[str] = mapped_column(Text, default="{}")
     active_career_track: Mapped[str] = mapped_column(String(40), default="computer_science", index=True)
     track_profiles_json: Mapped[str] = mapped_column(Text, default="{}")
+    onboarding_version: Mapped[int] = mapped_column(Integer, default=0)
+    onboarding_state_json: Mapped[str] = mapped_column(Text, default="{}")
     auto_apply_threshold: Mapped[int] = mapped_column(Integer, default=82)
     auto_submit_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
