@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.46.0" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.47.0" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -236,7 +236,9 @@
       <section id="view-developer" class="view">
         <article class="panel developer-panel">
           <div class="panel-head"><div><span class="kicker">Admin only</span><h2>אפשרויות למפתחים</h2><p class="preference-help">כלי בדיקה פנימיים שרק האדמין רואה.</p></div></div>
-          <p id="developer-runtime-status" class="preference-help"></p>\n          <button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button>
+          <p id="developer-runtime-status" class="preference-help"></p>
+          <div class="developer-actions"><button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button><button class="btn secondary" id="developer-refresh-users" type="button">רענן משתמשים</button></div>
+          <section class="developer-users-card"><div class="panel-head"><div><span class="kicker">משתמשי המערכת</span><h3>חשבונות שנכנסו ל־JobPilot</h3></div><strong id="developer-users-count">—</strong></div><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div></section>
         </article>
       </section>
 
@@ -427,7 +429,7 @@
 
   <section id="onboarding-gate" class="onboarding-gate" hidden aria-hidden="true">
     <div class="onboarding-shell" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-      <header class="onboarding-head"><div class="onboarding-brand"><strong>JP</strong><span>JobPilot</span></div><span id="onboarding-progress-label">1 מתוך 5</span></header>
+      <header class="onboarding-head"><div class="onboarding-brand brand" aria-label="JobPilot"><span class="brand-mark onboarding-brand-mark"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="ob-jp-surface" x1="8" y1="5" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#123F65"/><stop offset=".55" stop-color="#0B3151"/><stop offset="1" stop-color="#06243E"/></linearGradient><linearGradient id="ob-jp-line" x1="18" y1="49" x2="50" y2="16" gradientUnits="userSpaceOnUse"><stop stop-color="#8FD3F4"/><stop offset=".48" stop-color="#DDF5FF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect class="logo-surface" x="3" y="3" width="58" height="58" rx="18" fill="url(#ob-jp-surface)"/><path class="logo-route-depth" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route-highlight" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/></svg></span><i class="brand-flight-dot" aria-hidden="true"></i><span class="onboarding-wordmark">JobPilot</span></div><span id="onboarding-progress-label">1 מתוך 6</span></header>
       <div class="onboarding-progress"><i id="onboarding-progress-bar"></i></div>
       <div id="onboarding-content" class="onboarding-content"></div>
       <footer class="onboarding-actions"><button id="onboarding-back" class="btn secondary" type="button">חזרה</button><button id="onboarding-skip" class="text-btn" type="button">אעשה את זה אחר כך</button><button id="onboarding-next" class="btn primary" type="button">המשך</button></footer>
@@ -438,6 +440,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.27.1"></script>
+  <script src="/static/app.js?v=0.28.0"></script>
 </body>
 </html>

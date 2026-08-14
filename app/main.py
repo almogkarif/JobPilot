@@ -536,9 +536,9 @@ def _job_payload_for_request(job: Job, request: Request, *, full: bool = False, 
 @app.get("/api/admin/users")
 def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
-    if settings.auth_mode != "supabase" or not identity or identity.role != "admin":
+    if not _developer_tools_allowed(identity):
         raise HTTPException(403, "Admin access required")
-    accounts = db.scalars(select(AppIdentity).order_by(AppIdentity.id)).all()
+    accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_seen_at), AppIdentity.id)).all()
     return {
         "count": len(accounts),
         "max_users": max(1, int(settings.max_users or 10)),
