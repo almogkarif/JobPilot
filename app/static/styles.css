@@ -2492,9 +2492,18 @@ body.theme-dark.track-industrial-engineering :where(
     border-bottom:1px solid var(--line); background:var(--panel);
     box-shadow:0 8px 24px rgba(0,0,0,.08); backdrop-filter:blur(20px);
   }
-  .sidebar .brand { position:relative; inset:auto; width:42px; min-width:42px; min-height:42px; flex:0 0 42px; gap:0; padding:0; }
-  .sidebar .brand-mark { width:42px; height:42px; flex:0 0 42px; border-radius:13px; }
-  .sidebar .brand > div,.sidebar .brand-flight-dot { display:none !important; }
+  /* Keep the complete animated JobPilot identity on mobile, but size it for the compact header. */
+  .sidebar .brand {
+    position:relative; inset:auto; width:min(190px,calc(100vw - 84px)); min-width:0; min-height:48px; flex:0 1 190px;
+    display:flex; align-items:center; gap:8px; padding:0; overflow:visible; perspective:420px;
+  }
+  .sidebar .brand-mark { width:48px; height:48px; flex:0 0 48px; border-radius:15px; }
+  .sidebar .brand-mark svg { width:48px; height:48px; overflow:visible; }
+  .sidebar .brand > div { display:block !important; min-width:0; flex:1 1 auto; overflow:visible; }
+  .sidebar .brand strong { display:block; max-width:100%; font-size:18px; line-height:1.05; white-space:nowrap; }
+  .sidebar .brand .brand-tagline { display:block; max-width:100%; margin-top:2px; overflow:hidden; text-overflow:ellipsis; font-size:10px; line-height:1.2; white-space:nowrap; }
+  .sidebar .brand-flight-dot { display:block !important; width:8px; height:8px; }
+  .sidebar .brand:hover .brand-mark { filter:drop-shadow(0 10px 16px var(--accent-glow-strong)); }
   .sidebar #nav,.sidebar-footer { display:none !important; }
   .dock-utility { position:static !important; inset:auto !important; display:flex; margin:0; margin-inline-start:auto; flex:0 0 auto; }
   .dock-utility .icon-action { width:42px; height:42px; border-radius:13px; }
