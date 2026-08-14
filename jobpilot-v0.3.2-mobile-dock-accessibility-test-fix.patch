@@ -1,0 +1,21 @@
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -77,7 +77,7 @@
+         <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot" id="brand-i-dot"></span></span>lot</strong><span class="brand-tagline" id="brand-tagline">חיפוש משרות חכם</span></div>
+       </div>
+       <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט בין אזורים במובייל">
+-        <button id="mobile-tab-trigger" class="mobile-tab-trigger" type="button" aria-expanded="false" aria-controls="mobile-tab-menu">
++        <button id="mobile-tab-trigger" class="mobile-tab-trigger" type="button" aria-label="פתח תפריט ניווט בין אזורים" aria-describedby="mobile-tab-current-label" aria-expanded="false" aria-controls="mobile-tab-menu">
+           <span id="mobile-tab-current-icon" class="mobile-tab-current-icon" aria-hidden="true">⌂</span>
+           <span class="mobile-tab-current-copy"><small>אתה נמצא ב</small><strong id="mobile-tab-current-label">לוח בקרה</strong></span>
+           <span class="mobile-tab-chevron" aria-hidden="true">⌄</span>
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -75,6 +75,7 @@
+ def test_mobile_redesign_uses_top_right_floating_tab_dock_and_phone_first_job_layout():
+     assert 'id="mobile-tab-dock"' in HTML
+     assert 'id="mobile-tab-trigger"' in HTML
++    assert 'aria-label="פתח תפריט ניווט בין אזורים"' in HTML
+     assert 'id="mobile-tab-menu"' in HTML
+     assert 'id="mobile-bottom-nav"' not in HTML
+     assert 'data-mobile-view="jobs"' in HTML

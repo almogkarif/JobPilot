@@ -1,0 +1,657 @@
+diff --git a/app/main.py b/app/main.py
+index ef3902c..54f88a7 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -9,13 +9,14 @@ import io
+ import json
+ import secrets
+ import shutil
++import threading
+ import zipfile
+ from contextlib import asynccontextmanager, contextmanager
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ from zoneinfo import ZoneInfo
+ 
+-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
++from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+ from fastapi.encoders import jsonable_encoder
+ from fastapi.responses import FileResponse, JSONResponse, Response
+ from fastapi.staticfiles import StaticFiles
+@@ -85,6 +86,7 @@ def _new_scan_state() -> dict:
+ 
+ 
+ scan_states_by_user: dict[str, dict[str, dict]] = {}
++_profile_refresh_locks: dict[tuple[str, str], threading.Lock] = {}
+ scan_locks_by_user: dict[str, asyncio.Lock] = {}
+ global_user_scan_semaphore = asyncio.Semaphore(max(1, min(4, int(settings.max_concurrent_user_scans or 2))))
+ scheduler_task: asyncio.Task | None = None
+@@ -776,17 +778,17 @@ def get_profile(db: Session = Depends(get_db)):
+ 
+ 
+ @app.put("/api/profile")
+-def update_profile(payload: ProfileUpdate, db: Session = Depends(get_db)):
++def update_profile(payload: ProfileUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+     profile = get_user_profile(db)
+     if not profile:
+         raise HTTPException(404, "Profile not found")
+     return _apply_profile_changes(
+-        profile, payload.model_dump(), db, replace_application_profile=True, audit_scope="full"
++        profile, payload.model_dump(), db, replace_application_profile=True, audit_scope="full", background_tasks=background_tasks
+     )
+ 
+ 
+ @app.patch("/api/profile")
+-def patch_profile(payload: ProfilePatch, db: Session = Depends(get_db)):
++def patch_profile(payload: ProfilePatch, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+     profile = get_user_profile(db)
+     if not profile:
+         raise HTTPException(404, "Profile not found")
+@@ -794,7 +796,7 @@ def patch_profile(payload: ProfilePatch, db: Session = Depends(get_db)):
+     if not values:
+         return _profile_dict(profile)
+     return _apply_profile_changes(
+-        profile, values, db, replace_application_profile=False, audit_scope="partial"
++        profile, values, db, replace_application_profile=False, audit_scope="partial", background_tasks=background_tasks
+     )
+ 
+ 
+@@ -835,6 +837,7 @@ def _apply_profile_changes(
+     *,
+     replace_application_profile: bool,
+     audit_scope: str,
++    background_tasks: BackgroundTasks | None = None,
+ ) -> dict:
+     """Persist only supplied profile fields and refresh only affected derived data."""
+     matching_fields = (
+@@ -901,9 +904,27 @@ def _apply_profile_changes(
+         details_json=dumps({"fields": changed_fields}),
+     ))
+ 
+-    if tuple(getattr(profile, field) for field in matching_fields) != matching_before:
++    matching_changed = tuple(getattr(profile, field) for field in matching_fields) != matching_before
++    resume_analysis_changed = tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before
++    user_id = current_user_id(db)
++    track = active_track(profile)
++
++    # Cloud saves must acknowledge the user's edit first. Re-scoring every historical
++    # job (and re-analysing every CV) can take seconds on a small Render instance.
++    # Keep local/test mode synchronous for deterministic tests, but defer derived
++    # work until after the HTTP response in Supabase mode.
++    if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
++        db.commit()
++        db.refresh(profile)
++        background_tasks.add_task(
++            _refresh_profile_derived_background, user_id, track,
++            matching_changed, resume_analysis_changed,
++        )
++        return _profile_dict(profile)
++
++    if matching_changed:
+         _rescore_all_jobs(db, profile)
+-    if tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before:
++    if resume_analysis_changed:
+         _refresh_resume_analyses(db, profile)
+     db.commit()
+     db.refresh(profile)
+@@ -1101,7 +1122,7 @@ def reanalyze_resume(resume_id: int, db: Session = Depends(get_db)):
+ 
+ 
+ @app.post("/api/resumes/{resume_id}/suggestions/apply")
+-def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, db: Session = Depends(get_db)):
++def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+     """Apply one explicit CV suggestion without blocking FastAPI's event loop.
+ 
+     The route is intentionally synchronous so FastAPI executes the potentially
+@@ -1115,20 +1136,39 @@ def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, db:
+     field = str(payload.field or "").strip()
+     value = str(payload.value or "").strip()
+     allowed_profile = {"full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url"}
+-    if field == "skills":
++    skill_changed = field == "skills"
++    if skill_changed:
+         values = [str(item).strip() for item in loads(profile.skills_json, []) if str(item).strip()]
+         if value.casefold() not in {item.casefold() for item in values}:
+             values.append(value)
+         profile.skills_json = dumps(values)
+         persist_active_track(profile)
+-        _rescore_all_jobs(db, profile)
+     elif field in allowed_profile:
+         setattr(profile, field, value)
+     else:
+         raise HTTPException(400, "Unsupported suggestion")
+-    _refresh_resume_analyses(db, profile)
+-    db.commit()
+-    db.refresh(profile)
++
++    user_id, track = current_user_id(db), active_track(profile)
++    if settings.auth_mode == "supabase":
++        # Remove the accepted suggestion from the clicked CV immediately so the UI
++        # cannot offer the same action twice while the full CV refresh runs later.
++        analysis = loads(resume.analysis_json, {})
++        suggestions = analysis.get("suggestions", []) if isinstance(analysis, dict) else []
++        if isinstance(suggestions, list):
++            analysis["suggestions"] = [
++                item for item in suggestions
++                if not (str(item.get("field", "")) == field and str(item.get("value", "")).casefold() == value.casefold())
++            ]
++            resume.analysis_json = dumps(analysis)
++        db.commit()
++        db.refresh(profile)
++        background_tasks.add_task(_refresh_profile_derived_background, user_id, track, skill_changed, True)
++    else:
++        if skill_changed:
++            _rescore_all_jobs(db, profile)
++        _refresh_resume_analyses(db, profile)
++        db.commit()
++        db.refresh(profile)
+     return {"applied": True, "profile": _profile_dict(profile), "resume": _resume_dict(resume)}
+ 
+ 
+@@ -1398,7 +1438,7 @@ def skills_overview(db: Session = Depends(get_db)):
+ 
+ 
+ @app.post("/api/profile/desired-titles")
+-def add_desired_title(payload: DesiredTitleUpdateRequest, db: Session = Depends(get_db)):
++def add_desired_title(payload: DesiredTitleUpdateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+     profile = get_user_profile(db)
+     if not profile:
+         raise HTTPException(404, "Profile not found")
+@@ -1408,14 +1448,19 @@ def add_desired_title(payload: DesiredTitleUpdateRequest, db: Session = Depends(
+         titles.append(title)
+         profile.desired_titles_json = dumps(titles)
+         persist_active_track(profile)
+-        _rescore_all_jobs(db, profile)
++        user_id, track = current_user_id(db), active_track(profile)
+         db.add(AuditLog(event_type="desired_title_added", entity_type="profile", entity_id="1", message=title))
+-        db.commit()
++        if settings.auth_mode == "supabase":
++            db.commit()
++            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, False)
++        else:
++            _rescore_all_jobs(db, profile)
++            db.commit()
+     return {"added": title, "desired_titles": titles}
+ 
+ 
+ @app.post("/api/profile/skills")
+-def add_profile_skill(payload: SkillUpdateRequest, db: Session = Depends(get_db)):
++def add_profile_skill(payload: SkillUpdateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+     profile = get_user_profile(db)
+     if not profile:
+         raise HTTPException(404, "Profile not found")
+@@ -1425,15 +1470,20 @@ def add_profile_skill(payload: SkillUpdateRequest, db: Session = Depends(get_db)
+         skills.append(skill)
+         profile.skills_json = dumps(skills)
+         persist_active_track(profile)
+-        _rescore_all_jobs(db, profile)
+-        _refresh_resume_analyses(db, profile)
++        user_id, track = current_user_id(db), active_track(profile)
+         db.add(AuditLog(event_type="profile_skill_added", entity_type="profile", entity_id="1", message=skill))
+-        db.commit()
++        if settings.auth_mode == "supabase":
++            db.commit()
++            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
++        else:
++            _rescore_all_jobs(db, profile)
++            _refresh_resume_analyses(db, profile)
++            db.commit()
+     return {"added": skill, "skills": skills}
+ 
+ 
+ @app.delete("/api/profile/skills")
+-def remove_profile_skill(skill: str = Query(..., min_length=1, max_length=80), db: Session = Depends(get_db)):
++def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(..., min_length=1, max_length=80), db: Session = Depends(get_db)):
+     profile = get_user_profile(db)
+     if not profile:
+         raise HTTPException(404, "Profile not found")
+@@ -1442,10 +1492,15 @@ def remove_profile_skill(skill: str = Query(..., min_length=1, max_length=80), d
+     if len(remaining) != len(skills):
+         profile.skills_json = dumps(remaining)
+         persist_active_track(profile)
+-        _rescore_all_jobs(db, profile)
+-        _refresh_resume_analyses(db, profile)
++        user_id, track = current_user_id(db), active_track(profile)
+         db.add(AuditLog(event_type="profile_skill_removed", entity_type="profile", entity_id="1", message=skill.strip()))
+-        db.commit()
++        if settings.auth_mode == "supabase":
++            db.commit()
++            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
++        else:
++            _rescore_all_jobs(db, profile)
++            _refresh_resume_analyses(db, profile)
++            db.commit()
+     return {"removed": skill.strip(), "skills": remaining}
+ 
+ 
+@@ -2404,6 +2459,30 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session
+     db.commit(); return _application_dict(application, db)
+ 
+ 
++def _refresh_profile_derived_background(
++    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
++) -> None:
++    """Refresh expensive derived profile data after the user's save response."""
++    try:
++        # Serialise derived refreshes per user/track. If two saves happen quickly,
++        # the second refresh waits and then reloads the newest profile state, so an
++        # older scoring pass can never be the last writer.
++        lock = _profile_refresh_locks.setdefault((user_id, career_track), threading.Lock())
++        with lock:
++            with user_session(user_id) as db:
++                profile = get_user_profile(db)
++                if not profile:
++                    return
++                if rescore_jobs:
++                    _rescore_all_jobs(db, profile, career_track=career_track)
++                if refresh_resumes:
++                    _refresh_resume_analyses(db, profile, career_track=career_track)
++                db.commit()
++    except Exception as exc:
++        # A failed derived refresh must never roll back the already-confirmed user edit.
++        print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
++
++
+ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None) -> None:
+     track = normalize_track(career_track or active_track(profile))
+     default_resume = db.scalar(select(ResumeProfile).where(
+diff --git a/app/static/app.js b/app/static/app.js
+index b175bc7..dcd6dea 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -37,7 +37,7 @@ const CAREER_TRACK_UI = Object.freeze({
+     key: 'industrial_engineering', symbol: 'IE', label: 'תעשייה וניהול', shortLabel: 'תעו״נ', themeClass: 'track-industrial-engineering',
+     description: 'תפעול, שרשרת אספקה, אנליזה, BI, פרויקטים ותהליכים',
+     eyebrow: 'סוכן חיפוש · תעשייה וניהול', tagline: 'חיפוש משרות · תעשייה וניהול',
+-    searchPlaceholder: 'חיפוש תפקיד, חברה, תחום או כלי', skillsLegend: 'כלים, מערכות וכישורים',
++    searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה', skillsLegend: 'טכנולוגיות וכישורים',
+     desiredTitles: [
+       ['industrial engineer','Industrial Engineer'], ['business analyst','Business Analyst'], ['data analyst','Data Analyst'], ['bi analyst','BI Analyst'],
+       ['operations analyst','Operations Analyst'], ['business operations','Business Operations'], ['supply chain','Supply Chain'],
+@@ -47,7 +47,7 @@ const CAREER_TRACK_UI = Object.freeze({
+       ['operational excellence','Operational Excellence'], ['manufacturing engineer','Manufacturing Engineer'], ['quality engineer','Quality Engineer'], ['npi','NPI']
+     ],
+     skills: [['Excel','Excel'],['SQL','SQL'],['Power BI','Power BI'],['Tableau','Tableau'],['Data Analysis','Data Analysis'],['ERP','ERP'],['SAP','SAP'],['Priority','Priority'],['Lean','Lean'],['Six Sigma','Six Sigma'],['Process Improvement','Process Improvement'],['Project Management','Project Management'],['Supply Chain','Supply Chain'],['Procurement','Procurement'],['Production Planning','Production Planning'],['Operations Research','Operations Research'],['Statistics','Statistics'],['Power Query','Power Query'],['VBA','VBA'],['Python','Python']],
+-    desiredPlaceholder: 'למשל: Planning, Operational Excellence, Sales Operations', skillsPlaceholder: 'למשל: MRP, Jira, Monday, Forecasting',
++    desiredPlaceholder: 'למשל: Developer Tools, Integration', skillsPlaceholder: 'מופרדים בפסיקים',
+   },
+ });
+ 
+@@ -1772,14 +1772,41 @@ async function editApplication(id) {
+ }
+ async function saveApplicationEdit(id){await updateApplication(id,{status:$('#application-stage').value,notes:$('#application-notes').value,reminder_at:$('#application-reminder').value||null,reminder_note:$('#application-reminder-note').value});closeModal();}
+ 
++function renderOwnedSkills(skills = []) {
++  const root = $('#my-skills');
++  if (!root) return;
++  root.innerHTML = skills.length
++    ? skills.map((skill) => `<span>${esc(skill)} <button type="button" title="הסר" onclick="removeSkill(decodeURIComponent('${encodeURIComponent(skill)}'))">×</button></span>`).join('')
++    : emptyState('＋', 'רשימת הסקילים עדיין ריקה', 'הוסף סקילים מתוך הצעות המערכת או דרך העדפות החיפוש.', '<button class="btn secondary small" type="button" onclick="switchView(\'preferences\')">להעדפות החיפוש</button>');
++}
++
++function syncSkillsEverywhere(skills = [], changedSkill = '') {
++  const normalized = [...new Set((skills || []).map((value) => String(value).trim()).filter(Boolean))];
++  if (state.profile) state.profile = { ...state.profile, skills: normalized };
++  if (state.profileLoaded && profileForm()?.elements?.skills) {
++    applyArrayFieldToControls('skills', normalized);
++    updateProfileDirtyState();
++    updateProfileSectionSummaries();
++  }
++  if (state.skillsOverview) state.skillsOverview.profile_skills = normalized;
++  renderOwnedSkills(normalized);
++
++  // Resume suggestions live in another surface. Remove an accepted skill from all
++  // visible CV suggestion cards immediately instead of waiting for a full re-fetch.
++  if (changedSkill) {
++    $$('[data-resume-suggestion][data-field="skills"]').forEach((button) => {
++      const value = decodeURIComponent(button.dataset.value || '');
++      if (value.trim().toLowerCase() === changedSkill.trim().toLowerCase()) button.remove();
++    });
++  }
++}
++
+ async function loadSkills() {
+   $('#my-skills').innerHTML = skeleton(2, 'rows');
+   $('#skill-suggestions').innerHTML = skeleton(3, 'rows');
+   state.skillsOverview = await api('/api/skills/overview');
+   setPageContext('skills', state.skillsOverview.profile_skills.length);
+-  $('#my-skills').innerHTML = state.skillsOverview.profile_skills.length
+-    ? state.skillsOverview.profile_skills.map((skill) => `<span>${esc(skill)} <button type="button" title="הסר" onclick="removeSkill(decodeURIComponent('${encodeURIComponent(skill)}'))">×</button></span>`).join('')
+-    : emptyState('＋', 'רשימת הסקילים עדיין ריקה', 'הוסף סקילים מתוך הצעות המערכת או דרך העדפות החיפוש.', '<button class="btn secondary small" type="button" onclick="switchView(\'preferences\')">להעדפות החיפוש</button>');
++  renderOwnedSkills(state.skillsOverview.profile_skills);
+   $('#skill-suggestions').innerHTML = state.skillsOverview.suggestions.length
+     ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div><strong>${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span><small>${item.jobs.map((job) => `${esc(job.company)} — ${esc(job.title)}`).join('<br>')}</small></div><button class="btn secondary small" type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">הוסף לסקילים שלי</button></article>`).join('')
+     : emptyState('✓', 'אין כרגע פערי סקילים חדשים', 'כל הסקילים שזוהו במשרות הפעילות כבר מופיעים בפרופיל שלך.');
+@@ -1787,11 +1814,11 @@ async function loadSkills() {
+ 
+ async function addSkill(skill, reopenJobId = null) {
+   try {
+-    await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
+-    state.profileLoaded = false;
+-    toast(`${skill} נוסף לפרופיל והמשרות דורגו מחדש`);
+-    if (state.activeView === 'skills') await loadSkills();
+-    if (state.activeView === 'jobs') await loadJobs();
++    const result = await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
++    syncSkillsEverywhere(result.skills || [], skill);
++    toast(`${skill} נוסף מיד · ציוני המשרות מתעדכנים ברקע`);
++    if (state.activeView === 'skills') loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
++    if (state.activeView === 'jobs') loadJobs({ silent:true }).catch((error) => console.warn('Jobs refresh failed', error));
+     if (reopenJobId) await showJob(reopenJobId);
+   } catch (error) {
+     toast(error.message);
+@@ -1801,10 +1828,10 @@ async function addSkill(skill, reopenJobId = null) {
+ async function removeSkill(skill) {
+   if (!confirm(`להסיר את ${skill} מרשימת הסקילים שלך?`)) return;
+   try {
+-    await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
+-    state.profileLoaded = false;
+-    toast(`${skill} הוסר והדירוגים עודכנו`);
+-    await loadSkills();
++    const result = await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
++    syncSkillsEverywhere(result.skills || []);
++    toast(`${skill} הוסר · ציוני המשרות מתעדכנים ברקע`);
++    loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
+   } catch (error) {
+     toast(error.message);
+   }
+@@ -2347,12 +2374,16 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
+   const total = dirtyFields.length + (state.answersDirty ? 1 : 0);
+   const preferenceDirty = dirtyFields.filter((field) => SEARCH_PREFERENCE_FIELDS.has(field));
+   const personalDirty = dirtyFields.filter((field) => !SEARCH_PREFERENCE_FIELDS.has(field));
++  // Preferences and My Profile share the same underlying form/view, but their
++  // validation summaries must never bleed into each other. Only describe the
++  // fields owned by the tab the user is currently looking at.
++  const visibleDirty = state.activeView === 'preferences' ? preferenceDirty : personalDirty;
+   const parts = [];
+-  if (dirtyFields.length) {
+-    const labels = dirtyFields.map(profileFieldLabel).filter(Boolean);
++  if (visibleDirty.length) {
++    const labels = visibleDirty.map(profileFieldLabel).filter(Boolean);
+     parts.push(`לא נשמרו: ${labels.slice(0,4).join(' · ')}${labels.length > 4 ? ` · ועוד ${labels.length - 4}` : ''}`);
+   }
+-  if (state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
++  if (state.activeView !== 'preferences' && state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
+   $('#profile-unsaved-count').textContent = parts.join(' · ');
+   $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
+   $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
+@@ -2510,11 +2541,11 @@ async function applyResumeSuggestion(resumeId,field,value){
+   try {
+     const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});
+     state.profile=result.profile; state.profileLoaded=true;
+-    if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
++    if(field==='skills') syncSkillsEverywhere(state.profile.skills||[], value);
+     else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
+     updateProfileDirtyState(); updateProfileSectionSummaries(); updateProfileCompletion();
+     if (button?.isConnected) button.remove();
+-    toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
++    toast(field==='skills'?'הסקיל נוסף מיד · ציוני המשרות מתעדכנים ברקע':'הפרט נוסף לפרופיל');
+     loadResumeInsights().catch((error) => console.warn('Resume insights refresh failed', error));
+   } catch (error) {
+     toast(`לא ניתן להוסיף את ההצעה: ${error.message}`);
+diff --git a/app/static/index.html b/app/static/index.html
+index be5e229..69ecbdc 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.45.2" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.45.3" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -428,6 +428,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.26.1"></script>
++  <script src="/static/app.js?v=0.26.2"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 9fd371e..c5befd4 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2056,7 +2056,7 @@ body.theme-dark .auth-google:hover,body.theme-dark .auth-form input:hover { back
+ body.theme-dark .logout-action { color:#e8a39a; }
+ body.theme-dark .logout-action:hover,body.theme-dark .logout-action:focus-visible { border-color:#8a5552; background:#3b292b !important; color:#ffb0a6; }
+ .has-tooltip { position:relative; }
+-.has-tooltip::after { content:attr(data-tooltip); position:absolute; z-index:120; padding:6px 8px; border:1px solid color-mix(in srgb,var(--control-border) 85%,transparent); border-radius:8px; background:color-mix(in srgb,var(--panel) 97%,transparent); color:var(--ink); box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 12%,transparent); font-size:9px; font-weight:750; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity 150ms var(--ease-apple),transform 150ms var(--ease-apple-out); }
++.has-tooltip::after { content:attr(data-tooltip); position:absolute; z-index:120; padding:6px 8px; border:1px solid color-mix(in srgb,var(--control-border) 85%,transparent); border-radius:8px; background:var(--panel); color:var(--ink); box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 12%,transparent); font-size:9px; font-weight:750; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity 150ms var(--ease-apple),transform 150ms var(--ease-apple-out); }
+ .has-tooltip:hover::after,.has-tooltip:focus-visible::after { opacity:1; }
+ .top-actions .has-tooltip::after { top:calc(100% + 8px); right:50%; transform:translate(50%,-3px); }
+ .top-actions .has-tooltip:hover::after,.top-actions .has-tooltip:focus-visible::after { transform:translate(50%,0); }
+@@ -2489,7 +2489,7 @@ body.theme-dark.track-industrial-engineering :where(
+   .sidebar {
+     position:sticky !important; top:0; z-index:40; order:0; width:100%; height:64px; min-height:64px;
+     display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 14px;
+-    border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--panel) 92%,transparent);
++    border-bottom:1px solid var(--line); background:var(--panel);
+     box-shadow:0 8px 24px rgba(0,0,0,.08); backdrop-filter:blur(20px);
+   }
+   .sidebar .brand { position:relative; inset:auto; width:42px; min-width:42px; min-height:42px; flex:0 0 42px; gap:0; padding:0; }
+@@ -2506,7 +2506,7 @@ body.theme-dark.track-industrial-engineering :where(
+   .mobile-tab-trigger {
+     width:100%; height:46px; display:grid; grid-template-columns:30px minmax(0,1fr) 18px; align-items:center; gap:7px;
+     padding:5px 9px; border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line)); border-radius:15px;
+-    background:color-mix(in srgb,var(--panel) 95%,transparent); color:var(--ink); box-shadow:0 9px 24px rgba(0,0,0,.13);
++    background:var(--panel); color:var(--ink); box-shadow:0 9px 24px rgba(0,0,0,.13);
+     backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); text-align:right; font:inherit; cursor:pointer;
+   }
+   .mobile-tab-current-icon { width:30px; height:30px; display:grid; place-items:center; border-radius:10px; background:var(--brand-soft); color:var(--brand); font-size:16px; font-weight:900; }
+@@ -2518,7 +2518,7 @@ body.theme-dark.track-industrial-engineering :where(
+   .mobile-tab-dock.open .mobile-tab-trigger { border-color:color-mix(in srgb,var(--brand) 45%,var(--line)); box-shadow:0 14px 34px rgba(0,0,0,.18); }
+   .mobile-tab-menu {
+     position:absolute; top:calc(100% + 9px); right:0; width:min(286px,calc(100vw - 24px)); max-height:calc(100dvh - 86px); overflow:auto;
+-    display:grid; gap:5px; padding:8px; border:1px solid var(--line); border-radius:19px; background:color-mix(in srgb,var(--panel) 97%,transparent);
++    display:grid; gap:5px; padding:8px; border:1px solid var(--line); border-radius:19px; background:var(--panel);
+     box-shadow:0 22px 58px rgba(5,28,45,.24); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+     opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-7px) scale(.98); transform-origin:top right;
+     transition:opacity .16s ease,transform .2s var(--ease-apple-out),visibility .16s ease; overscroll-behavior:contain;
+@@ -2534,8 +2534,8 @@ body.theme-dark.track-industrial-engineering :where(
+   .mobile-tab-menu button.active { border-color:color-mix(in srgb,var(--brand) 34%,var(--line)); background:color-mix(in srgb,var(--brand-soft) 66%,var(--panel)); }
+   .mobile-tab-menu button.active > span { background:var(--brand-soft); color:var(--brand); }
+   .mobile-nav-backdrop {
+-    position:fixed; z-index:39; inset:0; display:block; background:rgba(3,16,26,.10); opacity:0; visibility:hidden; pointer-events:none;
+-    backdrop-filter:blur(1.5px); -webkit-backdrop-filter:blur(1.5px); transition:opacity .16s ease,visibility .16s ease;
++    position:fixed; z-index:39; inset:0; display:block; background:rgba(3,16,26,.28); opacity:0; visibility:hidden; pointer-events:none;
++    backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px); transition:opacity .16s ease,visibility .16s ease;
+   }
+   .mobile-nav-backdrop.open { opacity:1; visibility:visible; pointer-events:auto; }
+   body.mobile-nav-open { overflow:hidden; }
+@@ -2674,7 +2674,7 @@ body.theme-dark.track-industrial-engineering :where(
+   .notification-center { position:fixed; right:10px; left:10px; top:74px; bottom:auto; width:auto; max-height:calc(100dvh - 88px); border-radius:20px; }
+ }
+ 
+-body.theme-dark .mobile-tab-trigger,body.theme-dark .mobile-tab-menu { background:color-mix(in srgb,var(--panel) 96%,#000); }
++body.theme-dark .mobile-tab-trigger,body.theme-dark .mobile-tab-menu { background:var(--panel); }
+ body.track-industrial-engineering .mobile-tab-current-icon,body.track-industrial-engineering .mobile-tab-menu button.active > span { color:var(--accent); }
+ body.track-industrial-engineering .mobile-tab-current-icon,body.track-industrial-engineering .mobile-tab-menu button.active > span { background:var(--accent-soft); color:var(--accent); }
+ body.track-industrial-engineering .mobile-tab-menu button.active { border-color:var(--accent-border); background:var(--accent-soft-2); }
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 0a927bf..cab3c05 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.26.1" in index.text
++        assert "app.js?v=0.26.2" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 12cd27f..5ad86b2 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index efb905f..32b2d40 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 93db385..8890e74 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.45.2' in HTML
+-    assert 'app.js?v=0.26.1' in HTML
++    assert 'styles.css?v=0.45.3' in HTML
++    assert 'app.js?v=0.26.2' in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index fa07c0f..13b2650 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.26.1' in HTML
++    assert 'app.js?v=0.26.2' in HTML
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+new file mode 100644
+index 0000000..5960a8d
+--- /dev/null
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -0,0 +1,46 @@
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++JS = (ROOT / 'app/static/app.js').read_text()
++CSS = (ROOT / 'app/static/styles.css').read_text()
++HTML = (ROOT / 'app/static/index.html').read_text()
++MAIN = (ROOT / 'app/main.py').read_text()
++
++
++def test_mobile_floating_dock_uses_opaque_surfaces_and_stronger_backdrop():
++    assert '.mobile-tab-trigger {' in CSS
++    assert 'background:var(--panel); color:var(--ink);' in CSS
++    assert '.mobile-tab-menu {' in CSS
++    assert 'background:var(--panel);' in CSS
++    assert 'background:rgba(3,16,26,.28);' in CSS
++    assert 'backdrop-filter:blur(5px)' in CSS
++
++
++def test_profile_and_preferences_unsaved_summaries_are_scoped_to_active_tab():
++    assert "const visibleDirty = state.activeView === 'preferences' ? preferenceDirty : personalDirty;" in JS
++    assert "state.activeView !== 'preferences' && state.answersDirty" in JS
++
++
++def test_skill_addition_updates_every_visible_surface_immediately():
++    assert 'function syncSkillsEverywhere(skills = [], changedSkill = \'\')' in JS
++    assert 'syncSkillsEverywhere(result.skills || [], skill);' in JS
++    assert "syncSkillsEverywhere(state.profile.skills||[], value);" in JS
++    assert 'ציוני המשרות מתעדכנים ברקע' in JS
++
++
++def test_cloud_profile_changes_defer_expensive_derived_refresh_until_after_response():
++    assert 'background_tasks.add_task(' in MAIN
++    assert '_refresh_profile_derived_background' in MAIN
++    assert 'if settings.auth_mode == "supabase" and background_tasks is not None' in MAIN
++
++
++def test_iem_uses_same_generic_tab_copy_as_cs():
++    assert JS.count("searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה'") == 2
++    assert JS.count("skillsLegend: 'טכנולוגיות וכישורים'") == 2
++    assert JS.count("desiredPlaceholder: 'למשל: Developer Tools, Integration'") == 2
++    assert JS.count("skillsPlaceholder: 'מופרדים בפסיקים'") == 2
++
++
++def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
++    assert 'styles.css?v=0.45.3' in HTML
++    assert 'app.js?v=0.26.2' in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index e8c4df4..df73619 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.2" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.3" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index 0061bf0..7a9d6a9 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 71b2185..5c136a7 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -98,5 +98,5 @@ def test_mobile_redesign_uses_top_right_floating_tab_dock_and_phone_first_job_la
+     assert "setMobileTabMenu(false);\n  renderNotificationCenter();" in JS
+     assert "$$('[data-mobile-view]')" in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.26.1' in HTML
+-    assert 'styles.css?v=0.45.2' in HTML
++    assert 'app.js?v=0.26.2' in HTML
++    assert 'styles.css?v=0.45.3' in HTML

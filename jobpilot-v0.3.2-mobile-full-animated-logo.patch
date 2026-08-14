@@ -1,0 +1,139 @@
+diff --git a/app/static/index.html b/app/static/index.html
+index 130adb9..cab31b1 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.45.5" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.45.6" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 06f3738..b7f6c57 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2492,9 +2492,18 @@ body.theme-dark.track-industrial-engineering :where(
+     border-bottom:1px solid var(--line); background:var(--panel);
+     box-shadow:0 8px 24px rgba(0,0,0,.08); backdrop-filter:blur(20px);
+   }
+-  .sidebar .brand { position:relative; inset:auto; width:42px; min-width:42px; min-height:42px; flex:0 0 42px; gap:0; padding:0; }
+-  .sidebar .brand-mark { width:42px; height:42px; flex:0 0 42px; border-radius:13px; }
+-  .sidebar .brand > div,.sidebar .brand-flight-dot { display:none !important; }
++  /* Keep the complete animated JobPilot identity on mobile, but size it for the compact header. */
++  .sidebar .brand {
++    position:relative; inset:auto; width:min(190px,calc(100vw - 84px)); min-width:0; min-height:48px; flex:0 1 190px;
++    display:flex; align-items:center; gap:8px; padding:0; overflow:visible; perspective:420px;
++  }
++  .sidebar .brand-mark { width:48px; height:48px; flex:0 0 48px; border-radius:15px; }
++  .sidebar .brand-mark svg { width:48px; height:48px; overflow:visible; }
++  .sidebar .brand > div { display:block !important; min-width:0; flex:1 1 auto; overflow:visible; }
++  .sidebar .brand strong { display:block; max-width:100%; font-size:18px; line-height:1.05; white-space:nowrap; }
++  .sidebar .brand .brand-tagline { display:block; max-width:100%; margin-top:2px; overflow:hidden; text-overflow:ellipsis; font-size:10px; line-height:1.2; white-space:nowrap; }
++  .sidebar .brand-flight-dot { display:block !important; width:8px; height:8px; }
++  .sidebar .brand:hover .brand-mark { filter:drop-shadow(0 10px 16px var(--accent-glow-strong)); }
+   .sidebar #nav,.sidebar-footer { display:none !important; }
+   .dock-utility { position:static !important; inset:auto !important; display:flex; margin:0; margin-inline-start:auto; flex:0 0 auto; }
+   .dock-utility .icon-action { width:42px; height:42px; border-radius:13px; }
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index fca9035..4e100cc 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,7 +26,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.6" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 4a8a1cd..d203326 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,7 +28,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.6" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+@@ -118,7 +118,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.6" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 69c5a0f..21a4c8b 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.45.5' in HTML
++    assert 'styles.css?v=0.45.6' in HTML
+     assert 'app.js?v=0.26.4' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+new file mode 100644
+index 0000000..4a003f8
+--- /dev/null
++++ b/tests/test_mobile_logo_contract.py
+@@ -0,0 +1,14 @@
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++CSS = (ROOT / "app" / "static" / "styles.css").read_text()
++HTML = (ROOT / "app" / "static" / "index.html").read_text()
++
++
++def test_mobile_header_keeps_full_animated_jobpilot_brand():
++    assert 'styles.css?v=0.45.6' in HTML
++    assert '.sidebar .brand > div { display:block !important;' in CSS
++    assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
++    assert '.sidebar .brand strong { display:block;' in CSS
++    assert '.sidebar .brand .brand-tagline { display:block;' in CSS
++    assert 'width:48px; height:48px; flex:0 0 48px' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 1842a1e..32a991f 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.45.5' in HTML
++    assert 'styles.css?v=0.45.6' in HTML
+     assert 'app.js?v=0.26.4' in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 69ed262..4cbf07b 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,7 +20,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f'<style>{css}</style>')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.6" />', f'<style>{css}</style>')
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', '')
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 5ec77e8..3816181 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -94,4 +94,4 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+     assert 'app.js?v=0.26.4' in HTML
+-    assert 'styles.css?v=0.45.5' in HTML
++    assert 'styles.css?v=0.45.6' in HTML

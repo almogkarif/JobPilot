@@ -1,0 +1,413 @@
+diff --git a/app/collectors/official.py b/app/collectors/official.py
+index a775d43..6a5d416 100644
+--- a/app/collectors/official.py
++++ b/app/collectors/official.py
+@@ -29,21 +29,21 @@ PRESETS = {
+     },
+     "microsoft": {"url": "https://careers.microsoft.com/v2/global/en/locations/israel.html", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Microsoft"},
+     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2},
+-    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"joborderid(?:=|%3D)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
++    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*ID\s*:\s*(\d+)"},
+     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks"},
+     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
+     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/[^/?#]+/([^/?#]+)", "company": "monday.com"},
+     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco"},
+     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
+-    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="jr"], [data-href*="jr"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True},
++    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="JR"], a[href*="jr"], [data-href*="JR"], [data-href*="jr"], [data-url*="JR"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True, "capture_network": True, "href_template": "https://www.salesforce.com/company/careers/jobs/{id}/"},
+     "meta": {"url": "https://metacareers.dejobs.org/locations/tel-aviv-isr/jobs/", "selector": 'a[href*="/tel-aviv-isr/"][href*="/job/"]', "id_pattern": r"/([A-Fa-f0-9]{16,})/job/", "company": "Meta"},
+     "qualcomm": {"url": "https://careers.qualcomm.com/careers?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Qualcomm"},
+     "samsung": {"url": "https://research.samsung.com/sril/careers", "selector": 'a[href*="career"], a[href*="job"]', "id_pattern": r"(?:job|career)[^0-9]*([A-Za-z0-9_-]{4,})", "company": "Samsung Research Israel"},
+     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
+     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
+-    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"[?&]jid=/?(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True},
+-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True},
+-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True},
++    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True},
++    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True},
++    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100},
+     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
+     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
+     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
+@@ -112,6 +112,16 @@ class OfficialCareersCollector:
+             browser = await playwright.chromium.launch(headless=True)
+             try:
+                 page = await browser.new_page(locale="en-US")
++                network_responses = []
++                if preset.get("capture_network"):
++                    def remember_response(response):
++                        try:
++                            resource_type = response.request.resource_type
++                        except Exception:
++                            resource_type = ""
++                        if resource_type in {"document", "xhr", "fetch"} and len(network_responses) < 180:
++                            network_responses.append(response)
++                    page.on("response", remember_response)
+                 # Large career pages often keep analytics/ads open long after the jobs
+                 # themselves are usable. Waiting for DOMContentLoaded made healthy
+                 # sources such as Orca/IBM look broken. Commit first, then give the DOM
+@@ -174,9 +184,12 @@ class OfficialCareersCollector:
+                         })"""
+                     )
+                     generic_rows = [row for row in generic_rows if _resolve_row_href(row, preset)[1]]
+-                    raw_rows = _extract_raw_rows(await page.content(), preset)
+-                    if generic_rows or raw_rows:
+-                        return _dedupe_rows(generic_rows + raw_rows, preset)
++                    page_html = await page.content()
++                    body_text = body_text or ""
++                    raw_rows = _extract_raw_rows(page_html, preset) + _extract_text_id_rows(body_text, preset)
++                    network_rows = await _collect_network_rows(network_responses, preset)
++                    if generic_rows or raw_rows or network_rows:
++                        return _dedupe_rows(generic_rows + raw_rows + network_rows, preset)
+                     raise RuntimeError(
+                         f"No job links found for {identifier} at {preset['url']} using {preset['selector']}"
+                     ) from exc
+@@ -212,12 +225,65 @@ class OfficialCareersCollector:
+                       };
+                     })"""
+                 )
+-                rows = _dedupe_rows(rows + _extract_raw_rows(await page.content(), preset), preset)
++                page_html = await page.content()
++                body_text = ""
++                try:
++                    body_text = await page.locator("body").inner_text(timeout=3_000)
++                except Exception:
++                    pass
++                network_rows = await _collect_network_rows(network_responses, preset)
++                rows = _dedupe_rows(
++                    rows + _extract_raw_rows(page_html, preset) + _extract_text_id_rows(body_text, preset) + network_rows,
++                    preset,
++                )
+             finally:
+                 await browser.close()
+         return rows
+ 
+ 
++async def _collect_network_rows(responses: list, preset: dict) -> list[dict]:
++    """Recover job URLs/IDs from XHR/fetch payloads used by dynamic careers boards.
++
++    Several official careers sites render an empty shell and load their jobs from an
++    API. DOM selectors alone therefore report a false source error even though the
++    browser received the jobs successfully. Only response bodies that contain a
++    matching official job identifier are retained.
++    """
++    if not responses:
++        return []
++    rows: list[dict] = []
++    for response in responses[-140:]:
++        try:
++            content_type = str(response.headers.get("content-type") or "").casefold()
++            if content_type and not any(token in content_type for token in ("json", "html", "text", "javascript")):
++                continue
++            body = await response.text()
++        except Exception:
++            continue
++        if not body or len(body) > 6_000_000:
++            continue
++        rows.extend(_extract_raw_rows(body, preset))
++        rows.extend(_extract_text_id_rows(body, preset))
++    return _dedupe_rows(rows, preset)
++
++
++def _extract_text_id_rows(raw_text: str, preset: dict) -> list[dict]:
++    """Build canonical detail URLs from human-readable job IDs when links are absent."""
++    pattern = str(preset.get("text_id_pattern") or "").strip()
++    template = str(preset.get("href_template") or "").strip()
++    if not pattern or not template:
++        return []
++    normalized = html_lib.unescape(str(raw_text or ""))
++    rows: list[dict] = []
++    for match in re.finditer(pattern, normalized):
++        external_id = match.group(1)
++        rows.append({
++            "href": template.format(id=external_id),
++            "onclick": "", "title": "", "linkText": "", "text": "",
++        })
++    return _dedupe_rows(rows, preset)
++
++
+ async def _collect_static_rows(preset: dict) -> list[dict]:
+     headers = {
+         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+diff --git a/app/static/index.html b/app/static/index.html
+index 1a17376..130adb9 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.45.4" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.45.5" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -76,16 +76,7 @@
+         <i class="brand-flight-dot" id="brand-flight-dot" aria-hidden="true"></i>
+         <div><strong dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot" id="brand-i-dot"></span></span>lot</strong><span class="brand-tagline" id="brand-tagline">חיפוש משרות חכם</span></div>
+       </div>
+-      <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט ראשי במובייל">
+-        <button type="button" data-mobile-view="dashboard" class="active" aria-current="page"><span aria-hidden="true">⌂</span><strong>בית</strong></button>
+-        <button type="button" data-mobile-view="jobs"><span aria-hidden="true">▣</span><strong>משרות</strong></button>
+-        <button type="button" data-mobile-view="preferences"><span aria-hidden="true">≡</span><strong>העדפות</strong></button>
+-        <button type="button" data-mobile-view="applications"><span aria-hidden="true">✓</span><strong>הגשות</strong></button>
+-        <button type="button" data-mobile-view="blockers"><span aria-hidden="true">!</span><strong>טיפול</strong></button>
+-        <button type="button" data-mobile-view="skills"><span aria-hidden="true">◇</span><strong>סקילים</strong></button>
+-        <button type="button" data-mobile-view="sources"><span aria-hidden="true">◎</span><strong>מקורות</strong></button>
+-        <button type="button" data-mobile-view="profile"><span aria-hidden="true">◉</span><strong>פרופיל</strong></button>
+-      </nav>
++
+       <nav id="nav">
+         <button data-view="dashboard" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="7" height="6.5" rx="2"/><rect x="13.5" y="4" width="7" height="10" rx="2"/><rect x="3.5" y="13.5" width="7" height="6.5" rx="2"/><path class="nav-accent" d="M14.8 18.5h4.4M17 16.3v4.4"/></svg></span><span class="nav-label">לוח בקרה<small>תמונת מצב כללית</small></span></button>
+         <button data-view="jobs"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.8h18v10a2.2 2.2 0 0 1-2.2 2.2H5.2A2.2 2.2 0 0 1 3 17.8v-10Z"/><path d="M8.5 7.8V6.2A1.7 1.7 0 0 1 10.2 4.5h3.6a1.7 1.7 0 0 1 1.7 1.7v1.6M3 12c5.2 2.35 12.8 2.35 18 0"/><circle class="nav-accent" cx="12" cy="13" r="1.35"/></svg></span><span class="nav-label">משרות<small>התאמות והזדמנויות</small></span></button>
+@@ -415,6 +406,16 @@
+     </main>
+   </div>
+ 
++  <nav id="mobile-tab-dock" class="mobile-tab-dock" aria-label="ניווט ראשי במובייל">
++        <button type="button" data-mobile-view="dashboard" class="active" aria-current="page"><span aria-hidden="true">⌂</span><strong>בית</strong></button>
++        <button type="button" data-mobile-view="jobs"><span aria-hidden="true">▣</span><strong>משרות</strong></button>
++        <button type="button" data-mobile-view="preferences"><span aria-hidden="true">≡</span><strong>העדפות</strong></button>
++        <button type="button" data-mobile-view="applications"><span aria-hidden="true">✓</span><strong>הגשות</strong></button>
++        <button type="button" data-mobile-view="blockers"><span aria-hidden="true">!</span><strong>טיפול</strong></button>
++        <button type="button" data-mobile-view="skills"><span aria-hidden="true">◇</span><strong>סקילים</strong></button>
++        <button type="button" data-mobile-view="sources"><span aria-hidden="true">◎</span><strong>מקורות</strong></button>
++        <button type="button" data-mobile-view="profile"><span aria-hidden="true">◉</span><strong>פרופיל</strong></button>
++      </nav>
+ 
+   <div id="modal" class="modal" aria-hidden="true"><div class="modal-card"><button class="modal-close">×</button><div id="modal-content"></div></div></div>
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index b8260a7..06f3738 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2725,3 +2725,82 @@ body.guest-mode .job-status-control { display:none !important; }
+   .mobile-tab-trigger,.mobile-tab-menu,.mobile-nav-backdrop { display:none !important; }
+   body.mobile-nav-open { overflow:auto !important; }
+ }
++
++/* v0.3.2 — mobile dock reliability: viewport-owned bottom dock with neutral active light. */
++@media (max-width:760px) {
++  :root { --mobile-dock-clearance: calc(104px + env(safe-area-inset-bottom)); }
++  body { padding-bottom:0 !important; }
++  main { padding-bottom:var(--mobile-dock-clearance) !important; }
++
++  /* The dock lives outside .sidebar so backdrop-filter/sticky ancestors cannot
++     turn position:fixed into a top-anchored containing block on mobile browsers. */
++  #mobile-tab-dock.mobile-tab-dock {
++    position:fixed !important;
++    z-index:78 !important;
++    top:auto !important;
++    right:10px !important;
++    left:10px !important;
++    bottom:calc(10px + env(safe-area-inset-bottom)) !important;
++    width:auto !important;
++    min-width:0 !important;
++    max-width:none !important;
++    height:64px !important;
++    display:flex !important;
++    align-items:stretch !important;
++    gap:3px !important;
++    padding:5px !important;
++    overflow-x:auto !important;
++    overflow-y:hidden !important;
++    border:1px solid var(--line) !important;
++    border-radius:20px !important;
++    background:var(--panel) !important;
++    box-shadow:0 12px 30px rgba(0,0,0,.20) !important;
++    backdrop-filter:none !important;
++    -webkit-backdrop-filter:none !important;
++    isolation:isolate;
++    direction:rtl;
++    scrollbar-width:none;
++  }
++  #mobile-tab-dock.mobile-tab-dock::-webkit-scrollbar { display:none; }
++  #mobile-tab-dock.mobile-tab-dock > button {
++    position:relative;
++    flex:0 0 66px;
++    min-width:66px;
++    height:54px;
++    display:flex;
++    flex-direction:column;
++    align-items:center;
++    justify-content:center;
++    gap:3px;
++    padding:6px 4px 5px;
++    border:0;
++    border-radius:14px;
++    background:transparent;
++    color:var(--muted);
++    box-shadow:none !important;
++    font:inherit;
++    text-align:center;
++  }
++  #mobile-tab-dock.mobile-tab-dock > button::before {
++    content:"";
++    position:absolute;
++    top:2px;
++    left:50%;
++    width:22px;
++    height:3px;
++    border-radius:999px;
++    background:transparent;
++    transform:translateX(-50%);
++  }
++  #mobile-tab-dock.mobile-tab-dock > button.active {
++    background:var(--brand-soft) !important;
++    color:var(--brand) !important;
++  }
++  #mobile-tab-dock.mobile-tab-dock > button.active::before { background:currentColor; }
++  #mobile-tab-dock.mobile-tab-dock > button > span { font-size:17px; line-height:1; }
++  #mobile-tab-dock.mobile-tab-dock > button > strong { font-size:9px; line-height:1.1; }
++  body.track-industrial-engineering #mobile-tab-dock.mobile-tab-dock > button.active {
++    background:var(--accent-soft) !important;
++    color:var(--accent) !important;
++  }
++}
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 36fdf25..fca9035 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,7 +26,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.4" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 8701c5e..4a8a1cd 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,7 +28,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.4" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+@@ -118,7 +118,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.4" />', f"<style>{css}</style>")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f"<style>{css}</style>")
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 2566410..69c5a0f 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.45.4' in HTML
++    assert 'styles.css?v=0.45.5' in HTML
+     assert 'app.js?v=0.26.4' in HTML
+diff --git a/tests/test_mobile_dock_bottom_contract.py b/tests/test_mobile_dock_bottom_contract.py
+new file mode 100644
+index 0000000..b0b582e
+--- /dev/null
++++ b/tests/test_mobile_dock_bottom_contract.py
+@@ -0,0 +1,29 @@
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++HTML = (ROOT / "app" / "static" / "index.html").read_text()
++CSS = (ROOT / "app" / "static" / "styles.css").read_text()
++
++
++def test_mobile_dock_is_outside_filtered_sticky_sidebar():
++    sidebar_end = HTML.index("</aside>")
++    dock = HTML.index('id="mobile-tab-dock"')
++    main_end = HTML.index("</main>")
++    assert dock > sidebar_end
++    assert dock > main_end
++
++
++def test_mobile_dock_is_viewport_bottom_fixed_and_content_has_clearance():
++    block = CSS.rsplit("/* v0.3.2 — mobile dock reliability", 1)[1]
++    assert "position:fixed !important" in block
++    assert "bottom:calc(10px + env(safe-area-inset-bottom)) !important" in block
++    assert "top:auto !important" in block
++    assert "--mobile-dock-clearance" in block
++    assert "main { padding-bottom:var(--mobile-dock-clearance) !important; }" in block
++
++
++def test_mobile_active_indicator_is_centered_not_directional():
++    block = CSS.rsplit("/* v0.3.2 — mobile dock reliability", 1)[1]
++    assert "left:50%" in block
++    assert "transform:translateX(-50%)" in block
++    assert "> button.active::before { background:currentColor; }" in block
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 5f4ed6a..1842a1e 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.45.4' in HTML
++    assert 'styles.css?v=0.45.5' in HTML
+     assert 'app.js?v=0.26.4' in HTML
+diff --git a/tests/test_official_source_refresh_v019.py b/tests/test_official_source_refresh_v019.py
+index ac9e60a..3110f58 100644
+--- a/tests/test_official_source_refresh_v019.py
++++ b/tests/test_official_source_refresh_v019.py
+@@ -72,3 +72,27 @@ def test_script_json_job_urls_are_recovered_when_dom_selectors_change():
+         assert rows, identifier
+         _, match = _resolve_row_href(rows[0], PRESETS[identifier])
+         assert match is not None, identifier
++
++
++def test_dynamic_board_payload_ids_are_recovered_without_dom_links():
++    fixtures = {
++        "checkpoint": '{"joborderid":"25962","title":"AI Builder Director"}',
++        "elbit": '{"jid":20895,"title":"Senior System Engineer"}',
++        "rafael": '{"url":"https://career.rafael.co.il/job/11430/"}',
++        "iai": '{"url":"https://jobs.iai.co.il/job/76048939/"}',
++        "salesforce": '{"url":"https://www.salesforce.com/company/careers/jobs/JR352800/technical-architect/"}',
++    }
++    for identifier, payload in fixtures.items():
++        rows = _extract_raw_rows(payload, PRESETS[identifier])
++        assert rows, identifier
++        href, match = _resolve_row_href(rows[0], PRESETS[identifier])
++        assert match is not None, identifier
++        assert href.startswith("http"), identifier
++
++
++def test_dynamic_sources_have_canonical_detail_templates_when_ids_arrive_without_links():
++    assert PRESETS["checkpoint"]["href_template"].startswith("https://careers.checkpoint.com/")
++    assert PRESETS["elbit"]["href_template"].startswith("https://elbitsystemscareer.com/job/")
++    assert PRESETS["rafael"]["href_template"].startswith("https://career.rafael.co.il/job/")
++    assert PRESETS["iai"]["href_template"].startswith("https://jobs.iai.co.il/job/")
++    assert PRESETS["salesforce"]["href_template"].startswith("https://www.salesforce.com/company/careers/jobs/")
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 414e3d2..69ed262 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,7 +20,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.4" />', f'<style>{css}</style>')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.45.5" />', f'<style>{css}</style>')
+     html = html.replace('<script src="/static/app.js?v=0.26.4"></script>', '')
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 6db51ee..5ec77e8 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -94,4 +94,4 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+     assert 'app.js?v=0.26.4' in HTML
+-    assert 'styles.css?v=0.45.4' in HTML
++    assert 'styles.css?v=0.45.5' in HTML

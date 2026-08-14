@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert "$$('[data-mobile-view]')" in JS
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.28.2' in HTML
-    assert 'styles.css?v=0.47.2' in HTML
+    assert 'app.js?v=0.28.3' in HTML
+    assert 'styles.css?v=0.47.3' in HTML

@@ -1,0 +1,355 @@
+diff --git a/app/static/app.js b/app/static/app.js
+index 1d8b4f8..ff88501 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -3386,12 +3386,14 @@ function onboardingSetStep(index){
+     const titles=new Set(profile.desired_titles||[]);
+     const keywords=new Set(profile.keywords||[]);
+     const excluded=new Set(profile.excluded_keywords||[]);
++    const locations=new Set(profile.preferred_locations||[]);
++    const locationChoices=[['Israel','ישראל'],['Haifa','חיפה'],['Tel Aviv','תל אביב'],['Jerusalem','ירושלים']];
+     const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
+     const keywordChoices=onboardingChoiceValues(track.skills||[]).slice(0,14);
+     const commonExcluded=[['senior','Senior'],['lead','Lead'],['manager','Manager'],['manual qa','Manual QA'],['sales','Sales'],['support representative','Support']];
+     content.innerHTML=`<span class="kicker">העדפות · ${esc(track.label)}</span><h1 id="onboarding-title">נחדד את החיפוש</h1><p>בחר בכמה לחיצות את מה שמתאים לך. אפשר לדייק הכול גם אחר כך בהעדפות החיפוש.</p><div class="onboarding-form polished choice-form">
+       <fieldset class="onboarding-choice-field full"><legend>תפקידים רצויים</legend><div class="onboarding-choice-grid">${titleChoices.map(([v,l])=>onboardingChoiceBox('title',v,l,titles.has(v))).join('')}</div><label class="onboarding-other"><span>משהו נוסף?</span><input id="ob-titles-extra" value="${esc((profile.desired_titles||[]).filter(v=>!titleChoices.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף תפקיד שלא מופיע ברשימה"></label></fieldset>
+-      <label><span>אזורי חיפוש</span><input id="ob-locations" value="${esc((profile.preferred_locations||[]).join(', ')||profile.location||'Israel')}" placeholder="חיפה, תל אביב, מרכז"></label>
++      <fieldset class="onboarding-choice-field full onboarding-location-field"><legend>אזורי חיפוש</legend><div class="onboarding-choice-grid locations">${locationChoices.map(([v,l])=>onboardingChoiceBox('location',v,l,locations.has(v)||locations.has(l)||(v==='Israel'&&!locations.size))).join('')}</div></fieldset>
+       <label><span>רמת ניסיון</span><select id="ob-experience">${['0','1','2','3','4','5+'].map(v=>`<option ${(profile.years_experience_options||['0']).includes(v)?'selected':''}>${v}</option>`).join('')}</select></label>
+       <fieldset class="full"><legend>אופן עבודה</legend><div class="onboarding-chips">${[['hybrid','היברידי'],['remote','מרחוק'],['onsite','מהמשרד']].map(([v,l])=>`<button type="button" class="onboarding-chip ${modes.has(v)?'selected':''}" data-ob-mode="${v}">${l}</button>`).join('')}</div></fieldset>
+       <fieldset class="onboarding-choice-field full"><legend>חשוב לי למצוא</legend><div class="onboarding-choice-grid compact">${keywordChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח נוספות</span><input id="ob-keywords-extra" value="${esc((profile.keywords||[]).filter(v=>!keywordChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל תחום, כלי או טכנולוגיה"></label></fieldset>
+@@ -3401,9 +3403,12 @@ function onboardingSetStep(index){
+     $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>onboardingToggleChoice(b));
+   }else if(step==='review'){
+     const d=onboardingState.draft;
+-    content.innerHTML=`<div class="onboarding-ready"><span class="kicker">הכול מסודר</span><h1 id="onboarding-title">החיפוש שלך מוכן</h1><p>בנינו סביבך פרופיל חיפוש ראשוני. מכאן JobPilot יסנן, ידרג ויציג קודם את ההזדמנויות שהכי מתאימות לך.</p><div class="onboarding-ready-banner"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><small>${esc(track.label)}</small><strong>${esc((d.desired_titles||[]).slice(0,3).join(' · ')||'העדפות החיפוש שלך')}</strong><span>${onboardingState.selectedSkills.size} סקילים · ${(d.preferred_locations||[]).slice(0,2).join(' · ')||'ישראל'}</span></div><i>מוכן לסריקה ✓</i></div><div class="onboarding-summary refined">
+-      <article><span class="summary-icon">◎</span><small>תפקידים</small><strong>${esc((d.desired_titles||[]).slice(0,5).join(' · ')||'לא הוגדר')}</strong></article><article><span class="summary-icon">⌖</span><small>אזורי חיפוש</small><strong>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')}</strong></article>
+-      <article><span class="summary-icon">◫</span><small>אופן עבודה</small><strong>${esc((d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v)).join(' · ')||'לא הוגדר')}</strong></article><article><span class="summary-icon">↗</span><small>ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · '))} שנים</strong></article></div><p class="onboarding-ready-note">אפשר לשנות כל פרט אחר כך — בלי להתחיל מחדש.</p></div>`;
++    const modeLabels=(d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v));
++    const topTitles=(d.desired_titles||[]).slice(0,3);
++    content.innerHTML=`<div class="onboarding-ready onboarding-launchpad"><div class="ready-eyebrow"><span class="ready-check">✓</span><span><b>הפרופיל הראשוני הושלם</b><small>${esc(track.label)}</small></span></div><h1 id="onboarding-title">הכול מוכן לחיפוש הראשון שלך</h1><p class="ready-lead">JobPilot כבר יודע מה לחפש, איפה לחפש ומה חשוב לך. נשאר רק להפעיל את הסריקה הראשונה.</p>
++      <div class="ready-spotlight"><div class="ready-spotlight-main"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><small>מחפשים עבורך</small><strong>${esc(topTitles.join(' · ')||'משרות שמתאימות לפרופיל שלך')}</strong><p>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')} · ${esc(modeLabels.join(' · ')||'כל צורות העבודה')}</p></div></div><div class="ready-pulse"><i></i><span>מוכן</span></div></div>
++      <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
++      <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נסרוק את המקורות הפעילים, נחשב התאמה לכל משרה ונציג קודם את התוצאות החזקות ביותר.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
+   }else{
+     content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-source-scan" aria-hidden="true"><div class="source-scan-orbit"><span class="source-scan-core">JP</span><i></i><i></i><i></i><i></i></div><div class="source-scan-progress"><span><b id="onboarding-source-count">0</b><small>מקורות נסרקו</small></span><div><i id="onboarding-source-progress"></i></div></div></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
+     $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
+@@ -3429,7 +3434,7 @@ async function onboardingSaveSkills(){
+ }
+ function onboardingCollectPreferences(){
+   const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
+-  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:onboardingSplit($('#ob-locations').value),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
++  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
+ }
+ async function onboardingFinish(skipped=false){
+   if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
+diff --git a/app/static/index.html b/app/static/index.html
+index 6e15ebc..73494ce 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.47.2" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.47.3" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -440,6 +440,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.28.2"></script>
++  <script src="/static/app.js?v=0.28.3"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 2cddd3a..5a29cf8 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2899,3 +2899,21 @@ body.guest-mode .job-status-control { display:none !important; }
+ @keyframes sourceScanFloat{50%{transform:translateY(-4px)}}@keyframes sourcePulse{to{transform:scale(1.3);opacity:.55}}@keyframes sourceComplete{50%{transform:translate(-50%,-50%) scale(1.12)}}
+ @media(max-width:760px){.onboarding-choice-grid,.onboarding-choice-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.choice-form{grid-template-columns:1fr}.onboarding-ready-banner{grid-template-columns:auto 1fr}.onboarding-ready-banner>i{grid-column:1/-1;width:max-content}.onboarding-summary.refined{grid-template-columns:1fr}}
+ @media(prefers-reduced-motion:reduce){.onboarding-upload.uploaded:after,.scanning .source-scan-orbit,.scanning .source-scan-orbit i,.complete .source-scan-core{animation:none!important}}
++
++/* Onboarding v5 — location choices + launch-ready screen */
++.onboarding-choice-grid.locations{grid-template-columns:repeat(4,minmax(0,1fr));max-height:none;overflow:visible}
++.onboarding-choice-grid.locations .onboarding-choice{min-height:58px;justify-content:center;text-align:center;font-size:14px}
++.onboarding-location-field{padding-bottom:2px}
++.onboarding-launchpad{max-width:980px;text-align:center}
++.ready-eyebrow{display:inline-flex;align-items:center;gap:10px;margin:4px auto 12px;padding:7px 12px 7px 8px;border:1px solid var(--accent-border);border-radius:999px;background:var(--brand-soft);color:var(--brand)}
++.ready-eyebrow>span:last-child{display:grid;text-align:start}.ready-eyebrow b{font-size:11px}.ready-eyebrow small{font-size:9px;color:var(--muted)}
++.ready-check{display:grid!important;place-items:center;width:27px;height:27px;padding:0!important;border:0!important;border-radius:50%!important;background:var(--brand)!important;color:#fff;font-weight:950}
++.onboarding-launchpad h1{margin-bottom:8px}.ready-lead{max-width:680px;margin:0 auto 22px!important;text-align:center!important}
++.ready-spotlight{position:relative;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border:1px solid var(--accent-border);border-radius:25px;background:linear-gradient(125deg,var(--brand-soft),var(--panel) 58%,var(--panel-2));box-shadow:0 18px 48px var(--accent-glow);overflow:hidden;text-align:start}
++.ready-spotlight:after{content:"";position:absolute;width:180px;height:180px;inset-inline-end:-75px;top:-85px;border:1px solid var(--accent-border);border-radius:50%;box-shadow:0 0 0 28px color-mix(in srgb,var(--brand) 5%,transparent),0 0 0 56px color-mix(in srgb,var(--brand) 3%,transparent)}
++.ready-spotlight-main{display:flex;align-items:center;gap:15px;min-width:0;z-index:1}.ready-spotlight-main>div{display:grid;gap:3px;min-width:0}.ready-spotlight-main small{color:var(--muted);font-size:11px}.ready-spotlight-main strong{font-size:20px;line-height:1.35}.ready-spotlight-main p{margin:0!important;font-size:12px!important}.ready-pulse{position:relative;z-index:2;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;background:var(--panel);box-shadow:0 8px 24px var(--accent-glow);font-size:11px;font-weight:850;color:var(--brand)}.ready-pulse i{width:9px;height:9px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 5px var(--brand-soft);animation:readyPulse 1.5s ease-in-out infinite}
++.ready-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.ready-facts article{display:flex;align-items:center;gap:11px;padding:13px;border:1px solid var(--line);border-radius:17px;background:var(--panel);text-align:start}.ready-facts article>span{display:grid;place-items:center;width:31px;height:31px;padding:0!important;border:0!important;border-radius:10px!important;background:var(--panel-2)!important;color:var(--brand);font-size:10px;font-weight:900}.ready-facts article>div{display:grid;gap:2px}.ready-facts small{color:var(--muted);font-size:9px}.ready-facts strong{font-size:13px}
++.ready-next{display:flex;align-items:center;gap:12px;margin-top:10px;padding:13px 16px;border-radius:17px;background:var(--panel-2);text-align:start}.ready-next-icon{display:grid!important;place-items:center;width:34px;height:34px;padding:0!important;border:1px solid var(--accent-border)!important;border-radius:11px!important;background:var(--brand-soft)!important;color:var(--brand);font-weight:900}.ready-next div{display:grid;gap:2px}.ready-next strong{font-size:12px}.ready-next p{margin:0!important;font-size:11px!important}
++@keyframes readyPulse{50%{opacity:.45;transform:scale(.82)}}
++@media(max-width:760px){.onboarding-choice-grid.locations{grid-template-columns:repeat(2,minmax(0,1fr))}.ready-spotlight{align-items:flex-start;padding:17px}.ready-spotlight-main strong{font-size:16px}.ready-pulse{position:absolute;top:12px;inset-inline-start:12px}.ready-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.ready-next{align-items:flex-start}}
++@media(prefers-reduced-motion:reduce){.ready-pulse i{animation:none}}
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 028920e..0f962f1 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.28.2" in index.text
++        assert "app.js?v=0.28.3" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 485dee0..e07bf4f 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 64bbf78..9fbd284 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.2" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index e6e3e90..63963e5 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.47.2' in HTML
+-    assert 'app.js?v=0.28.2' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.3' in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index a78b7a4..084043d 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.28.2' in HTML
++    assert 'app.js?v=0.28.3' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+index 0c21228..ff9fbf7 100644
+--- a/tests/test_mobile_logo_contract.py
++++ b/tests/test_mobile_logo_contract.py
+@@ -6,7 +6,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
+ 
+ 
+ def test_mobile_header_keeps_full_animated_jobpilot_brand():
+-    assert 'styles.css?v=0.47.2' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
+     assert '.sidebar .brand > div { display:block !important;' in CSS
+     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
+     assert '.sidebar .brand strong { display:block;' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 14a6d83..2dc2901 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.47.2' in HTML
+-    assert 'app.js?v=0.28.2' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
++    assert 'app.js?v=0.28.3' in HTML
+diff --git a/jp_new/tests/test_onboarding_ready_locations_v5.py b/tests/test_onboarding_ready_locations_v5.py
+new file mode 100644
+index 0000000..5d89ac8
+--- /dev/null
++++ b/tests/test_onboarding_ready_locations_v5.py
+@@ -0,0 +1,25 @@
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[1]
++JS=(ROOT/"app/static/app.js").read_text()
++HTML=(ROOT/"app/static/index.html").read_text()
++CSS=(ROOT/"app/static/styles.css").read_text()
++
++def test_locations_are_choice_boxes():
++    assert "['Israel','ישראל']" in JS
++    assert "['Haifa','חיפה']" in JS
++    assert "['Tel Aviv','תל אביב']" in JS
++    assert "['Jerusalem','ירושלים']" in JS
++    assert "onboardingChoiceBox('location'" in JS
++    assert "preferred_locations:selected('location')" in JS
++    assert 'id="ob-locations"' not in JS
++
++def test_ready_screen_is_launchpad_style():
++    assert 'onboarding-launchpad' in JS
++    assert 'ready-spotlight' in JS
++    assert 'ready-facts' in JS
++    assert 'ready-next' in JS
++    assert '.ready-spotlight' in CSS
++
++def test_assets_bumped_v5():
++    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 95c50e3..38543a7 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.28.2" in HTML
++    assert "app.js?v=0.28.3" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_ui_refinement.py b/tests/test_onboarding_ui_refinement.py
+index bef3609..7592f73 100644
+--- a/tests/test_onboarding_ui_refinement.py
++++ b/tests/test_onboarding_ui_refinement.py
+@@ -17,7 +17,7 @@ def test_preferences_are_choice_boxes_not_raw_primary_text_fields():
+     assert "ob-titles-extra" in JS
+ 
+ def test_review_and_scan_match_product_visual_language():
+-    assert "onboarding-ready-banner" in JS
++    assert "onboarding-launchpad" in JS
+     assert "onboarding-source-scan" in JS
+     assert "onboarding-source-progress" in JS
+     assert "onboarding-radar" not in JS
+@@ -27,5 +27,5 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
+     assert "top:8px" in CSS and "right:41px" in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.28.2" in HTML
+-    assert "styles.css?v=0.47.2" in HTML
++    assert "app.js?v=0.28.3" in HTML
++    assert "styles.css?v=0.47.3" in HTML
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 25d5943..497b8f3 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,8 +10,8 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.28.2' in HTML
+-    assert 'styles.css?v=0.47.2' in HTML
++    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+     assert ".onboarding-gate" in CSS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 4bd143c..3e8bc8e 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.28.2' in HTML
+-    assert 'styles.css?v=0.47.2' in HTML
++    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.3' in HTML
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+index d9ace95..3d371a3 100644
+--- a/tests/test_save_responsiveness_and_admin_preview.py
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+     assert "הרשאות השרת שלך נשארו Admin" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.28.2" in HTML
+-    assert "styles.css?v=0.47.2" in HTML
++    assert "app.js?v=0.28.3" in HTML
++    assert "styles.css?v=0.47.3" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index c281f55..1d4acbc 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.2" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.3" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index 919ecf0..f513ca1 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.2"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 3d50933..097f6f0 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.28.2' in HTML
+-    assert 'styles.css?v=0.47.2' in HTML
++    assert 'app.js?v=0.28.3' in HTML
++    assert 'styles.css?v=0.47.3' in HTML

@@ -1,0 +1,18 @@
+--- a/tests/test_ui_e2e.py
++++ b/tests/test_ui_e2e.py
+@@ -103,6 +103,15 @@
+         page.on("console", lambda message: errors.append(f"console.{message.type}: {message.text}") if message.type == "error" else None)
+         try:
+             page.goto(live_server, wait_until="networkidle")
++            # The first-run onboarding intentionally blocks the application until it
++            # is completed. These legacy E2E tests exercise the application *after*
++            # onboarding, so mark it complete through the public API and reload.
++            onboarding = page.request.put(
++                f"{live_server}/api/onboarding",
++                data={"completed": True, "skipped": False, "step": "done"},
++            )
++            assert onboarding.ok, f"Could not prepare completed onboarding state: {onboarding.status}"
++            page.reload(wait_until="networkidle")
+         except Exception as exc:
+             if "ERR_BLOCKED_BY_ADMINISTRATOR" in str(exc):
+                 context.close()

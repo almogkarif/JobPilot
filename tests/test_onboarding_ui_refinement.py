@@ -17,7 +17,7 @@ def test_preferences_are_choice_boxes_not_raw_primary_text_fields():
     assert "ob-titles-extra" in JS
 
 def test_review_and_scan_match_product_visual_language():
-    assert "onboarding-ready-banner" in JS
+    assert "onboarding-launchpad" in JS
     assert "onboarding-source-scan" in JS
     assert "onboarding-source-progress" in JS
     assert "onboarding-radar" not in JS
@@ -27,5 +27,5 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
     assert "top:8px" in CSS and "right:41px" in CSS
 
 def test_assets_bumped():
-    assert "app.js?v=0.28.2" in HTML
-    assert "styles.css?v=0.47.2" in HTML
+    assert "app.js?v=0.28.3" in HTML
+    assert "styles.css?v=0.47.3" in HTML

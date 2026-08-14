@@ -1,0 +1,479 @@
+diff --git a/app/main.py b/app/main.py
+index 548ebb2..fe00ee9 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -976,10 +976,7 @@ def _apply_profile_changes(
+     if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
+         db.commit()
+         db.refresh(profile)
+-        background_tasks.add_task(
+-            _refresh_profile_derived_background, user_id, track,
+-            matching_changed, resume_analysis_changed,
+-        )
++        _queue_profile_derived_refresh(user_id, track, matching_changed, resume_analysis_changed)
+         return _profile_dict(profile)
+ 
+     if matching_changed:
+@@ -1222,7 +1219,7 @@ def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, back
+             resume.analysis_json = dumps(analysis)
+         db.commit()
+         db.refresh(profile)
+-        background_tasks.add_task(_refresh_profile_derived_background, user_id, track, skill_changed, True)
++        _queue_profile_derived_refresh(user_id, track, skill_changed, True)
+     else:
+         if skill_changed:
+             _rescore_all_jobs(db, profile)
+@@ -1512,7 +1509,7 @@ def add_desired_title(payload: DesiredTitleUpdateRequest, background_tasks: Back
+         db.add(AuditLog(event_type="desired_title_added", entity_type="profile", entity_id="1", message=title))
+         if settings.auth_mode == "supabase":
+             db.commit()
+-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, False)
++            _queue_profile_derived_refresh(user_id, track, True, False)
+         else:
+             _rescore_all_jobs(db, profile)
+             db.commit()
+@@ -1534,7 +1531,7 @@ def add_profile_skill(payload: SkillUpdateRequest, background_tasks: BackgroundT
+         db.add(AuditLog(event_type="profile_skill_added", entity_type="profile", entity_id="1", message=skill))
+         if settings.auth_mode == "supabase":
+             db.commit()
+-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
++            _queue_profile_derived_refresh(user_id, track, True, True)
+         else:
+             _rescore_all_jobs(db, profile)
+             _refresh_resume_analyses(db, profile)
+@@ -1556,7 +1553,7 @@ def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(.
+         db.add(AuditLog(event_type="profile_skill_removed", entity_type="profile", entity_id="1", message=skill.strip()))
+         if settings.auth_mode == "supabase":
+             db.commit()
+-            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
++            _queue_profile_derived_refresh(user_id, track, True, True)
+         else:
+             _rescore_all_jobs(db, profile)
+             _refresh_resume_analyses(db, profile)
+@@ -2519,6 +2516,54 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session
+     db.commit(); return _application_dict(application, db)
+ 
+ 
++_profile_refresh_pending: dict[tuple[str, str], dict[str, bool]] = {}
++_profile_refresh_workers: dict[tuple[str, str], threading.Thread] = {}
++_profile_refresh_queue_lock = threading.Lock()
++
++
++def _queue_profile_derived_refresh(
++    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
++) -> None:
++    """Coalesce expensive derived work and run it outside the request lifecycle.
++
++    Saving the user's edit is the synchronous transaction. Scores/CV-derived data
++    then catch up incrementally in a daemon worker, so FastAPI BackgroundTasks
++    cannot occupy the only Render worker after the response was sent.
++    """
++    key = (user_id, normalize_track(career_track))
++    with _profile_refresh_queue_lock:
++        pending = _profile_refresh_pending.setdefault(key, {"rescore_jobs": False, "refresh_resumes": False})
++        pending["rescore_jobs"] = pending["rescore_jobs"] or bool(rescore_jobs)
++        pending["refresh_resumes"] = pending["refresh_resumes"] or bool(refresh_resumes)
++        worker = _profile_refresh_workers.get(key)
++        if worker and worker.is_alive():
++            return
++        worker = threading.Thread(target=_profile_refresh_worker, args=key, daemon=True, name=f"profile-refresh-{key[0][:8]}-{key[1]}")
++        _profile_refresh_workers[key] = worker
++        worker.start()
++
++
++def _profile_refresh_worker(user_id: str, career_track: str) -> None:
++    key = (user_id, career_track)
++    try:
++        while True:
++            with _profile_refresh_queue_lock:
++                pending = _profile_refresh_pending.pop(key, None)
++            if not pending:
++                return
++            _refresh_profile_derived_background(
++                user_id, career_track,
++                pending["rescore_jobs"], pending["refresh_resumes"],
++            )
++    finally:
++        with _profile_refresh_queue_lock:
++            _profile_refresh_workers.pop(key, None)
++            # A save can race with the worker's final empty check. Restart if needed.
++            pending = _profile_refresh_pending.get(key)
++        if pending:
++            _queue_profile_derived_refresh(user_id, career_track, False, False)
++
++
+ def _refresh_profile_derived_background(
+     user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
+ ) -> None:
+@@ -2534,7 +2579,7 @@ def _refresh_profile_derived_background(
+                 if not profile:
+                     return
+                 if rescore_jobs:
+-                    _rescore_all_jobs(db, profile, career_track=career_track)
++                    _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
+                 if refresh_resumes:
+                     _refresh_resume_analyses(db, profile, career_track=career_track)
+                 db.commit()
+@@ -2543,14 +2588,14 @@ def _refresh_profile_derived_background(
+         print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
+ 
+ 
+-def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None) -> None:
++def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0) -> None:
+     track = normalize_track(career_track or active_track(profile))
+     default_resume = db.scalar(select(ResumeProfile).where(
+         ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
+     ))
+     resume_skills = loads(default_resume.skills_json, []) if default_resume else []
+     context = build_match_context(profile, resume_skills, career_track=track)
+-    for job in db.scalars(select(Job).where(Job.career_track == track)).all():
++    for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
+         result = score_job(job, profile, context=context)
+         job.score = result.score
+         job.score_reasons_json = dumps(result.reasons)
+@@ -2558,6 +2603,8 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None =
+         job.skills_json = dumps(result.skills)
+         job.experience_min = result.experience_min
+         job.experience_max = result.experience_max
++        if commit_every and index % commit_every == 0:
++            db.commit()
+ 
+ 
+ def _profile_dict(p: Profile) -> dict:
+diff --git a/app/static/app.js b/app/static/app.js
+index c6938f4..9a80c8c 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -512,7 +512,12 @@ async function switchCareerTrack(target) {
+   if (!target || target === state.activeCareerTrack) { setCareerMenu(false); return; }
+   const dirty = typeof getDirtyProfileFields === 'function' ? getDirtyProfileFields() : [];
+   if (dirty.length || state.answersDirty) {
+-    toast('יש שינויים שלא נשמרו. שמור או בטל אותם לפני החלפת מסלול מקצועי.');
++    const labels = dirty.map(profileFieldLabel).filter(Boolean);
++    const details = [
++      labels.length ? `לא נשמרו: ${labels.join(' · ')}` : '',
++      state.answersDirty ? 'שאלות ההגשה כוללות שינויים שלא נשמרו' : '',
++    ].filter(Boolean).join(' | ');
++    toast(`אי אפשר להחליף מסלול עדיין. ${details}. שמור או בטל את השינויים ואז נסה שוב.`);
+     return;
+   }
+   const targetTrack = state.careerTracks.find((track) => track.key === target);
+@@ -3445,8 +3450,27 @@ async function loadDeveloperUsers(){
+   try{const payload=await api('/api/admin/users');count.textContent=String(payload.count||0);root.innerHTML=(payload.users||[]).map(u=>`<article class="developer-user-row"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה לאחרונה ${esc(new Date(u.last_seen_at).toLocaleString('he-IL'))}`:'טרם התחבר'}</small></span></article>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
+ }
+ $('#developer-refresh-users').onclick=loadDeveloperUsers;
++$('#developer-preview-non-admin').onclick=enterNonAdminPreview;
++$('#admin-preview-exit').onclick=exitNonAdminPreview;
++const ADMIN_PREVIEW_KEY='jobpilot-preview-non-admin';
++function adminPreviewActive(){try{return sessionStorage.getItem(ADMIN_PREVIEW_KEY)==='1'}catch{return false}}
++function applyAdminPreviewMode(){
++  const active=adminPreviewActive();
++  document.body.classList.toggle('preview-non-admin',active);
++  const exit=$('#admin-preview-exit'); if(exit) exit.hidden=!active;
++}
++function enterNonAdminPreview(){
++  try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}
++  applyAdminPreviewMode(); switchView('dashboard');
++  toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.');
++}
++function exitNonAdminPreview(){
++  try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}
++  applyAdminPreviewMode(); toast('חזרת לתצוגת Admin');
++}
+ function configureDeveloperTools(){
+-  const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
++  const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
++  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
+ }
+ 
+ (async () => {
+diff --git a/app/static/index.html b/app/static/index.html
+index 6557b52..b2c3f6f 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.47.0" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.47.1" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -237,7 +237,7 @@
+         <article class="panel developer-panel">
+           <div class="panel-head"><div><span class="kicker">Admin only</span><h2>אפשרויות למפתחים</h2><p class="preference-help">כלי בדיקה פנימיים שרק האדמין רואה.</p></div></div>
+           <p id="developer-runtime-status" class="preference-help"></p>
+-          <div class="developer-actions"><button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button><button class="btn secondary" id="developer-refresh-users" type="button">רענן משתמשים</button></div>
++          <div class="developer-actions"><button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button><button class="btn secondary" id="developer-preview-non-admin" type="button">הצג כמשתמש רגיל</button><button class="btn secondary" id="developer-refresh-users" type="button">רענן משתמשים</button></div>
+           <section class="developer-users-card"><div class="panel-head"><div><span class="kicker">משתמשי המערכת</span><h3>חשבונות שנכנסו ל־JobPilot</h3></div><strong id="developer-users-count">—</strong></div><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div></section>
+         </article>
+       </section>
+@@ -439,7 +439,7 @@
+   <div id="modal" class="modal" aria-hidden="true"><div class="modal-card"><button class="modal-close">×</button><div id="modal-content"></div></div></div>
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.28.0"></script>
++  <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
++  <script src="/static/app.js?v=0.28.1"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 21c972d..eef5f4d 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -2846,3 +2846,10 @@ body.guest-mode .job-status-control { display:none !important; }
+ .resume-profile-card.resume-uploaded{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 8px 24px var(--accent-glow)}
+ @media(max-width:700px){.onboarding-track-grid{grid-template-columns:1fr}.onboarding-skill-checks{grid-template-columns:repeat(2,minmax(0,1fr));max-height:280px}.onboarding-track-card{padding:14px}.onboarding-review-hero{margin-top:12px}.onboarding-radar{width:150px;height:150px}.developer-users-list{max-height:272px}}
+ @media(prefers-reduced-motion:reduce){.onboarding-radar:before,.onboarding-scan-stage.complete .onboarding-scan{animation:none!important}}
++
++/* v0.3.2 save responsiveness + safe non-admin preview */
++.preview-non-admin .admin-only-nav{display:none!important}
++.preview-non-admin #view-developer{display:none!important}
++.admin-preview-exit{position:fixed;z-index:390;inset-inline-start:18px;bottom:18px;border:1px solid var(--line);background:var(--panel);color:var(--text);box-shadow:0 12px 35px rgba(0,0,0,.18);border-radius:999px;padding:11px 17px;font-weight:800;cursor:pointer}
++.admin-preview-exit[hidden]{display:none!important}
++@media(max-width:700px){.admin-preview-exit{bottom:calc(82px + env(safe-area-inset-bottom));inset-inline-start:12px}}
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 18fc561..2643139 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.28.0" in index.text
++        assert "app.js?v=0.28.1" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 45fcb37..9319342 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.0" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.1" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 5ef8068..b2e715a 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.0" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.1" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.0" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.1" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 07e3704..e2d8cc9 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.47.0' in HTML
+-    assert 'app.js?v=0.28.0' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
++    assert 'app.js?v=0.28.1' in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index 5804c7f..d6d89bf 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.28.0' in HTML
++    assert 'app.js?v=0.28.1' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+index e0ac4bc..2fedb7a 100644
+--- a/tests/test_mobile_logo_contract.py
++++ b/tests/test_mobile_logo_contract.py
+@@ -6,7 +6,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
+ 
+ 
+ def test_mobile_header_keeps_full_animated_jobpilot_brand():
+-    assert 'styles.css?v=0.47.0' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
+     assert '.sidebar .brand > div { display:block !important;' in CSS
+     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
+     assert '.sidebar .brand strong { display:block;' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index b2428fb..75c4452 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -32,7 +32,7 @@ def test_skill_addition_updates_every_visible_surface_immediately():
+ 
+ 
+ def test_cloud_profile_changes_defer_expensive_derived_refresh_until_after_response():
+-    assert 'background_tasks.add_task(' in MAIN
++    assert '_queue_profile_derived_refresh(' in MAIN
+     assert '_refresh_profile_derived_background' in MAIN
+     assert 'if settings.auth_mode == "supabase" and background_tasks is not None' in MAIN
+ 
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.47.0' in HTML
+-    assert 'app.js?v=0.28.0' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
++    assert 'app.js?v=0.28.1' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 5c62079..aba0f80 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.28.0" in HTML
++    assert "app.js?v=0.28.1" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 058d9c7..6ebf8d9 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,8 +10,8 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.28.0' in HTML
+-    assert 'styles.css?v=0.47.0' in HTML
++    assert 'app.js?v=0.28.1' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+     assert ".onboarding-gate" in CSS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 276982b..60b7802 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.28.0' in HTML
+-    assert 'styles.css?v=0.47.0' in HTML
++    assert 'app.js?v=0.28.1' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+new file mode 100644
+index 0000000..9ef46cb
+--- /dev/null
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -0,0 +1,29 @@
++from pathlib import Path
++from app import main
++
++ROOT=Path(__file__).resolve().parents[1]
++JS=(ROOT/"app/static/app.js").read_text()
++HTML=(ROOT/"app/static/index.html").read_text()
++CSS=(ROOT/"app/static/styles.css").read_text()
++
++def test_career_switch_explains_exact_unsaved_fields():
++    assert "dirty.map(profileFieldLabel)" in JS
++    assert "אי אפשר להחליף מסלול עדיין" in JS
++    assert "שאלות ההגשה כוללות שינויים שלא נשמרו" in JS
++
++def test_cloud_derived_refresh_is_detached_coalesced_and_incremental():
++    assert hasattr(main, "_queue_profile_derived_refresh")
++    assert "_profile_refresh_pending" in Path(main.__file__).read_text()
++    assert "commit_every=25" in Path(main.__file__).read_text()
++    assert "yield_per(50)" in Path(main.__file__).read_text()
++
++def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
++    assert 'id="developer-preview-non-admin"' in HTML
++    assert 'id="admin-preview-exit"' in HTML
++    assert "jobpilot-preview-non-admin" in JS
++    assert "preview-non-admin" in CSS
++    assert "הרשאות השרת שלך נשארו Admin" in JS
++
++def test_assets_bumped():
++    assert "app.js?v=0.28.1" in HTML
++    assert "styles.css?v=0.47.1" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 1c9731d..b6b7a56 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.0" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.47.1" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index 8c78ae0..2aa2d22 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.28.0"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.28.1"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index c996b20..25d2fd8 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.28.0' in HTML
+-    assert 'styles.css?v=0.47.0' in HTML
++    assert 'app.js?v=0.28.1' in HTML
++    assert 'styles.css?v=0.47.1' in HTML
