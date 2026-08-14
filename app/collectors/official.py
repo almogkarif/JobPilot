@@ -31,7 +31,7 @@ PRESETS = {
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2},
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"joborderid(?:=|%3D)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks"},
-    "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000},
+    "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/[^/?#]+/([^/?#]+)", "company": "monday.com"},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco"},
     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
@@ -95,6 +95,10 @@ class OfficialCareersCollector:
                 path_offset=int(preset.get("title_path_offset", -1)),
                 prefer_link_text=bool(preset.get("prefer_link_text")),
             )
+            if identifier == "wix" and not _row_has_human_title({"title": title}):
+                # Never persist Wix infrastructure IDs (oracle/seat/REF) as titles.
+                # A later scan can recover the job once its detail page is readable.
+                continue
             location = _extract_israel_location(text)
             results[match.group(1)] = NormalizedJob(
                 external_id=match.group(1), title=title, company=company_name or preset["company"],
@@ -321,6 +325,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
             href, match = _resolve_row_href(row, preset)
             if not href or not match:
                 return row
+            if preset.get("hydrate_missing_title_only") and _row_has_human_title(row):
+                return row
             try:
                 async with semaphore:
                     response = await client.get(href)
@@ -367,6 +373,26 @@ GENERIC_LINK_TITLES = {
     "see full role description", "read more", "...read more", "…read more",
     "view job", "job details", "learn more", "apply", "apply now",
 }
+
+
+def _row_has_human_title(row: dict) -> bool:
+    """Return True only when the listing already exposes a meaningful job title."""
+    for raw in (row.get("title"), row.get("linkText")):
+        candidate = " ".join(str(raw or "").split()).strip()
+        if not candidate:
+            continue
+        normalized = candidate.casefold().strip(" .…→-")
+        if normalized in {value.strip(" .…→-") for value in GENERIC_LINK_TITLES}:
+            continue
+        # Wix Oracle/seat identifiers are implementation IDs, not job titles.
+        # Accept both raw slug form and the title-cased form produced by old code.
+        identifierish = re.sub(r"\s+", "-", candidate.strip())
+        if re.fullmatch(r"(?i)(?:oracle|seat)-[a-f0-9-]+(?:-t\d+)?-\d+", identifierish):
+            continue
+        if re.fullmatch(r"(?i)ref\d+[a-z]?", candidate):
+            continue
+        return True
+    return False
 
 
 def _resolve_title(

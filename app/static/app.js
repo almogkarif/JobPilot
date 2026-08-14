@@ -1173,10 +1173,8 @@ async function loadDashboard() {
     });
   });
   $('#blocker-count').textContent = dashboard.open_blockers;
-  $('#daily-recommendations-title').textContent = dashboard.recommendations_from_previous_day
-    ? 'המשרות המובילות מאתמול'
-    : 'משרות ששווה לבדוק היום';
-  renderRecent(dashboard.recent_jobs, dashboard.recommendations_from_previous_day);
+  $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
+  renderRecent(dashboard.recent_jobs);
   renderScan(dashboard.scan);
 }
 
@@ -1231,7 +1229,7 @@ function renderReadiness(readiness) {
     }).join('')}</div>`;
 }
 
-function renderRecent(jobs, showingPreviousDay = false) {
+function renderRecent(jobs) {
   const root = $('#recent-jobs');
   root.innerHTML = jobs.length ? jobs.map((job) => `
     <button class="job-row interactive-row" type="button" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
@@ -1240,7 +1238,7 @@ function renderRecent(jobs, showingPreviousDay = false) {
       <span class="status-pill">${statusLabel(job.status)}</span>
       <span class="row-arrow" aria-hidden="true">←</span>
     </button>
-  `).join('') : emptyState('⌁', showingPreviousDay ? 'לא נמצאו המלצות מאתמול' : 'עוד אין המלצות להיום', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
+  `).join('') : emptyState('⌁', 'עוד אין משרות מדורגות', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר מכל המאגר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
   $$('[data-job-id]', root).forEach((element) => {
     element.onclick = () => showJob(Number(element.dataset.jobId));
   });

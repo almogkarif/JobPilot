@@ -681,34 +681,17 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         total_jobs = int(current_stats.get("jobs", 0))
         strong_matches = int(current_stats.get("strong_matches", 0))
 
-        # "Worth checking today" is a ranked daily shortlist, not merely the last
-        # rows inserted. Build Israel-local day boundaries and compare them in UTC.
-        israel_tz = ZoneInfo(settings.timezone)
-        local_now = datetime.now(israel_tz)
-        local_day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-        scan_cutoff = local_day_start.replace(hour=settings.scan_hour, minute=settings.scan_minute)
-        showing_previous_day = local_now < scan_cutoff
-        if showing_previous_day:
-            local_day_start -= timedelta(days=1)
-        day_start_utc = local_day_start.astimezone(timezone.utc)
-        day_end_utc = (local_day_start + timedelta(days=1)).astimezone(timezone.utc)
-        today_top_jobs = catalog_db.scalars(
+        # Dashboard recommendations are the strongest active opportunities in the
+        # entire catalog. Recency is only a tie-breaker; an excellent older role
+        # should not disappear just because it was discovered before today.
+        top_jobs = catalog_db.scalars(
             select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-                Job.is_active.is_(True),
-                Job.career_track == career_track,
-                Job.discovered_at >= day_start_utc,
-                Job.discovered_at < day_end_utc,
+                Job.is_active.is_(True), Job.career_track == career_track
             ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at)).limit(5)
         ).all()
-        if not today_top_jobs:
-            today_top_jobs = catalog_db.scalars(
-                select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-                    Job.is_active.is_(True), Job.career_track == career_track
-                ).order_by(desc(Job.discovered_at), desc(Job.score), desc(Job.published_at)).limit(5)
-            ).all()
         recent_jobs = [
             _job_payload_for_request(job, request, profile=profile)
-            for job in today_top_jobs
+            for job in top_jobs
         ]
 
     career_track_info = _career_tracks_payload(db, profile, stats=career_stats)
@@ -764,8 +747,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "career_track": career_track,
         "career_track_info": career_track_info,
         "recent_jobs": recent_jobs,
-        "recommendation_date": local_day_start.date().isoformat(),
-        "recommendations_from_previous_day": showing_previous_day,
+        "recommendation_date": None,
+        "recommendations_from_previous_day": False,
+        "recommendation_basis": "top_score_all_catalog",
         "readiness": readiness,
         "guest_catalog": guest_catalog,
     }

@@ -27,4 +27,4 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
 
 def test_v0111_asset_versions_are_bumped():
     assert 'styles.css?v=0.45.3' in HTML
-    assert 'app.js?v=0.26.2' in HTML
+    assert 'app.js?v=0.26.3' in HTML
