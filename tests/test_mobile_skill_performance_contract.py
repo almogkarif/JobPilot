@@ -1,0 +1,46 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+JS = (ROOT / 'app/static/app.js').read_text()
+CSS = (ROOT / 'app/static/styles.css').read_text()
+HTML = (ROOT / 'app/static/index.html').read_text()
+MAIN = (ROOT / 'app/main.py').read_text()
+
+
+def test_mobile_floating_dock_uses_opaque_surfaces_and_stronger_backdrop():
+    assert '.mobile-tab-trigger {' in CSS
+    assert 'background:var(--panel); color:var(--ink);' in CSS
+    assert '.mobile-tab-menu {' in CSS
+    assert 'background:var(--panel);' in CSS
+    assert 'background:rgba(3,16,26,.28);' in CSS
+    assert 'backdrop-filter:blur(5px)' in CSS
+
+
+def test_profile_and_preferences_unsaved_summaries_are_scoped_to_active_tab():
+    assert "const visibleDirty = state.activeView === 'preferences' ? preferenceDirty : personalDirty;" in JS
+    assert "state.activeView !== 'preferences' && state.answersDirty" in JS
+
+
+def test_skill_addition_updates_every_visible_surface_immediately():
+    assert 'function syncSkillsEverywhere(skills = [], changedSkill = \'\')' in JS
+    assert 'syncSkillsEverywhere(result.skills || [], skill);' in JS
+    assert "syncSkillsEverywhere(state.profile.skills||[], value);" in JS
+    assert 'ציוני המשרות מתעדכנים ברקע' in JS
+
+
+def test_cloud_profile_changes_defer_expensive_derived_refresh_until_after_response():
+    assert 'background_tasks.add_task(' in MAIN
+    assert '_refresh_profile_derived_background' in MAIN
+    assert 'if settings.auth_mode == "supabase" and background_tasks is not None' in MAIN
+
+
+def test_iem_uses_same_generic_tab_copy_as_cs():
+    assert JS.count("searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה'") == 2
+    assert JS.count("skillsLegend: 'טכנולוגיות וכישורים'") == 2
+    assert JS.count("desiredPlaceholder: 'למשל: Developer Tools, Integration'") == 2
+    assert JS.count("skillsPlaceholder: 'מופרדים בפסיקים'") == 2
+
+
+def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+    assert 'styles.css?v=0.45.3' in HTML
+    assert 'app.js?v=0.26.2' in HTML

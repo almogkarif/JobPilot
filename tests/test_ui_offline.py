@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.26.1"></script>', "")
+    html = html.replace('<script src="/static/app.js?v=0.26.2"></script>', "")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])

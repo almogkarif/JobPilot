@@ -9,13 +9,14 @@ import io
 import json
 import secrets
 import shutil
+import threading
 import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -85,6 +86,7 @@ def _new_scan_state() -> dict:
 
 
 scan_states_by_user: dict[str, dict[str, dict]] = {}
+_profile_refresh_locks: dict[tuple[str, str], threading.Lock] = {}
 scan_locks_by_user: dict[str, asyncio.Lock] = {}
 global_user_scan_semaphore = asyncio.Semaphore(max(1, min(4, int(settings.max_concurrent_user_scans or 2))))
 scheduler_task: asyncio.Task | None = None
@@ -776,17 +778,17 @@ def get_profile(db: Session = Depends(get_db)):
 
 
 @app.put("/api/profile")
-def update_profile(payload: ProfileUpdate, db: Session = Depends(get_db)):
+def update_profile(payload: ProfileUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
     return _apply_profile_changes(
-        profile, payload.model_dump(), db, replace_application_profile=True, audit_scope="full"
+        profile, payload.model_dump(), db, replace_application_profile=True, audit_scope="full", background_tasks=background_tasks
     )
 
 
 @app.patch("/api/profile")
-def patch_profile(payload: ProfilePatch, db: Session = Depends(get_db)):
+def patch_profile(payload: ProfilePatch, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
@@ -794,7 +796,7 @@ def patch_profile(payload: ProfilePatch, db: Session = Depends(get_db)):
     if not values:
         return _profile_dict(profile)
     return _apply_profile_changes(
-        profile, values, db, replace_application_profile=False, audit_scope="partial"
+        profile, values, db, replace_application_profile=False, audit_scope="partial", background_tasks=background_tasks
     )
 
 
@@ -835,6 +837,7 @@ def _apply_profile_changes(
     *,
     replace_application_profile: bool,
     audit_scope: str,
+    background_tasks: BackgroundTasks | None = None,
 ) -> dict:
     """Persist only supplied profile fields and refresh only affected derived data."""
     matching_fields = (
@@ -901,9 +904,27 @@ def _apply_profile_changes(
         details_json=dumps({"fields": changed_fields}),
     ))
 
-    if tuple(getattr(profile, field) for field in matching_fields) != matching_before:
+    matching_changed = tuple(getattr(profile, field) for field in matching_fields) != matching_before
+    resume_analysis_changed = tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before
+    user_id = current_user_id(db)
+    track = active_track(profile)
+
+    # Cloud saves must acknowledge the user's edit first. Re-scoring every historical
+    # job (and re-analysing every CV) can take seconds on a small Render instance.
+    # Keep local/test mode synchronous for deterministic tests, but defer derived
+    # work until after the HTTP response in Supabase mode.
+    if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
+        db.commit()
+        db.refresh(profile)
+        background_tasks.add_task(
+            _refresh_profile_derived_background, user_id, track,
+            matching_changed, resume_analysis_changed,
+        )
+        return _profile_dict(profile)
+
+    if matching_changed:
         _rescore_all_jobs(db, profile)
-    if tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before:
+    if resume_analysis_changed:
         _refresh_resume_analyses(db, profile)
     db.commit()
     db.refresh(profile)
@@ -1101,7 +1122,7 @@ def reanalyze_resume(resume_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/resumes/{resume_id}/suggestions/apply")
-def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, db: Session = Depends(get_db)):
+def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Apply one explicit CV suggestion without blocking FastAPI's event loop.
 
     The route is intentionally synchronous so FastAPI executes the potentially
@@ -1115,20 +1136,39 @@ def apply_resume_suggestion(resume_id: int, payload: ResumeSuggestionApply, db: 
     field = str(payload.field or "").strip()
     value = str(payload.value or "").strip()
     allowed_profile = {"full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url"}
-    if field == "skills":
+    skill_changed = field == "skills"
+    if skill_changed:
         values = [str(item).strip() for item in loads(profile.skills_json, []) if str(item).strip()]
         if value.casefold() not in {item.casefold() for item in values}:
             values.append(value)
         profile.skills_json = dumps(values)
         persist_active_track(profile)
-        _rescore_all_jobs(db, profile)
     elif field in allowed_profile:
         setattr(profile, field, value)
     else:
         raise HTTPException(400, "Unsupported suggestion")
-    _refresh_resume_analyses(db, profile)
-    db.commit()
-    db.refresh(profile)
+
+    user_id, track = current_user_id(db), active_track(profile)
+    if settings.auth_mode == "supabase":
+        # Remove the accepted suggestion from the clicked CV immediately so the UI
+        # cannot offer the same action twice while the full CV refresh runs later.
+        analysis = loads(resume.analysis_json, {})
+        suggestions = analysis.get("suggestions", []) if isinstance(analysis, dict) else []
+        if isinstance(suggestions, list):
+            analysis["suggestions"] = [
+                item for item in suggestions
+                if not (str(item.get("field", "")) == field and str(item.get("value", "")).casefold() == value.casefold())
+            ]
+            resume.analysis_json = dumps(analysis)
+        db.commit()
+        db.refresh(profile)
+        background_tasks.add_task(_refresh_profile_derived_background, user_id, track, skill_changed, True)
+    else:
+        if skill_changed:
+            _rescore_all_jobs(db, profile)
+        _refresh_resume_analyses(db, profile)
+        db.commit()
+        db.refresh(profile)
     return {"applied": True, "profile": _profile_dict(profile), "resume": _resume_dict(resume)}
 
 
@@ -1398,7 +1438,7 @@ def skills_overview(db: Session = Depends(get_db)):
 
 
 @app.post("/api/profile/desired-titles")
-def add_desired_title(payload: DesiredTitleUpdateRequest, db: Session = Depends(get_db)):
+def add_desired_title(payload: DesiredTitleUpdateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
@@ -1408,14 +1448,19 @@ def add_desired_title(payload: DesiredTitleUpdateRequest, db: Session = Depends(
         titles.append(title)
         profile.desired_titles_json = dumps(titles)
         persist_active_track(profile)
-        _rescore_all_jobs(db, profile)
+        user_id, track = current_user_id(db), active_track(profile)
         db.add(AuditLog(event_type="desired_title_added", entity_type="profile", entity_id="1", message=title))
-        db.commit()
+        if settings.auth_mode == "supabase":
+            db.commit()
+            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, False)
+        else:
+            _rescore_all_jobs(db, profile)
+            db.commit()
     return {"added": title, "desired_titles": titles}
 
 
 @app.post("/api/profile/skills")
-def add_profile_skill(payload: SkillUpdateRequest, db: Session = Depends(get_db)):
+def add_profile_skill(payload: SkillUpdateRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
@@ -1425,15 +1470,20 @@ def add_profile_skill(payload: SkillUpdateRequest, db: Session = Depends(get_db)
         skills.append(skill)
         profile.skills_json = dumps(skills)
         persist_active_track(profile)
-        _rescore_all_jobs(db, profile)
-        _refresh_resume_analyses(db, profile)
+        user_id, track = current_user_id(db), active_track(profile)
         db.add(AuditLog(event_type="profile_skill_added", entity_type="profile", entity_id="1", message=skill))
-        db.commit()
+        if settings.auth_mode == "supabase":
+            db.commit()
+            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
+        else:
+            _rescore_all_jobs(db, profile)
+            _refresh_resume_analyses(db, profile)
+            db.commit()
     return {"added": skill, "skills": skills}
 
 
 @app.delete("/api/profile/skills")
-def remove_profile_skill(skill: str = Query(..., min_length=1, max_length=80), db: Session = Depends(get_db)):
+def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(..., min_length=1, max_length=80), db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
@@ -1442,10 +1492,15 @@ def remove_profile_skill(skill: str = Query(..., min_length=1, max_length=80), d
     if len(remaining) != len(skills):
         profile.skills_json = dumps(remaining)
         persist_active_track(profile)
-        _rescore_all_jobs(db, profile)
-        _refresh_resume_analyses(db, profile)
+        user_id, track = current_user_id(db), active_track(profile)
         db.add(AuditLog(event_type="profile_skill_removed", entity_type="profile", entity_id="1", message=skill.strip()))
-        db.commit()
+        if settings.auth_mode == "supabase":
+            db.commit()
+            background_tasks.add_task(_refresh_profile_derived_background, user_id, track, True, True)
+        else:
+            _rescore_all_jobs(db, profile)
+            _refresh_resume_analyses(db, profile)
+            db.commit()
     return {"removed": skill.strip(), "skills": remaining}
 
 
@@ -2402,6 +2457,30 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     db.add(AuditLog(event_type="agent_recovered", entity_type="application", entity_id=str(application.id),
                     message=application.last_error))
     db.commit(); return _application_dict(application, db)
+
+
+def _refresh_profile_derived_background(
+    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
+) -> None:
+    """Refresh expensive derived profile data after the user's save response."""
+    try:
+        # Serialise derived refreshes per user/track. If two saves happen quickly,
+        # the second refresh waits and then reloads the newest profile state, so an
+        # older scoring pass can never be the last writer.
+        lock = _profile_refresh_locks.setdefault((user_id, career_track), threading.Lock())
+        with lock:
+            with user_session(user_id) as db:
+                profile = get_user_profile(db)
+                if not profile:
+                    return
+                if rescore_jobs:
+                    _rescore_all_jobs(db, profile, career_track=career_track)
+                if refresh_resumes:
+                    _refresh_resume_analyses(db, profile, career_track=career_track)
+                db.commit()
+    except Exception as exc:
+        # A failed derived refresh must never roll back the already-confirmed user edit.
+        print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
 
 
 def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None) -> None:

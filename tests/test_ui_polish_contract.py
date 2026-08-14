@@ -98,5 +98,5 @@ def test_mobile_redesign_uses_top_right_floating_tab_dock_and_phone_first_job_la
     assert "setMobileTabMenu(false);\n  renderNotificationCenter();" in JS
     assert "$$('[data-mobile-view]')" in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.26.1' in HTML
-    assert 'styles.css?v=0.45.2' in HTML
+    assert 'app.js?v=0.26.2' in HTML
+    assert 'styles.css?v=0.45.3' in HTML

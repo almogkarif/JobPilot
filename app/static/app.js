@@ -37,7 +37,7 @@ const CAREER_TRACK_UI = Object.freeze({
     key: 'industrial_engineering', symbol: 'IE', label: 'תעשייה וניהול', shortLabel: 'תעו״נ', themeClass: 'track-industrial-engineering',
     description: 'תפעול, שרשרת אספקה, אנליזה, BI, פרויקטים ותהליכים',
     eyebrow: 'סוכן חיפוש · תעשייה וניהול', tagline: 'חיפוש משרות · תעשייה וניהול',
-    searchPlaceholder: 'חיפוש תפקיד, חברה, תחום או כלי', skillsLegend: 'כלים, מערכות וכישורים',
+    searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה', skillsLegend: 'טכנולוגיות וכישורים',
     desiredTitles: [
       ['industrial engineer','Industrial Engineer'], ['business analyst','Business Analyst'], ['data analyst','Data Analyst'], ['bi analyst','BI Analyst'],
       ['operations analyst','Operations Analyst'], ['business operations','Business Operations'], ['supply chain','Supply Chain'],
@@ -47,7 +47,7 @@ const CAREER_TRACK_UI = Object.freeze({
       ['operational excellence','Operational Excellence'], ['manufacturing engineer','Manufacturing Engineer'], ['quality engineer','Quality Engineer'], ['npi','NPI']
     ],
     skills: [['Excel','Excel'],['SQL','SQL'],['Power BI','Power BI'],['Tableau','Tableau'],['Data Analysis','Data Analysis'],['ERP','ERP'],['SAP','SAP'],['Priority','Priority'],['Lean','Lean'],['Six Sigma','Six Sigma'],['Process Improvement','Process Improvement'],['Project Management','Project Management'],['Supply Chain','Supply Chain'],['Procurement','Procurement'],['Production Planning','Production Planning'],['Operations Research','Operations Research'],['Statistics','Statistics'],['Power Query','Power Query'],['VBA','VBA'],['Python','Python']],
-    desiredPlaceholder: 'למשל: Planning, Operational Excellence, Sales Operations', skillsPlaceholder: 'למשל: MRP, Jira, Monday, Forecasting',
+    desiredPlaceholder: 'למשל: Developer Tools, Integration', skillsPlaceholder: 'מופרדים בפסיקים',
   },
 });
 
@@ -1772,14 +1772,41 @@ async function editApplication(id) {
 }
 async function saveApplicationEdit(id){await updateApplication(id,{status:$('#application-stage').value,notes:$('#application-notes').value,reminder_at:$('#application-reminder').value||null,reminder_note:$('#application-reminder-note').value});closeModal();}
 
+function renderOwnedSkills(skills = []) {
+  const root = $('#my-skills');
+  if (!root) return;
+  root.innerHTML = skills.length
+    ? skills.map((skill) => `<span>${esc(skill)} <button type="button" title="הסר" onclick="removeSkill(decodeURIComponent('${encodeURIComponent(skill)}'))">×</button></span>`).join('')
+    : emptyState('＋', 'רשימת הסקילים עדיין ריקה', 'הוסף סקילים מתוך הצעות המערכת או דרך העדפות החיפוש.', '<button class="btn secondary small" type="button" onclick="switchView(\'preferences\')">להעדפות החיפוש</button>');
+}
+
+function syncSkillsEverywhere(skills = [], changedSkill = '') {
+  const normalized = [...new Set((skills || []).map((value) => String(value).trim()).filter(Boolean))];
+  if (state.profile) state.profile = { ...state.profile, skills: normalized };
+  if (state.profileLoaded && profileForm()?.elements?.skills) {
+    applyArrayFieldToControls('skills', normalized);
+    updateProfileDirtyState();
+    updateProfileSectionSummaries();
+  }
+  if (state.skillsOverview) state.skillsOverview.profile_skills = normalized;
+  renderOwnedSkills(normalized);
+
+  // Resume suggestions live in another surface. Remove an accepted skill from all
+  // visible CV suggestion cards immediately instead of waiting for a full re-fetch.
+  if (changedSkill) {
+    $$('[data-resume-suggestion][data-field="skills"]').forEach((button) => {
+      const value = decodeURIComponent(button.dataset.value || '');
+      if (value.trim().toLowerCase() === changedSkill.trim().toLowerCase()) button.remove();
+    });
+  }
+}
+
 async function loadSkills() {
   $('#my-skills').innerHTML = skeleton(2, 'rows');
   $('#skill-suggestions').innerHTML = skeleton(3, 'rows');
   state.skillsOverview = await api('/api/skills/overview');
   setPageContext('skills', state.skillsOverview.profile_skills.length);
-  $('#my-skills').innerHTML = state.skillsOverview.profile_skills.length
-    ? state.skillsOverview.profile_skills.map((skill) => `<span>${esc(skill)} <button type="button" title="הסר" onclick="removeSkill(decodeURIComponent('${encodeURIComponent(skill)}'))">×</button></span>`).join('')
-    : emptyState('＋', 'רשימת הסקילים עדיין ריקה', 'הוסף סקילים מתוך הצעות המערכת או דרך העדפות החיפוש.', '<button class="btn secondary small" type="button" onclick="switchView(\'preferences\')">להעדפות החיפוש</button>');
+  renderOwnedSkills(state.skillsOverview.profile_skills);
   $('#skill-suggestions').innerHTML = state.skillsOverview.suggestions.length
     ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div><strong>${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span><small>${item.jobs.map((job) => `${esc(job.company)} — ${esc(job.title)}`).join('<br>')}</small></div><button class="btn secondary small" type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">הוסף לסקילים שלי</button></article>`).join('')
     : emptyState('✓', 'אין כרגע פערי סקילים חדשים', 'כל הסקילים שזוהו במשרות הפעילות כבר מופיעים בפרופיל שלך.');
@@ -1787,11 +1814,11 @@ async function loadSkills() {
 
 async function addSkill(skill, reopenJobId = null) {
   try {
-    await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
-    state.profileLoaded = false;
-    toast(`${skill} נוסף לפרופיל והמשרות דורגו מחדש`);
-    if (state.activeView === 'skills') await loadSkills();
-    if (state.activeView === 'jobs') await loadJobs();
+    const result = await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
+    syncSkillsEverywhere(result.skills || [], skill);
+    toast(`${skill} נוסף מיד · ציוני המשרות מתעדכנים ברקע`);
+    if (state.activeView === 'skills') loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
+    if (state.activeView === 'jobs') loadJobs({ silent:true }).catch((error) => console.warn('Jobs refresh failed', error));
     if (reopenJobId) await showJob(reopenJobId);
   } catch (error) {
     toast(error.message);
@@ -1801,10 +1828,10 @@ async function addSkill(skill, reopenJobId = null) {
 async function removeSkill(skill) {
   if (!confirm(`להסיר את ${skill} מרשימת הסקילים שלך?`)) return;
   try {
-    await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
-    state.profileLoaded = false;
-    toast(`${skill} הוסר והדירוגים עודכנו`);
-    await loadSkills();
+    const result = await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
+    syncSkillsEverywhere(result.skills || []);
+    toast(`${skill} הוסר · ציוני המשרות מתעדכנים ברקע`);
+    loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
   } catch (error) {
     toast(error.message);
   }
@@ -2347,12 +2374,16 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   const total = dirtyFields.length + (state.answersDirty ? 1 : 0);
   const preferenceDirty = dirtyFields.filter((field) => SEARCH_PREFERENCE_FIELDS.has(field));
   const personalDirty = dirtyFields.filter((field) => !SEARCH_PREFERENCE_FIELDS.has(field));
+  // Preferences and My Profile share the same underlying form/view, but their
+  // validation summaries must never bleed into each other. Only describe the
+  // fields owned by the tab the user is currently looking at.
+  const visibleDirty = state.activeView === 'preferences' ? preferenceDirty : personalDirty;
   const parts = [];
-  if (dirtyFields.length) {
-    const labels = dirtyFields.map(profileFieldLabel).filter(Boolean);
+  if (visibleDirty.length) {
+    const labels = visibleDirty.map(profileFieldLabel).filter(Boolean);
     parts.push(`לא נשמרו: ${labels.slice(0,4).join(' · ')}${labels.length > 4 ? ` · ועוד ${labels.length - 4}` : ''}`);
   }
-  if (state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
+  if (state.activeView !== 'preferences' && state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
   $('#profile-unsaved-count').textContent = parts.join(' · ');
   $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
   $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
@@ -2510,11 +2541,11 @@ async function applyResumeSuggestion(resumeId,field,value){
   try {
     const result=await api(`/api/resumes/${resumeId}/suggestions/apply`,{method:'POST',body:JSON.stringify({field,value})});
     state.profile=result.profile; state.profileLoaded=true;
-    if(field==='skills') applyArrayFieldToControls('skills',state.profile.skills||[]);
+    if(field==='skills') syncSkillsEverywhere(state.profile.skills||[], value);
     else if(PROFILE_FIELDS.includes(field) && profileForm().elements[field]) profileForm().elements[field].value=state.profile[field]||'';
     updateProfileDirtyState(); updateProfileSectionSummaries(); updateProfileCompletion();
     if (button?.isConnected) button.remove();
-    toast(field==='skills'?'הסקיל נוסף לפרופיל והמשרות דורגו מחדש':'הפרט נוסף לפרופיל');
+    toast(field==='skills'?'הסקיל נוסף מיד · ציוני המשרות מתעדכנים ברקע':'הפרט נוסף לפרופיל');
     loadResumeInsights().catch((error) => console.warn('Resume insights refresh failed', error));
   } catch (error) {
     toast(`לא ניתן להוסיף את ההצעה: ${error.message}`);
