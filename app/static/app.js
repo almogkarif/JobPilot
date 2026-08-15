@@ -49,6 +49,19 @@ const CAREER_TRACK_UI = Object.freeze({
     skills: [['Excel','Excel'],['SQL','SQL'],['Power BI','Power BI'],['Tableau','Tableau'],['Data Analysis','Data Analysis'],['ERP','ERP'],['SAP','SAP'],['Priority','Priority'],['Lean','Lean'],['Six Sigma','Six Sigma'],['Process Improvement','Process Improvement'],['Project Management','Project Management'],['Supply Chain','Supply Chain'],['Procurement','Procurement'],['Production Planning','Production Planning'],['Operations Research','Operations Research'],['Statistics','Statistics'],['Power Query','Power Query'],['VBA','VBA'],['Python','Python']],
     desiredPlaceholder: 'למשל: Developer Tools, Integration', skillsPlaceholder: 'מופרדים בפסיקים',
   },
+  electrical_engineering: {
+    key: 'electrical_engineering', symbol: 'EE', label: 'הנדסת חשמל', shortLabel: 'חשמל', themeClass: 'track-electrical-engineering',
+    description: 'חומרה, שבבים, FPGA, Embedded, Verification, RF ומערכות',
+    eyebrow: 'סוכן חיפוש · הנדסת חשמל', tagline: 'חיפוש משרות · הנדסת חשמל',
+    searchPlaceholder: 'חיפוש חומרה, שבבים, FPGA, Embedded או חברה', skillsLegend: 'טכנולוגיות וכישורי חשמל וחומרה',
+    desiredTitles: [
+      ['electrical engineer','Electrical Engineer'],['hardware engineer','Hardware Engineer'],['fpga engineer','FPGA Engineer'],['asic','ASIC / VLSI'],
+      ['verification engineer','Verification Engineer'],['embedded engineer','Embedded Engineer'],['firmware engineer','Firmware Engineer'],
+      ['analog engineer','Analog Engineer'],['rf engineer','RF Engineer'],['board design','Board Design'],['silicon','Silicon Engineer'],['soc','SoC Engineer']
+    ],
+    skills: [['C','C'],['C++','C++'],['Python','Python'],['Verilog','Verilog'],['SystemVerilog','SystemVerilog'],['VHDL','VHDL'],['FPGA','FPGA'],['UVM','UVM'],['Embedded','Embedded'],['Linux','Linux'],['MATLAB','MATLAB'],['PCB','PCB'],['Analog Design','Analog Design'],['RF','RF'],['Git','Git']],
+    desiredPlaceholder: 'למשל: RTL Design, Signal Integrity', skillsPlaceholder: 'מופרדים בפסיקים',
+  },
 });
 
 window.jobPilotReloadAfterCareerSwitch = window.jobPilotReloadAfterCareerSwitch || refreshAfterCareerSwitch;
@@ -441,6 +454,7 @@ function applyCareerTrackTheme() {
   const config = careerTrackUI();
   document.body.classList.toggle('track-industrial-engineering', config.key === 'industrial_engineering');
   document.body.classList.toggle('track-computer-science', config.key === 'computer_science');
+  document.body.classList.toggle('track-electrical-engineering', config.key === 'electrical_engineering');
   document.body.dataset.careerTrack = config.key;
   $('#career-track-symbol') && ($('#career-track-symbol').textContent = config.symbol);
   $('#career-track-label') && ($('#career-track-label').textContent = config.label);

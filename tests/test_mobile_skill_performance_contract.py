@@ -41,9 +41,9 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
     assert JS.count("searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה'") == 2
     assert JS.count("skillsLegend: 'טכנולוגיות וכישורים'") == 2
     assert JS.count("desiredPlaceholder: 'למשל: Developer Tools, Integration'") == 2
-    assert JS.count("skillsPlaceholder: 'מופרדים בפסיקים'") == 2
+    assert JS.count("skillsPlaceholder: 'מופרדים בפסיקים'") == 3
 
 
 def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
-    assert 'styles.css?v=0.47.4' in HTML
-    assert 'app.js?v=0.28.4' in HTML
+    assert 'styles.css?v=0.48.0' in HTML
+    assert 'app.js?v=0.29.0' in HTML

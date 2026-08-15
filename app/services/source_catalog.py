@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import AuditLog, Source
-from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, DEFAULT_TRACK, normalize_track
+from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, DEFAULT_TRACK, normalize_track
 from ..utils import dumps, loads
 
 # Public ATS boards that regularly publish relevant roles in Israel.
@@ -83,9 +83,28 @@ IEM_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name": "CyberArk — Business Operations", "kind": "smartrecruiters", "identifier": "Cyberark1", "company_name": "CyberArk"},
 )
 
+
+EE_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
+    {"name":"NVIDIA — Hardware Israel","kind":"workday","identifier":"nvidia","company_name":"NVIDIA"},
+    {"name":"Intel — Hardware & Silicon Israel","kind":"workday","identifier":"intel","company_name":"Intel"},
+    {"name":"Apple — Hardware Israel","kind":"official_careers","identifier":"apple","company_name":"Apple"},
+    {"name":"Qualcomm — Hardware Israel","kind":"official_careers","identifier":"qualcomm","company_name":"Qualcomm"},
+    {"name":"Mobileye — Hardware & Embedded","kind":"lever","identifier":"eu:mobileye","company_name":"Mobileye"},
+    {"name":"Amazon — Annapurna Labs Israel","kind":"official_careers","identifier":"amazon","company_name":"Amazon"},
+    {"name":"Applied Materials — Electrical & Hardware","kind":"workday","identifier":"applied-materials","company_name":"Applied Materials"},
+    {"name":"KLA Israel — Electrical & Systems","kind":"workday","identifier":"kla-israel","company_name":"KLA"},
+    {"name":"Rafael — Electrical Engineering","kind":"official_careers","identifier":"rafael","company_name":"Rafael"},
+    {"name":"Elbit Systems — Electrical Engineering","kind":"official_careers","identifier":"elbit","company_name":"Elbit Systems"},
+    {"name":"IAI — Electrical Engineering","kind":"official_careers","identifier":"iai","company_name":"Israel Aerospace Industries"},
+    {"name":"Cisco — Silicon & Hardware Israel","kind":"official_careers","identifier":"cisco","company_name":"Cisco"},
+    {"name":"Microsoft — Silicon Israel","kind":"official_careers","identifier":"microsoft","company_name":"Microsoft"},
+    {"name":"Samsung Research Israel — Hardware","kind":"official_careers","identifier":"samsung","company_name":"Samsung Research Israel"},
+)
+
 RECOMMENDED_SOURCES_BY_TRACK = {
     COMPUTER_SCIENCE: CS_RECOMMENDED_SOURCES,
     INDUSTRIAL_ENGINEERING: IEM_RECOMMENDED_SOURCES,
+    ELECTRICAL_ENGINEERING: EE_RECOMMENDED_SOURCES,
 }
 # Backward-compatible symbol used by older tests/imports.
 RECOMMENDED_SOURCES = CS_RECOMMENDED_SOURCES

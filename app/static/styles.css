@@ -2938,3 +2938,34 @@ body.guest-mode .job-status-control { display:none !important; }
 @keyframes onboardingWaitingBar{0%{transform:translateX(260%)}50%{transform:translateX(0)}100%{transform:translateX(-260%)}}
 @media(max-width:700px){.onboarding-step{padding-inline:0}.onboarding-step-skills .onboarding-skill-checks{padding:10px}.onboarding-step-preferences .onboarding-form>fieldset,.onboarding-step-preferences .onboarding-form>label{border-radius:17px}}
 @media(prefers-reduced-motion:reduce){.source-scan-progress.waiting>span b,.source-scan-progress.waiting>div i{animation:none!important}}
+
+/* Electrical Engineering — pink / silver professional track */
+body.track-electrical-engineering {
+  --brand:#c24f8a; --brand2:#e8a8c9; --brand-soft:#fbe8f2; --surface-soft:#faf8fb; --surface-tint:#f5eef4;
+  --line:#dfd8df; --line-strong:#c8bdc8; --text:#342c34; --muted:#786c76; --warning:#a74b77;
+  --accent-border:#e4bfd2; --accent-glow:rgba(194,79,138,.14);
+}
+body.track-electrical-engineering .topbar { background:linear-gradient(180deg,rgba(255,252,254,.98),rgba(249,246,249,.94)); border-color:#e5d9e1; box-shadow:0 12px 34px rgba(91,70,85,.07); }
+body.track-electrical-engineering :where(.panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,.preference-group,.answer-card,.notification-item){border-color:#e3d9e0}
+body.track-electrical-engineering .btn.primary { background:linear-gradient(145deg,#df86b3,#b7467f); border-color:#b7467f; box-shadow:0 9px 22px rgba(183,70,127,.2); }
+body.track-electrical-engineering .career-track-symbol,body.track-electrical-engineering .career-track-option.active .career-option-symbol { background:linear-gradient(145deg,#f4c6dc,#b94a82); color:#fff; box-shadow:0 7px 18px rgba(185,74,130,.2); }
+body.track-electrical-engineering :where(.text-btn,.kicker,.profile-completion b,.sidebar nav button.active,.score-ring b){color:#a83e73}
+body.track-electrical-engineering .sidebar nav button .nav-icon{border-color:#ddd4dc;background:#faf8fa;color:#746a73}
+body.track-electrical-engineering .sidebar nav button:hover .nav-icon,body.track-electrical-engineering .sidebar nav button:focus-visible .nav-icon,body.track-electrical-engineering .sidebar nav button.active .nav-icon{border-color:#d99ab9;background:linear-gradient(155deg,#d979a8,#a93f73);color:#fff;box-shadow:0 11px 24px rgba(169,63,115,.18)}
+body.track-electrical-engineering input[type="checkbox"]:checked,body.track-electrical-engineering input[type="radio"]:checked{border-color:#b7467f;background:linear-gradient(145deg,#dc7bab,#b7467f)}
+body.track-electrical-engineering :where(.status-pill,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,.job-search-field small){background:#f9e8f1;border-color:#e5c7d7;color:#8f4169}
+body.track-electrical-engineering .scan-status{background:#faedf4;border-color:#e4c5d5;color:#70465d}
+body.track-electrical-engineering .scan-status::after{background:#c24f8a;box-shadow:0 0 0 4px rgba(194,79,138,.13)}
+body.track-electrical-engineering .scan-status-fill{background:linear-gradient(90deg,rgba(218,119,168,.22),rgba(192,192,200,.13))}
+body.track-electrical-engineering .logo-surface{fill:#8e3765;stroke:#dca5c1} body.track-electrical-engineering .logo-route-depth{stroke:#4f243b} body.track-electrical-engineering .logo-route{stroke:#f4c5dd}
+body.track-electrical-engineering.theme-dark {
+  --brand:#e28ab5; --brand2:#f1b8d4; --brand-soft:#432637; --surface-soft:#211d21; --surface-tint:#2b2228;
+  --line:#51464e; --line-strong:#6b5965; --text:#f7edf3; --muted:#c0adb8; --accent-border:#74465e; --accent-glow:rgba(226,138,181,.14);
+}
+body.track-electrical-engineering.theme-dark .topbar{background:linear-gradient(180deg,rgba(31,26,30,.98),rgba(25,22,25,.95));border-color:#55454f}
+body.track-electrical-engineering.theme-dark :where(.panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,.preference-group,.answer-card,.notification-item){background-color:#211c20;border-color:#51434c;color:#f7edf3}
+body.track-electrical-engineering.theme-dark :where(input,select,textarea,.jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,.profile-completion,.theme-switch,.icon-action,.section-collapse,.career-switcher-trigger){background-color:#1d191c!important;border-color:#5d4b56;color:#f7edf3}
+body.track-electrical-engineering.theme-dark :where(h1,h2,h3,strong,label,.panel-head h2,.panel-head h3){color:#f9eef4}
+body.track-electrical-engineering.theme-dark :where(.muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small){color:#bfaab6}
+body.track-electrical-engineering.theme-dark .career-switcher-menu{background:rgba(31,25,29,.98);border-color:#604b57}
+body.track-electrical-engineering.theme-dark .career-track-option:hover{background:#30242b} body.track-electrical-engineering.theme-dark .career-track-option.active{background:#432637;border-color:#81506a}

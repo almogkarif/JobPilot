@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.main import app, _run_scan
 from app.models import Application, Job, Source
-from app.services.career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING
+from app.services.career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING
 from app.services.matching import track_job_relevance
 from app.utils import select_next_queued_application, loads
 
@@ -31,7 +31,7 @@ def switch(client: TestClient, track: str):
 def test_career_track_api_exposes_one_active_search_agent_and_iem_catalog():
     with TestClient(app) as client:
         payload = client.get("/api/career-tracks").json()
-        assert {item["key"] for item in payload["tracks"]} == {COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING}
+        assert {item["key"] for item in payload["tracks"]} == {COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING}
         assert sum(bool(item["search_agent_active"]) for item in payload["tracks"]) == 1
 
         switch(client, INDUSTRIAL_ENGINEERING)

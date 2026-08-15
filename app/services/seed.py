@@ -9,7 +9,7 @@ from ..models import Job, Profile, Source
 from ..utils import dumps
 from .matching import build_match_context, score_job
 from .source_catalog import install_recommended_sources
-from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ensure_track_state
+from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, ensure_track_state
 
 
 def initialize_database(db: Session, *, full_name: str | None = None, email: str = "", demo_only: bool = False, profile_only: bool = False) -> None:
@@ -66,6 +66,7 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
         # suppressed instead of being scanned twice.
         install_recommended_sources(db, COMPUTER_SCIENCE)
         install_recommended_sources(db, INDUSTRIAL_ENGINEERING)
+        install_recommended_sources(db, ELECTRICAL_ENGINEERING)
 
     demo_tracks = [COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING] if demo_only else [COMPUTER_SCIENCE]
     demo_definitions = {

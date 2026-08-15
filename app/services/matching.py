@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from datetime import datetime, timezone
 from ..utils import loads
-from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, active_track
+from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, active_track
 
 KNOWN_SKILLS = {
     "c++": ["c++", "cpp"],
@@ -73,6 +73,14 @@ KNOWN_SKILLS = {
     "statistics": ["statistics", "statistical analysis", "סטטיסטיקה"],
     "power query": ["power query"],
     "vba": ["vba", "visual basic for applications"],
+    "verilog": ["verilog"],
+    "systemverilog": ["systemverilog", "system verilog"],
+    "vhdl": ["vhdl"],
+    "uvm": ["uvm", "universal verification methodology"],
+    "matlab": ["matlab", "simulink"],
+    "pcb": ["pcb", "board design", "altium", "orcad", "cadence allegro"],
+    "analog design": ["analog design", "mixed signal", "mixed-signal"],
+    "rf": ["rf", "radio frequency", "rfic"],
 }
 
 SENIOR_TERMS = {
@@ -288,17 +296,40 @@ def _ranked_points(values: list[str], hits: list[str], maximum: int) -> tuple[in
     return points, best_rank
 
 
+EE_STRONG_TITLE_TERMS = {
+    "electrical engineer", "hardware engineer", "hardware design", "fpga", "asic", "vlsi",
+    "verification engineer", "design verification", "chip design", "silicon", "soc", "rtl",
+    "embedded engineer", "firmware engineer", "board design", "analog engineer", "mixed signal",
+    "rf engineer", "rfic", "signal integrity", "power electronics", "electronic engineer",
+    "מהנדס חשמל", "מהנדסת חשמל", "מהנדס חומרה", "מהנדסת חומרה", "וריפיקציה", "תכנון כרטיסים",
+}
+EE_CONTEXT_TERMS = {
+    "verilog", "systemverilog", "vhdl", "uvm", "fpga", "asic", "rtl", "vlsi", "soc", "pcb",
+    "embedded", "firmware", "microcontroller", "electronics", "electrical engineering", "hardware",
+    "analog", "mixed signal", "rf", "signal integrity", "cadence", "altium", "matlab", "simulink",
+}
+
 def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
     """Return whether a collected job belongs in the requested professional track.
 
     CS keeps the permissive legacy behavior. IEM is deliberately stricter because
     broad company boards otherwise flood the track with unrelated software roles.
     """
-    if career_track != INDUSTRIAL_ENGINEERING:
+    if career_track == COMPUTER_SCIENCE:
         return True, "legacy_cs_scope"
     title = str(getattr(job, "title", "") or "").casefold()
     description = str(getattr(job, "description", "") or "").casefold()
     text = f"{title} {description}"
+    if career_track == ELECTRICAL_ENGINEERING:
+        if any(term in title for term in EE_STRONG_TITLE_TERMS):
+            return True, "ee_title"
+        context_hits = sum(1 for term in EE_CONTEXT_TERMS if term in text)
+        degree_signal = any(term in text for term in ("electrical engineering", "electronics engineering", "הנדסת חשמל", "הנדסת אלקטרוניקה"))
+        if degree_signal and context_hits >= 1:
+            return True, "ee_degree_signal"
+        if context_hits >= 3 and any(term in title for term in ("engineer", "designer", "developer", "architect", "מהנדס", "מהנדסת")):
+            return True, "ee_context"
+        return False, "outside_ee_scope"
     if any(term in title for term in IEM_STRONG_TITLE_TERMS):
         return True, "iem_title"
     context_hits = sum(1 for term in IEM_CONTEXT_TERMS if term in text)
@@ -385,6 +416,14 @@ def score_job(
         else:
             score -= 25
             reasons.append({"type": "negative", "label": "התפקיד מחוץ לליבת תעשייה וניהול", "points": -25})
+    elif career_track == ELECTRICAL_ENGINEERING:
+        relevant, relevance_reason = track_job_relevance(job, career_track)
+        if relevant:
+            score += 8
+            reasons.append({"type": "positive", "label": "תפקיד רלוונטי להנדסת חשמל", "points": 8})
+        else:
+            score -= 30
+            reasons.append({"type": "negative", "label": "התפקיד מחוץ לליבת הנדסת חשמל", "points": -30})
 
     company_text = str(getattr(job, "company", "") or "").lower()
     known_company_match = None

@@ -8,6 +8,7 @@ from ..utils import dumps, loads
 
 COMPUTER_SCIENCE = "computer_science"
 INDUSTRIAL_ENGINEERING = "industrial_engineering"
+ELECTRICAL_ENGINEERING = "electrical_engineering"
 DEFAULT_TRACK = COMPUTER_SCIENCE
 
 
@@ -37,6 +38,14 @@ CAREER_TRACKS: tuple[CareerTrackDefinition, ...] = (
         description="תפעול, אנליזה, שרשרת אספקה, BI, תכנון ופרויקטים",
         accent="yellow",
         dark_accent="yellow-dark",
+    ),
+    CareerTrackDefinition(
+        key=ELECTRICAL_ENGINEERING,
+        label="הנדסת חשמל",
+        short_label="EE",
+        description="חומרה, שבבים, FPGA, Embedded, Verification, RF ומערכות",
+        accent="pink-silver",
+        dark_accent="pink-silver-dark",
     ),
 )
 CAREER_TRACK_BY_KEY = {track.key: track for track in CAREER_TRACKS}
@@ -99,6 +108,19 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
         "auto_submit_enabled": False,
         "cv_path": "",
     },
+    ELECTRICAL_ENGINEERING: {
+        "years_experience": 0.0,
+        "years_experience_options_json": dumps(["0"]),
+        "skills_json": dumps(["C", "C++", "Python", "Verilog", "SystemVerilog", "VHDL", "FPGA", "UVM", "Embedded", "Linux", "MATLAB", "PCB"]),
+        "desired_titles_json": dumps(["electrical engineer", "hardware engineer", "fpga engineer", "asic", "vlsi", "verification engineer", "embedded engineer", "firmware engineer", "analog engineer", "rf engineer", "board design"]),
+        "preferred_locations_json": dumps(["Israel", "Haifa", "Tel Aviv", "Jerusalem"]),
+        "preferred_work_modes_json": dumps(["hybrid", "onsite", "remote"]),
+        "keywords_json": dumps(["electrical engineering", "hardware", "fpga", "asic", "verification", "embedded", "firmware", "graduate", "junior"]),
+        "excluded_keywords_json": dumps(["frontend", "full stack", "sales representative", "manual qa"]),
+        "auto_apply_threshold": 80,
+        "auto_submit_enabled": False,
+        "cv_path": "",
+    },
 }
 
 
@@ -142,6 +164,8 @@ def ensure_track_state(profile: Profile) -> dict[str, dict[str, Any]]:
         track_states[COMPUTER_SCIENCE] = _capture_current(profile)
     if INDUSTRIAL_ENGINEERING not in track_states:
         track_states[INDUSTRIAL_ENGINEERING] = dict(TRACK_DEFAULTS[INDUSTRIAL_ENGINEERING])
+    if ELECTRICAL_ENGINEERING not in track_states:
+        track_states[ELECTRICAL_ENGINEERING] = dict(TRACK_DEFAULTS[ELECTRICAL_ENGINEERING])
     for key in CAREER_TRACK_BY_KEY:
         track_states[key] = _normalized_saved_state(track_states.get(key, {}), key)
     profile.track_profiles_json = dumps(track_states)
