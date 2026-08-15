@@ -20,7 +20,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.1" />', f'<style>{css}</style>')
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.2" />', f'<style>{css}</style>')
     html = html.replace('<script src="/static/app.js?v=0.29.1"></script>', '')
 
     with sync_playwright() as playwright:

@@ -28,4 +28,4 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
 
 def test_assets_bumped():
     assert "app.js?v=0.29.1" in HTML
-    assert "styles.css?v=0.48.1" in HTML
+    assert "styles.css?v=0.48.2" in HTML

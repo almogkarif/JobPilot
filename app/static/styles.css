@@ -3131,3 +3131,61 @@ body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark 
 body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark .is-card-selected{background-color:var(--surface-tint)!important;border-color:var(--accent-border)!important;box-shadow:0 0 0 3px var(--accent-glow)!important}
 body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark .brand strong{color:var(--ink)}
 body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark :where(.brand .brand-tagline,.page-context){color:var(--muted)}
+
+/* v0.3.2 — strict non-CS palette isolation.
+   Any component that used legacy CS-blue literals is recolored through the active career tokens. */
+body:is(.track-industrial-engineering,.track-electrical-engineering) {
+  --accent:var(--brand);
+  --accent-strong:color-mix(in srgb,var(--brand) 82%,var(--ink));
+  --accent-strong-2:color-mix(in srgb,var(--brand) 90%,var(--brand2));
+  --accent-soft:var(--brand-soft);
+  --accent-soft-2:var(--surface-tint);
+  --accent-text:var(--brand);
+  --accent-heading:var(--ink);
+  --accent-kicker:var(--brand);
+  --accent-muted:var(--muted);
+  --control-bg:var(--surface-soft);
+  --control-bg-hover:var(--brand-soft);
+  --control-border:var(--line-strong);
+  --control-border-hover:var(--accent-border);
+  --control-placeholder:var(--muted);
+  --dock-surface:var(--brand);
+  --dock-surface-2:var(--brand2);
+  --dock-icon-bg:var(--panel);
+  --dock-icon-border:var(--line-strong);
+  --dock-icon-ink:var(--muted);
+  --dock-accent:var(--brand2);
+  --dock-rail:color-mix(in srgb,var(--panel) 94%,var(--brand-soft));
+  --dock-rail-border:var(--line);
+  --notice-bg:color-mix(in srgb,var(--panel) 96%,var(--brand-soft));
+  --notice-item-bg:var(--panel);
+  --notice-border:var(--line);
+  --notice-icon-bg:var(--brand-soft);
+  --notice-icon-ink:var(--brand);
+}
+body:is(.track-industrial-engineering,.track-electrical-engineering) a:not(.danger-link),
+body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.profile-card-navigation button,.profile-section-nav button,.profile-section-nav button strong,.profile-section-nav button small,.profile-section-index,.system-status.is-active .system-status-tooltip strong,.scan-report-metric.primary strong,.view-mode-button.active,.readiness-check.ok){color:var(--brand)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .profile-section-nav button>span,
+body:is(.track-industrial-engineering,.track-electrical-engineering) .profile-section-index{background:var(--brand-soft)!important;border:1px solid var(--accent-border)!important;color:var(--brand)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .profile-section-nav button.active{background:var(--panel)!important;border-color:var(--accent-border)!important;color:var(--brand)!important;box-shadow:0 9px 24px var(--accent-glow),inset 0 0 0 1px var(--accent-border)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .profile-section-nav button.active>span{background:linear-gradient(145deg,var(--brand2),var(--brand))!important;border-color:var(--brand)!important;color:#fff!important;box-shadow:0 7px 16px var(--accent-glow)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .profile-section-nav button.active strong{color:var(--brand)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .sidebar nav button::before{background:linear-gradient(var(--brand2),var(--brand))!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.application-option-icon,.resume-file-icon,.automation-symbol){background:linear-gradient(145deg,var(--brand2),var(--brand))!important;color:#fff!important;box-shadow:0 8px 20px var(--accent-glow)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .automation-note-icon,
+body:is(.track-industrial-engineering,.track-electrical-engineering) .resume-suggestions button b{background:var(--brand-soft)!important;border-color:var(--accent-border)!important;color:var(--brand)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .resume-insights-head,
+body:is(.track-industrial-engineering,.track-electrical-engineering) .resume-suggestions button{background:var(--surface-soft)!important;border-color:var(--line-strong)!important;color:var(--ink)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .resume-suggestions button:hover{border-color:var(--brand)!important;background:var(--brand-soft)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .theme-switch button.active{color:var(--brand)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .view-mode-button.active{background:var(--panel)!important;color:var(--brand)!important;border-color:var(--accent-border)!important;box-shadow:0 4px 11px var(--accent-glow)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .scan-progress i{background:linear-gradient(90deg,var(--brand),var(--brand2))!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .job-description-list li::marker{color:var(--brand2)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) .notification-trigger:hover,
+body:is(.track-industrial-engineering,.track-electrical-engineering) .notification-trigger:focus-visible,
+body:is(.track-industrial-engineering,.track-electrical-engineering) .notification-trigger[aria-expanded="true"]{background:var(--brand)!important;border-color:var(--brand)!important;color:#fff!important;box-shadow:0 15px 34px var(--accent-glow-strong),0 0 0 3px var(--accent-glow)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.icon-action>small,.profile-section-nav button small){color:var(--muted)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.pagination-page.active,.source-toggle input:checked + .source-toggle-track){background:var(--brand)!important;border-color:var(--brand)!important;color:#fff!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark .profile-section-nav button.active{background:var(--brand-soft)!important;border-color:var(--accent-border)!important;color:var(--brand2)!important;box-shadow:0 8px 22px var(--accent-glow),inset 0 0 0 1px var(--accent-border)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark .profile-section-nav button.active strong{color:var(--ink)!important}
+body:is(.track-industrial-engineering,.track-electrical-engineering).theme-dark :where(.profile-section-nav button>span,.profile-section-index,.automation-note-icon,.resume-suggestions button b){background:var(--brand-soft)!important;border-color:var(--accent-border)!important;color:var(--brand2)!important}
