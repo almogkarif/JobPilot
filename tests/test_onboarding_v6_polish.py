@@ -20,4 +20,4 @@ def test_scan_waits_for_server_before_showing_counts():
 
 def test_assets_bumped():
     assert "app.js?v=0.29.1" in HTML
-    assert "styles.css?v=0.48.3" in HTML
+    assert "styles.css?v=0.48.4" in HTML

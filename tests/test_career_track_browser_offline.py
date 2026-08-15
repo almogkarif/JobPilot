@@ -26,7 +26,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.3" />', f"<style>{css}</style>")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.4" />', f"<style>{css}</style>")
     html = html.replace('<script src="/static/app.js?v=0.29.1"></script>', "")
 
     with sync_playwright() as playwright:

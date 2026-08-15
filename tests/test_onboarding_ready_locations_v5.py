@@ -22,4 +22,4 @@ def test_ready_screen_is_launchpad_style():
 
 def test_assets_bumped_v5():
     assert 'app.js?v=0.29.1' in HTML
-    assert 'styles.css?v=0.48.3' in HTML
+    assert 'styles.css?v=0.48.4' in HTML
