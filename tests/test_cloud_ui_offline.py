@@ -28,7 +28,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.0" />', f"<style>{css}</style>")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.1" />', f"<style>{css}</style>")
     html = html.replace('<script src="/static/app.js?v=0.29.1"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
@@ -118,7 +118,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.0" />', f"<style>{css}</style>")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.1" />', f"<style>{css}</style>")
     html = html.replace('<script src="/static/app.js?v=0.29.1"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 

@@ -26,4 +26,4 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
 
 def test_assets_bumped():
     assert "app.js?v=0.29.1" in HTML
-    assert "styles.css?v=0.48.0" in HTML
+    assert "styles.css?v=0.48.1" in HTML
