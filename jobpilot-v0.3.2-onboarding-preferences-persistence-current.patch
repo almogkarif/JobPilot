@@ -1,0 +1,105 @@
+diff --git a/app/static/app.js b/app/static/app.js
+index 7fc0328..7303f23 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -3439,13 +3439,31 @@ async function onboardingResume(event){
+     const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
+     const suggestions=result.analysis?.suggestions||[];
+     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
+-    onboardingState.selectedSkills=new Set(found); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
++    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
+   }catch(error){label?.classList.remove('uploading');toast(error.message)}
+ }
+ async function onboardingSaveSkills(){
+-  for(const skill of onboardingState.selectedSkills){
+-    if(skill && !(state.profile?.skills||[]).some(v=>v.toLowerCase()===skill.toLowerCase())){const result=await api('/api/profile/skills',{method:'POST',body:JSON.stringify({skill})});if(state.profile)state.profile.skills=result.skills;}
+-  }
++  const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
++  state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify({skills})});
++  state.profileLoaded=true;
++  onboardingState.selectedSkills=new Set(state.profile.skills||skills);
++}
++async function saveOnboardingPreferences(){
++  const draft=onboardingCollectPreferences();
++  const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(draft)});
++  // Re-read the authoritative profile. This prevents a later developer-preview/open
++  // from rendering stale desired_titles/keywords from an older in-memory profile.
++  state.profile=await api('/api/profile');
++  state.profileLoaded=true;
++  onboardingState.draft={
++    desired_titles:[...(state.profile.desired_titles||[])],
++    preferred_locations:[...(state.profile.preferred_locations||[])],
++    years_experience_options:[...(state.profile.years_experience_options||[])],
++    preferred_work_modes:[...(state.profile.preferred_work_modes||[])],
++    keywords:[...(state.profile.keywords||[])],
++    excluded_keywords:[...(state.profile.excluded_keywords||[])],
++  };
++  return saved;
+ }
+ function onboardingCollectPreferences(){
+   const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
+@@ -3482,13 +3500,16 @@ async function onboardingStartScan(){
+   try{await api('/api/scan',{method:'POST'});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
+ }
+ async function openOnboarding(preview=false){
+-  if(authState.user?.is_guest)return;onboardingState.preview=preview;onboardingState.step=0;onboardingState.resume=null;onboardingState.selectedSkills=new Set();onboardingState.draft={};onboardingApplyTrackTheme(state.activeCareerTrack);
++  if(authState.user?.is_guest)return;
++  // Always hydrate onboarding from the server so reopening it reflects what was actually saved.
++  state.profile=await api('/api/profile');state.profileLoaded=true;
++  onboardingState.preview=preview;onboardingState.step=0;onboardingState.resume=null;onboardingState.selectedSkills=new Set(state.profile?.skills||[]);onboardingState.draft={};onboardingApplyTrackTheme(state.activeCareerTrack);
+   $('#onboarding-gate').hidden=false;$('#onboarding-gate').setAttribute('aria-hidden','false');document.body.classList.add('onboarding-open');onboardingSetStep(0);
+ }
+ async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
+ $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
+ $('#onboarding-skip').onclick=()=>onboardingFinish(true);
+-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){const d=onboardingCollectPreferences();state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify(d)});}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
++$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+ $('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
+ async function loadDeveloperUsers(){
+   const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;
+diff --git a/app/static/index.html b/app/static/index.html
+index c7de9da..f320e41 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -440,6 +440,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.29.0"></script>
++  <script src="/static/app.js?v=0.29.1"></script>
+ </body>
+ </html>
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 5f4b759..9a1150e 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -46,4 +46,4 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+     assert 'styles.css?v=0.48.0' in HTML
+-    assert 'app.js?v=0.29.0' in HTML
++    assert 'app.js?v=0.29.1' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 8db1d0e..4636eca 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.29.0" in HTML
++    assert "app.js?v=0.29.1" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index a35b453..c80a1bf 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.29.0' in HTML
++    assert 'app.js?v=0.29.1' in HTML
+     assert 'styles.css?v=0.48.0' in HTML

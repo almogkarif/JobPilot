@@ -3439,13 +3439,31 @@ async function onboardingResume(event){
     const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
     const suggestions=result.analysis?.suggestions||[];
     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
-    onboardingState.selectedSkills=new Set(found); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
+    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
   }catch(error){label?.classList.remove('uploading');toast(error.message)}
 }
 async function onboardingSaveSkills(){
-  for(const skill of onboardingState.selectedSkills){
-    if(skill && !(state.profile?.skills||[]).some(v=>v.toLowerCase()===skill.toLowerCase())){const result=await api('/api/profile/skills',{method:'POST',body:JSON.stringify({skill})});if(state.profile)state.profile.skills=result.skills;}
-  }
+  const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
+  state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify({skills})});
+  state.profileLoaded=true;
+  onboardingState.selectedSkills=new Set(state.profile.skills||skills);
+}
+async function saveOnboardingPreferences(){
+  const draft=onboardingCollectPreferences();
+  const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(draft)});
+  // Re-read the authoritative profile. This prevents a later developer-preview/open
+  // from rendering stale desired_titles/keywords from an older in-memory profile.
+  state.profile=await api('/api/profile');
+  state.profileLoaded=true;
+  onboardingState.draft={
+    desired_titles:[...(state.profile.desired_titles||[])],
+    preferred_locations:[...(state.profile.preferred_locations||[])],
+    years_experience_options:[...(state.profile.years_experience_options||[])],
+    preferred_work_modes:[...(state.profile.preferred_work_modes||[])],
+    keywords:[...(state.profile.keywords||[])],
+    excluded_keywords:[...(state.profile.excluded_keywords||[])],
+  };
+  return saved;
 }
 function onboardingCollectPreferences(){
   const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
@@ -3482,13 +3500,16 @@ async function onboardingStartScan(){
   try{await api('/api/scan',{method:'POST'});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
 }
 async function openOnboarding(preview=false){
-  if(authState.user?.is_guest)return;onboardingState.preview=preview;onboardingState.step=0;onboardingState.resume=null;onboardingState.selectedSkills=new Set();onboardingState.draft={};onboardingApplyTrackTheme(state.activeCareerTrack);
+  if(authState.user?.is_guest)return;
+  // Always hydrate onboarding from the server so reopening it reflects what was actually saved.
+  state.profile=await api('/api/profile');state.profileLoaded=true;
+  onboardingState.preview=preview;onboardingState.step=0;onboardingState.resume=null;onboardingState.selectedSkills=new Set(state.profile?.skills||[]);onboardingState.draft={};onboardingApplyTrackTheme(state.activeCareerTrack);
   $('#onboarding-gate').hidden=false;$('#onboarding-gate').setAttribute('aria-hidden','false');document.body.classList.add('onboarding-open');onboardingSetStep(0);
 }
 async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
 $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
 $('#onboarding-skip').onclick=()=>onboardingFinish(true);
-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){const d=onboardingCollectPreferences();state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify(d)});}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
 $('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
 async function loadDeveloperUsers(){
   const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;
