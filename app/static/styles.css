@@ -3286,3 +3286,46 @@ body.track-industrial-engineering :where(.sidebar nav button:hover .nav-icon,.si
   body:is(.track-industrial-engineering,.track-electrical-engineering) #mobile-tab-dock.mobile-tab-dock>button{color:var(--muted)!important}
   body:is(.track-industrial-engineering,.track-electrical-engineering) #mobile-tab-dock.mobile-tab-dock>button.active{background:var(--brand-soft)!important;color:var(--brand)!important}
 }
+
+/* v0.3.2 — Electrical dark-mode leak audit + onboarding/profile ergonomics */
+body.track-electrical-engineering.theme-dark {
+  --blue:#d58aaa; --blue-2:#e6b2c9; --blue-soft:#382a31;
+  --primary:#d58aaa; --primary-strong:#e6b2c9; --primary-soft:#382a31;
+}
+body.track-electrical-engineering.theme-dark :where(
+  .smart-workflow-step,.dashboard-action-item,.empty-state,.scan-banner,.scan-status,.source-summary,
+  .profile-info-strip,.preference-help,.resume-insights,.job-detail-section,.job-score-card,
+  .filter-chip,.sort-chip,.pagination button,.table-wrap td,.kanban-card,.answer-card,
+  .onboarding-choice,.onboarding-skill-check,.onboarding-upload,.onboarding-other input,
+  .option-grid>label,.check-row>label,.experience-options>label
+){border-color:var(--line)!important;background:var(--panel-2)!important;color:var(--ink)!important}
+body.track-electrical-engineering.theme-dark :where(
+  .smart-workflow-step.active,.dashboard-action-item:hover,.filter-chip.active,.sort-chip.active,
+  .pagination button.active,.option-grid>label:has(input:checked),.check-row>label:has(input:checked),
+  .experience-options>label:has(input:checked),.onboarding-choice.selected,.onboarding-skill-check.selected
+){border-color:var(--brand)!important;background:var(--brand-soft)!important;color:var(--ink)!important;box-shadow:0 5px 16px var(--accent-glow)!important}
+body.track-electrical-engineering.theme-dark :where(
+  input:focus,textarea:focus,select:focus,button:focus-visible,.option-grid>label:focus-within,
+  .check-row>label:focus-within,.experience-options>label:focus-within
+){border-color:var(--brand)!important;outline-color:var(--brand)!important;box-shadow:var(--focus-ring)!important}
+body.track-electrical-engineering.theme-dark :where(
+  .smart-workflow-step,.dashboard-action-item,.job-row,.source-item,.preference-help,.empty-state
+) :where(a,.link-button,.text-link){color:var(--brand2)!important}
+body.track-electrical-engineering.theme-dark :where(.smart-workflow-step,.dashboard-action-item) :where(.step-number,.badge,.count){background:var(--brand)!important;color:#fff!important;border-color:var(--brand2)!important}
+body.track-electrical-engineering.theme-dark :where(.score-breakdown i,.source-health i,.profile-completion-track){background:var(--silver-soft)!important;border-color:var(--line)!important}
+body.track-electrical-engineering.theme-dark :where(.score-breakdown i b,.source-health i b,.profile-completion-track i){background:linear-gradient(90deg,var(--brand),var(--brand2))!important}
+body.track-electrical-engineering.theme-dark .btn.secondary{background:var(--silver-panel)!important;border-color:var(--silver)!important;color:var(--silver-strong)!important}
+body.track-electrical-engineering.theme-dark .btn.secondary:hover{background:var(--brand-soft)!important;border-color:var(--brand)!important;color:var(--brand2)!important}
+
+/* The onboarding dot is parked relative to the actual 48px mark, not the wordmark. */
+.onboarding-brand.brand{--onboarding-mark-size:48px}
+.onboarding-brand .brand-flight-dot{top:5px!important;right:calc(var(--onboarding-mark-size) - 7px)!important;left:auto!important}
+[dir="rtl"] .onboarding-brand .brand-flight-dot{right:calc(var(--onboarding-mark-size) - 7px)!important;left:auto!important}
+
+/* Years of experience is a first-class section; keep the profile grid balanced. */
+.personal-profile-layout .experience-section{grid-column:1/-1}
+.experience-section .experience-picker{margin:0;border:0;padding:0;background:transparent!important}
+.experience-section .experience-options{grid-template-columns:repeat(6,minmax(72px,1fr));gap:10px}
+.experience-section .experience-options>label{min-height:48px;cursor:pointer;user-select:none}
+@media(max-width:900px){.experience-section .experience-options{grid-template-columns:repeat(3,minmax(72px,1fr))}}
+@media(max-width:560px){.experience-section .experience-options{grid-template-columns:repeat(2,minmax(72px,1fr))}}

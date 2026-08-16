@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.48.4" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.48.5" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -270,24 +270,27 @@
                 <div class="profile-detail-head"><div><span class="profile-section-index">02</span><h3>נוכחות מקצועית ואבטחה</h3></div><button class="btn primary small" type="submit">שמור קישורים</button></div>
                 <div class="form-grid"><label>LinkedIn<input name="linkedin_url" type="url" /></label><label>GitHub<input name="github_url" type="url" /></label><label>Portfolio<input name="portfolio_url" type="url" /></label><label>אתר מקצועי נוסף<input name="extra_website_url" type="url" /></label><label class="wide-field">סיסמה לאתרי הגשה<input name="application_password" type="password" autocomplete="new-password" placeholder="הזן סיסמה לשימוש בטפסי הגשה" /><small>משמשת רק כשאתר המשרות דורש סיסמה. השאר ריק כדי לשמור את הקיימת.</small></label></div>
               </section>
+              <section class="profile-detail-section experience-section">
+                <div class="profile-detail-head"><div><span class="profile-section-index">03</span><h3>שנות ניסיון</h3></div><button class="btn primary small" type="submit">שמור ניסיון</button></div>
+                <fieldset class="experience-picker preference-group wide-field" data-field="years_experience_options"><legend>בחר את שנות הניסיון הרלוונטיות — אפשר לבחור כמה</legend><div class="option-grid experience-options">
+                  <label><input type="checkbox" data-profile-option="years_experience_options" value="0" /> 0</label><label><input type="checkbox" data-profile-option="years_experience_options" value="1" /> 1</label><label><input type="checkbox" data-profile-option="years_experience_options" value="2" /> 2</label><label><input type="checkbox" data-profile-option="years_experience_options" value="3" /> 3</label><label><input type="checkbox" data-profile-option="years_experience_options" value="4" /> 4</label><label><input type="checkbox" data-profile-option="years_experience_options" value="5+" /> 5+</label>
+                </div><input name="years_experience_options" type="hidden" /><input name="years_experience" type="hidden" /></fieldset>
+              </section>
               <section class="profile-detail-section">
-                <div class="profile-detail-head"><div><span class="profile-section-index">03</span><h3>התאמה, הרשאות וזמינות</h3></div><button class="btn primary small" type="submit">שמור עבודה וזמינות</button></div>
+                <div class="profile-detail-head"><div><span class="profile-section-index">04</span><h3>הרשאות וזמינות</h3></div><button class="btn primary small" type="submit">שמור הרשאות וזמינות</button></div>
                 <div class="form-grid">
-                  <fieldset class="experience-picker preference-group wide-field" data-field="years_experience_options"><legend>שנות ניסיון — אפשר לבחור כמה</legend><div class="option-grid experience-options">
-                    <label><input type="checkbox" data-profile-option="years_experience_options" value="0" /> 0</label><label><input type="checkbox" data-profile-option="years_experience_options" value="1" /> 1</label><label><input type="checkbox" data-profile-option="years_experience_options" value="2" /> 2</label><label><input type="checkbox" data-profile-option="years_experience_options" value="3" /> 3</label><label><input type="checkbox" data-profile-option="years_experience_options" value="4" /> 4</label><label><input type="checkbox" data-profile-option="years_experience_options" value="5+" /> 5+</label>
-                  </div><input name="years_experience_options" type="hidden" /><input name="years_experience" type="hidden" /></fieldset>
                   <label>תקופת הודעה מוקדמת<input name="extra_notice_period" /></label>
                   <label>תאריך התחלה אפשרי<span class="date-with-action"><input name="extra_available_start_date" type="date" /><button class="btn secondary small" id="available-now" type="button">עכשיו</button></span></label>
                   <div class="check-row wide-field"><label><input name="work_authorization" type="checkbox" /> מורשה לעבוד בישראל</label><label><input name="needs_sponsorship" type="checkbox" /> נדרש Sponsorship</label></div>
                 </div>
               </section>
               <section class="profile-detail-section documents-card">
-                <div class="profile-detail-head"><div><span class="profile-section-index">04</span><h3>מסמכים</h3></div><div class="card-head-actions"><button type="button" id="manage-resumes" class="btn secondary small">ניהול גרסאות</button><button type="button" id="upload-resume" class="btn primary small">העלה קורות חיים</button></div></div>
+                <div class="profile-detail-head"><div><span class="profile-section-index">05</span><h3>מסמכים</h3></div><div class="card-head-actions"><button type="button" id="manage-resumes" class="btn secondary small">ניהול גרסאות</button><button type="button" id="upload-resume" class="btn primary small">העלה קורות חיים</button></div></div>
                 <div class="resume-box resume-compact resume-profile-card" aria-label="קורות חיים"><span class="resume-file-icon" aria-hidden="true">CV</span><div><strong>קורות חיים</strong><span id="resume-name">לא הועלה קובץ</span></div><input id="resume-file" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" /><span class="resume-safe-note">PDF, DOCX או TXT</span></div>
                 <div id="resume-insights" class="resume-insights"></div>
               </section>
               <section class="profile-detail-section">
-                <div class="profile-detail-head"><div><span class="profile-section-index">05</span><h3>כתובת</h3></div><button class="btn primary small" type="submit">שמור כתובת</button></div><div class="form-grid">
+                <div class="profile-detail-head"><div><span class="profile-section-index">06</span><h3>כתובת</h3></div><button class="btn primary small" type="submit">שמור כתובת</button></div><div class="form-grid">
                   <label>מדינה<input name="extra_country" value="Israel" /></label><label>עיר<input name="extra_city" /></label>
                   <label>רחוב ומספר<input name="extra_address_line1" /></label><label>כתובת נוספת<input name="extra_address_line2" /></label>
                   <label>מחוז / אזור<input name="extra_state" /></label><label>מיקוד<input name="extra_postal_code" /></label>
@@ -295,13 +298,13 @@
                 </div>
               </section>
               <section class="profile-detail-section employment-history-section">
-                <div class="profile-detail-head"><div><span class="profile-section-index">06</span><h3>ניסיון תעסוקתי</h3></div><div class="card-head-actions"><button class="btn secondary small" id="add-employment" type="button">+ הוסף ניסיון</button><button class="btn primary small" type="submit">שמור ניסיון</button></div></div>
+                <div class="profile-detail-head"><div><span class="profile-section-index">07</span><h3>ניסיון תעסוקתי</h3></div><div class="card-head-actions"><button class="btn secondary small" id="add-employment" type="button">+ הוסף ניסיון</button><button class="btn primary small" type="submit">שמור ניסיון</button></div></div>
                 <p class="preference-help">אפשר להוסיף כמה מקומות עבודה שרוצים. הראשון ברשימה משמש כברירת מחדל בטפסים שמבקשים רק את התפקיד האחרון.</p>
                 <input name="extra_work_experiences" type="hidden" />
                 <div id="employment-entries" class="employment-entries"></div>
               </section>
               <section class="profile-detail-section">
-                  <div class="profile-detail-head"><div><span class="profile-section-index">07</span><h3>השכלה</h3></div><button class="btn primary small" type="submit">שמור השכלה</button></div><div class="form-grid">
+                  <div class="profile-detail-head"><div><span class="profile-section-index">08</span><h3>השכלה</h3></div><button class="btn primary small" type="submit">שמור השכלה</button></div><div class="form-grid">
                     <label>מוסד לימודים<input name="extra_education_school" /></label><label>תואר / הסמכה<input name="extra_education_degree" /></label>
                     <label>תחום לימודים<input name="extra_education_field" /></label><label>ציון / GPA<input name="extra_education_grade" /></label>
                     <label>תאריך התחלה<input name="extra_education_start_date" type="month" /></label><label>תאריך סיום<input name="extra_education_end_date" type="month" /></label>
@@ -440,6 +443,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.29.1"></script>
+  <script src="/static/app.js?v=0.29.2"></script>
 </body>
 </html>

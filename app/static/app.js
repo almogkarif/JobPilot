@@ -3352,7 +3352,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') se
 
 
 const ONBOARDING_VERSION = 2;
-const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null };
+const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0 };
 const onboardingSteps = ['track','resume','skills','preferences','review','scan'];
 
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
@@ -3397,11 +3397,12 @@ function onboardingSetStep(index){
     content.innerHTML=`<span class="kicker">סקילים · ${esc(track.label)}</span><h1 id="onboarding-title">מה באמת מייצג אותך?</h1><p>סימנו הצעות שנמצאו בקורות החיים. הוסף או הסר בלחיצה — הרשימה מותאמת למסלול שבחרת.</p><div class="onboarding-skill-checks">${values.map(v=>`<label class="onboarding-skill-check ${onboardingState.selectedSkills.has(v)?'selected':''}"><input type="checkbox" data-ob-skill="${encodeURIComponent(v)}" ${onboardingState.selectedSkills.has(v)?'checked':''}><span class="checkmark">✓</span><strong>${esc(v)}</strong></label>`).join('')}</div>`;
     $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill)});
   }else if(step==='preferences'){
-    const modes=new Set(profile.preferred_work_modes||['hybrid','remote','onsite']);
-    const titles=new Set(profile.desired_titles||[]);
-    const keywords=new Set(profile.keywords||[]);
-    const excluded=new Set(profile.excluded_keywords||[]);
-    const locations=new Set(profile.preferred_locations||[]);
+    const draft=onboardingState.draft||{};
+    const modes=new Set(draft.preferred_work_modes||profile.preferred_work_modes||['hybrid','remote','onsite']);
+    const titles=new Set(draft.desired_titles||profile.desired_titles||[]);
+    const keywords=new Set(draft.keywords||profile.keywords||[]);
+    const excluded=new Set(draft.excluded_keywords||profile.excluded_keywords||[]);
+    const locations=new Set(draft.preferred_locations||profile.preferred_locations||[]);
     const locationChoices=[['Israel','ישראל'],['Haifa','חיפה'],['Tel Aviv','תל אביב'],['Jerusalem','ירושלים']];
     const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
     const keywordChoices=onboardingChoiceValues(track.skills||[]).slice(0,14);
@@ -3497,7 +3498,7 @@ async function onboardingWatchScan(){
 async function onboardingStartScan(){
   const b=$('#onboarding-start-scan');b.disabled=true;b.textContent='הסריקה יצאה לדרך…';$('.onboarding-scan-stage')?.classList.add('scanning');
   const status=$('#onboarding-source-status'),count=$('#onboarding-source-count'),label=$('#onboarding-source-label'),copy=$('#onboarding-scan-copy');status?.classList.add('waiting');if(count)count.textContent='•••';if(label)label.textContent='ממתין לשרת';if(copy)copy.textContent='מתחבר לשרת ומכין את המקורות לסריקה…';
-  try{await api('/api/scan',{method:'POST'});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
+  try{const started=await api('/api/scan',{method:'POST'});onboardingState.scanStartedAt=Date.now();renderScan({running:true,progress:{phase:started?.worker==='github_actions'?'queued':'starting',current:0,completed:0,total:0,current_source:null}});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
 }
 async function openOnboarding(preview=false){
   if(authState.user?.is_guest)return;
