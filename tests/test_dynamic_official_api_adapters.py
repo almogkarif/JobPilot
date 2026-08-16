@@ -20,6 +20,19 @@ def test_iai_api_object_becomes_canonical_job_row():
     assert "יהוד" in row["text"]
 
 
+def test_iai_live_feed_shape_becomes_complete_job_row():
+    row, href, external_id = _one(
+        "iai",
+        '[{"id":76049533,"tl":"מהנדס/ת הנחיה ובקרה","dc":"תואר בהנדסת חשמל ופיתוח C++",'
+        '"ct":"באר יעקב","tp":"משרה מלאה","jc":"הנדסה ופיתוח"}]',
+    )
+    assert external_id == "76049533"
+    assert href == "https://jobs.iai.co.il/job/76049533/"
+    assert row["title"] == "מהנדס/ת הנחיה ובקרה"
+    assert "באר יעקב" in row["text"]
+    assert "הנדסת חשמל" in row["text"]
+
+
 def test_rafael_api_object_becomes_canonical_job_row():
     row, href, external_id = _one(
         "rafael",

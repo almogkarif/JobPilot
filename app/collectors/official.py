@@ -73,8 +73,8 @@ PRESETS = {
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
     "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml", "https://elbitsystemscareer.com/sitemap_index.xml"), "network_id_keys": ("jid", "jobId", "job_id", "requisitionId", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 28000, "settle_ms": 2500, "challenge_wait_rounds": 12, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "iai": {"url": "https://jobs.iai.co.il/jobs/", "data_url": "https://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json", "trusted_israel_feed": True, "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name", "tl"), "network_location_keys": ("location", "city", "site", "address", "jobLocation", "locationName", "ct"), "network_description_keys": ("description", "jobDescription", "dc", "jc", "tp")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
@@ -100,10 +100,16 @@ class OfficialCareersCollector:
         # avoids Chromium/anti-bot timing issues. Dynamic boards fall back to
         # Playwright below when the static response contains no usable job links.
         rows: list[dict] = []
+        if preset.get("data_url"):
+            try:
+                rows = await _collect_data_rows(preset)
+            except Exception:
+                rows = []
         if preset.get("http_first"):
             try:
-                rows = await _collect_static_rows(preset)
-                rows = [row for row in rows if _resolve_row_href(row, preset)[1]]
+                if not rows:
+                    rows = await _collect_static_rows(preset)
+                    rows = [row for row in rows if _resolve_row_href(row, preset)[1]]
             except Exception:
                 rows = []
 
@@ -142,6 +148,8 @@ class OfficialCareersCollector:
                 # A later scan can recover the job once its detail page is readable.
                 continue
             location = _extract_israel_location(text)
+            if not location and preset.get("trusted_israel_feed"):
+                location = "Israel"
             results[match.group(1)] = NormalizedJob(
                 external_id=match.group(1), title=title, company=company_name or preset["company"],
                 location=location, workplace="onsite", description=text,
@@ -151,18 +159,33 @@ class OfficialCareersCollector:
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=True)
+            browser = await playwright.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
             try:
                 context = await browser.new_context(
                     locale="en-US",
                     user_agent=(
-                        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36"
+                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
                     ),
                     viewport={"width": 1280, "height": 900},
                     extra_http_headers={"Accept-Language": "en-US,en;q=0.9,he;q=0.8"},
                 )
                 page = await context.new_page()
+                await page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    Object.defineProperty(navigator, 'platform', {get: () => 'Linux x86_64'});
+                    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en', 'he']});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                    window.chrome = window.chrome || {runtime: {}};
+                    const originalQuery = navigator.permissions && navigator.permissions.query;
+                    if (originalQuery) navigator.permissions.query = parameters =>
+                      parameters.name === 'notifications'
+                        ? Promise.resolve({state: Notification.permission})
+                        : originalQuery.call(navigator.permissions, parameters);
+                """)
                 network_responses = []
                 if preset.get("capture_network"):
                     def remember_response(response):
@@ -183,6 +206,14 @@ class OfficialCareersCollector:
                 except Exception:  # page can still be fully usable for our selector
                     pass
                 await page.wait_for_timeout(int(preset.get("settle_ms", 1400)))
+                # Rafael currently fronts its public careers page with a JavaScript
+                # browser challenge. Give a normal browser a bounded opportunity to
+                # complete the redirect before inspecting the actual jobs DOM.
+                for _ in range(int(preset.get("challenge_wait_rounds", 0))):
+                    content = await page.content()
+                    if "kramericaindustries" not in content and "window.rbzns" not in content:
+                        break
+                    await page.wait_for_timeout(1_000)
 
                 load_more_text = str(preset.get("load_more_text") or "").strip()
                 if load_more_text:
@@ -420,6 +451,22 @@ async def _collect_network_rows(responses: list, preset: dict) -> list[dict]:
     return _dedupe_rows(rows, preset)
 
 
+async def _collect_data_rows(preset: dict) -> list[dict]:
+    """Read a preset-owned public jobs feed before attempting browser scraping."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "Accept": "application/json,text/plain;q=0.9,*/*;q=0.5",
+        "Referer": str(preset["url"]),
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=20.0, headers=headers) as client:
+        response = await client.get(str(preset["data_url"]))
+        response.raise_for_status()
+        if len(response.content) > 16_000_000:
+            raise RuntimeError("Official jobs feed exceeded the safe size limit")
+    return _extract_structured_job_rows(response.text, preset)
+
+
 def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
     """Extract jobs from official JSON APIs that expose IDs but no detail links."""
     id_keys = tuple(preset.get("network_id_keys", ()))
@@ -431,7 +478,12 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
     except Exception:
         return []
     title_keys = tuple(preset.get("network_title_keys", ("title", "jobTitle", "name")))
-    location_keys = ("location", "city", "site", "address", "jobLocation", "locationName")
+    location_keys = tuple(preset.get("network_location_keys", (
+        "location", "city", "site", "address", "jobLocation", "locationName",
+    )))
+    description_keys = tuple(preset.get("network_description_keys", (
+        "description", "jobDescription", "descriptionText",
+    )))
     id_re = re.compile(str(preset.get("network_id_pattern") or r".{2,80}"))
     rows: list[dict] = []
 
@@ -452,8 +504,12 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
             if external_id and title and id_re.fullmatch(external_id) and _row_has_human_title({"title": title}):
                 location = next((scalar(node.get(key)) for key in location_keys if scalar(node.get(key))), "")
                 text_parts = [title, location]
+                for key in description_keys:
+                    value_text = scalar(node.get(key)) if key in node else ""
+                    if value_text:
+                        text_parts.append(value_text)
                 for key, value in node.items():
-                    if key in id_keys or key in title_keys or key in location_keys:
+                    if key in id_keys or key in title_keys or key in location_keys or key in description_keys:
                         continue
                     value_text = scalar(value)
                     if value_text and len(value_text) <= 600:
@@ -735,4 +791,3 @@ def _extract_israel_location(text: str) -> str:
     if re.search(r"(?<![A-Za-z])Israel(?![A-Za-z])", compact, re.IGNORECASE) or "ישראל" in compact:
         return "Israel"
     return ""
-

@@ -110,7 +110,8 @@ IEM_STRONG_TITLE_TERMS = {
     "מהנדס תעשייה", "מהנדסת תעשייה", "תעשייה וניהול", "תכנון ובקרה", "תפ\"י", "תפי",
     "פלנר", "פלנרית", "שרשרת אספקה", "רכש", "לוגיסטיקה", "ניהול פרויקטים", "מנהל פרויקט",
     "מנהלת פרויקט", "מוביל פרויקט", "מובילת פרויקט", "שיפור תהליכים", "מצוינות תפעולית",
-    "ארגון ושיטות", "אנליסט", "אנליסטית", "תכנון ייצור", "בקרת ייצור",
+    "ארגון ושיטות", "אנליסט", "אנליסטית", "תכנון ייצור", "בקרת ייצור", "כלכלן", "כלכלנית",
+    "תקציב ובקרה", "תכנון ובקרה", "תפ\"י", "תפי", "מנהל.ת רכש", "מנהל.ת לוגיסטיקה",
 }
 IEM_CONTEXT_TERMS = {
     "industrial engineering", "operations", "supply chain", "manufacturing", "planning", "planner",
@@ -302,11 +303,14 @@ EE_STRONG_TITLE_TERMS = {
     "embedded engineer", "firmware engineer", "board design", "analog engineer", "mixed signal",
     "rf engineer", "rfic", "signal integrity", "power electronics", "electronic engineer",
     "מהנדס חשמל", "מהנדסת חשמל", "מהנדס חומרה", "מהנדסת חומרה", "וריפיקציה", "תכנון כרטיסים",
+    "אלקטרואופטיקה", "אלקטרוניקה", "מהנדס.ת חשמל", "מהנדס.ת חומרה", "מהנדס.ת אלקטרוניקה",
+    "תוכנת נתב", "קושחה", "מכטרוניקה",
 }
 EE_CONTEXT_TERMS = {
     "verilog", "systemverilog", "vhdl", "uvm", "fpga", "asic", "rtl", "vlsi", "soc", "pcb",
     "embedded", "firmware", "microcontroller", "electronics", "electrical engineering", "hardware",
     "analog", "mixed signal", "rf", "signal integrity", "cadence", "altium", "matlab", "simulink",
+    "חשמל", "אלקטרוניקה", "חומרה", "קושחה", "אלקטרואופטיקה", "מכטרוניקה", "עיבוד אות",
 }
 
 def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
