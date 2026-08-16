@@ -1,0 +1,110 @@
+diff --git a/app/collectors/official.py b/app/collectors/official.py
+index c1f45ca..9338f79 100644
+--- a/app/collectors/official.py
++++ b/app/collectors/official.py
+@@ -14,6 +14,34 @@ from .base import NormalizedJob
+ 
+ 
+ PRESETS = {
++    # Electrical-engineering expansion. These presets intentionally use each
++    # employer's own careers surface; the track filter later keeps Israel/EE roles.
++    "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
++    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True},
++    "retym": {"url": "https://retym.com/careers-2/", "selector": 'a[href*="/careers-2/"]', "id_pattern": r"/careers-2/(?:co/)?([^/?#]+)/?", "company": "Retym", "prefer_link_text": True, "http_first": True},
++    "hailo": {"url": "https://hailo.ai/company-overview/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Hailo", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "chain-reaction": {"url": "https://chain-reaction.io/careers/", "selector": 'a[href*="/careers"]', "id_pattern": r"/careers(?:-2)?/(?:co/)?([^/?#]+)", "company": "Chain Reaction", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "scd": {"url": "https://scdusa-ir.com/find-a-job/", "selector": 'a[href*="job"], a[href*="position"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SCD - SemiConductor Devices", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "cadence": {"url": "https://cadence.wd1.myworkdayjobs.com/External_Careers", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Za-z]\d+)$", "company": "Cadence Design Systems", "prefer_link_text": True, "selector_timeout_ms": 18000},
++    "texas-instruments": {"url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/([^/?#]+)", "company": "Texas Instruments", "prefer_link_text": True, "selector_timeout_ms": 18000, "dynamic_scroll": True},
++    "flex-israel": {"url": "https://flex.com/careers/israel-en", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)/([^/?#]+)", "company": "Flex", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "siemens-eda": {"url": "https://www.siemens.com/en-us/company/jobs/", "selector": 'a[href*="jobs"], a[href*="careers"]', "id_pattern": r"(?:jobs?|careers?)/([^/?#]+)", "company": "Siemens EDA", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "marvell": {"url": "https://www.marvell.com/company/careers.html", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Marvell", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "broadcom-israel": {"url": "https://www.broadcom.com/company/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Broadcom", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "synopsys-israel": {"url": "https://careers.synopsys.com/location/israel-jobs/44408/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Synopsys", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "arm-israel": {"url": "https://careers.arm.com/location/israel-jobs/33099/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Arm", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "dustphotonics": {"url": "https://www.dustphotonics.com/careers/", "selector": 'a[href*="career"], a[href*="job"], a[href*="position"]', "id_pattern": r"(?:careers?|jobs?|positions?)[^/?#]*/([^/?#]+)", "company": "DustPhotonics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "arbe": {"url": "https://arberobotics.com/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "proteantecs": {"url": "https://www.proteantecs.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)", "company": "proteanTecs", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "innoviz": {"url": "https://innoviz.tech/join-us", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Innoviz", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "camtek": {"url": "https://www.camtek.com/careers/open-positions/", "selector": 'a[href*="/careers/open-positions/"]', "id_pattern": r"/open-positions/([^/?#]+)/?", "company": "Camtek", "prefer_link_text": True, "http_first": True},
++    "nova": {"url": "https://www.novami.com/career", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Nova Measuring Instruments", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "neuroblade": {"url": "https://www.neuroblade.com/careers/", "selector": 'a[href*="gh_jid="], a[href*="/careers/"]', "id_pattern": r"(?:gh_jid=|/careers/)(\d+)", "company": "NeuroBlade", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "apple": {
+         "url": "https://jobs.apple.com/en-il/search?location=israel-ISR",
+         "selector": 'a[href*="/details/"]',
+diff --git a/app/services/source_catalog.py b/app/services/source_catalog.py
+index 1f6643a..0714ece 100644
+--- a/app/services/source_catalog.py
++++ b/app/services/source_catalog.py
+@@ -99,6 +99,33 @@ EE_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
+     {"name":"Cisco — Silicon & Hardware Israel","kind":"official_careers","identifier":"cisco","company_name":"Cisco"},
+     {"name":"Microsoft — Silicon Israel","kind":"official_careers","identifier":"microsoft","company_name":"Microsoft"},
+     {"name":"Samsung Research Israel — Hardware","kind":"official_careers","identifier":"samsung","company_name":"Samsung Research Israel"},
++    {"name":"Valens Semiconductor — Hardware Israel","kind":"official_careers","identifier":"valens","company_name":"Valens Semiconductor"},
++    {"name":"NextSilicon — Hardware Israel","kind":"official_careers","identifier":"nextsilicon","company_name":"NextSilicon"},
++    {"name":"Retym — Semiconductor Israel","kind":"official_careers","identifier":"retym","company_name":"Retym"},
++    {"name":"Hailo — AI Silicon Israel","kind":"official_careers","identifier":"hailo","company_name":"Hailo"},
++    {"name":"Pliops — Storage Silicon Israel","kind":"official_careers","identifier":"pliops","company_name":"Pliops"},
++    {"name":"Chain Reaction — Hardware Israel","kind":"official_careers","identifier":"chain-reaction","company_name":"Chain Reaction"},
++    {"name":"SCD — SemiConductor Devices","kind":"official_careers","identifier":"scd","company_name":"SCD - SemiConductor Devices"},
++    {"name":"Cadence Design Systems — Israel","kind":"official_careers","identifier":"cadence","company_name":"Cadence Design Systems"},
++    {"name":"Texas Instruments — Israel","kind":"official_careers","identifier":"texas-instruments","company_name":"Texas Instruments"},
++    {"name":"Flex — Hardware Israel","kind":"official_careers","identifier":"flex-israel","company_name":"Flex"},
++    {"name":"Siemens EDA — Israel","kind":"official_careers","identifier":"siemens-eda","company_name":"Siemens EDA"},
++    {"name":"Google — Hardware Israel","kind":"google_careers","identifier":"israel","company_name":"Google"},
++    {"name":"Marvell — Israel","kind":"official_careers","identifier":"marvell","company_name":"Marvell"},
++    {"name":"Broadcom — Israel","kind":"official_careers","identifier":"broadcom-israel","company_name":"Broadcom"},
++    {"name":"Synopsys — Israel","kind":"official_careers","identifier":"synopsys-israel","company_name":"Synopsys"},
++    {"name":"Arm — Israel","kind":"official_careers","identifier":"arm-israel","company_name":"Arm"},
++    {"name":"DustPhotonics — Israel","kind":"official_careers","identifier":"dustphotonics","company_name":"DustPhotonics"},
++    {"name":"Wiliot — Hardware Israel","kind":"official_careers","identifier":"wiliot","company_name":"Wiliot"},
++    {"name":"Vayyar Imaging — Israel","kind":"official_careers","identifier":"vayyar","company_name":"Vayyar Imaging"},
++    {"name":"Arbe Robotics — Israel","kind":"official_careers","identifier":"arbe","company_name":"Arbe Robotics"},
++    {"name":"TriEye — Israel","kind":"official_careers","identifier":"trieye","company_name":"TriEye"},
++    {"name":"Speedata — Israel","kind":"official_careers","identifier":"speedata","company_name":"Speedata"},
++    {"name":"proteanTecs — Israel","kind":"official_careers","identifier":"proteantecs","company_name":"proteanTecs"},
++    {"name":"Innoviz — Israel","kind":"official_careers","identifier":"innoviz","company_name":"Innoviz"},
++    {"name":"Camtek — Israel","kind":"official_careers","identifier":"camtek","company_name":"Camtek"},
++    {"name":"Nova — Israel","kind":"official_careers","identifier":"nova","company_name":"Nova Measuring Instruments"},
++    {"name":"NeuroBlade — Israel","kind":"official_careers","identifier":"neuroblade","company_name":"NeuroBlade"},
+ )
+ 
+ RECOMMENDED_SOURCES_BY_TRACK = {
+diff --git a/tests/test_ee_source_expansion_v2.py b/tests/test_ee_source_expansion_v2.py
+new file mode 100644
+index 0000000..8b49014
+--- /dev/null
++++ b/tests/test_ee_source_expansion_v2.py
+@@ -0,0 +1,27 @@
++from app.collectors.official import PRESETS
++from app.services.source_catalog import EE_RECOMMENDED_SOURCES
++
++
++def test_ee_semiconductor_source_expansion_is_unique_and_scannable():
++    requested = {
++        "Valens Semiconductor", "NextSilicon", "Retym", "Hailo", "Pliops", "Chain Reaction",
++        "SCD - SemiConductor Devices", "Cadence Design Systems", "Texas Instruments", "Flex",
++        "Siemens EDA", "Google", "Marvell", "Broadcom", "Synopsys", "Arm", "DustPhotonics",
++        "Wiliot", "Vayyar Imaging", "Arbe Robotics", "TriEye", "Speedata", "proteanTecs",
++        "Innoviz", "Camtek", "Nova Measuring Instruments", "NeuroBlade",
++    }
++    companies = {row["company_name"] for row in EE_RECOMMENDED_SOURCES}
++    assert requested <= companies
++    keys = [(row["kind"], row["identifier"]) for row in EE_RECOMMENDED_SOURCES]
++    assert len(keys) == len(set(keys))
++    for row in EE_RECOMMENDED_SOURCES:
++        if row["kind"] == "official_careers":
++            assert row["identifier"] in PRESETS
++
++
++def test_acquired_brands_are_not_added_as_dead_duplicate_boards():
++    companies = {row["company_name"] for row in EE_RECOMMENDED_SOURCES}
++    # Autotalks is now part of Qualcomm (already in the EE catalog); Celeno is part
++    # of Renesas. Do not create dead/duplicate independent boards under old brands.
++    assert "Autotalks" not in companies
++    assert "Celeno Communications" not in companies
