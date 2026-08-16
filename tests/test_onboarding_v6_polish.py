@@ -12,12 +12,12 @@ def test_all_steps_receive_shared_visual_step_class():
     assert "onboarding-step-${step}" in JS
     assert ".onboarding-step{" in CSS
 
-def test_scan_waits_for_server_before_showing_counts():
-    assert "ממתין לשרת" in JS
-    assert "השרת מכין את רשימת המקורות לסריקה" in JS
-    assert "source-scan-progress waiting" in JS
-    assert "onboardingWaitingBar" in CSS
+def test_scan_waits_for_real_site_scan_before_declaring_completion():
+    assert "scanObservedRunning" in JS
+    assert "phase:'queued'" in JS
+    assert "Date.now()-onboardingState.scanStartedAt<30000" in JS
+    assert "syncOnboardingScanStatus" in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.3" in HTML
-    assert "styles.css?v=0.48.6" in HTML
+    assert "app.js?v=0.29.4" in HTML
+    assert "styles.css?v=0.48.7" in HTML

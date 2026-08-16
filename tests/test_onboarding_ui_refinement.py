@@ -16,16 +16,20 @@ def test_preferences_are_choice_boxes_not_raw_primary_text_fields():
     assert "onboarding-choice-grid" in CSS
     assert "ob-titles-extra" in JS
 
-def test_review_and_scan_match_product_visual_language():
+def test_review_and_scan_reuse_the_real_site_scan_component():
     assert "onboarding-launchpad" in JS
-    assert "onboarding-source-scan" in JS
-    assert "onboarding-source-progress" in JS
-    assert "onboarding-radar" not in JS
+    assert 'id="onboarding-scan-status" class="scan-status onboarding-scan-status"' in JS
+    assert "syncOnboardingScanStatus" in JS
+    assert "renderScan(scan)" in JS
+    assert "onboarding-source-scan" not in JS
 
-def test_logo_flight_dot_has_onboarding_specific_anchor():
+def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():
     assert ".onboarding-brand .brand-flight-dot" in CSS
-    assert "top:8px" in CSS and "right:41px" in CSS
+    assert 'onboarding-wordmark" dir="ltr">JobP<span class="brand-i">' in HTML
+    assert ".onboarding-brand .brand-i-dot" in CSS
+    assert "right:41px!important" not in CSS
+    assert "--onboarding-mark-size" not in CSS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.3" in HTML
-    assert "styles.css?v=0.48.6" in HTML
+    assert "app.js?v=0.29.4" in HTML
+    assert "styles.css?v=0.48.7" in HTML

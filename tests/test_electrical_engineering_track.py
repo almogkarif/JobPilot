@@ -24,5 +24,5 @@ def test_pink_silver_ui_exists_day_and_night():
     assert "electrical_engineering:" in JS
     assert "track-electrical-engineering" in JS
     assert "body.track-electrical-engineering.theme-dark" in CSS
-    assert "app.js?v=0.29.3" in HTML
-    assert "styles.css?v=0.48.6" in HTML
+    assert "app.js?v=0.29.4" in HTML
+    assert "styles.css?v=0.48.7" in HTML

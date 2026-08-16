@@ -1397,17 +1397,18 @@ $('#scan-status').onclick = () => {
   showScanReport(lastScanReport || state.dashboard?.scan?.last_result || null);
 };
 
+async function startSiteScan() {
+  const started = await api('/api/scan', { method: 'POST' });
+  lastScanCompleted = 0;
+  const external = started?.worker === 'github_actions';
+  toast(external ? 'בקשת הסריקה נשלחה ל־GitHub Actions' : 'הסריקה התחילה');
+  renderScan({ running: true, progress: { phase: external ? 'queued' : 'starting', current: 0, completed: 0, total: 0, current_source: null } });
+  pollScan();
+  return started;
+}
+
 $('#scan-btn').onclick = async () => {
-  try {
-    const started = await api('/api/scan', { method: 'POST' });
-    lastScanCompleted = 0;
-    const external = started?.worker === 'github_actions';
-    toast(external ? 'בקשת הסריקה נשלחה ל־GitHub Actions' : 'הסריקה התחילה');
-    renderScan({ running: true, progress: { phase: external ? 'queued' : 'starting', current: 0, completed: 0, total: 0, current_source: null } });
-    pollScan();
-  } catch (error) {
-    toast(error.message);
-  }
+  try { await startSiteScan(); } catch (error) { toast(error.message); }
 };
 
 async function pollScan() {
@@ -3353,7 +3354,7 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') se
 
 
 const ONBOARDING_VERSION = 2;
-const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0 };
+const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0, scanObservedRunning: false };
 const onboardingSteps = ['track','resume','skills','preferences','review','scan'];
 
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
@@ -3427,7 +3428,7 @@ function onboardingSetStep(index){
       <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
       <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נסרוק את המקורות הפעילים, נחשב התאמה לכל משרה ונציג קודם את התוצאות החזקות ביותר.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
   }else{
-    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>הסריקה עוברת על המקורות הפעילים של ${esc(track.label)} ומדרגת את התוצאות לפי הפרופיל שבנית.</p><div class="onboarding-source-scan" aria-hidden="true"><div class="source-scan-orbit"><span class="source-scan-core">JP</span><i></i><i></i><i></i><i></i></div><div class="source-scan-progress waiting" id="onboarding-source-status"><span><b id="onboarding-source-count">•••</b><small id="onboarding-source-label">ממתין לשרת</small></span><div><i id="onboarding-source-progress"></i></div></div></div><div id="onboarding-scan-copy" class="onboarding-scan-copy">מוכן לסריקה הראשונה</div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
+    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>זו אותה סריקה של JobPilot. ההתקדמות כאן משקפת בזמן אמת את פס הסריקה בלוח הבקרה.</p><div id="onboarding-scan-status" class="scan-status onboarding-scan-status" aria-live="polite"><span><b>מוכן לסריקה הראשונה</b><small>לחץ על הכפתור כדי להתחיל</small></span><i class="scan-status-fill" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
     $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
   }
 }
@@ -3476,30 +3477,47 @@ async function onboardingFinish(skipped=false){
   if(!onboardingState.preview)await api('/api/onboarding',{method:'PUT',body:JSON.stringify({completed:!skipped,skipped,step:'done'})});
   $('#onboarding-gate').hidden=true;$('#onboarding-gate').setAttribute('aria-hidden','true');document.body.classList.remove('onboarding-open');onboardingState.preview=false;
 }
+function syncOnboardingScanStatus(scan){
+  // Reuse the exact dashboard renderer, then mirror that same component inside onboarding.
+  // This deliberately keeps one visual/status implementation for both surfaces.
+  renderScan(scan);
+  const source=$('#scan-status'), target=$('#onboarding-scan-status');
+  if(!source||!target)return;
+  target.innerHTML=source.innerHTML;
+  target.className=`scan-status onboarding-scan-status${source.classList.contains('is-running')?' is-running':''}`;
+  const progress=source.style.getPropertyValue('--scan-progress');
+  if(progress)target.style.setProperty('--scan-progress',progress); else target.style.removeProperty('--scan-progress');
+  target.setAttribute('aria-label',source.getAttribute('aria-label')||'מצב הסריקה');
+}
 async function onboardingWatchScan(){
   try{
-    const scan=await api('/api/scan/status'), p=scan.progress||{}, total=Number(p.total||0), done=Number(p.completed||0), percent=total?Math.round(done/total*100):0, copy=$('#onboarding-scan-copy');
-    const status=$('#onboarding-source-status'), label=$('#onboarding-source-label'), progress=$('#onboarding-source-progress'), count=$('#onboarding-source-count');
-    if(scan.running && !total){
-      status?.classList.add('waiting'); if(count)count.textContent='•••'; if(label)label.textContent='ממתין לשרת'; if(progress)progress.style.width='0%';
-      if(copy)copy.textContent='השרת מכין את רשימת המקורות לסריקה…';
-    }else if(scan.running){
-      status?.classList.remove('waiting'); if(count)count.textContent=String(done); if(label)label.textContent=`מתוך ${total} מקורות`; if(progress)progress.style.width=`${percent}%`;
-      if(copy)copy.textContent=`${p.current_source?`סורק עכשיו: ${p.current_source} · `:''}${done}/${total} מקורות · ${percent}%`;
-    }else{
-      status?.classList.remove('waiting'); if(count)count.textContent=String(done); if(label)label.textContent=total?`מתוך ${total} מקורות`:'הסריקה הושלמה'; if(progress)progress.style.width='100%';
-      if(copy)copy.textContent='הסריקה הסתיימה — המשרות שלך מחכות';
+    const scan=await api('/api/scan/status');
+    if(scan.running)onboardingState.scanObservedRunning=true;
+    // A queued worker can take a few seconds before /status flips to running. Do not
+    // mistake that hand-off window for a completed scan.
+    if(!scan.running&&!onboardingState.scanObservedRunning&&Date.now()-onboardingState.scanStartedAt<30000){
+      syncOnboardingScanStatus({running:true,progress:{phase:'queued',completed:0,total:0,current_source:null}});
+      onboardingState.scanTimer=setTimeout(onboardingWatchScan,1200);return;
     }
+    syncOnboardingScanStatus(scan);
     if(scan.running){onboardingState.scanTimer=setTimeout(onboardingWatchScan,1800);return}
     const stage=$('.onboarding-scan-stage');stage?.classList.add('complete');
     const button=$('#onboarding-start-scan');if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
     const enter=$('#onboarding-enter-site');if(enter)enter.hidden=true;
-  }catch(e){const copy=$('#onboarding-scan-copy');if(copy)copy.textContent='הסריקה ממשיכה ברקע. אפשר להיכנס לאתר ולעקוב משם.';const b=$('#onboarding-start-scan');if(b){b.disabled=false;b.textContent='כניסה ללוח הבקרה';b.onclick=async()=>{await onboardingFinish();switchView('dashboard')}}}
+  }catch(e){
+    const target=$('#onboarding-scan-status');if(target)target.innerHTML='<span><b>הסריקה ממשיכה באתר</b><small>אפשר להיכנס ללוח הבקרה ולעקוב מאותו פס התקדמות</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>';
+    const b=$('#onboarding-start-scan');if(b){b.disabled=false;b.textContent='כניסה ללוח הבקרה';b.onclick=async()=>{await onboardingFinish();switchView('dashboard')}}
+  }
 }
 async function onboardingStartScan(){
-  const b=$('#onboarding-start-scan');b.disabled=true;b.textContent='הסריקה יצאה לדרך…';$('.onboarding-scan-stage')?.classList.add('scanning');
-  const status=$('#onboarding-source-status'),count=$('#onboarding-source-count'),label=$('#onboarding-source-label'),copy=$('#onboarding-scan-copy');status?.classList.add('waiting');if(count)count.textContent='•••';if(label)label.textContent='ממתין לשרת';if(copy)copy.textContent='מתחבר לשרת ומכין את המקורות לסריקה…';
-  try{const started=await api('/api/scan',{method:'POST'});onboardingState.scanStartedAt=Date.now();renderScan({running:true,progress:{phase:started?.worker==='github_actions'?'queued':'starting',current:0,completed:0,total:0,current_source:null}});onboardingWatchScan()}catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
+  const b=$('#onboarding-start-scan');b.disabled=true;b.textContent='מתחיל סריקה…';$('.onboarding-scan-stage')?.classList.add('scanning');
+  onboardingState.scanStartedAt=Date.now();onboardingState.scanObservedRunning=false;
+  syncOnboardingScanStatus({running:true,progress:{phase:'starting',completed:0,total:0,current_source:null}});
+  try{
+    // Start the very same site scan path used by the persistent "סרוק עכשיו" control.
+    await startSiteScan();
+    onboardingWatchScan();
+  }catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
 }
 async function openOnboarding(preview=false){
   if(authState.user?.is_guest)return;

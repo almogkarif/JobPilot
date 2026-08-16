@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
 
 
 def test_google_oauth_asset_version_is_bumped():
-    assert 'app.js?v=0.29.3' in HTML
+    assert 'app.js?v=0.29.4' in HTML
