@@ -1,0 +1,105 @@
+diff --git a/app/collectors/official.py b/app/collectors/official.py
+index 9338f79..6eed57d 100644
+--- a/app/collectors/official.py
++++ b/app/collectors/official.py
+@@ -17,10 +17,10 @@ PRESETS = {
+     # Electrical-engineering expansion. These presets intentionally use each
+     # employer's own careers surface; the track filter later keeps Israel/EE roles.
+     "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
+-    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True},
++    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
+     "retym": {"url": "https://retym.com/careers-2/", "selector": 'a[href*="/careers-2/"]', "id_pattern": r"/careers-2/(?:co/)?([^/?#]+)/?", "company": "Retym", "prefer_link_text": True, "http_first": True},
+     "hailo": {"url": "https://hailo.ai/company-overview/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Hailo", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+-    "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "allow_empty": True, "allow_no_links": True},
+     "chain-reaction": {"url": "https://chain-reaction.io/careers/", "selector": 'a[href*="/careers"]', "id_pattern": r"/careers(?:-2)?/(?:co/)?([^/?#]+)", "company": "Chain Reaction", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "scd": {"url": "https://scdusa-ir.com/find-a-job/", "selector": 'a[href*="job"], a[href*="position"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SCD - SemiConductor Devices", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "cadence": {"url": "https://cadence.wd1.myworkdayjobs.com/External_Careers", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Za-z]\d+)$", "company": "Cadence Design Systems", "prefer_link_text": True, "selector_timeout_ms": 18000},
+@@ -37,9 +37,9 @@ PRESETS = {
+     "arbe": {"url": "https://arberobotics.com/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+-    "proteantecs": {"url": "https://www.proteantecs.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)", "company": "proteanTecs", "prefer_link_text": True, "http_first": True, "allow_empty": True},
++    "proteantecs": {"url": "https://www.proteantecs.com/careers", "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "http_first": True, "allow_empty": True, "allow_no_links": True, "hydrate_details": True, "hydrate_missing_title_only": True},
+     "innoviz": {"url": "https://innoviz.tech/join-us", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Innoviz", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+-    "camtek": {"url": "https://www.camtek.com/careers/open-positions/", "selector": 'a[href*="/careers/open-positions/"]', "id_pattern": r"/open-positions/([^/?#]+)/?", "company": "Camtek", "prefer_link_text": True, "http_first": True},
++    "camtek": {"url": "https://www.camtek.com/careers/open-positions/", "selector": 'a[href*="/careers/open-positions/"]', "id_pattern": r"/open-positions/([^/?#]+)/?", "company": "Camtek", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
+     "nova": {"url": "https://www.novami.com/career", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Nova Measuring Instruments", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "neuroblade": {"url": "https://www.neuroblade.com/careers/", "selector": 'a[href*="gh_jid="], a[href*="/careers/"]', "id_pattern": r"(?:gh_jid=|/careers/)(\d+)", "company": "NeuroBlade", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+     "apple": {
+@@ -70,9 +70,9 @@ PRESETS = {
+     "samsung": {"url": "https://research.samsung.com/sril/careers", "selector": 'a[href*="career"], a[href*="job"]', "id_pattern": r"(?:job|career)[^0-9]*([A-Za-z0-9_-]{4,})", "company": "Samsung Research Israel"},
+     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
+     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
+-    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"][href*="jid="], a[href*="jid="], [data-href*="jid="], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml", "https://elbitsystemscareer.com/sitemap_index.xml")},
+-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml")},
+-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml")},
++    "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml", "https://elbitsystemscareer.com/sitemap_index.xml")},
++    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(?:[^/?#]+/)?(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml")},
++    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(?:[^/?#]+/)?(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml")},
+     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
+     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
+     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
+@@ -211,6 +211,8 @@ class OfficialCareersCollector:
+                     empty_markers = tuple(str(marker).casefold() for marker in preset.get("empty_markers", ()))
+                     if preset.get("allow_empty") and any(marker in body_text.casefold() for marker in empty_markers):
+                         return []
++                    if preset.get("allow_no_links"):
++                        return []
+                     generic_rows = await page.locator("a[href], [onclick], [data-href], [data-url]").evaluate_all(
+                         """els => els.map(a => {
+                           let container = a;
+@@ -531,8 +533,8 @@ def _resolve_row_href(row: dict, preset: dict) -> tuple[str, re.Match[str] | Non
+ 
+ 
+ GENERIC_LINK_TITLES = {
+-    "see full role description", "read more", "...read more", "…read more",
+-    "view job", "job details", "learn more", "apply", "apply now",
++    "see full role description", "read more", "read more >", "more info", "more info >",
++    "...read more", "…read more", "view job", "job details", "learn more", "apply", "apply now",
+ }
+ 
+ 
+diff --git a/app/static/app.js b/app/static/app.js
+index da10d01..14cbb9e 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -638,6 +638,38 @@ function formatJobDescription(value = '') {
+ 
+ const SOURCE_LOGO_DOMAINS = Object.freeze({
+   'google': 'google.com',
++  'valens semiconductor': 'valens.com',
++  'valens': 'valens.com',
++  'nextsilicon': 'nextsilicon.com',
++  'retym': 'retym.com',
++  'hailo': 'hailo.ai',
++  'pliops': 'pliops.com',
++  'chain reaction': 'chain-reaction.io',
++  'scd - semiconductor devices': 'scd.co.il',
++  'scd': 'scd.co.il',
++  'cadence design systems': 'cadence.com',
++  'cadence': 'cadence.com',
++  'texas instruments': 'ti.com',
++  'flex': 'flex.com',
++  'siemens eda': 'siemens.com',
++  'marvell': 'marvell.com',
++  'broadcom': 'broadcom.com',
++  'synopsys': 'synopsys.com',
++  'arm': 'arm.com',
++  'dustphotonics': 'dustphotonics.com',
++  'wiliot': 'wiliot.com',
++  'vayyar imaging': 'vayyar.com',
++  'vayyar': 'vayyar.com',
++  'arbe robotics': 'arberobotics.com',
++  'arbe': 'arberobotics.com',
++  'trieye': 'trieye.tech',
++  'speedata': 'speedata.io',
++  'proteantecs': 'proteantecs.com',
++  'innoviz': 'innoviz.tech',
++  'camtek': 'camtek.com',
++  'nova measuring instruments': 'novami.com',
++  'nova': 'novami.com',
++  'neuroblade': 'neuroblade.com',
+   'apple': 'apple.com',
+   'amazon': 'amazon.com',
+   'nvidia': 'nvidia.com',
