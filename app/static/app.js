@@ -909,6 +909,7 @@ function switchView(view, options = {}) {
   if (view === 'blockers') loadBlockers();
   if (view === 'skills') loadSkills();
   if (view === 'sources') loadSources();
+  if (view === 'developer') loadDeveloperCenter();
   if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
   if (view === 'profile') {
     const savedSection = options.profileSection || localStorage.getItem('jobpilot-profile-section') || 'personal';
@@ -3511,34 +3512,53 @@ async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const st
 $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
 $('#onboarding-skip').onclick=()=>onboardingFinish(true);
 $('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
-$('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
-async function loadDeveloperUsers(){
-  const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;
-  root.innerHTML='<div class="empty-state">טוען משתמשים…</div>';
-  try{const payload=await api('/api/admin/users');count.textContent=String(payload.count||0);root.innerHTML=(payload.users||[]).map(u=>`<article class="developer-user-row"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה לאחרונה ${esc(new Date(u.last_seen_at).toLocaleString('he-IL'))}`:'טרם התחבר'}</small></span></article>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
+let developerUsersCache=[];
+const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
+const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
+function developerMetric(label,value,detail='',tone='') { return `<article class="developer-health ${tone}"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(detail)}</span></article>`; }
+async function loadDeveloperOverview(){
+  const grid=$('#developer-health-grid'),details=$('#developer-system-details'); if(!grid||!details)return;
+  try{
+    const o=await api('/api/admin/developer/overview');
+    const scan=o.scan||{},sources=o.sources||{},agent=o.agent||{},queue=o.derived_refresh||{};
+    grid.innerHTML=[developerMetric('API','Online',`v${o.app.version}`,'ok'),developerMetric('מקורות',`${sources.enabled}/${sources.total}`,`${sources.errors} שגיאות · Health ${sources.average_health}%`,sources.errors?'warn':'ok'),developerMetric('סריקה',scan.running?'Running':'Idle',developerTrackLabel(o.track),scan.running?'live':''),developerMetric('Agent',`${agent.online}/${agent.enabled}`,agent.last_seen_at?`נראה ${developerDate(agent.last_seen_at)}`:'אין heartbeat',agent.online?'ok':''),developerMetric('משרות',String(o.jobs.active),`${o.jobs.strong} התאמות 80+`),developerMetric('Re-rank queue',String(queue.count||0),queue.count?'עבודה נגזרת ברקע':'התור נקי',queue.count?'live':'ok')].join('');
+    details.innerHTML=Object.entries({Auth:o.app.auth_mode,Storage:o.app.storage_mode,'Scan worker':o.app.scan_execution_mode,Scheduler:o.app.scheduler_enabled?`פעיל · ${o.app.scan_time}`:'כבוי',Timezone:o.app.timezone,'Concurrent scans':o.app.max_concurrent_user_scans,'Cloud storage':o.flags.cloud_storage?'כן':'לא','Application Agent':o.flags.application_agent?'מורשה':'לא מורשה'}).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
+    const badge=$('#developer-health-badge');if(badge){badge.textContent=sources.errors?'דורש בדיקה':'תקין';badge.classList.toggle('warn',!!sources.errors)}
+  }catch(e){grid.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
 }
-$('#developer-refresh-users').onclick=loadDeveloperUsers;
-$('#developer-preview-non-admin').onclick=enterNonAdminPreview;
-$('#admin-preview-exit').onclick=exitNonAdminPreview;
+async function loadDeveloperUsers(){
+  const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;root.innerHTML='<div class="empty-state">טוען משתמשים…</div>';
+  try{const payload=await api('/api/admin/users');developerUsersCache=payload.users||[];count.textContent=`${payload.count||0}/${payload.max_users||'—'}`;renderDeveloperUsers()}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
+}
+function renderDeveloperUsers(){
+  const root=$('#developer-users-list'),q=String($('#developer-user-search')?.value||'').trim().toLowerCase();if(!root)return;
+  const users=developerUsersCache.filter(u=>!q||String(u.email||u.id).toLowerCase().includes(q));
+  root.innerHTML=users.map(u=>`<button type="button" class="developer-user-row" data-developer-user="${esc(u.id)}"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה ${esc(developerDate(u.last_seen_at))}`:'טרם התחבר'}</small></span><b>›</b></button>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>';
+  $$('[data-developer-user]',root).forEach(b=>b.onclick=()=>inspectDeveloperUser(b.dataset.developerUser));
+}
+async function inspectDeveloperUser(id){const root=$('#developer-user-inspector');root.innerHTML='<div class="empty-state">טוען…</div>';try{const d=await api(`/api/admin/developer/users/${encodeURIComponent(id)}`);root.innerHTML=`<div class="developer-inspector-head"><strong>${esc(d.user.email||d.user.id)}</strong><span>${esc(d.user.role)}</span></div><div class="developer-kv"><div><span>מסלול</span><strong>${esc(developerTrackLabel(d.profile.track))}</strong></div><div><span>Onboarding</span><strong>v${d.profile.onboarding_version}</strong></div><div><span>Skills</span><strong>${d.profile.skills}</strong></div><div><span>Desired titles</span><strong>${d.profile.desired_titles}</strong></div><div><span>Jobs</span><strong>${d.counts.jobs}</strong></div><div><span>Sources</span><strong>${d.counts.sources}</strong></div><div><span>Applications</span><strong>${d.counts.applications}</strong></div><div><span>Resumes</span><strong>${d.counts.resumes}</strong></div></div>`}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
+async function loadDeveloperSources(){const root=$('#developer-sources-list');if(!root)return;try{const rows=await api('/api/sources');root.innerHTML=rows.map(s=>`<article class="developer-source-row"><span><strong>${esc(s.name)}</strong><small>${esc(s.kind)} · health ${s.health_score}%${s.last_error?` · ${esc(s.last_error.slice(0,110))}`:''}</small></span><button class="btn secondary" type="button" data-test-source="${s.id}">בדוק מקור</button></article>`).join('')||'<div class="empty-state">אין מקורות במסלול הפעיל</div>';$$('[data-test-source]',root).forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/admin/developer/sources/${b.dataset.testSource}/test`,{method:'POST'});toast(r.status==='started'?'בדיקת המקור התחילה':'כבר מתבצעת סריקה');setTimeout(loadDeveloperOverview,900)}catch(e){toast(e.message)}finally{b.disabled=false}})}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
+async function loadDeveloperAudit(){const root=$('#developer-audit-list');if(!root)return;try{const rows=await api('/api/admin/developer/audit?limit=30');root.innerHTML=rows.map(r=>`<article><span><strong>${esc(r.event_type)}</strong><small>${esc(r.entity_type||'system')} ${r.entity_id?`#${esc(r.entity_id)}`:''}</small></span><time>${esc(developerDate(r.created_at))}</time>${r.message?`<p>${esc(r.message.slice(0,180))}</p>`:''}</article>`).join('')||'<div class="empty-state">אין אירועים</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
+function renderDeveloperThemeLab(){const root=$('#developer-theme-lab');if(!root)return;root.innerHTML=Object.values(CAREER_TRACK_UI).map(t=>`<div><strong>${esc(t.label)}</strong><button type="button" data-theme-preview="${t.key}:light">יום</button><button type="button" data-theme-preview="${t.key}:dark">לילה</button></div>`).join('');$$('[data-theme-preview]',root).forEach(b=>b.onclick=()=>{const [track,mode]=b.dataset.themePreview.split(':');Object.values(CAREER_TRACK_UI).forEach(t=>document.body.classList.remove(t.themeClass));document.body.classList.add(CAREER_TRACK_UI[track].themeClass);document.body.classList.toggle('theme-dark',mode==='dark');document.body.classList.toggle('theme-light',mode==='light');auditDeveloperColors();toast(`תצוגת QA: ${developerTrackLabel(track)} · ${mode==='dark'?'לילה':'יום'}`)})}
+function auditDeveloperColors(){const root=$('#developer-color-audit');if(!root)return;const track=document.body.classList.contains('track-electrical-engineering')?'electrical_engineering':document.body.classList.contains('track-industrial-engineering')?'industrial_engineering':'computer_science';const suspicious=[];if(track!=='computer_science'){const blue=/rgb\((?:0|1?\d?\d|2[0-4]\d|25[0-5]),\s*(?:8\d|9\d|1[0-9]\d),\s*(?:1[4-9]\d|2[0-5]\d)\)/;$$('button,input,select,textarea,.panel,.metric,.option-grid label,.check-row label').slice(0,500).forEach(el=>{const c=getComputedStyle(el);if(blue.test(c.borderColor)||blue.test(c.backgroundColor)||blue.test(c.color))suspicious.push(el)})}root.textContent=track==='computer_science'?'Color audit: כחול הוא צבע המסלול ולכן אינו נחשב זליגה.':suspicious.length?`Color audit: נמצאו ${suspicious.length} אלמנטים חשודים לבדיקה.`:'Color audit: לא נמצאה זליגה כחולה במדגם האינטראקטיבי.';root.classList.toggle('warn',suspicious.length>0)}
+async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit()]);renderDeveloperThemeLab();auditDeveloperColors()}
+$('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
+$('#developer-preview-non-admin').onclick=enterNonAdminPreview;$('#admin-preview-exit').onclick=exitNonAdminPreview;
+$('#developer-user-search').oninput=renderDeveloperUsers;
+$('#developer-refresh-all').onclick=loadDeveloperCenter;
+$('#developer-rerank').onclick=async()=>{try{await api('/api/admin/developer/rerank',{method:'POST'});toast('Re-rank נכנס לתור');loadDeveloperOverview()}catch(e){toast(e.message)}};
+$('#developer-reset-scan-runtime').onclick=async()=>{if(!confirm('לאפס את מצב הסריקה המקומי?'))return;try{await api('/api/admin/developer/scan-runtime/reset',{method:'POST'});toast('מצב הסריקה אופס');loadDeveloperOverview()}catch(e){toast(e.message)}};
+$('#developer-reset-onboarding').onclick=async()=>{if(!confirm('לאפס את ה-Onboarding שלך כדי שיופיע מחדש?'))return;try{await api('/api/admin/developer/onboarding/reset',{method:'POST'});toast('ה-Onboarding אופס')}catch(e){toast(e.message)}};
+$('#developer-hard-refresh').onclick=()=>{if(!confirm('לנקות cache מקומי של תצוגה ולרענן? נתוני השרת לא יימחקו.'))return;['jobpilot-active-view','jobpilot-profile-section'].forEach(k=>localStorage.removeItem(k));location.reload()};
 const ADMIN_PREVIEW_KEY='jobpilot-preview-non-admin';
 function adminPreviewActive(){try{return sessionStorage.getItem(ADMIN_PREVIEW_KEY)==='1'}catch{return false}}
-function applyAdminPreviewMode(){
-  const active=adminPreviewActive();
-  document.body.classList.toggle('preview-non-admin',active);
-  const exit=$('#admin-preview-exit'); if(exit) exit.hidden=!active;
-}
-function enterNonAdminPreview(){
-  try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}
-  applyAdminPreviewMode(); switchView('dashboard');
-  toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.');
-}
-function exitNonAdminPreview(){
-  try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}
-  applyAdminPreviewMode(); toast('חזרת לתצוגת Admin');
-}
+function applyAdminPreviewMode(){const active=adminPreviewActive();document.body.classList.toggle('preview-non-admin',active);const exit=$('#admin-preview-exit');if(exit)exit.hidden=!active}
+function enterNonAdminPreview(){try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}applyAdminPreviewMode();switchView('dashboard');toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.')}
+function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}applyAdminPreviewMode();toast('חזרת לתצוגת Admin')}
+
 function configureDeveloperTools(){
   const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
-  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
+  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }
 
 (async () => {

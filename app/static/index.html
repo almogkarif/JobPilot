@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-  <link rel="stylesheet" href="/static/styles.css?v=0.48.5" />
+  <link rel="stylesheet" href="/static/styles.css?v=0.48.6" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -234,12 +234,18 @@
       </section>
 
       <section id="view-developer" class="view">
-        <article class="panel developer-panel">
-          <div class="panel-head"><div><span class="kicker">Admin only</span><h2>אפשרויות למפתחים</h2><p class="preference-help">כלי בדיקה פנימיים שרק האדמין רואה.</p></div></div>
-          <p id="developer-runtime-status" class="preference-help"></p>
-          <div class="developer-actions"><button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button><button class="btn secondary" id="developer-preview-non-admin" type="button">הצג כמשתמש רגיל</button><button class="btn secondary" id="developer-refresh-users" type="button">רענן משתמשים</button></div>
-          <section class="developer-users-card"><div class="panel-head"><div><span class="kicker">משתמשי המערכת</span><h3>חשבונות שנכנסו ל־JobPilot</h3></div><strong id="developer-users-count">—</strong></div><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div></section>
-        </article>
+        <div class="developer-center">
+          <article class="panel developer-hero"><div><span class="kicker">Admin only · Control Center</span><h2>מרכז המפתחים</h2><p>בריאות המערכת, משתמשים, סריקות, מקורות, תורים, תצוגות ו־QA במקום אחד.</p><p id="developer-runtime-status" class="preference-help"></p></div><div class="developer-actions"><button class="btn primary" id="developer-refresh-all" type="button">רענן הכל</button><button class="btn secondary" id="developer-preview-non-admin" type="button">תצוגת משתמש</button><button class="btn secondary" id="developer-preview-onboarding" type="button">Onboarding</button></div></article>
+          <section id="developer-health-grid" class="developer-health-grid"><div class="empty-state">טוען מצב מערכת…</div></section>
+          <div class="developer-grid">
+            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Runtime</span><h3>System Health</h3></div><span id="developer-health-badge" class="developer-status-dot">—</span></div><div id="developer-system-details" class="developer-kv"></div><div class="developer-actions"><button class="btn secondary" id="developer-rerank" type="button">הכנס Re-rank לתור</button><button class="btn secondary" id="developer-reset-scan-runtime" type="button">אפס מצב סריקה</button></div></article>
+            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Theme QA</span><h3>Theme Lab</h3></div></div><p class="preference-help">בדיקה מיידית של כל מקצוע ומצב תצוגה בלי לשנות את נתוני המשתמש.</p><div id="developer-theme-lab" class="developer-theme-lab"></div><div id="developer-color-audit" class="developer-color-audit"></div></article>
+            <article class="panel developer-card developer-users-card"><div class="panel-head"><div><span class="kicker">Accounts</span><h3>משתמשי המערכת</h3></div><strong id="developer-users-count">—</strong></div><input id="developer-user-search" class="developer-search" type="search" placeholder="חיפוש לפי אימייל…"><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div><div id="developer-user-inspector" class="developer-user-inspector"><div class="empty-state">בחר משתמש לפרטים</div></div></article>
+            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Sources</span><h3>Source Tester</h3></div></div><div id="developer-sources-list" class="developer-source-list"><div class="empty-state">טוען מקורות…</div></div></article>
+            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Observability</span><h3>אירועים אחרונים</h3></div></div><div id="developer-audit-list" class="developer-audit-list"><div class="empty-state">טוען אירועים…</div></div></article>
+            <article class="panel developer-card developer-danger"><div class="panel-head"><div><span class="kicker">Danger zone</span><h3>איפוסים וכלי בדיקה</h3></div></div><p>פעולות אלה משפיעות על מצב הפיתוח בלבד או על ה־Onboarding שלך. אין כאן מחיקת משרות או משתמשים.</p><div class="developer-actions"><button class="btn secondary" id="developer-reset-onboarding" type="button">אפס Onboarding</button><button class="btn secondary" id="developer-hard-refresh" type="button">נקה Cache מקומי ורענן</button></div></article>
+          </div>
+        </div>
       </section>
 
       <section id="view-profile" class="view">
@@ -443,6 +449,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/static/app.js?v=0.29.2"></script>
+  <script src="/static/app.js?v=0.29.3"></script>
 </body>
 </html>

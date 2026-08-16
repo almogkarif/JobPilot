@@ -1,0 +1,580 @@
+diff --git a/app/main.py b/app/main.py
+index fe00ee9..889c518 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -555,6 +555,123 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
+     }
+ 
+ 
++def _require_developer(request: Request):
++    identity = getattr(request.state, "identity", None)
++    if not _developer_tools_allowed(identity):
++        raise HTTPException(403, "Admin access required")
++    return identity
++
++
++def _developer_refresh_status(user_id: str) -> dict:
++    rows = []
++    with _profile_refresh_queue_lock:
++        for (uid, track), pending in _profile_refresh_pending.items():
++            if uid == user_id:
++                rows.append({"career_track": track, **pending, "worker_alive": bool(_profile_refresh_workers.get((uid, track)) and _profile_refresh_workers[(uid, track)].is_alive())})
++        for (uid, track), worker in _profile_refresh_workers.items():
++            if uid == user_id and worker.is_alive() and not any(row["career_track"] == track for row in rows):
++                rows.append({"career_track": track, "rescore_jobs": False, "refresh_resumes": False, "worker_alive": True})
++    return {"pending": rows, "count": len(rows)}
++
++
++@app.get("/api/admin/developer/overview")
++def developer_overview(request: Request, db: Session = Depends(get_db)):
++    identity = _require_developer(request)
++    user_id = current_user_id(db)
++    profile = get_user_profile(db)
++    track = active_track(profile)
++    source_rows = db.execute(select(Source.enabled, Source.last_error, Source.health_score).where(Source.career_track == track)).all()
++    devices = db.scalars(select(AgentDevice).order_by(desc(AgentDevice.last_seen_at))).all()
++    scan = _effective_scan_status(db, user_id, track)
++    return {
++        "app": {"version": app.version, "auth_mode": settings.auth_mode, "storage_mode": settings.storage_mode,
++                "scan_execution_mode": settings.scan_execution_mode, "scheduler_enabled": settings.scheduler_enabled,
++                "timezone": settings.timezone, "scan_time": f"{settings.scan_hour:02d}:{settings.scan_minute:02d}",
++                "max_users": settings.max_users, "max_concurrent_user_scans": settings.max_concurrent_user_scans},
++        "identity": {"email": getattr(identity, "email", ""), "role": getattr(identity, "role", "admin"), "user_id": user_id},
++        "track": track,
++        "scan": scan,
++        "sources": {"total": len(source_rows), "enabled": sum(1 for enabled, _, _ in source_rows if enabled),
++                    "errors": sum(1 for enabled, error, _ in source_rows if enabled and error),
++                    "average_health": round(sum(int(health or 0) for _, _, health in source_rows) / len(source_rows)) if source_rows else 0},
++        "jobs": {"active": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True))) or 0,
++                 "strong": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True), Job.score >= 80)) or 0},
++        "agent": {"devices": len(devices), "enabled": sum(1 for device in devices if device.enabled),
++                  "online": sum(1 for device in devices if device.enabled and device.last_seen_at and (utcnow() - device.last_seen_at).total_seconds() < 120),
++                  "last_seen_at": devices[0].last_seen_at if devices else None},
++        "derived_refresh": _developer_refresh_status(user_id),
++        "flags": {"cloud_storage": cloud_storage_enabled(), "application_agent": application_agent_allowed(email=getattr(identity, "email", "")),
++                  "external_scan": settings.scan_execution_mode.strip().lower() == "external"},
++    }
++
++
++@app.get("/api/admin/developer/users/{user_id}")
++def developer_user_detail(user_id: str, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
++    if not account:
++        raise HTTPException(404, "User not found")
++    with user_session(user_id) as tenant:
++        profile = get_user_profile(tenant)
++        track = active_track(profile) if profile else DEFAULT_TRACK
++        return {"user": {"id": account.auth_user_id, "email": account.email, "role": account.role, "claimed_at": account.claimed_at, "last_seen_at": account.last_seen_at},
++                "profile": {"track": track, "onboarding_version": int(profile.onboarding_version or 0) if profile else 0,
++                            "skills": len(loads(profile.skills_json, [])) if profile else 0, "desired_titles": len(loads(profile.desired_titles_json, [])) if profile else 0},
++                "counts": {"jobs": tenant.scalar(select(func.count()).select_from(Job)) or 0, "sources": tenant.scalar(select(func.count()).select_from(Source)) or 0,
++                           "applications": tenant.scalar(select(func.count()).select_from(Application)) or 0, "resumes": tenant.scalar(select(func.count()).select_from(ResumeProfile)) or 0}}
++
++
++@app.post("/api/admin/developer/onboarding/reset")
++def developer_reset_onboarding(request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    profile = get_user_profile(db)
++    if not profile:
++        raise HTTPException(404, "Profile not found")
++    profile.onboarding_version = 0
++    profile.onboarding_state_json = "{}"
++    db.add(AuditLog(event_type="developer_onboarding_reset", entity_type="profile", entity_id=str(profile.id), message="Onboarding reset from Developer Center"))
++    db.commit()
++    return {"ok": True, "onboarding": _onboarding_payload(profile)}
++
++
++@app.post("/api/admin/developer/rerank")
++def developer_rerank(request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    profile = get_user_profile(db)
++    track = active_track(profile)
++    _queue_profile_derived_refresh(current_user_id(db), track, rescore_jobs=True, refresh_resumes=False)
++    return {"ok": True, "career_track": track, "queue": _developer_refresh_status(current_user_id(db))}
++
++
++@app.post("/api/admin/developer/sources/{source_id}/test", status_code=202)
++async def developer_test_source(source_id: int, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    source = _active_source_or_404(db, source_id)
++    user_id = current_user_id(db)
++    if _user_scan_lock(user_id).locked():
++        return {"status": "already_running", "source_id": source_id, "career_track": source.career_track}
++    asyncio.create_task(_run_targeted_scan(user_id, {source_id}, source.career_track))
++    return {"status": "started", "source_id": source_id, "career_track": source.career_track}
++
++
++@app.post("/api/admin/developer/scan-runtime/reset")
++def developer_reset_scan_runtime(request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    user_id = current_user_id(db)
++    if _user_scan_lock(user_id).locked():
++        raise HTTPException(409, "Cannot reset scan runtime while a scan is running")
++    scan_states_by_user[user_id] = {track.key: _new_scan_state() for track in CAREER_TRACKS}
++    return {"ok": True}
++
++
++@app.get("/api/admin/developer/audit")
++def developer_audit(request: Request, db: Session = Depends(get_db), limit: int = Query(30, ge=1, le=100)):
++    _require_developer(request)
++    rows = db.scalars(select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit)).all()
++    return [{"id": row.id, "event_type": row.event_type, "entity_type": row.entity_type, "entity_id": row.entity_id,
++             "message": row.message, "created_at": row.created_at} for row in rows]
++
++
+ @app.get("/api/security/status")
+ def security_status(request: Request):
+     if settings.auth_mode == "supabase":
+diff --git a/app/static/app.js b/app/static/app.js
+index e25bb82..f206e34 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -909,6 +909,7 @@ function switchView(view, options = {}) {
+   if (view === 'blockers') loadBlockers();
+   if (view === 'skills') loadSkills();
+   if (view === 'sources') loadSources();
++  if (view === 'developer') loadDeveloperCenter();
+   if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
+   if (view === 'profile') {
+     const savedSection = options.profileSection || localStorage.getItem('jobpilot-profile-section') || 'personal';
+@@ -3511,34 +3512,53 @@ async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const st
+ $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
+ $('#onboarding-skip').onclick=()=>onboardingFinish(true);
+ $('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+-$('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
+-async function loadDeveloperUsers(){
+-  const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;
+-  root.innerHTML='<div class="empty-state">טוען משתמשים…</div>';
+-  try{const payload=await api('/api/admin/users');count.textContent=String(payload.count||0);root.innerHTML=(payload.users||[]).map(u=>`<article class="developer-user-row"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה לאחרונה ${esc(new Date(u.last_seen_at).toLocaleString('he-IL'))}`:'טרם התחבר'}</small></span></article>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
++let developerUsersCache=[];
++const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
++const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
++function developerMetric(label,value,detail='',tone='') { return `<article class="developer-health ${tone}"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(detail)}</span></article>`; }
++async function loadDeveloperOverview(){
++  const grid=$('#developer-health-grid'),details=$('#developer-system-details'); if(!grid||!details)return;
++  try{
++    const o=await api('/api/admin/developer/overview');
++    const scan=o.scan||{},sources=o.sources||{},agent=o.agent||{},queue=o.derived_refresh||{};
++    grid.innerHTML=[developerMetric('API','Online',`v${o.app.version}`,'ok'),developerMetric('מקורות',`${sources.enabled}/${sources.total}`,`${sources.errors} שגיאות · Health ${sources.average_health}%`,sources.errors?'warn':'ok'),developerMetric('סריקה',scan.running?'Running':'Idle',developerTrackLabel(o.track),scan.running?'live':''),developerMetric('Agent',`${agent.online}/${agent.enabled}`,agent.last_seen_at?`נראה ${developerDate(agent.last_seen_at)}`:'אין heartbeat',agent.online?'ok':''),developerMetric('משרות',String(o.jobs.active),`${o.jobs.strong} התאמות 80+`),developerMetric('Re-rank queue',String(queue.count||0),queue.count?'עבודה נגזרת ברקע':'התור נקי',queue.count?'live':'ok')].join('');
++    details.innerHTML=Object.entries({Auth:o.app.auth_mode,Storage:o.app.storage_mode,'Scan worker':o.app.scan_execution_mode,Scheduler:o.app.scheduler_enabled?`פעיל · ${o.app.scan_time}`:'כבוי',Timezone:o.app.timezone,'Concurrent scans':o.app.max_concurrent_user_scans,'Cloud storage':o.flags.cloud_storage?'כן':'לא','Application Agent':o.flags.application_agent?'מורשה':'לא מורשה'}).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
++    const badge=$('#developer-health-badge');if(badge){badge.textContent=sources.errors?'דורש בדיקה':'תקין';badge.classList.toggle('warn',!!sources.errors)}
++  }catch(e){grid.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
+ }
+-$('#developer-refresh-users').onclick=loadDeveloperUsers;
+-$('#developer-preview-non-admin').onclick=enterNonAdminPreview;
+-$('#admin-preview-exit').onclick=exitNonAdminPreview;
++async function loadDeveloperUsers(){
++  const root=$('#developer-users-list'),count=$('#developer-users-count');if(!root)return;root.innerHTML='<div class="empty-state">טוען משתמשים…</div>';
++  try{const payload=await api('/api/admin/users');developerUsersCache=payload.users||[];count.textContent=`${payload.count||0}/${payload.max_users||'—'}`;renderDeveloperUsers()}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
++}
++function renderDeveloperUsers(){
++  const root=$('#developer-users-list'),q=String($('#developer-user-search')?.value||'').trim().toLowerCase();if(!root)return;
++  const users=developerUsersCache.filter(u=>!q||String(u.email||u.id).toLowerCase().includes(q));
++  root.innerHTML=users.map(u=>`<button type="button" class="developer-user-row" data-developer-user="${esc(u.id)}"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה ${esc(developerDate(u.last_seen_at))}`:'טרם התחבר'}</small></span><b>›</b></button>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>';
++  $$('[data-developer-user]',root).forEach(b=>b.onclick=()=>inspectDeveloperUser(b.dataset.developerUser));
++}
++async function inspectDeveloperUser(id){const root=$('#developer-user-inspector');root.innerHTML='<div class="empty-state">טוען…</div>';try{const d=await api(`/api/admin/developer/users/${encodeURIComponent(id)}`);root.innerHTML=`<div class="developer-inspector-head"><strong>${esc(d.user.email||d.user.id)}</strong><span>${esc(d.user.role)}</span></div><div class="developer-kv"><div><span>מסלול</span><strong>${esc(developerTrackLabel(d.profile.track))}</strong></div><div><span>Onboarding</span><strong>v${d.profile.onboarding_version}</strong></div><div><span>Skills</span><strong>${d.profile.skills}</strong></div><div><span>Desired titles</span><strong>${d.profile.desired_titles}</strong></div><div><span>Jobs</span><strong>${d.counts.jobs}</strong></div><div><span>Sources</span><strong>${d.counts.sources}</strong></div><div><span>Applications</span><strong>${d.counts.applications}</strong></div><div><span>Resumes</span><strong>${d.counts.resumes}</strong></div></div>`}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
++async function loadDeveloperSources(){const root=$('#developer-sources-list');if(!root)return;try{const rows=await api('/api/sources');root.innerHTML=rows.map(s=>`<article class="developer-source-row"><span><strong>${esc(s.name)}</strong><small>${esc(s.kind)} · health ${s.health_score}%${s.last_error?` · ${esc(s.last_error.slice(0,110))}`:''}</small></span><button class="btn secondary" type="button" data-test-source="${s.id}">בדוק מקור</button></article>`).join('')||'<div class="empty-state">אין מקורות במסלול הפעיל</div>';$$('[data-test-source]',root).forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/admin/developer/sources/${b.dataset.testSource}/test`,{method:'POST'});toast(r.status==='started'?'בדיקת המקור התחילה':'כבר מתבצעת סריקה');setTimeout(loadDeveloperOverview,900)}catch(e){toast(e.message)}finally{b.disabled=false}})}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
++async function loadDeveloperAudit(){const root=$('#developer-audit-list');if(!root)return;try{const rows=await api('/api/admin/developer/audit?limit=30');root.innerHTML=rows.map(r=>`<article><span><strong>${esc(r.event_type)}</strong><small>${esc(r.entity_type||'system')} ${r.entity_id?`#${esc(r.entity_id)}`:''}</small></span><time>${esc(developerDate(r.created_at))}</time>${r.message?`<p>${esc(r.message.slice(0,180))}</p>`:''}</article>`).join('')||'<div class="empty-state">אין אירועים</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
++function renderDeveloperThemeLab(){const root=$('#developer-theme-lab');if(!root)return;root.innerHTML=Object.values(CAREER_TRACK_UI).map(t=>`<div><strong>${esc(t.label)}</strong><button type="button" data-theme-preview="${t.key}:light">יום</button><button type="button" data-theme-preview="${t.key}:dark">לילה</button></div>`).join('');$$('[data-theme-preview]',root).forEach(b=>b.onclick=()=>{const [track,mode]=b.dataset.themePreview.split(':');Object.values(CAREER_TRACK_UI).forEach(t=>document.body.classList.remove(t.themeClass));document.body.classList.add(CAREER_TRACK_UI[track].themeClass);document.body.classList.toggle('theme-dark',mode==='dark');document.body.classList.toggle('theme-light',mode==='light');auditDeveloperColors();toast(`תצוגת QA: ${developerTrackLabel(track)} · ${mode==='dark'?'לילה':'יום'}`)})}
++function auditDeveloperColors(){const root=$('#developer-color-audit');if(!root)return;const track=document.body.classList.contains('track-electrical-engineering')?'electrical_engineering':document.body.classList.contains('track-industrial-engineering')?'industrial_engineering':'computer_science';const suspicious=[];if(track!=='computer_science'){const blue=/rgb\((?:0|1?\d?\d|2[0-4]\d|25[0-5]),\s*(?:8\d|9\d|1[0-9]\d),\s*(?:1[4-9]\d|2[0-5]\d)\)/;$$('button,input,select,textarea,.panel,.metric,.option-grid label,.check-row label').slice(0,500).forEach(el=>{const c=getComputedStyle(el);if(blue.test(c.borderColor)||blue.test(c.backgroundColor)||blue.test(c.color))suspicious.push(el)})}root.textContent=track==='computer_science'?'Color audit: כחול הוא צבע המסלול ולכן אינו נחשב זליגה.':suspicious.length?`Color audit: נמצאו ${suspicious.length} אלמנטים חשודים לבדיקה.`:'Color audit: לא נמצאה זליגה כחולה במדגם האינטראקטיבי.';root.classList.toggle('warn',suspicious.length>0)}
++async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit()]);renderDeveloperThemeLab();auditDeveloperColors()}
++$('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
++$('#developer-preview-non-admin').onclick=enterNonAdminPreview;$('#admin-preview-exit').onclick=exitNonAdminPreview;
++$('#developer-user-search').oninput=renderDeveloperUsers;
++$('#developer-refresh-all').onclick=loadDeveloperCenter;
++$('#developer-rerank').onclick=async()=>{try{await api('/api/admin/developer/rerank',{method:'POST'});toast('Re-rank נכנס לתור');loadDeveloperOverview()}catch(e){toast(e.message)}};
++$('#developer-reset-scan-runtime').onclick=async()=>{if(!confirm('לאפס את מצב הסריקה המקומי?'))return;try{await api('/api/admin/developer/scan-runtime/reset',{method:'POST'});toast('מצב הסריקה אופס');loadDeveloperOverview()}catch(e){toast(e.message)}};
++$('#developer-reset-onboarding').onclick=async()=>{if(!confirm('לאפס את ה-Onboarding שלך כדי שיופיע מחדש?'))return;try{await api('/api/admin/developer/onboarding/reset',{method:'POST'});toast('ה-Onboarding אופס')}catch(e){toast(e.message)}};
++$('#developer-hard-refresh').onclick=()=>{if(!confirm('לנקות cache מקומי של תצוגה ולרענן? נתוני השרת לא יימחקו.'))return;['jobpilot-active-view','jobpilot-profile-section'].forEach(k=>localStorage.removeItem(k));location.reload()};
+ const ADMIN_PREVIEW_KEY='jobpilot-preview-non-admin';
+ function adminPreviewActive(){try{return sessionStorage.getItem(ADMIN_PREVIEW_KEY)==='1'}catch{return false}}
+-function applyAdminPreviewMode(){
+-  const active=adminPreviewActive();
+-  document.body.classList.toggle('preview-non-admin',active);
+-  const exit=$('#admin-preview-exit'); if(exit) exit.hidden=!active;
+-}
+-function enterNonAdminPreview(){
+-  try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}
+-  applyAdminPreviewMode(); switchView('dashboard');
+-  toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.');
+-}
+-function exitNonAdminPreview(){
+-  try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}
+-  applyAdminPreviewMode(); toast('חזרת לתצוגת Admin');
+-}
++function applyAdminPreviewMode(){const active=adminPreviewActive();document.body.classList.toggle('preview-non-admin',active);const exit=$('#admin-preview-exit');if(exit)exit.hidden=!active}
++function enterNonAdminPreview(){try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}applyAdminPreviewMode();switchView('dashboard');toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.')}
++function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}applyAdminPreviewMode();toast('חזרת לתצוגת Admin')}
++
+ function configureDeveloperTools(){
+   const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+-  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperUsers();
++  applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
+ }
+ 
+ (async () => {
+diff --git a/app/static/index.html b/app/static/index.html
+index 60bf960..52a5e12 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.48.5" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.48.6" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -234,12 +234,18 @@
+       </section>
+ 
+       <section id="view-developer" class="view">
+-        <article class="panel developer-panel">
+-          <div class="panel-head"><div><span class="kicker">Admin only</span><h2>אפשרויות למפתחים</h2><p class="preference-help">כלי בדיקה פנימיים שרק האדמין רואה.</p></div></div>
+-          <p id="developer-runtime-status" class="preference-help"></p>
+-          <div class="developer-actions"><button class="btn primary" id="developer-preview-onboarding" type="button">פתח את מסך הפתיחה לבדיקה</button><button class="btn secondary" id="developer-preview-non-admin" type="button">הצג כמשתמש רגיל</button><button class="btn secondary" id="developer-refresh-users" type="button">רענן משתמשים</button></div>
+-          <section class="developer-users-card"><div class="panel-head"><div><span class="kicker">משתמשי המערכת</span><h3>חשבונות שנכנסו ל־JobPilot</h3></div><strong id="developer-users-count">—</strong></div><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div></section>
+-        </article>
++        <div class="developer-center">
++          <article class="panel developer-hero"><div><span class="kicker">Admin only · Control Center</span><h2>מרכז המפתחים</h2><p>בריאות המערכת, משתמשים, סריקות, מקורות, תורים, תצוגות ו־QA במקום אחד.</p><p id="developer-runtime-status" class="preference-help"></p></div><div class="developer-actions"><button class="btn primary" id="developer-refresh-all" type="button">רענן הכל</button><button class="btn secondary" id="developer-preview-non-admin" type="button">תצוגת משתמש</button><button class="btn secondary" id="developer-preview-onboarding" type="button">Onboarding</button></div></article>
++          <section id="developer-health-grid" class="developer-health-grid"><div class="empty-state">טוען מצב מערכת…</div></section>
++          <div class="developer-grid">
++            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Runtime</span><h3>System Health</h3></div><span id="developer-health-badge" class="developer-status-dot">—</span></div><div id="developer-system-details" class="developer-kv"></div><div class="developer-actions"><button class="btn secondary" id="developer-rerank" type="button">הכנס Re-rank לתור</button><button class="btn secondary" id="developer-reset-scan-runtime" type="button">אפס מצב סריקה</button></div></article>
++            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Theme QA</span><h3>Theme Lab</h3></div></div><p class="preference-help">בדיקה מיידית של כל מקצוע ומצב תצוגה בלי לשנות את נתוני המשתמש.</p><div id="developer-theme-lab" class="developer-theme-lab"></div><div id="developer-color-audit" class="developer-color-audit"></div></article>
++            <article class="panel developer-card developer-users-card"><div class="panel-head"><div><span class="kicker">Accounts</span><h3>משתמשי המערכת</h3></div><strong id="developer-users-count">—</strong></div><input id="developer-user-search" class="developer-search" type="search" placeholder="חיפוש לפי אימייל…"><div id="developer-users-list" class="developer-users-list"><div class="empty-state">טוען משתמשים…</div></div><div id="developer-user-inspector" class="developer-user-inspector"><div class="empty-state">בחר משתמש לפרטים</div></div></article>
++            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Sources</span><h3>Source Tester</h3></div></div><div id="developer-sources-list" class="developer-source-list"><div class="empty-state">טוען מקורות…</div></div></article>
++            <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Observability</span><h3>אירועים אחרונים</h3></div></div><div id="developer-audit-list" class="developer-audit-list"><div class="empty-state">טוען אירועים…</div></div></article>
++            <article class="panel developer-card developer-danger"><div class="panel-head"><div><span class="kicker">Danger zone</span><h3>איפוסים וכלי בדיקה</h3></div></div><p>פעולות אלה משפיעות על מצב הפיתוח בלבד או על ה־Onboarding שלך. אין כאן מחיקת משרות או משתמשים.</p><div class="developer-actions"><button class="btn secondary" id="developer-reset-onboarding" type="button">אפס Onboarding</button><button class="btn secondary" id="developer-hard-refresh" type="button">נקה Cache מקומי ורענן</button></div></article>
++          </div>
++        </div>
+       </section>
+ 
+       <section id="view-profile" class="view">
+@@ -443,6 +449,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.29.2"></script>
++  <script src="/static/app.js?v=0.29.3"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 5e02658..ec607e2 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -3329,3 +3329,10 @@ body.track-electrical-engineering.theme-dark .btn.secondary:hover{background:var
+ .experience-section .experience-options>label{min-height:48px;cursor:pointer;user-select:none}
+ @media(max-width:900px){.experience-section .experience-options{grid-template-columns:repeat(3,minmax(72px,1fr))}}
+ @media(max-width:560px){.experience-section .experience-options{grid-template-columns:repeat(2,minmax(72px,1fr))}}
++
++
++/* v0.3.2 — Developer Control Center */
++.developer-center{display:grid;gap:16px}.developer-hero{display:flex;align-items:center;justify-content:space-between;gap:20px}.developer-hero h2{margin:4px 0 6px;font-size:28px}.developer-hero p{margin:0;color:var(--muted)}.developer-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.developer-health-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.developer-health{padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:var(--shadow-soft);display:grid;gap:4px}.developer-health small,.developer-health span{color:var(--muted);font-size:12px}.developer-health strong{font-size:22px}.developer-health.ok{border-color:color-mix(in srgb,#2fa56f 35%,var(--line))}.developer-health.warn{border-color:color-mix(in srgb,#d69232 55%,var(--line))}.developer-health.live{border-color:var(--brand);box-shadow:0 0 0 3px var(--accent-glow)}.developer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.developer-card{min-width:0}.developer-status-dot{padding:6px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:12px}.developer-status-dot.warn{background:#fff2d9;color:#9b620c}.developer-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.developer-kv>div{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft)}.developer-kv span{color:var(--muted);font-size:12px}.developer-search{width:100%;margin:4px 0 10px}.developer-users-list{max-height:260px;overflow:auto;display:grid;gap:7px}.developer-user-row{width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:start;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:14px;padding:10px;cursor:pointer}.developer-user-row:hover{border-color:var(--brand)}.developer-user-row span:nth-child(2){display:grid;gap:2px}.developer-user-row small{color:var(--muted)}.developer-user-inspector{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.developer-inspector-head{display:flex;justify-content:space-between;gap:10px}.developer-source-list,.developer-audit-list{max-height:430px;overflow:auto;display:grid;gap:8px}.developer-source-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border:1px solid var(--line);border-radius:14px}.developer-source-row>span{display:grid;gap:3px;min-width:0}.developer-source-row small{color:var(--muted);white-space:normal}.developer-audit-list article{display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:10px;border-bottom:1px solid var(--line)}.developer-audit-list article span{display:grid}.developer-audit-list small,.developer-audit-list time{color:var(--muted);font-size:11px}.developer-audit-list p{grid-column:1/-1;margin:4px 0 0;color:var(--muted);font-size:12px}.developer-theme-lab{display:grid;gap:8px;margin:12px 0}.developer-theme-lab>div{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:7px;padding:8px 10px;border:1px solid var(--line);border-radius:12px}.developer-theme-lab button{border:1px solid var(--line-strong);background:var(--surface-soft);color:var(--ink);border-radius:9px;padding:7px 12px;cursor:pointer}.developer-color-audit{padding:10px 12px;border-radius:12px;background:var(--surface-soft);color:var(--muted);font-size:12px}.developer-color-audit.warn{border:1px solid #d69232}.developer-danger{border-color:color-mix(in srgb,#d45b5b 35%,var(--line))!important}.developer-danger .kicker{color:#b84646!important}
++body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.developer-health,.developer-user-row,.developer-source-row,.developer-kv>div,.developer-theme-lab>div,.developer-theme-lab button){border-color:var(--line)!important;background:var(--surface-soft)!important;color:var(--ink)!important}
++body.track-electrical-engineering :where(.developer-health,.developer-card){border-color:color-mix(in srgb,var(--silver) 62%,white)!important}body.track-electrical-engineering.theme-dark :where(.developer-health,.developer-card){border-color:#414148!important}
++@media(max-width:1200px){.developer-health-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:820px){.developer-hero{align-items:flex-start;flex-direction:column}.developer-grid{grid-template-columns:1fr}.developer-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.developer-kv{grid-template-columns:1fr}}@media(max-width:480px){.developer-health-grid{grid-template-columns:1fr}.developer-actions .btn{flex:1 1 auto}}
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 02b3e30..c449b2e 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.29.2" in index.text
++        assert "app.js?v=0.29.3" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_theme_leak_seal_v3.py b/tests/test_career_theme_leak_seal_v3.py
+index 368f33a..6ddb6fd 100644
+--- a/tests/test_career_theme_leak_seal_v3.py
++++ b/tests/test_career_theme_leak_seal_v3.py
+@@ -15,4 +15,4 @@ def test_non_cs_selection_health_skill_and_info_rows_use_track_tokens():
+         assert marker in CSS
+ 
+ def test_theme_css_asset_is_bumped_v3():
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+diff --git a/tests/test_career_theme_no_blue_leaks.py b/tests/test_career_theme_no_blue_leaks.py
+index df290a6..e55ad97 100644
+--- a/tests/test_career_theme_no_blue_leaks.py
++++ b/tests/test_career_theme_no_blue_leaks.py
+@@ -18,4 +18,4 @@ def test_non_cs_tracks_override_legacy_blue_profile_and_motion_components():
+         assert marker in CSS
+ 
+ def test_theme_css_asset_is_bumped():
+-    assert "styles.css?v=0.48.5" in HTML
++    assert "styles.css?v=0.48.6" in HTML
+diff --git a/tests/test_career_theme_parity.py b/tests/test_career_theme_parity.py
+index b359835..24a19b7 100644
+--- a/tests/test_career_theme_parity.py
++++ b/tests/test_career_theme_parity.py
+@@ -28,4 +28,4 @@ def test_three_tracks_keep_same_ui_contract_fields():
+             assert field in block
+ 
+ def test_stylesheet_cache_version_bumped():
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 4756ecd..2b24d4d 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.5" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.6" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index a0644c4..3b621bd 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.5" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.6" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.5" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.6" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index e1e8609..1efc74f 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.48.5' in HTML
+-    assert 'app.js?v=0.29.2' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
++    assert 'app.js?v=0.29.3' in HTML
+diff --git a/tests/test_electrical_engineering_track.py b/tests/test_electrical_engineering_track.py
+index 7333f2d..8f17ba6 100644
+--- a/tests/test_electrical_engineering_track.py
++++ b/tests/test_electrical_engineering_track.py
+@@ -24,5 +24,5 @@ def test_pink_silver_ui_exists_day_and_night():
+     assert "electrical_engineering:" in JS
+     assert "track-electrical-engineering" in JS
+     assert "body.track-electrical-engineering.theme-dark" in CSS
+-    assert "app.js?v=0.29.2" in HTML
+-    assert "styles.css?v=0.48.5" in HTML
++    assert "app.js?v=0.29.3" in HTML
++    assert "styles.css?v=0.48.6" in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index 8a7f9ee..1a502c0 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.29.2' in HTML
++    assert 'app.js?v=0.29.3' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+index 7e5729d..77e7ee4 100644
+--- a/tests/test_mobile_logo_contract.py
++++ b/tests/test_mobile_logo_contract.py
+@@ -6,7 +6,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
+ 
+ 
+ def test_mobile_header_keeps_full_animated_jobpilot_brand():
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+     assert '.sidebar .brand > div { display:block !important;' in CSS
+     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
+     assert '.sidebar .brand strong { display:block;' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 77b28f5..c02c57d 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.48.5' in HTML
+-    assert 'app.js?v=0.29.2' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
++    assert 'app.js?v=0.29.3' in HTML
+diff --git a/tests/test_onboarding_ready_locations_v5.py b/tests/test_onboarding_ready_locations_v5.py
+index 47e57dd..0d00c0e 100644
+--- a/tests/test_onboarding_ready_locations_v5.py
++++ b/tests/test_onboarding_ready_locations_v5.py
+@@ -21,5 +21,5 @@ def test_ready_screen_is_launchpad_style():
+     assert '.ready-spotlight' in CSS
+ 
+ def test_assets_bumped_v5():
+-    assert 'app.js?v=0.29.2' in HTML
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'app.js?v=0.29.3' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 28035ad..5c6d1ed 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.29.2" in HTML
++    assert "app.js?v=0.29.3" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_ui_refinement.py b/tests/test_onboarding_ui_refinement.py
+index 8967587..5e3c949 100644
+--- a/tests/test_onboarding_ui_refinement.py
++++ b/tests/test_onboarding_ui_refinement.py
+@@ -27,5 +27,5 @@ def test_logo_flight_dot_has_onboarding_specific_anchor():
+     assert "top:8px" in CSS and "right:41px" in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.2" in HTML
+-    assert "styles.css?v=0.48.5" in HTML
++    assert "app.js?v=0.29.3" in HTML
++    assert "styles.css?v=0.48.6" in HTML
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 0e8ad0b..191ca01 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,8 +10,8 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.29.2' in HTML
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'app.js?v=0.29.3' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+     assert ".onboarding-gate" in CSS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 723dcb9..321b4c6 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -39,5 +39,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.29.2' in HTML
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'app.js?v=0.29.3' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+diff --git a/tests/test_onboarding_v6_polish.py b/tests/test_onboarding_v6_polish.py
+index 707e1c9..a590847 100644
+--- a/tests/test_onboarding_v6_polish.py
++++ b/tests/test_onboarding_v6_polish.py
+@@ -19,5 +19,5 @@ def test_scan_waits_for_server_before_showing_counts():
+     assert "onboardingWaitingBar" in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.2" in HTML
+-    assert "styles.css?v=0.48.5" in HTML
++    assert "app.js?v=0.29.3" in HTML
++    assert "styles.css?v=0.48.6" in HTML
+diff --git a/tests/test_palette_redesign_v2.py b/tests/test_palette_redesign_v2.py
+index 99c3925..b7ae2b0 100644
+--- a/tests/test_palette_redesign_v2.py
++++ b/tests/test_palette_redesign_v2.py
+@@ -6,7 +6,7 @@ HTML = Path('app/static/index.html').read_text()
+ 
+ def test_palette_redesign_v2_is_present_and_cache_bumped():
+     assert 'Palette Redesign V2' in CSS
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'styles.css?v=0.48.6' in HTML
+ 
+ 
+ def test_iem_has_light_champagne_and_warm_graphite_dark_palette():
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+index b1647cf..c73629a 100644
+--- a/tests/test_save_responsiveness_and_admin_preview.py
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+     assert "הרשאות השרת שלך נשארו Admin" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.2" in HTML
+-    assert "styles.css?v=0.48.5" in HTML
++    assert "app.js?v=0.29.3" in HTML
++    assert "styles.css?v=0.48.6" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 848070f..53f15f6 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.5" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.6" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index e199682..2033a5e 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.2"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.3"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 9f1234a..c85defc 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.29.2' in HTML
+-    assert 'styles.css?v=0.48.5' in HTML
++    assert 'app.js?v=0.29.3' in HTML
++    assert 'styles.css?v=0.48.6' in HTML

@@ -555,6 +555,123 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
     }
 
 
+def _require_developer(request: Request):
+    identity = getattr(request.state, "identity", None)
+    if not _developer_tools_allowed(identity):
+        raise HTTPException(403, "Admin access required")
+    return identity
+
+
+def _developer_refresh_status(user_id: str) -> dict:
+    rows = []
+    with _profile_refresh_queue_lock:
+        for (uid, track), pending in _profile_refresh_pending.items():
+            if uid == user_id:
+                rows.append({"career_track": track, **pending, "worker_alive": bool(_profile_refresh_workers.get((uid, track)) and _profile_refresh_workers[(uid, track)].is_alive())})
+        for (uid, track), worker in _profile_refresh_workers.items():
+            if uid == user_id and worker.is_alive() and not any(row["career_track"] == track for row in rows):
+                rows.append({"career_track": track, "rescore_jobs": False, "refresh_resumes": False, "worker_alive": True})
+    return {"pending": rows, "count": len(rows)}
+
+
+@app.get("/api/admin/developer/overview")
+def developer_overview(request: Request, db: Session = Depends(get_db)):
+    identity = _require_developer(request)
+    user_id = current_user_id(db)
+    profile = get_user_profile(db)
+    track = active_track(profile)
+    source_rows = db.execute(select(Source.enabled, Source.last_error, Source.health_score).where(Source.career_track == track)).all()
+    devices = db.scalars(select(AgentDevice).order_by(desc(AgentDevice.last_seen_at))).all()
+    scan = _effective_scan_status(db, user_id, track)
+    return {
+        "app": {"version": app.version, "auth_mode": settings.auth_mode, "storage_mode": settings.storage_mode,
+                "scan_execution_mode": settings.scan_execution_mode, "scheduler_enabled": settings.scheduler_enabled,
+                "timezone": settings.timezone, "scan_time": f"{settings.scan_hour:02d}:{settings.scan_minute:02d}",
+                "max_users": settings.max_users, "max_concurrent_user_scans": settings.max_concurrent_user_scans},
+        "identity": {"email": getattr(identity, "email", ""), "role": getattr(identity, "role", "admin"), "user_id": user_id},
+        "track": track,
+        "scan": scan,
+        "sources": {"total": len(source_rows), "enabled": sum(1 for enabled, _, _ in source_rows if enabled),
+                    "errors": sum(1 for enabled, error, _ in source_rows if enabled and error),
+                    "average_health": round(sum(int(health or 0) for _, _, health in source_rows) / len(source_rows)) if source_rows else 0},
+        "jobs": {"active": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True))) or 0,
+                 "strong": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True), Job.score >= 80)) or 0},
+        "agent": {"devices": len(devices), "enabled": sum(1 for device in devices if device.enabled),
+                  "online": sum(1 for device in devices if device.enabled and device.last_seen_at and (utcnow() - device.last_seen_at).total_seconds() < 120),
+                  "last_seen_at": devices[0].last_seen_at if devices else None},
+        "derived_refresh": _developer_refresh_status(user_id),
+        "flags": {"cloud_storage": cloud_storage_enabled(), "application_agent": application_agent_allowed(email=getattr(identity, "email", "")),
+                  "external_scan": settings.scan_execution_mode.strip().lower() == "external"},
+    }
+
+
+@app.get("/api/admin/developer/users/{user_id}")
+def developer_user_detail(user_id: str, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
+    if not account:
+        raise HTTPException(404, "User not found")
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        track = active_track(profile) if profile else DEFAULT_TRACK
+        return {"user": {"id": account.auth_user_id, "email": account.email, "role": account.role, "claimed_at": account.claimed_at, "last_seen_at": account.last_seen_at},
+                "profile": {"track": track, "onboarding_version": int(profile.onboarding_version or 0) if profile else 0,
+                            "skills": len(loads(profile.skills_json, [])) if profile else 0, "desired_titles": len(loads(profile.desired_titles_json, [])) if profile else 0},
+                "counts": {"jobs": tenant.scalar(select(func.count()).select_from(Job)) or 0, "sources": tenant.scalar(select(func.count()).select_from(Source)) or 0,
+                           "applications": tenant.scalar(select(func.count()).select_from(Application)) or 0, "resumes": tenant.scalar(select(func.count()).select_from(ResumeProfile)) or 0}}
+
+
+@app.post("/api/admin/developer/onboarding/reset")
+def developer_reset_onboarding(request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    profile = get_user_profile(db)
+    if not profile:
+        raise HTTPException(404, "Profile not found")
+    profile.onboarding_version = 0
+    profile.onboarding_state_json = "{}"
+    db.add(AuditLog(event_type="developer_onboarding_reset", entity_type="profile", entity_id=str(profile.id), message="Onboarding reset from Developer Center"))
+    db.commit()
+    return {"ok": True, "onboarding": _onboarding_payload(profile)}
+
+
+@app.post("/api/admin/developer/rerank")
+def developer_rerank(request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    profile = get_user_profile(db)
+    track = active_track(profile)
+    _queue_profile_derived_refresh(current_user_id(db), track, rescore_jobs=True, refresh_resumes=False)
+    return {"ok": True, "career_track": track, "queue": _developer_refresh_status(current_user_id(db))}
+
+
+@app.post("/api/admin/developer/sources/{source_id}/test", status_code=202)
+async def developer_test_source(source_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    source = _active_source_or_404(db, source_id)
+    user_id = current_user_id(db)
+    if _user_scan_lock(user_id).locked():
+        return {"status": "already_running", "source_id": source_id, "career_track": source.career_track}
+    asyncio.create_task(_run_targeted_scan(user_id, {source_id}, source.career_track))
+    return {"status": "started", "source_id": source_id, "career_track": source.career_track}
+
+
+@app.post("/api/admin/developer/scan-runtime/reset")
+def developer_reset_scan_runtime(request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    user_id = current_user_id(db)
+    if _user_scan_lock(user_id).locked():
+        raise HTTPException(409, "Cannot reset scan runtime while a scan is running")
+    scan_states_by_user[user_id] = {track.key: _new_scan_state() for track in CAREER_TRACKS}
+    return {"ok": True}
+
+
+@app.get("/api/admin/developer/audit")
+def developer_audit(request: Request, db: Session = Depends(get_db), limit: int = Query(30, ge=1, le=100)):
+    _require_developer(request)
+    rows = db.scalars(select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit)).all()
+    return [{"id": row.id, "event_type": row.event_type, "entity_type": row.entity_type, "entity_id": row.entity_id,
+             "message": row.message, "created_at": row.created_at} for row in rows]
+
+
 @app.get("/api/security/status")
 def security_status(request: Request):
     if settings.auth_mode == "supabase":
