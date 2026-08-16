@@ -3354,3 +3354,19 @@ body.track-electrical-engineering :where(.developer-health,.developer-card){bord
 }
 .onboarding-brand.onboarding-logo-ready .brand-flight-dot::after{animation:magicalAura 4.2s var(--ease-apple) infinite}
 .onboarding-brand.onboarding-logo-ready .brand-i-dot{opacity:.32}
+
+/* v0.3.2 — onboarding logo orb is part of the JP SVG coordinate system.
+   This intentionally avoids container/RTL offsets so the orb scales with the mark. */
+.onboarding-brand .onboarding-brand-mark{position:relative}
+.onboarding-brand .brand-flight-dot{display:none!important}
+.onboarding-logo-orb{
+  fill:#fff;stroke:#8bd9fb;stroke-width:1.35;
+  filter:drop-shadow(0 0 2px rgba(255,255,255,.95)) drop-shadow(0 0 5px rgba(103,207,252,.78));
+  transform-box:fill-box;transform-origin:center;
+  animation:onboardingOrbPulse 3.4s var(--ease-apple) infinite;
+}
+@keyframes onboardingOrbPulse{
+  0%,100%{transform:scale(.92);opacity:.9}
+  50%{transform:scale(1.08);opacity:1}
+}
+@media (prefers-reduced-motion:reduce){.onboarding-logo-orb{animation:none}}
