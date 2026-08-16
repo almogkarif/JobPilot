@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import html as html_lib
+import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -72,8 +73,8 @@ PRESETS = {
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
     "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "load_more_text": "תוצאות חיפוש נוספות", "settle_ms": 3000, "selector_timeout_ms": 22000, "prefer_link_text": True, "http_first": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 100, "dynamic_scroll": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml", "https://elbitsystemscareer.com/sitemap_index.xml"), "network_id_keys": ("jid", "jobId", "job_id", "requisitionId", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(?:[^/?#]+/)?(\d+)/?", "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"/job/(?:[^/?#]+/)?(\d+)/?", "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 90, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "iai": {"url": "https://jobs.iai.co.il/jobs/", "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "selector_timeout_ms": 22000, "raw_id_fallback": True, "dynamic_scroll": True, "capture_network": True, "href_template": "https://jobs.iai.co.il/job/{id}/", "hydrate_details": True, "max_detail_jobs": 100, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml", "https://jobs.iai.co.il/sitemap_index.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
@@ -238,8 +239,11 @@ class OfficialCareersCollector:
                     body_text = body_text or ""
                     raw_rows = _extract_raw_rows(page_html, preset) + _extract_text_id_rows(body_text, preset)
                     network_rows = await _collect_network_rows(network_responses, preset)
-                    if generic_rows or raw_rows or network_rows:
-                        return _dedupe_rows(generic_rows + raw_rows + network_rows, preset)
+                    card_rows = []
+                    if preset.get("dom_card_fallback"):
+                        card_rows = await _collect_rendered_card_rows(page, preset)
+                    if generic_rows or raw_rows or network_rows or card_rows:
+                        return _dedupe_rows(generic_rows + raw_rows + network_rows + card_rows, preset)
                     if preset.get("allow_no_links"):
                         return []
                     raise RuntimeError(
@@ -291,6 +295,62 @@ class OfficialCareersCollector:
             finally:
                 await browser.close()
         return rows
+
+
+async def _collect_rendered_card_rows(page, preset: dict) -> list[dict]:
+    """Recover jobs from rendered listing cards when the site exposes no job hrefs.
+
+    IAI and Rafael render useful job content but can keep the actual navigation in
+    framework event handlers/state.  Treat each substantial heading/card as a job
+    and use a deterministic listing URL token for JobPilot identity.  Clicking the
+    result still lands on the employer's official jobs page rather than a guessed
+    detail URL.
+    """
+    raw = await page.locator("h2, h3, h4, [role=heading]").evaluate_all(
+        """els => els.map(h => {
+          const title = (h.innerText || '').trim();
+          let node = h;
+          let best = h;
+          for (let i = 0; i < 7 && node && node.parentElement; i++) {
+            const parent = node.parentElement;
+            const text = (parent.innerText || '').trim();
+            if (text.length > 40 && text.length < 7000) best = parent;
+            if (text.length >= 7000) break;
+            node = parent;
+          }
+          return {title, text: (best.innerText || '').trim()};
+        })"""
+    )
+    ignored = {
+        "משרות", "משרות פתוחות", "לא נמצאו משרות פתוחות", "תחומי עיסוק",
+        "חיפוש משרות", "jobs", "open positions", "careers",
+    }
+    rows: list[dict] = []
+    seen: set[str] = set()
+    base = str(preset["url"])
+    sep = "&" if "?" in base else "?"
+    for item in raw:
+        title = " ".join(str(item.get("title") or "").split()).strip()
+        text = " ".join(str(item.get("text") or "").split()).strip()
+        if not title or title.casefold() in {x.casefold() for x in ignored}:
+            continue
+        if len(title) < 3 or len(title) > 180 or len(text) < max(35, len(title) + 12):
+            continue
+        # Avoid navigation/footer headings and repeated parent containers.
+        normalized = title.casefold()
+        if normalized in seen:
+            continue
+        job_signals = ("תפקיד", "דרוש", "מחפשים", "משרה", "ניסיון", "מהנדס", "מהנדסת",
+                       "engineer", "developer", "manager", "student", "fpga", "vlsi")
+        if not any(signal in text.casefold() for signal in job_signals):
+            continue
+        seen.add(normalized)
+        stable = hashlib.sha256((title + "\n" + text[:800]).encode("utf-8")).hexdigest()[:16]
+        rows.append({
+            "href": f"{base}{sep}jp_job={stable}", "onclick": "",
+            "title": title, "linkText": title, "text": text,
+        })
+    return rows
 
 
 async def _collect_sitemap_rows(preset: dict) -> list[dict]:
