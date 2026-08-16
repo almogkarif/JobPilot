@@ -59,3 +59,11 @@ def test_quality_treats_query_job_ids_as_distinct_application_links():
     ]
     validate_source_payload("Check Point", checkpoint)
     validate_source_payload("Elbit", elbit)
+
+
+def test_quality_treats_proteantecs_pi_as_distinct_application_link():
+    jobs = [
+        _job(i, url=f"https://www.proteantecs.com/careerinfo?pi=F1.365-{i}")
+        for i in range(15)
+    ]
+    validate_source_payload("proteanTecs", jobs)

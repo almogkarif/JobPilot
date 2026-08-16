@@ -38,7 +38,7 @@ def _url_key(value: str | None) -> str:
         # query completely, making ten legitimate jobs look like one repeated URL.
         # Keep only job-identity parameters so tracking parameters cannot fake
         # diversity in a corrupt payload.
-        identity_names = {"jid", "jobid", "job_id", "joborderid", "gh_jid", "reqid", "requisitionid"}
+        identity_names = {"jid", "jobid", "job_id", "joborderid", "gh_jid", "reqid", "requisitionid", "pi"}
         identity_query = [
             (key.casefold(), val.casefold())
             for key, val in parse_qsl(parsed.query, keep_blank_values=False)

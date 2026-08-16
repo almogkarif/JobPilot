@@ -69,3 +69,14 @@ def test_proteantecs_positions_keep_distinct_careerinfo_links():
 def test_structured_adapter_rejects_unrelated_numeric_objects_without_job_title():
     payload = '{"analytics":{"id":76048939,"name":""},"page":{"id":76040000,"label":"Jobs"}}'
     assert _extract_structured_job_rows(payload, PRESETS["iai"]) == []
+
+
+def test_unstable_large_boards_use_their_public_data_feeds():
+    for identifier in ("iai", "proteantecs", "elbit"):
+        preset = PRESETS[identifier]
+        assert preset["data_url"].startswith("https://")
+        assert preset["data_only"] is True
+
+
+def test_pliops_does_not_launch_a_browser_when_its_static_page_has_no_jobs():
+    assert PRESETS["pliops"]["static_only"] is True
