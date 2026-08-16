@@ -1,0 +1,357 @@
+diff --git a/app/static/app.js b/app/static/app.js
+index 1b90c81..e46dc5d 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -3354,7 +3354,36 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') se
+ 
+ 
+ const ONBOARDING_VERSION = 2;
+-const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0, scanObservedRunning: false };
++const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0, scanObservedRunning: false, saveTimer: null, saveChain: Promise.resolve() };
++
++function onboardingSyncSavedProfile(profile){
++  if(!profile)return;
++  state.profile=profile; state.profileLoaded=true;
++  // The onboarding is only another editor for the real profile. Keep the hidden/main
++  // site controls in sync immediately so entering the site never reveals stale values.
++  renderCareerPreferenceOptions();
++  applyProfileToForm(profile);
++  updateProfileDirtyState();
++}
++function onboardingPersistProfile(patch){
++  onboardingState.saveChain=onboardingState.saveChain.then(async()=>{
++    const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(patch)});
++    onboardingSyncSavedProfile(saved);
++    return saved;
++  }).catch(error=>{toast(`השמירה מהפתיחה נכשלה: ${error.message}`);throw error});
++  return onboardingState.saveChain;
++}
++function onboardingSchedulePreferences(delay=0){
++  if(onboardingState.saveTimer)clearTimeout(onboardingState.saveTimer);
++  const run=()=>{onboardingState.saveTimer=null;const draft=onboardingCollectPreferences();onboardingPersistProfile(draft).then(saved=>{
++    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],preferred_work_modes:[...(saved.preferred_work_modes||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
++  }).catch(()=>{});};
++  if(delay)onboardingState.saveTimer=setTimeout(run,delay);else run();
++}
++async function onboardingFlushSave(){
++  if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;await onboardingPersistProfile(onboardingCollectPreferences());}
++  await onboardingState.saveChain;
++}
+ const onboardingSteps = ['track','resume','skills','preferences','review','scan'];
+ 
+ function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
+@@ -3397,7 +3426,7 @@ function onboardingSetStep(index){
+   }else if(step==='skills'){
+     const values=onboardingSkillValues();
+     content.innerHTML=`<span class="kicker">סקילים · ${esc(track.label)}</span><h1 id="onboarding-title">מה באמת מייצג אותך?</h1><p>סימנו הצעות שנמצאו בקורות החיים. הוסף או הסר בלחיצה — הרשימה מותאמת למסלול שבחרת.</p><div class="onboarding-skill-checks">${values.map(v=>`<label class="onboarding-skill-check ${onboardingState.selectedSkills.has(v)?'selected':''}"><input type="checkbox" data-ob-skill="${encodeURIComponent(v)}" ${onboardingState.selectedSkills.has(v)?'checked':''}><span class="checkmark">✓</span><strong>${esc(v)}</strong></label>`).join('')}</div>`;
+-    $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill)});
++    $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill);onboardingPersistProfile({skills:[...onboardingState.selectedSkills]}).catch(()=>{})});
+   }else if(step==='preferences'){
+     const draft=onboardingState.draft||{};
+     const modes=new Set(draft.preferred_work_modes||profile.preferred_work_modes||['hybrid','remote','onsite']);
+@@ -3417,8 +3446,10 @@ function onboardingSetStep(index){
+       <fieldset class="onboarding-choice-field full"><legend>חשוב לי למצוא</legend><div class="onboarding-choice-grid compact">${keywordChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח נוספות</span><input id="ob-keywords-extra" value="${esc((profile.keywords||[]).filter(v=>!keywordChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל תחום, כלי או טכנולוגיה"></label></fieldset>
+       <fieldset class="onboarding-choice-field full"><legend>לא מתאים לי</legend><div class="onboarding-choice-grid compact">${commonExcluded.map(([v,l])=>onboardingChoiceBox('excluded',v,l,excluded.has(v))).join('')}</div><label class="onboarding-other"><span>דברים נוספים שלא תרצה לראות</span><input id="ob-excluded-extra" value="${esc((profile.excluded_keywords||[]).filter(v=>!commonExcluded.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף מילות סינון"></label></fieldset>
+     </div>`;
+-    $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>b.classList.toggle('selected'));
+-    $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>onboardingToggleChoice(b));
++    $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>{b.classList.toggle('selected');onboardingSchedulePreferences()});
++    $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>{onboardingToggleChoice(b);onboardingSchedulePreferences()});
++    $('#ob-experience').onchange=()=>onboardingSchedulePreferences();
++    ['#ob-titles-extra','#ob-keywords-extra','#ob-excluded-extra'].forEach(selector=>{const input=$(selector);if(input)input.oninput=()=>onboardingSchedulePreferences(450)});
+   }else if(step==='review'){
+     const d=onboardingState.draft;
+     const modeLabels=(d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v));
+@@ -3447,17 +3478,13 @@ async function onboardingResume(event){
+ }
+ async function onboardingSaveSkills(){
+   const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
+-  state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify({skills})});
+-  state.profileLoaded=true;
++  state.profile=await onboardingPersistProfile({skills});
+   onboardingState.selectedSkills=new Set(state.profile.skills||skills);
+ }
+ async function saveOnboardingPreferences(){
+   const draft=onboardingCollectPreferences();
+-  const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(draft)});
+-  // Re-read the authoritative profile. This prevents a later developer-preview/open
+-  // from rendering stale desired_titles/keywords from an older in-memory profile.
+-  state.profile=await api('/api/profile');
+-  state.profileLoaded=true;
++  const saved=await onboardingPersistProfile(draft);
++  state.profile=saved;
+   onboardingState.draft={
+     desired_titles:[...(state.profile.desired_titles||[])],
+     preferred_locations:[...(state.profile.preferred_locations||[])],
+@@ -3473,6 +3500,7 @@ function onboardingCollectPreferences(){
+   onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
+ }
+ async function onboardingFinish(skipped=false){
++  await onboardingFlushSave();
+   if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
+   if(!onboardingState.preview)await api('/api/onboarding',{method:'PUT',body:JSON.stringify({completed:!skipped,skipped,step:'done'})});
+   $('#onboarding-gate').hidden=true;$('#onboarding-gate').setAttribute('aria-hidden','true');document.body.classList.remove('onboarding-open');onboardingState.preview=false;
+@@ -3529,7 +3557,7 @@ async function openOnboarding(preview=false){
+ async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
+ $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
+ $('#onboarding-skip').onclick=()=>onboardingFinish(true);
+-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
++$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await onboardingFlushSave();await saveOnboardingPreferences()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+ let developerUsersCache=[];
+ const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
+ const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
+diff --git a/app/static/index.html b/app/static/index.html
+index 7e3d500..7aa5a82 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -449,6 +449,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.29.4"></script>
++  <script src="/static/app.js?v=0.29.5"></script>
+ </body>
+ </html>
+diff --git a/tests/test_api.py b/tests/test_api.py
+index a4e96a4..3983415 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.29.4" in index.text
++        assert "app.js?v=0.29.5" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 27a9641..1492aa6 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -27,7 +27,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.7" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index 8a0a8de..bc9a922 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -29,7 +29,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.7" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -119,7 +119,7 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.7" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index 0d28b23..13d4b84 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -27,4 +27,4 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ def test_v0111_asset_versions_are_bumped():
+     assert 'styles.css?v=0.48.7' in HTML
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+diff --git a/tests/test_electrical_engineering_track.py b/tests/test_electrical_engineering_track.py
+index 32f4540..ba05fd2 100644
+--- a/tests/test_electrical_engineering_track.py
++++ b/tests/test_electrical_engineering_track.py
+@@ -24,5 +24,5 @@ def test_pink_silver_ui_exists_day_and_night():
+     assert "electrical_engineering:" in JS
+     assert "track-electrical-engineering" in JS
+     assert "body.track-electrical-engineering.theme-dark" in CSS
+-    assert "app.js?v=0.29.4" in HTML
++    assert "app.js?v=0.29.5" in HTML
+     assert "styles.css?v=0.48.7" in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index 7b00691..8c2a0c0 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index 0a8a1f9..5e2367e 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -46,4 +46,4 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+     assert 'styles.css?v=0.48.7' in HTML
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+diff --git a/tests/test_onboarding_live_persistence.py b/tests/test_onboarding_live_persistence.py
+new file mode 100644
+index 0000000..c3219fd
+--- /dev/null
++++ b/tests/test_onboarding_live_persistence.py
+@@ -0,0 +1,12 @@
++from pathlib import Path
++
++JS = Path("app/static/app.js").read_text()
++
++def test_onboarding_is_a_live_editor_for_real_profile():
++    assert "function onboardingPersistProfile(patch)" in JS
++    assert "onboardingSyncSavedProfile(saved)" in JS
++    assert "applyProfileToForm(profile)" in JS
++    assert "onboardingPersistProfile({skills:[...onboardingState.selectedSkills]})" in JS
++    assert "onboardingSchedulePreferences()" in JS
++    assert "onboardingSchedulePreferences(450)" in JS
++    assert "await onboardingFlushSave()" in JS
+diff --git a/tests/test_onboarding_ready_locations_v5.py b/tests/test_onboarding_ready_locations_v5.py
+index ae0add4..d86ba45 100644
+--- a/tests/test_onboarding_ready_locations_v5.py
++++ b/tests/test_onboarding_ready_locations_v5.py
+@@ -21,5 +21,5 @@ def test_ready_screen_is_launchpad_style():
+     assert '.ready-spotlight' in CSS
+ 
+ def test_assets_bumped_v5():
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+     assert 'styles.css?v=0.48.7' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 3434d08..ad18386 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.29.4" in HTML
++    assert "app.js?v=0.29.5" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_ui_refinement.py b/tests/test_onboarding_ui_refinement.py
+index e507424..4fc9cf2 100644
+--- a/tests/test_onboarding_ui_refinement.py
++++ b/tests/test_onboarding_ui_refinement.py
+@@ -31,5 +31,5 @@ def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():
+     assert "--onboarding-mark-size" not in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.4" in HTML
++    assert "app.js?v=0.29.5" in HTML
+     assert "styles.css?v=0.48.7" in HTML
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 52bf95f..c9fc27d 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,7 +10,7 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+     assert 'styles.css?v=0.48.7' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 4eac685..8ea6110 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -40,5 +40,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+     assert 'styles.css?v=0.48.7' in HTML
+diff --git a/tests/test_onboarding_v6_polish.py b/tests/test_onboarding_v6_polish.py
+index 301ca85..43f2489 100644
+--- a/tests/test_onboarding_v6_polish.py
++++ b/tests/test_onboarding_v6_polish.py
+@@ -19,5 +19,5 @@ def test_scan_waits_for_real_site_scan_before_declaring_completion():
+     assert "syncOnboardingScanStatus" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.4" in HTML
++    assert "app.js?v=0.29.5" in HTML
+     assert "styles.css?v=0.48.7" in HTML
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+index da37ff7..6e0f6a1 100644
+--- a/tests/test_save_responsiveness_and_admin_preview.py
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+     assert "הרשאות השרת שלך נשארו Admin" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.4" in HTML
++    assert "app.js?v=0.29.5" in HTML
+     assert "styles.css?v=0.48.7" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index 0ebdf68..a21b7c6 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -21,7 +21,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+     html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.7" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', '')
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index d1c0532..142c34a 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.4"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.5"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 985cc6b..7c2abcf 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.29.4' in HTML
++    assert 'app.js?v=0.29.5' in HTML
+     assert 'styles.css?v=0.48.7' in HTML

@@ -3354,7 +3354,36 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') se
 
 
 const ONBOARDING_VERSION = 2;
-const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0, scanObservedRunning: false };
+const onboardingState = { step: 0, preview: false, resume: null, selectedSkills: new Set(), draft: {}, scanTimer: null, scanStartedAt: 0, scanObservedRunning: false, saveTimer: null, saveChain: Promise.resolve() };
+
+function onboardingSyncSavedProfile(profile){
+  if(!profile)return;
+  state.profile=profile; state.profileLoaded=true;
+  // The onboarding is only another editor for the real profile. Keep the hidden/main
+  // site controls in sync immediately so entering the site never reveals stale values.
+  renderCareerPreferenceOptions();
+  applyProfileToForm(profile);
+  updateProfileDirtyState();
+}
+function onboardingPersistProfile(patch){
+  onboardingState.saveChain=onboardingState.saveChain.then(async()=>{
+    const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(patch)});
+    onboardingSyncSavedProfile(saved);
+    return saved;
+  }).catch(error=>{toast(`השמירה מהפתיחה נכשלה: ${error.message}`);throw error});
+  return onboardingState.saveChain;
+}
+function onboardingSchedulePreferences(delay=0){
+  if(onboardingState.saveTimer)clearTimeout(onboardingState.saveTimer);
+  const run=()=>{onboardingState.saveTimer=null;const draft=onboardingCollectPreferences();onboardingPersistProfile(draft).then(saved=>{
+    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],preferred_work_modes:[...(saved.preferred_work_modes||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
+  }).catch(()=>{});};
+  if(delay)onboardingState.saveTimer=setTimeout(run,delay);else run();
+}
+async function onboardingFlushSave(){
+  if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;await onboardingPersistProfile(onboardingCollectPreferences());}
+  await onboardingState.saveChain;
+}
 const onboardingSteps = ['track','resume','skills','preferences','review','scan'];
 
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
@@ -3397,7 +3426,7 @@ function onboardingSetStep(index){
   }else if(step==='skills'){
     const values=onboardingSkillValues();
     content.innerHTML=`<span class="kicker">סקילים · ${esc(track.label)}</span><h1 id="onboarding-title">מה באמת מייצג אותך?</h1><p>סימנו הצעות שנמצאו בקורות החיים. הוסף או הסר בלחיצה — הרשימה מותאמת למסלול שבחרת.</p><div class="onboarding-skill-checks">${values.map(v=>`<label class="onboarding-skill-check ${onboardingState.selectedSkills.has(v)?'selected':''}"><input type="checkbox" data-ob-skill="${encodeURIComponent(v)}" ${onboardingState.selectedSkills.has(v)?'checked':''}><span class="checkmark">✓</span><strong>${esc(v)}</strong></label>`).join('')}</div>`;
-    $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill)});
+    $$('[data-ob-skill]',content).forEach(input=>input.onchange=()=>{const skill=decodeURIComponent(input.dataset.obSkill||'');input.closest('.onboarding-skill-check').classList.toggle('selected',input.checked);input.checked?onboardingState.selectedSkills.add(skill):onboardingState.selectedSkills.delete(skill);onboardingPersistProfile({skills:[...onboardingState.selectedSkills]}).catch(()=>{})});
   }else if(step==='preferences'){
     const draft=onboardingState.draft||{};
     const modes=new Set(draft.preferred_work_modes||profile.preferred_work_modes||['hybrid','remote','onsite']);
@@ -3417,8 +3446,10 @@ function onboardingSetStep(index){
       <fieldset class="onboarding-choice-field full"><legend>חשוב לי למצוא</legend><div class="onboarding-choice-grid compact">${keywordChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח נוספות</span><input id="ob-keywords-extra" value="${esc((profile.keywords||[]).filter(v=>!keywordChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל תחום, כלי או טכנולוגיה"></label></fieldset>
       <fieldset class="onboarding-choice-field full"><legend>לא מתאים לי</legend><div class="onboarding-choice-grid compact">${commonExcluded.map(([v,l])=>onboardingChoiceBox('excluded',v,l,excluded.has(v))).join('')}</div><label class="onboarding-other"><span>דברים נוספים שלא תרצה לראות</span><input id="ob-excluded-extra" value="${esc((profile.excluded_keywords||[]).filter(v=>!commonExcluded.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף מילות סינון"></label></fieldset>
     </div>`;
-    $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>b.classList.toggle('selected'));
-    $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>onboardingToggleChoice(b));
+    $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>{b.classList.toggle('selected');onboardingSchedulePreferences()});
+    $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>{onboardingToggleChoice(b);onboardingSchedulePreferences()});
+    $('#ob-experience').onchange=()=>onboardingSchedulePreferences();
+    ['#ob-titles-extra','#ob-keywords-extra','#ob-excluded-extra'].forEach(selector=>{const input=$(selector);if(input)input.oninput=()=>onboardingSchedulePreferences(450)});
   }else if(step==='review'){
     const d=onboardingState.draft;
     const modeLabels=(d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v));
@@ -3447,17 +3478,13 @@ async function onboardingResume(event){
 }
 async function onboardingSaveSkills(){
   const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
-  state.profile=await api('/api/profile',{method:'PATCH',body:JSON.stringify({skills})});
-  state.profileLoaded=true;
+  state.profile=await onboardingPersistProfile({skills});
   onboardingState.selectedSkills=new Set(state.profile.skills||skills);
 }
 async function saveOnboardingPreferences(){
   const draft=onboardingCollectPreferences();
-  const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(draft)});
-  // Re-read the authoritative profile. This prevents a later developer-preview/open
-  // from rendering stale desired_titles/keywords from an older in-memory profile.
-  state.profile=await api('/api/profile');
-  state.profileLoaded=true;
+  const saved=await onboardingPersistProfile(draft);
+  state.profile=saved;
   onboardingState.draft={
     desired_titles:[...(state.profile.desired_titles||[])],
     preferred_locations:[...(state.profile.preferred_locations||[])],
@@ -3473,6 +3500,7 @@ function onboardingCollectPreferences(){
   onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
 }
 async function onboardingFinish(skipped=false){
+  await onboardingFlushSave();
   if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
   if(!onboardingState.preview)await api('/api/onboarding',{method:'PUT',body:JSON.stringify({completed:!skipped,skipped,step:'done'})});
   $('#onboarding-gate').hidden=true;$('#onboarding-gate').setAttribute('aria-hidden','true');document.body.classList.remove('onboarding-open');onboardingState.preview=false;
@@ -3529,7 +3557,7 @@ async function openOnboarding(preview=false){
 async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
 $('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
 $('#onboarding-skip').onclick=()=>onboardingFinish(true);
-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences')await saveOnboardingPreferences();onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await onboardingFlushSave();await saveOnboardingPreferences()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
 let developerUsersCache=[];
 const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
 const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';

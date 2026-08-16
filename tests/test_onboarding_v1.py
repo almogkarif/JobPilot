@@ -10,7 +10,7 @@ def test_onboarding_assets_and_admin_preview_exist():
     assert 'id="onboarding-gate"' in HTML
     assert 'data-view="developer"' in HTML
     assert 'id="developer-preview-onboarding"' in HTML
-    assert 'app.js?v=0.29.4' in HTML
+    assert 'app.js?v=0.29.5' in HTML
     assert 'styles.css?v=0.48.7' in HTML
     assert "const ONBOARDING_VERSION = 2" in JS
     assert "maybeOpenOnboarding" in JS
