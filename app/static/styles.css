@@ -3340,3 +3340,17 @@ body.track-electrical-engineering :where(.developer-health,.developer-card){bord
 .onboarding-scan-status{margin:26px auto 18px;max-width:680px;text-align:start;min-height:72px}
 .onboarding-scan-stage .onboarding-scan-status span{position:relative;z-index:2}
 .onboarding-scan-stage.complete .onboarding-scan-status{box-shadow:0 10px 28px var(--accent-glow)}
+
+
+/* Onboarding logo orb: keep it attached to the JP mark at every viewport/theme.
+   This intentionally overrides the generic flight-dot coordinates, which are calculated
+   for the full in-app logo and look offset inside the compact onboarding header. */
+.onboarding-brand.onboarding-logo-ready .brand-flight-dot{
+  left:calc(24px - 5px)!important;
+  top:calc(8px - 5px)!important;
+  transform:none!important;
+  translate:0 0!important;
+  animation:magicalDotFloat 4.2s var(--ease-apple) infinite;
+}
+.onboarding-brand.onboarding-logo-ready .brand-flight-dot::after{animation:magicalAura 4.2s var(--ease-apple) infinite}
+.onboarding-brand.onboarding-logo-ready .brand-i-dot{opacity:.32}

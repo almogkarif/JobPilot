@@ -3196,6 +3196,13 @@ window.openCloudAccount = openCloudAccount;
 
 function initInteractiveLogo(brand) {
   if (!brand || brand.dataset.logoReady === 'true') return;
+  // Onboarding keeps the animated JP mark, but its orb is optically anchored to the mark itself.
+  // The full flight-to-wordmark interaction is reserved for the in-app brand where there is more room.
+  if (brand.classList.contains('onboarding-brand')) {
+    brand.dataset.logoReady = 'true';
+    brand.classList.add('onboarding-logo-ready');
+    return;
+  }
   const mark = brand.querySelector('.brand-mark');
   const dot = brand.querySelector('.brand-flight-dot');
   const target = brand.querySelector('.brand-i-dot');
@@ -3459,7 +3466,7 @@ function onboardingSetStep(index){
       <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
       <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נסרוק את המקורות הפעילים, נחשב התאמה לכל משרה ונציג קודם את התוצאות החזקות ביותר.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
   }else{
-    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>זו אותה סריקה של JobPilot. ההתקדמות כאן משקפת בזמן אמת את פס הסריקה בלוח הבקרה.</p><div id="onboarding-scan-status" class="scan-status onboarding-scan-status" aria-live="polite"><span><b>מוכן לסריקה הראשונה</b><small>לחץ על הכפתור כדי להתחיל</small></span><i class="scan-status-fill" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
+    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>התהליך יכול להימשך מספר דקות.</p><div id="onboarding-scan-status" class="scan-status onboarding-scan-status" aria-live="polite"><span><b>מוכן לסריקה הראשונה</b><small>לחץ על הכפתור כדי להתחיל</small></span><i class="scan-status-fill" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
     $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
   }
 }

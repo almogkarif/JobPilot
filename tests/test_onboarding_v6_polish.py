@@ -19,5 +19,5 @@ def test_scan_waits_for_real_site_scan_before_declaring_completion():
     assert "syncOnboardingScanStatus" in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.5" in HTML
-    assert "styles.css?v=0.48.7" in HTML
+    assert "app.js?v=0.29.6" in HTML
+    assert "styles.css?v=0.48.8" in HTML
