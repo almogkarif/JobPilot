@@ -21,5 +21,5 @@ def test_ready_screen_is_launchpad_style():
     assert '.ready-spotlight' in CSS
 
 def test_assets_bumped_v5():
-    assert 'app.js?v=0.29.6' in HTML
-    assert 'styles.css?v=0.48.9' in HTML
+    assert 'app.js?v=0.29.7' in HTML
+    assert 'styles.css?v=0.49.0' in HTML

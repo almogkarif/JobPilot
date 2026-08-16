@@ -621,6 +621,116 @@ def developer_user_detail(user_id: str, request: Request, db: Session = Depends(
                            "applications": tenant.scalar(select(func.count()).select_from(Application)) or 0, "resumes": tenant.scalar(select(func.count()).select_from(ResumeProfile)) or 0}}
 
 
+@app.get("/api/admin/developer/users/{user_id}/section/{section}")
+def developer_user_section(user_id: str, section: str, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
+    if not account:
+        raise HTTPException(404, "User not found")
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        if not profile:
+            raise HTTPException(404, "Profile not found")
+        if section == "track":
+            return {"title": "מסלול", "items": [{"primary": track_public_dict(CAREER_TRACK_BY_KEY[active_track(profile)], active=True)["label"], "secondary": active_track(profile)}]}
+        if section == "skills":
+            return {"title": "Skills", "items": [{"primary": value} for value in loads(profile.skills_json, [])]}
+        if section == "desired_titles":
+            return {"title": "Desired titles", "items": [{"primary": value} for value in loads(profile.desired_titles_json, [])]}
+        if section == "sources":
+            rows = tenant.scalars(select(Source).order_by(Source.career_track, Source.name)).all()
+            return {"title": "Sources", "items": [{"primary": row.name, "secondary": f"{row.career_track} · {'פעיל' if row.enabled else 'כבוי'} · health {row.health_score}%"} for row in rows]}
+        if section == "jobs":
+            rows = tenant.scalars(select(Job).order_by(desc(Job.score), desc(Job.discovered_at)).limit(100)).all()
+            return {"title": "Jobs", "items": [{"primary": row.title, "secondary": f"{row.company} · {row.location} · score {row.score}"} for row in rows]}
+        if section == "applications":
+            rows = tenant.scalars(select(Application).options(joinedload(Application.job)).order_by(desc(Application.updated_at)).limit(100)).all()
+            return {"title": "Applications", "items": [{"primary": row.job.title if row.job else f"Application #{row.id}", "secondary": f"{row.status} · {row.job.company if row.job else ''}"} for row in rows]}
+        if section == "resumes":
+            rows = tenant.scalars(select(ResumeProfile).order_by(desc(ResumeProfile.is_default), desc(ResumeProfile.created_at))).all()
+            return {"title": "Resumes", "items": [{"primary": row.filename or row.label, "secondary": f"{row.career_track}{' · ברירת מחדל' if row.is_default else ''}", "resume_id": row.id} for row in rows]}
+        raise HTTPException(404, "Unknown developer section")
+
+
+@app.get("/api/admin/developer/users/{user_id}/resumes/{resume_id}/file")
+def developer_user_resume_file(user_id: str, resume_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
+    if not account:
+        raise HTTPException(404, "User not found")
+    with user_session(user_id) as tenant:
+        resume = tenant.get(ResumeProfile, resume_id)
+        if not resume:
+            raise HTTPException(404, "Resume not found")
+        try:
+            content = read_bytes(resume.path)
+        except Exception as exc:
+            raise HTTPException(404, "Resume file is unavailable") from exc
+        filename = Path(resume.filename or resume.path or "resume.pdf").name
+        return Response(content=content, media_type=_resume_content_type(filename, None), headers={"Content-Disposition": f'inline; filename="resume{Path(filename).suffix.lower() or ".pdf"}"'})
+
+
+@app.post("/api/admin/developer/users/{user_id}/onboarding/reset")
+def developer_reset_user_onboarding(user_id: str, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
+    if not account:
+        raise HTTPException(404, "User not found")
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        if not profile:
+            raise HTTPException(404, "Profile not found")
+        profile.onboarding_version = 0
+        profile.onboarding_state_json = "{}"
+        tenant.add(AuditLog(event_type="developer_onboarding_reset", entity_type="profile", entity_id=str(profile.id), message="Onboarding reset by admin for next login"))
+        tenant.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/developer/users/{user_id}/profile/reset")
+def developer_reset_user_profile(user_id: str, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
+    if not account:
+        raise HTTPException(404, "User not found")
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        if not profile:
+            raise HTTPException(404, "Profile not found")
+        # Reset profile/preferences only. Jobs, sources, applications and uploaded CV files
+        # remain intact and are deliberately managed through their own inspector sections.
+        profile.full_name = ""
+        profile.email = account.email or ""
+        profile.phone = ""
+        profile.location = "Israel"
+        profile.linkedin_url = ""
+        profile.github_url = ""
+        profile.portfolio_url = ""
+        profile.application_password = ""
+        profile.cv_path = ""
+        profile.years_experience = 0
+        profile.years_experience_options_json = '["0"]'
+        profile.work_authorization = True
+        profile.needs_sponsorship = False
+        profile.skills_json = "[]"
+        profile.desired_titles_json = "[]"
+        profile.preferred_locations_json = '["Israel"]'
+        profile.preferred_work_modes_json = '["hybrid","remote","onsite"]'
+        profile.keywords_json = "[]"
+        profile.excluded_keywords_json = "[]"
+        profile.application_profile_json = "{}"
+        profile.active_career_track = DEFAULT_TRACK
+        profile.track_profiles_json = "{}"
+        profile.onboarding_version = 0
+        profile.onboarding_state_json = "{}"
+        profile.auto_apply_threshold = 82
+        profile.auto_submit_enabled = False
+        ensure_track_state(profile)
+        tenant.add(AuditLog(event_type="developer_profile_reset", entity_type="profile", entity_id=str(profile.id), message="Profile and search preferences reset by admin; jobs, sources, applications and resumes preserved"))
+        tenant.commit()
+    return {"ok": True}
+
+
 @app.post("/api/admin/developer/onboarding/reset")
 def developer_reset_onboarding(request: Request, db: Session = Depends(get_db)):
     _require_developer(request)

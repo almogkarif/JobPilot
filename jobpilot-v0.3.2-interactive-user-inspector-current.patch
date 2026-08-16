@@ -1,0 +1,545 @@
+diff --git a/app/main.py b/app/main.py
+index 889c518..179f22b 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -621,6 +621,116 @@ def developer_user_detail(user_id: str, request: Request, db: Session = Depends(
+                            "applications": tenant.scalar(select(func.count()).select_from(Application)) or 0, "resumes": tenant.scalar(select(func.count()).select_from(ResumeProfile)) or 0}}
+ 
+ 
++@app.get("/api/admin/developer/users/{user_id}/section/{section}")
++def developer_user_section(user_id: str, section: str, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
++    if not account:
++        raise HTTPException(404, "User not found")
++    with user_session(user_id) as tenant:
++        profile = get_user_profile(tenant)
++        if not profile:
++            raise HTTPException(404, "Profile not found")
++        if section == "track":
++            return {"title": "מסלול", "items": [{"primary": track_public_dict(CAREER_TRACK_BY_KEY[active_track(profile)], active=True)["label"], "secondary": active_track(profile)}]}
++        if section == "skills":
++            return {"title": "Skills", "items": [{"primary": value} for value in loads(profile.skills_json, [])]}
++        if section == "desired_titles":
++            return {"title": "Desired titles", "items": [{"primary": value} for value in loads(profile.desired_titles_json, [])]}
++        if section == "sources":
++            rows = tenant.scalars(select(Source).order_by(Source.career_track, Source.name)).all()
++            return {"title": "Sources", "items": [{"primary": row.name, "secondary": f"{row.career_track} · {'פעיל' if row.enabled else 'כבוי'} · health {row.health_score}%"} for row in rows]}
++        if section == "jobs":
++            rows = tenant.scalars(select(Job).order_by(desc(Job.score), desc(Job.discovered_at)).limit(100)).all()
++            return {"title": "Jobs", "items": [{"primary": row.title, "secondary": f"{row.company} · {row.location} · score {row.score}"} for row in rows]}
++        if section == "applications":
++            rows = tenant.scalars(select(Application).options(joinedload(Application.job)).order_by(desc(Application.updated_at)).limit(100)).all()
++            return {"title": "Applications", "items": [{"primary": row.job.title if row.job else f"Application #{row.id}", "secondary": f"{row.status} · {row.job.company if row.job else ''}"} for row in rows]}
++        if section == "resumes":
++            rows = tenant.scalars(select(ResumeProfile).order_by(desc(ResumeProfile.is_default), desc(ResumeProfile.created_at))).all()
++            return {"title": "Resumes", "items": [{"primary": row.filename or row.label, "secondary": f"{row.career_track}{' · ברירת מחדל' if row.is_default else ''}", "resume_id": row.id} for row in rows]}
++        raise HTTPException(404, "Unknown developer section")
++
++
++@app.get("/api/admin/developer/users/{user_id}/resumes/{resume_id}/file")
++def developer_user_resume_file(user_id: str, resume_id: int, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
++    if not account:
++        raise HTTPException(404, "User not found")
++    with user_session(user_id) as tenant:
++        resume = tenant.get(ResumeProfile, resume_id)
++        if not resume:
++            raise HTTPException(404, "Resume not found")
++        try:
++            content = read_bytes(resume.path)
++        except Exception as exc:
++            raise HTTPException(404, "Resume file is unavailable") from exc
++        filename = Path(resume.filename or resume.path or "resume.pdf").name
++        return Response(content=content, media_type=_resume_content_type(filename, None), headers={"Content-Disposition": f'inline; filename="resume{Path(filename).suffix.lower() or ".pdf"}"'})
++
++
++@app.post("/api/admin/developer/users/{user_id}/onboarding/reset")
++def developer_reset_user_onboarding(user_id: str, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
++    if not account:
++        raise HTTPException(404, "User not found")
++    with user_session(user_id) as tenant:
++        profile = get_user_profile(tenant)
++        if not profile:
++            raise HTTPException(404, "Profile not found")
++        profile.onboarding_version = 0
++        profile.onboarding_state_json = "{}"
++        tenant.add(AuditLog(event_type="developer_onboarding_reset", entity_type="profile", entity_id=str(profile.id), message="Onboarding reset by admin for next login"))
++        tenant.commit()
++    return {"ok": True}
++
++
++@app.post("/api/admin/developer/users/{user_id}/profile/reset")
++def developer_reset_user_profile(user_id: str, request: Request, db: Session = Depends(get_db)):
++    _require_developer(request)
++    account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == user_id))
++    if not account:
++        raise HTTPException(404, "User not found")
++    with user_session(user_id) as tenant:
++        profile = get_user_profile(tenant)
++        if not profile:
++            raise HTTPException(404, "Profile not found")
++        # Reset profile/preferences only. Jobs, sources, applications and uploaded CV files
++        # remain intact and are deliberately managed through their own inspector sections.
++        profile.full_name = ""
++        profile.email = account.email or ""
++        profile.phone = ""
++        profile.location = "Israel"
++        profile.linkedin_url = ""
++        profile.github_url = ""
++        profile.portfolio_url = ""
++        profile.application_password = ""
++        profile.cv_path = ""
++        profile.years_experience = 0
++        profile.years_experience_options_json = '["0"]'
++        profile.work_authorization = True
++        profile.needs_sponsorship = False
++        profile.skills_json = "[]"
++        profile.desired_titles_json = "[]"
++        profile.preferred_locations_json = '["Israel"]'
++        profile.preferred_work_modes_json = '["hybrid","remote","onsite"]'
++        profile.keywords_json = "[]"
++        profile.excluded_keywords_json = "[]"
++        profile.application_profile_json = "{}"
++        profile.active_career_track = DEFAULT_TRACK
++        profile.track_profiles_json = "{}"
++        profile.onboarding_version = 0
++        profile.onboarding_state_json = "{}"
++        profile.auto_apply_threshold = 82
++        profile.auto_submit_enabled = False
++        ensure_track_state(profile)
++        tenant.add(AuditLog(event_type="developer_profile_reset", entity_type="profile", entity_id=str(profile.id), message="Profile and search preferences reset by admin; jobs, sources, applications and resumes preserved"))
++        tenant.commit()
++    return {"ok": True}
++
++
+ @app.post("/api/admin/developer/onboarding/reset")
+ def developer_reset_onboarding(request: Request, db: Session = Depends(get_db)):
+     _require_developer(request)
+diff --git a/app/static/app.js b/app/static/app.js
+index 9afc55d..da10d01 100644
+--- a/app/static/app.js
++++ b/app/static/app.js
+@@ -3589,7 +3589,39 @@ function renderDeveloperUsers(){
+   root.innerHTML=users.map(u=>`<button type="button" class="developer-user-row" data-developer-user="${esc(u.id)}"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה ${esc(developerDate(u.last_seen_at))}`:'טרם התחבר'}</small></span><b>›</b></button>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>';
+   $$('[data-developer-user]',root).forEach(b=>b.onclick=()=>inspectDeveloperUser(b.dataset.developerUser));
+ }
+-async function inspectDeveloperUser(id){const root=$('#developer-user-inspector');root.innerHTML='<div class="empty-state">טוען…</div>';try{const d=await api(`/api/admin/developer/users/${encodeURIComponent(id)}`);root.innerHTML=`<div class="developer-inspector-head"><strong>${esc(d.user.email||d.user.id)}</strong><span>${esc(d.user.role)}</span></div><div class="developer-kv"><div><span>מסלול</span><strong>${esc(developerTrackLabel(d.profile.track))}</strong></div><div><span>Onboarding</span><strong>v${d.profile.onboarding_version}</strong></div><div><span>Skills</span><strong>${d.profile.skills}</strong></div><div><span>Desired titles</span><strong>${d.profile.desired_titles}</strong></div><div><span>Jobs</span><strong>${d.counts.jobs}</strong></div><div><span>Sources</span><strong>${d.counts.sources}</strong></div><div><span>Applications</span><strong>${d.counts.applications}</strong></div><div><span>Resumes</span><strong>${d.counts.resumes}</strong></div></div>`}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
++let developerInspectedUserId='';
++async function inspectDeveloperUser(id){
++  const root=$('#developer-user-inspector');developerInspectedUserId=id;root.innerHTML='<div class="empty-state">טוען…</div>';
++  try{
++    const d=await api(`/api/admin/developer/users/${encodeURIComponent(id)}`);
++    const card=(section,label,value)=>`<button type="button" class="developer-kv-action" data-developer-section="${section}"><span>${label}</span><strong>${value}</strong><b>›</b></button>`;
++    root.innerHTML=`<div class="developer-inspector-head"><strong>${esc(d.user.email||d.user.id)}</strong><span>${esc(d.user.role)}</span></div><div class="developer-kv developer-kv-interactive">${card('track','מסלול',esc(developerTrackLabel(d.profile.track)))}${card('onboarding','Onboarding',`v${d.profile.onboarding_version}`)}${card('skills','Skills',d.profile.skills)}${card('desired_titles','Desired titles',d.profile.desired_titles)}${card('jobs','Jobs',d.counts.jobs)}${card('sources','Sources',d.counts.sources)}${card('applications','Applications',d.counts.applications)}${card('resumes','Resumes',d.counts.resumes)}</div><div id="developer-user-section" class="developer-user-section"><div class="empty-state">לחץ על אחד הכרטיסים כדי לראות פרטים</div></div><div class="developer-user-admin-actions"><button type="button" class="btn secondary" data-user-onboarding-reset>הפעל Onboarding מחדש</button><button type="button" class="btn secondary developer-reset-profile" data-user-profile-reset>אפס פרופיל</button></div>`;
++    $$('[data-developer-section]',root).forEach(b=>b.onclick=()=>openDeveloperUserSection(id,b.dataset.developerSection));
++    $('[data-user-onboarding-reset]',root).onclick=()=>resetDeveloperUserOnboarding(id,d.user.email||id);
++    $('[data-user-profile-reset]',root).onclick=()=>resetDeveloperUserProfile(id,d.user.email||id);
++  }catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
++}
++async function openDeveloperUserSection(id,section){
++  const root=$('#developer-user-section');if(!root)return;
++  if(section==='onboarding'){
++    root.innerHTML='<div class="developer-section-head"><strong>Onboarding</strong><small>איפוס יגרום למסכי הפתיחה להופיע שוב בכניסה הבאה של המשתמש, בלי למחוק את הפרופיל הקיים.</small></div>';
++    return;
++  }
++  root.innerHTML='<div class="empty-state">טוען פרטים…</div>';
++  try{
++    const d=await api(`/api/admin/developer/users/${encodeURIComponent(id)}/section/${encodeURIComponent(section)}`);
++    root.innerHTML=`<div class="developer-section-head"><strong>${esc(d.title||section)}</strong><small>${(d.items||[]).length} פריטים</small></div><div class="developer-inspector-list">${(d.items||[]).map(item=>item.resume_id?`<a class="developer-inspector-item" target="_blank" rel="noopener" href="/api/admin/developer/users/${encodeURIComponent(id)}/resumes/${item.resume_id}/file"><span><strong>${esc(item.primary||'קורות חיים')}</strong><small>${esc(item.secondary||'')}</small></span><b>פתח קובץ ↗</b></a>`:`<article class="developer-inspector-item"><span><strong>${esc(item.primary||'—')}</strong><small>${esc(item.secondary||'')}</small></span></article>`).join('')||'<div class="empty-state">אין פריטים להצגה</div>'}</div>`;
++  }catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
++}
++async function resetDeveloperUserOnboarding(id,email){
++  if(!confirm(`להפעיל מחדש את ה-Onboarding עבור ${email}? הוא יוצג שוב בכניסה הבאה והנתונים הקיימים יישמרו.`))return;
++  try{await api(`/api/admin/developer/users/${encodeURIComponent(id)}/onboarding/reset`,{method:'POST'});toast('ה-Onboarding יופעל מחדש בכניסה הבאה');await inspectDeveloperUser(id)}catch(e){toast(e.message)}
++}
++async function resetDeveloperUserProfile(id,email){
++  if(!confirm(`לאפס את הפרופיל של ${email}?\n\nהפעולה תאפס פרטים אישיים והעדפות חיפוש ותפעיל מחדש את ה-Onboarding. משרות, מקורות, הגשות וקבצי קורות חיים לא יימחקו.`))return;
++  const typed=prompt(`פעולה רגישה: הקלד RESET כדי לאשר איפוס פרופיל של ${email}`);if(typed!=='RESET')return;
++  try{await api(`/api/admin/developer/users/${encodeURIComponent(id)}/profile/reset`,{method:'POST'});toast('הפרופיל אופס וה-Onboarding יופעל מחדש');await inspectDeveloperUser(id)}catch(e){toast(e.message)}
++}
+ async function loadDeveloperSources(){const root=$('#developer-sources-list');if(!root)return;try{const rows=await api('/api/sources');root.innerHTML=rows.map(s=>`<article class="developer-source-row"><span><strong>${esc(s.name)}</strong><small>${esc(s.kind)} · health ${s.health_score}%${s.last_error?` · ${esc(s.last_error.slice(0,110))}`:''}</small></span><button class="btn secondary" type="button" data-test-source="${s.id}">בדוק מקור</button></article>`).join('')||'<div class="empty-state">אין מקורות במסלול הפעיל</div>';$$('[data-test-source]',root).forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/admin/developer/sources/${b.dataset.testSource}/test`,{method:'POST'});toast(r.status==='started'?'בדיקת המקור התחילה':'כבר מתבצעת סריקה');setTimeout(loadDeveloperOverview,900)}catch(e){toast(e.message)}finally{b.disabled=false}})}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
+ async function loadDeveloperAudit(){const root=$('#developer-audit-list');if(!root)return;try{const rows=await api('/api/admin/developer/audit?limit=30');root.innerHTML=rows.map(r=>`<article><span><strong>${esc(r.event_type)}</strong><small>${esc(r.entity_type||'system')} ${r.entity_id?`#${esc(r.entity_id)}`:''}</small></span><time>${esc(developerDate(r.created_at))}</time>${r.message?`<p>${esc(r.message.slice(0,180))}</p>`:''}</article>`).join('')||'<div class="empty-state">אין אירועים</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
+ function renderDeveloperThemeLab(){const root=$('#developer-theme-lab');if(!root)return;root.innerHTML=Object.values(CAREER_TRACK_UI).map(t=>`<div><strong>${esc(t.label)}</strong><button type="button" data-theme-preview="${t.key}:light">יום</button><button type="button" data-theme-preview="${t.key}:dark">לילה</button></div>`).join('');$$('[data-theme-preview]',root).forEach(b=>b.onclick=()=>{const [track,mode]=b.dataset.themePreview.split(':');Object.values(CAREER_TRACK_UI).forEach(t=>document.body.classList.remove(t.themeClass));document.body.classList.add(CAREER_TRACK_UI[track].themeClass);document.body.classList.toggle('theme-dark',mode==='dark');document.body.classList.toggle('theme-light',mode==='light');auditDeveloperColors();toast(`תצוגת QA: ${developerTrackLabel(track)} · ${mode==='dark'?'לילה':'יום'}`)})}
+diff --git a/app/static/index.html b/app/static/index.html
+index 77d6d94..d58195a 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -5,7 +5,7 @@
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
+   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
+-  <link rel="stylesheet" href="/static/styles.css?v=0.48.9" />
++  <link rel="stylesheet" href="/static/styles.css?v=0.49.0" />
+ </head>
+ <body>
+   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
+@@ -449,6 +449,6 @@
+   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
+   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
+   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+-  <script src="/static/app.js?v=0.29.6"></script>
++  <script src="/static/app.js?v=0.29.7"></script>
+ </body>
+ </html>
+diff --git a/app/static/styles.css b/app/static/styles.css
+index 3eabc6b..fbf7bc2 100644
+--- a/app/static/styles.css
++++ b/app/static/styles.css
+@@ -3370,3 +3370,6 @@ body.track-electrical-engineering :where(.developer-health,.developer-card){bord
+   50%{transform:scale(1.08);opacity:1}
+ }
+ @media (prefers-reduced-motion:reduce){.onboarding-logo-orb{animation:none}}
++
++/* Developer user inspector — interactive account drill-down */
++.developer-kv-interactive{align-items:stretch}.developer-kv-action{width:100%;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;text-align:start;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);color:var(--ink);cursor:pointer;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}.developer-kv-action:hover,.developer-kv-action:focus-visible{border-color:var(--brand);box-shadow:0 0 0 3px var(--accent-glow);transform:translateY(-1px)}.developer-kv-action span{color:var(--muted);font-size:12px}.developer-kv-action strong{font-size:18px}.developer-kv-action b{color:var(--brand);font-size:20px}.developer-user-section{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft)}.developer-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}.developer-section-head small{color:var(--muted);max-width:70%}.developer-inspector-list{display:grid;gap:7px;max-height:300px;overflow:auto}.developer-inspector-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:var(--ink);text-decoration:none}.developer-inspector-item>span{display:grid;gap:3px;min-width:0}.developer-inspector-item small{color:var(--muted)}a.developer-inspector-item:hover{border-color:var(--brand)}.developer-user-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.developer-reset-profile{border-color:color-mix(in srgb,#d45b5b 50%,var(--line))!important;color:#c34c4c!important}body:is(.track-industrial-engineering,.track-electrical-engineering) :where(.developer-kv-action,.developer-user-section,.developer-inspector-item){border-color:var(--line)!important;background:var(--surface-soft)!important;color:var(--ink)!important}@media(max-width:620px){.developer-section-head{flex-direction:column}.developer-section-head small{max-width:none}.developer-user-admin-actions .btn{flex:1 1 100%}}
+diff --git a/tests/test_api.py b/tests/test_api.py
+index ca7f10d..b79df01 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -259,7 +259,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
+         assert "no-store" in index.headers["cache-control"]
+         assert "no-store" in script.headers["cache-control"]
+         assert "no-store" in stylesheet.headers["cache-control"]
+-        assert "app.js?v=0.29.6" in index.text
++        assert "app.js?v=0.29.7" in index.text
+         assert "הנתון לא נשמר עדיין" in script.text
+ 
+ 
+diff --git a/tests/test_career_theme_leak_seal_v3.py b/tests/test_career_theme_leak_seal_v3.py
+index f977ca2..faa6a11 100644
+--- a/tests/test_career_theme_leak_seal_v3.py
++++ b/tests/test_career_theme_leak_seal_v3.py
+@@ -15,4 +15,4 @@ def test_non_cs_selection_health_skill_and_info_rows_use_track_tokens():
+         assert marker in CSS
+ 
+ def test_theme_css_asset_is_bumped_v3():
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+diff --git a/tests/test_career_theme_no_blue_leaks.py b/tests/test_career_theme_no_blue_leaks.py
+index 6f8f18a..cac864d 100644
+--- a/tests/test_career_theme_no_blue_leaks.py
++++ b/tests/test_career_theme_no_blue_leaks.py
+@@ -18,4 +18,4 @@ def test_non_cs_tracks_override_legacy_blue_profile_and_motion_components():
+         assert marker in CSS
+ 
+ def test_theme_css_asset_is_bumped():
+-    assert "styles.css?v=0.48.9" in HTML
++    assert "styles.css?v=0.49.0" in HTML
+diff --git a/tests/test_career_theme_parity.py b/tests/test_career_theme_parity.py
+index 47a7058..04c4cb7 100644
+--- a/tests/test_career_theme_parity.py
++++ b/tests/test_career_theme_parity.py
+@@ -28,4 +28,4 @@ def test_three_tracks_keep_same_ui_contract_fields():
+             assert field in block
+ 
+ def test_stylesheet_cache_version_bumped():
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+diff --git a/tests/test_career_track_browser_offline.py b/tests/test_career_track_browser_offline.py
+index 7844784..1f9b9dd 100644
+--- a/tests/test_career_track_browser_offline.py
++++ b/tests/test_career_track_browser_offline.py
+@@ -26,8 +26,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.9" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_cloud_ui_offline.py b/tests/test_cloud_ui_offline.py
+index f5dfe4c..32655a2 100644
+--- a/tests/test_cloud_ui_offline.py
++++ b/tests/test_cloud_ui_offline.py
+@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.9" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
+     chromium = _chromium_path()
+     if not chromium:
+         pytest.skip("No system Chromium executable")
+-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+     html = (ROOT / "app" / "static" / "index.html").read_text()
+     css = (ROOT / "app" / "static" / "styles.css").read_text()
+     js = (ROOT / "app" / "static" / "app.js").read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.9" />', f"<style>{css}</style>")
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f"<style>{css}</style>")
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
+ 
+     with sync_playwright() as playwright:
+diff --git a/tests/test_dashboard_metrics_compact.py b/tests/test_dashboard_metrics_compact.py
+index b9de6be..0140c7e 100644
+--- a/tests/test_dashboard_metrics_compact.py
++++ b/tests/test_dashboard_metrics_compact.py
+@@ -26,5 +26,5 @@ def test_metrics_stay_compact_on_mobile_and_support_dark_mode():
+ 
+ 
+ def test_v0111_asset_versions_are_bumped():
+-    assert 'styles.css?v=0.48.9' in HTML
+-    assert 'app.js?v=0.29.6' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
++    assert 'app.js?v=0.29.7' in HTML
+diff --git a/tests/test_developer_user_inspector_interactive.py b/tests/test_developer_user_inspector_interactive.py
+new file mode 100644
+index 0000000..a608813
+--- /dev/null
++++ b/tests/test_developer_user_inspector_interactive.py
+@@ -0,0 +1,29 @@
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++JS = (ROOT / "app" / "static" / "app.js").read_text()
++CSS = (ROOT / "app" / "static" / "styles.css").read_text()
++MAIN = (ROOT / "app" / "main.py").read_text()
++HTML = (ROOT / "app" / "static" / "index.html").read_text()
++
++
++def test_user_inspector_cards_are_interactive():
++    assert "data-developer-section" in JS
++    assert "openDeveloperUserSection" in JS
++    assert "developer-inspector-list" in CSS
++    assert "app.js?v=0.29.7" in HTML
++    assert "styles.css?v=0.49.0" in HTML
++
++
++def test_admin_can_reopen_onboarding_and_reset_profile_for_selected_user():
++    assert '/api/admin/developer/users/{user_id}/onboarding/reset' in MAIN
++    assert '/api/admin/developer/users/{user_id}/profile/reset' in MAIN
++    assert "הפעל Onboarding מחדש" in JS
++    assert "אפס פרופיל" in JS
++    assert "typed!=='RESET'" in JS
++
++
++def test_admin_can_inspect_and_open_user_resumes():
++    assert '/api/admin/developer/users/{user_id}/section/{section}' in MAIN
++    assert '/api/admin/developer/users/{user_id}/resumes/{resume_id}/file' in MAIN
++    assert "פתח קובץ" in JS
+diff --git a/tests/test_electrical_engineering_track.py b/tests/test_electrical_engineering_track.py
+index a01be53..e5be063 100644
+--- a/tests/test_electrical_engineering_track.py
++++ b/tests/test_electrical_engineering_track.py
+@@ -24,5 +24,5 @@ def test_pink_silver_ui_exists_day_and_night():
+     assert "electrical_engineering:" in JS
+     assert "track-electrical-engineering" in JS
+     assert "body.track-electrical-engineering.theme-dark" in CSS
+-    assert "app.js?v=0.29.6" in HTML
+-    assert "styles.css?v=0.48.9" in HTML
++    assert "app.js?v=0.29.7" in HTML
++    assert "styles.css?v=0.49.0" in HTML
+diff --git a/tests/test_google_oauth_contract.py b/tests/test_google_oauth_contract.py
+index 408b266..fe6a832 100644
+--- a/tests/test_google_oauth_contract.py
++++ b/tests/test_google_oauth_contract.py
+@@ -19,4 +19,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
+ 
+ 
+ def test_google_oauth_asset_version_is_bumped():
+-    assert 'app.js?v=0.29.6' in HTML
++    assert 'app.js?v=0.29.7' in HTML
+diff --git a/tests/test_mobile_logo_contract.py b/tests/test_mobile_logo_contract.py
+index 68aa1bd..4afd29c 100644
+--- a/tests/test_mobile_logo_contract.py
++++ b/tests/test_mobile_logo_contract.py
+@@ -6,7 +6,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
+ 
+ 
+ def test_mobile_header_keeps_full_animated_jobpilot_brand():
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+     assert '.sidebar .brand > div { display:block !important;' in CSS
+     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
+     assert '.sidebar .brand strong { display:block;' in CSS
+diff --git a/tests/test_mobile_skill_performance_contract.py b/tests/test_mobile_skill_performance_contract.py
+index ec47b70..fb29785 100644
+--- a/tests/test_mobile_skill_performance_contract.py
++++ b/tests/test_mobile_skill_performance_contract.py
+@@ -45,5 +45,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
+ 
+ 
+ def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
+-    assert 'styles.css?v=0.48.9' in HTML
+-    assert 'app.js?v=0.29.6' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
++    assert 'app.js?v=0.29.7' in HTML
+diff --git a/tests/test_onboarding_logo_structural_orb.py b/tests/test_onboarding_logo_structural_orb.py
+index e7ef087..9490798 100644
+--- a/tests/test_onboarding_logo_structural_orb.py
++++ b/tests/test_onboarding_logo_structural_orb.py
+@@ -9,4 +9,4 @@ def test_onboarding_orb_is_svg_anchored_not_container_positioned():
+     onboarding = HTML.split('class="onboarding-brand brand"', 1)[1].split('</header>', 1)[0]
+     assert 'brand-flight-dot' not in onboarding
+     assert '.onboarding-logo-orb{' in CSS
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+diff --git a/tests/test_onboarding_ready_locations_v5.py b/tests/test_onboarding_ready_locations_v5.py
+index 515ed2b..3eaaf2f 100644
+--- a/tests/test_onboarding_ready_locations_v5.py
++++ b/tests/test_onboarding_ready_locations_v5.py
+@@ -21,5 +21,5 @@ def test_ready_screen_is_launchpad_style():
+     assert '.ready-spotlight' in CSS
+ 
+ def test_assets_bumped_v5():
+-    assert 'app.js?v=0.29.6' in HTML
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'app.js?v=0.29.7' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+diff --git a/tests/test_onboarding_runtime_contract.py b/tests/test_onboarding_runtime_contract.py
+index 6d1698a..0e986fb 100644
+--- a/tests/test_onboarding_runtime_contract.py
++++ b/tests/test_onboarding_runtime_contract.py
+@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
+ def test_corrected_onboarding_generation_forces_one_clean_rerun():
+     assert main.ONBOARDING_VERSION == 2
+     assert "const ONBOARDING_VERSION = 2" in JS
+-    assert "app.js?v=0.29.6" in HTML
++    assert "app.js?v=0.29.7" in HTML
+ 
+ def test_developer_tools_are_server_authorized(monkeypatch):
+     monkeypatch.setattr(main.settings, "auth_mode", "supabase")
+diff --git a/tests/test_onboarding_ui_refinement.py b/tests/test_onboarding_ui_refinement.py
+index d268770..4abb3b2 100644
+--- a/tests/test_onboarding_ui_refinement.py
++++ b/tests/test_onboarding_ui_refinement.py
+@@ -31,5 +31,5 @@ def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():
+     assert "--onboarding-mark-size" not in CSS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.6" in HTML
+-    assert "styles.css?v=0.48.9" in HTML
++    assert "app.js?v=0.29.7" in HTML
++    assert "styles.css?v=0.49.0" in HTML
+diff --git a/tests/test_onboarding_v1.py b/tests/test_onboarding_v1.py
+index 79cca5f..381646b 100644
+--- a/tests/test_onboarding_v1.py
++++ b/tests/test_onboarding_v1.py
+@@ -10,8 +10,8 @@ def test_onboarding_assets_and_admin_preview_exist():
+     assert 'id="onboarding-gate"' in HTML
+     assert 'data-view="developer"' in HTML
+     assert 'id="developer-preview-onboarding"' in HTML
+-    assert 'app.js?v=0.29.6' in HTML
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'app.js?v=0.29.7' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+     assert "const ONBOARDING_VERSION = 2" in JS
+     assert "maybeOpenOnboarding" in JS
+     assert ".onboarding-gate" in CSS
+diff --git a/tests/test_onboarding_v3_contract.py b/tests/test_onboarding_v3_contract.py
+index 53833a3..764acd6 100644
+--- a/tests/test_onboarding_v3_contract.py
++++ b/tests/test_onboarding_v3_contract.py
+@@ -40,5 +40,5 @@ def test_developer_users_panel_is_scroll_limited():
+     assert 'max-height:292px' in CSS
+ 
+ def test_assets_bumped():
+-    assert 'app.js?v=0.29.6' in HTML
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'app.js?v=0.29.7' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+diff --git a/tests/test_onboarding_v6_polish.py b/tests/test_onboarding_v6_polish.py
+index fb2c27e..77f84e0 100644
+--- a/tests/test_onboarding_v6_polish.py
++++ b/tests/test_onboarding_v6_polish.py
+@@ -19,5 +19,5 @@ def test_scan_waits_for_real_site_scan_before_declaring_completion():
+     assert "syncOnboardingScanStatus" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.6" in HTML
+-    assert "styles.css?v=0.48.9" in HTML
++    assert "app.js?v=0.29.7" in HTML
++    assert "styles.css?v=0.49.0" in HTML
+diff --git a/tests/test_palette_redesign_v2.py b/tests/test_palette_redesign_v2.py
+index 6d19cb2..a10dca6 100644
+--- a/tests/test_palette_redesign_v2.py
++++ b/tests/test_palette_redesign_v2.py
+@@ -6,7 +6,7 @@ HTML = Path('app/static/index.html').read_text()
+ 
+ def test_palette_redesign_v2_is_present_and_cache_bumped():
+     assert 'Palette Redesign V2' in CSS
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
+ 
+ 
+ def test_iem_has_light_champagne_and_warm_graphite_dark_palette():
+diff --git a/tests/test_save_responsiveness_and_admin_preview.py b/tests/test_save_responsiveness_and_admin_preview.py
+index df977ba..b945246 100644
+--- a/tests/test_save_responsiveness_and_admin_preview.py
++++ b/tests/test_save_responsiveness_and_admin_preview.py
+@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+     assert "הרשאות השרת שלך נשארו Admin" in JS
+ 
+ def test_assets_bumped():
+-    assert "app.js?v=0.29.6" in HTML
+-    assert "styles.css?v=0.48.9" in HTML
++    assert "app.js?v=0.29.7" in HTML
++    assert "styles.css?v=0.49.0" in HTML
+diff --git a/tests/test_scoped_save_browser_offline.py b/tests/test_scoped_save_browser_offline.py
+index af29c11..2a91d76 100644
+--- a/tests/test_scoped_save_browser_offline.py
++++ b/tests/test_scoped_save_browser_offline.py
+@@ -20,8 +20,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
+     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
+     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
+     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
+-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.48.9" />', f'<style>{css}</style>')
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', '')
++    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f'<style>{css}</style>')
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', '')
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
+diff --git a/tests/test_ui_offline.py b/tests/test_ui_offline.py
+index 4f1efcc..86039e1 100644
+--- a/tests/test_ui_offline.py
++++ b/tests/test_ui_offline.py
+@@ -19,7 +19,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(
+@@ -108,7 +108,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
+         pytest.skip("No system Chromium executable")
+ 
+     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
+-    html = html.replace('<script src="/static/app.js?v=0.29.6"></script>', "")
++    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+ 
+     with sync_playwright() as playwright:
+         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
+diff --git a/tests/test_ui_polish_contract.py b/tests/test_ui_polish_contract.py
+index 7021907..3c9a183 100644
+--- a/tests/test_ui_polish_contract.py
++++ b/tests/test_ui_polish_contract.py
+@@ -93,5 +93,5 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
+     assert "$$('[data-mobile-view]')" in JS
+     assert 'scrollIntoView' in JS
+     assert "function jobCardActions(job)" in JS
+-    assert 'app.js?v=0.29.6' in HTML
+-    assert 'styles.css?v=0.48.9' in HTML
++    assert 'app.js?v=0.29.7' in HTML
++    assert 'styles.css?v=0.49.0' in HTML
