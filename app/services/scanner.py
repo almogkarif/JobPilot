@@ -96,6 +96,7 @@ async def scan_all_sources(
             "filtered_mismatch": 0,
             "new": 0,
             "updated": 0,
+            "removed": 0,
             "stale_deleted": stale_deleted,
             "auto_queued": 0,
             "errors": [],
@@ -108,6 +109,7 @@ async def scan_all_sources(
     total_filtered_mismatch = 0
     total_new = 0
     total_updated = 0
+    total_removed = 0
     total_merged = 0
     total_auto_queued = 0
     errors: list[dict] = []
@@ -184,6 +186,7 @@ async def scan_all_sources(
 
             source_new = 0
             source_updated = 0
+            source_removed = 0
             source_filtered_foreign = 0
             source_filtered_mismatch = 0
 
@@ -204,7 +207,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": source.name, "collected": 0, "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
-                    "new": 0, "updated": 0, "error": "", "deferred": True,
+                    "new": 0, "updated": 0, "removed": 0, "error": "", "deferred": True,
                 }
                 per_source.append(source_result)
                 completed_count += 1
@@ -237,7 +240,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": str(snapshot["name"]), "collected": 0, "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
-                    "new": 0, "updated": 0, "error": str(collect_error),
+                    "new": 0, "updated": 0, "removed": 0, "error": str(collect_error),
                 }
                 per_source.append(source_result)
                 completed_count += 1
@@ -256,7 +259,10 @@ async def scan_all_sources(
                 source_filtered_mismatch = len(israel_items) - len(eligible_items)
                 total_filtered_mismatch += source_filtered_mismatch
                 total_found += len(eligible_items)
-                seen_external_ids = set()
+                # Reconciliation is against everything the source currently lists
+                # in Israel, not only roles matching this user's preferences.
+                # Otherwise a present-but-filtered role could look deleted upstream.
+                seen_external_ids = {item.external_id for item in israel_items}
                 seen_at = datetime.now(timezone.utc)
                 source_jobs = db.scalars(
                     select(Job)
@@ -266,7 +272,6 @@ async def scan_all_sources(
                 jobs_by_external_id = {job.external_id: job for job in source_jobs}
 
                 for item_index, item in enumerate(eligible_items, start=1):
-                    seen_external_ids.add(item.external_id)
                     job = jobs_by_external_id.get(item.external_id)
                     if not job:
                         fingerprint = _job_fingerprint(item.title, item.company, item.location)
@@ -326,20 +331,42 @@ async def scan_all_sources(
                     if item_index % 10 == 0:
                         await asyncio.sleep(0)
 
-                # Foreign jobs from older versions are removed permanently. Israeli jobs
-                # that disappeared from this ATS are kept only as inactive history.
+                removed_jobs: list[dict] = []
+                # A successful, quality-validated scan is the source of truth. Roles
+                # no longer returned by that same source are removed immediately,
+                # together with their dependent application/blocker records.
                 for old_index, old in enumerate(source_jobs, start=1):
                     if not is_israel_location(old.location):
                         delete_job_tree(db, old)
+                        source_removed += 1
                     elif hard_exclusion_reason(old, profile, match_context.excluded):
                         if old.application:
                             old.is_active = False
                         else:
                             delete_job_tree(db, old)
+                            source_removed += 1
                     elif old.external_id not in seen_external_ids:
-                        old.is_active = False
+                        removed_jobs.append({
+                            "id": old.id, "external_id": old.external_id,
+                            "title": old.title, "company": old.company,
+                        })
+                        delete_job_tree(db, old)
+                        source_removed += 1
                     if old_index % 20 == 0:
                         await asyncio.sleep(0)
+                total_removed += source_removed
+
+                if removed_jobs:
+                    db.add(AuditLog(
+                        event_type="source_jobs_removed",
+                        entity_type="source",
+                        entity_id=str(source.id),
+                        message=f"Removed {len(removed_jobs)} jobs no longer listed by {source.name}",
+                        details_json=dumps({
+                            "jobs": removed_jobs[:100],
+                            "truncated": len(removed_jobs) > 100,
+                        }),
+                    ))
 
                 source.last_scanned_at = datetime.now(timezone.utc)
                 source.last_error = ""
@@ -371,6 +398,7 @@ async def scan_all_sources(
                     "filtered_mismatch": source_filtered_mismatch,
                     "new": source_new,
                     "updated": source_updated,
+                    "removed": source_removed,
                     "error": "",
                 }
                 per_source.append(source_result)
@@ -397,7 +425,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": str(snapshot["name"]), "collected": len(items), "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
-                    "new": 0, "updated": 0, "error": str(exc),
+                    "new": 0, "updated": 0, "removed": 0, "error": str(exc),
                 }
                 errors.append({"source": str(snapshot["name"]), "error": str(exc)})
                 per_source.append(source_result)
@@ -431,6 +459,7 @@ async def scan_all_sources(
         "filtered_mismatch": total_filtered_mismatch,
         "new": total_new,
         "updated": total_updated,
+        "removed": total_removed,
         "duplicates_merged": total_merged,
         "stale_deleted": stale_deleted,
         "auto_queued": total_auto_queued,

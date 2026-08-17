@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.collectors.base import NormalizedJob, PreserveExistingJobs
 from app.database import Base
-from app.models import Job, Profile, Source
+from app.models import Application, AuditLog, Job, Profile, Source
 from app.services import scanner
 from app.utils import dumps
 
@@ -79,8 +79,10 @@ def test_repeated_large_scans_do_not_duplicate_jobs(monkeypatch):
     BulkCollector.limit = 20
     reduced = asyncio.run(scanner.scan_all_sources(db))
     assert reduced["found"] == 240
-    assert db.scalar(select(func.count()).select_from(Job).where(Job.is_active.is_(True))) == 240
-    assert db.scalar(select(func.count()).select_from(Job).where(Job.is_active.is_(False))) == 240
+    assert reduced["removed"] == 240
+    assert all(item["removed"] == 20 for item in reduced["per_source"])
+    assert db.scalar(select(func.count()).select_from(Job)) == 240
+    assert db.scalar(select(func.count()).select_from(Job).where(Job.is_active.is_(False))) == 0
     db.close()
 
 
@@ -150,6 +152,46 @@ def test_temporary_access_block_preserves_last_good_source_snapshot(monkeypatch)
     assert result["per_source"][0]["deferred"] is True
     assert db.get(Job, job.id).is_active is True
     assert db.get(Source, source.id).last_error == ""
+    db.close()
+
+
+def test_successful_rescan_permanently_removes_jobs_missing_upstream(monkeypatch):
+    class ShrinkingCollector:
+        ids = ("present", "removed")
+
+        async def collect(self, identifier: str, company_name: str = ""):
+            return [NormalizedJob(
+                external_id=external_id,
+                title=f"Software Engineer {external_id}", company=company_name,
+                location="Haifa, Israel", workplace="hybrid",
+                description="Python software development role",
+                apply_url=f"https://example.com/jobs/{external_id}",
+            ) for external_id in self.ids]
+
+    monkeypatch.setitem(scanner.COLLECTORS, "greenhouse", ShrinkingCollector)
+    db = _session()
+    db.add(_profile())
+    source = Source(name="Shrinking", kind="greenhouse", identifier="shrinking", company_name="Example", enabled=True)
+    db.add(source)
+    db.commit()
+
+    first = asyncio.run(scanner.scan_all_sources(db))
+    assert first["new"] == 2
+    removed_job = db.scalar(select(Job).where(Job.external_id == "removed"))
+    application = Application(job_id=removed_job.id, status="saved", mode="manual")
+    db.add(application)
+    db.commit()
+    removed_job_id, application_id = removed_job.id, application.id
+
+    ShrinkingCollector.ids = ("present",)
+    second = asyncio.run(scanner.scan_all_sources(db))
+
+    assert second["removed"] == 1
+    assert second["per_source"][0]["removed"] == 1
+    assert db.get(Job, removed_job_id) is None
+    assert db.get(Application, application_id) is None
+    assert db.scalar(select(func.count()).select_from(Job)) == 1
+    assert db.scalar(select(AuditLog).where(AuditLog.event_type == "source_jobs_removed")) is not None
     db.close()
 
 
