@@ -2877,6 +2877,9 @@ body.guest-mode .job-status-control { display:none !important; }
 .onboarding-choice.selected{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);box-shadow:0 6px 18px var(--accent-glow)}
 .onboarding-choice-check{display:grid;place-items:center;width:20px;height:20px;flex:0 0 20px;border:1px solid var(--line);border-radius:6px;color:transparent;background:var(--panel)}
 .onboarding-choice.selected .onboarding-choice-check{background:var(--brand);border-color:var(--brand);color:#fff}
+.onboarding-exclude-field .negative-word,.onboarding-choice-negative .onboarding-choice-check{color:var(--danger);font-weight:950}
+.onboarding-choice-negative.selected{border-color:color-mix(in srgb,var(--danger) 58%,var(--line));background:color-mix(in srgb,var(--danger) 10%,var(--panel));color:var(--danger);box-shadow:0 6px 18px color-mix(in srgb,var(--danger) 14%,transparent)}
+.onboarding-choice-negative.selected .onboarding-choice-check{background:var(--danger);border-color:var(--danger);color:#fff}
 .onboarding-choice strong{font-size:12px;line-height:1.3}
 .onboarding-other{margin-top:10px!important;padding:9px!important;background:transparent!important;border:0!important}
 .onboarding-other>span{font-size:11px!important}

@@ -46,6 +46,23 @@ def progress_writer(user_id: str, run_id: str, career_track: str):
     return write
 
 
+def print_source_summary(result: dict) -> None:
+    """Expose non-sensitive collector counts in Actions for production diagnosis."""
+    for item in result.get("per_source") or []:
+        print(
+            "[source] "
+            f"name={item.get('source')} "
+            f"collected={int(item.get('collected') or 0)} "
+            f"israel={int(item.get('israel_found') or 0)} "
+            f"matching={int(item.get('found') or 0)} "
+            f"new={int(item.get('new') or 0)} "
+            f"updated={int(item.get('updated') or 0)} "
+            f"deferred={bool(item.get('deferred'))} "
+            f"error={str(item.get('error') or '')[:240]}",
+            flush=True,
+        )
+
+
 async def execute_run(user_id: str, run_id: str, career_track: str) -> dict:
     # Import collectors only when real work exists. Scheduled hourly checks therefore
     # stay lightweight and do not even import Playwright/collector modules.
@@ -126,6 +143,7 @@ async def run_queued() -> int:
             print(f"[scan] queued account={account_label(user_id)} track={track} run={run_id[:8]}", flush=True)
             try:
                 result = await execute_run(user_id, run_id, track)
+                print_source_summary(result)
                 print(f"[scan] finished account={account_label(user_id)} status={result.get('status')}", flush=True)
             except Exception as exc:  # noqa: BLE001
                 print(f"[scan] failed account={account_label(user_id)} error={exc}", flush=True)
@@ -157,6 +175,7 @@ async def run_scheduled(*, force: bool = False) -> int:
         print(f"[scan] starting account={account_label(user_id)} track={track} run={run_id[:8]}", flush=True)
         try:
             result = await execute_run(user_id, run_id, track)
+            print_source_summary(result)
             print(f"[scan] finished account={account_label(user_id)} status={result.get('status')}", flush=True)
         except Exception as exc:  # noqa: BLE001
             print(f"[scan] failed account={account_label(user_id)} error={exc}", flush=True)

@@ -15,4 +15,4 @@ def test_non_cs_selection_health_skill_and_info_rows_use_track_tokens():
         assert marker in CSS
 
 def test_theme_css_asset_is_bumped_v3():
-    assert 'styles.css?v=0.49.0' in HTML
+    assert 'styles.css?v=0.49.1' in HTML

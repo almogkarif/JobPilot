@@ -28,8 +28,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.1" />', f"<style>{css}</style>")
+    html = html.replace('<script src="/static/app.js?v=0.29.8"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:
@@ -85,7 +85,7 @@ def test_cloud_without_session_shows_login_gate():
     chromium = _chromium_path()
     if not chromium:
         pytest.skip("No system Chromium executable")
-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.8"></script>', "")
     js = (ROOT / "app" / "static" / "app.js").read_text()
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
@@ -118,8 +118,8 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.0" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.29.7"></script>', "")
+    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.1" />', f"<style>{css}</style>")
+    html = html.replace('<script src="/static/app.js?v=0.29.8"></script>', "")
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:

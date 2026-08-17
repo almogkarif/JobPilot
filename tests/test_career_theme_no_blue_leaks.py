@@ -18,4 +18,4 @@ def test_non_cs_tracks_override_legacy_blue_profile_and_motion_components():
         assert marker in CSS
 
 def test_theme_css_asset_is_bumped():
-    assert "styles.css?v=0.49.0" in HTML
+    assert "styles.css?v=0.49.1" in HTML

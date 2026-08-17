@@ -25,5 +25,5 @@ def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
     assert "הרשאות השרת שלך נשארו Admin" in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.7" in HTML
-    assert "styles.css?v=0.49.0" in HTML
+    assert "app.js?v=0.29.8" in HTML
+    assert "styles.css?v=0.49.1" in HTML
