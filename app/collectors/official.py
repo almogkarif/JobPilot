@@ -921,6 +921,7 @@ _ISRAEL_CITY_NAMES = (
     "Raanana", "Rehovot", "Netanya", "Caesarea", "Bnei Brak", "Rishon Lezion",
     "Kfar Saba", "Hod Hasharon", "Modiin", "Nes Ziona", "Or Yehuda", "Yehud",
     "Migdal Haemek", "Migdal Ha'Emek", "Ramat-Gan", "Tel Aviv-Yafo",
+    "Kiryat Bialik", "Karmiel", "Misgav",
 )
 
 _HEBREW_ISRAEL_LOCATIONS = {
@@ -934,7 +935,9 @@ _HEBREW_ISRAEL_LOCATIONS = {
     "מודיעין": "Modiin, Israel", "נס ציונה": "Nes Ziona, Israel", "אור יהודה": "Or Yehuda, Israel",
     "יהוד": "Yehud, Israel", "חולון": "Holon, Israel", "לוד": "Lod, Israel", "רמלה": "Ramla, Israel",
     "רמת השרון": "Ramat Hasharon, Israel", "ראש העין": "Rosh HaAyin, Israel", "גבעתיים": "Givatayim, Israel",
-    "קריות": "Krayot, Israel", "גוש שגב": "Misgav, Israel",
+    "קריות": "Krayot, Israel", "קריית ביאליק": "Kiryat Bialik, Israel",
+    "קרית ביאליק": "Kiryat Bialik, Israel", "כרמיאל": "Karmiel, Israel",
+    "גוש שגב": "Misgav, Israel", "משגב": "Misgav, Israel",
 }
 
 

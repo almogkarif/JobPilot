@@ -57,6 +57,9 @@ def test_hebrew_job_card_locations_are_normalized_to_israel():
     assert _extract_israel_location("מיקום: ראש העין") == "Rosh HaAyin, Israel"
     assert _extract_israel_location("משרה מלאה מכון דוד - קריות") == "Krayot, Israel"
     assert _extract_israel_location("מכון לשם - גוש שגב") == "Misgav, Israel"
+    assert _extract_israel_location("קריית ביאליק") == "Kiryat Bialik, Israel"
+    assert _extract_israel_location("כרמיאל") == "Karmiel, Israel"
+    assert _extract_israel_location("משגב") == "Misgav, Israel"
 
 
 def test_script_json_job_urls_are_recovered_when_dom_selectors_change():
