@@ -28,4 +28,4 @@ def test_three_tracks_keep_same_ui_contract_fields():
             assert field in block
 
 def test_stylesheet_cache_version_bumped():
-    assert 'styles.css?v=0.49.1' in HTML
+    assert 'styles.css?v=0.49.2' in HTML

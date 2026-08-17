@@ -31,5 +31,5 @@ def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():
     assert "--onboarding-mark-size" not in CSS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.8" in HTML
-    assert "styles.css?v=0.49.1" in HTML
+    assert "app.js?v=0.29.9" in HTML
+    assert "styles.css?v=0.49.2" in HTML

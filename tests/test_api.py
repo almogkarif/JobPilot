@@ -16,6 +16,31 @@ def test_health_and_dashboard():
         }
 
 
+def test_already_applied_job_stays_in_jobs_and_is_removed_from_dashboard():
+    with TestClient(app) as client:
+        before = client.get("/api/dashboard").json()["recent_jobs"]
+        job = next(item for item in before if item["status"] != "submitted")
+
+        response = client.post(f"/api/jobs/{job['id']}/mark-submitted")
+        assert response.status_code == 200
+        application = response.json()
+        assert application["status"] == "submitted"
+        assert application["mode"] == "manual"
+        assert application["submitted_at"]
+
+        listed = client.get(f"/api/jobs/{job['id']}")
+        assert listed.status_code == 200
+        assert listed.json()["status"] == "submitted"
+        assert listed.json()["application_id"] == application["id"]
+
+        dashboard_ids = {item["id"] for item in client.get("/api/dashboard").json()["recent_jobs"]}
+        assert job["id"] not in dashboard_ids
+
+        repeated = client.post(f"/api/jobs/{job['id']}/mark-submitted")
+        assert repeated.status_code == 200
+        assert repeated.json()["id"] == application["id"]
+
+
 def test_skill_suggestions_exclude_skills_already_in_profile():
     with TestClient(app) as client:
         profile = client.get("/api/profile").json()
@@ -259,7 +284,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.29.8" in index.text
+        assert "app.js?v=0.29.9" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 

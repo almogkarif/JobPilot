@@ -93,5 +93,13 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert "$$('[data-mobile-view]')" in JS
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.29.8' in HTML
-    assert 'styles.css?v=0.49.1' in HTML
+    assert 'app.js?v=0.29.9' in HTML
+    assert 'styles.css?v=0.49.2' in HTML
+
+
+def test_jobs_offer_manual_applied_action_and_distinct_applied_state():
+    assert "הגשתי כבר למשרה זו" in JS
+    assert "markJobSubmitted" in JS
+    assert "/mark-submitted" in JS
+    assert "job.status === 'submitted' ? 'is-applied'" in JS
+    assert ".job-card.is-applied" in CSS

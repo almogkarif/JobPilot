@@ -1524,7 +1524,11 @@ function jobCardActions(job) {
       <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר החברה</a>
     </div>`;
   }
+  const appliedButton = job.status === 'submitted'
+    ? '<button class="btn applied-job-button small" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
+    : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
   return `<div class="card-actions" data-no-card-click>
+    ${appliedButton}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
     ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'review')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'החזר לתור' : 'הגש'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
@@ -1550,7 +1554,7 @@ function renderJobs() {
   const last = Math.min(state.jobsPaging.total, first + state.jobs.length - 1);
   const sortLabel = $('#job-sort').selectedOptions[0]?.textContent || 'מיון';
   root.innerHTML = `<div class="results-summary">מציג ${first}–${last} מתוך ${state.jobsPaging.total} משרות · ${esc(sortLabel)}</div>` + state.jobs.map((job) => `
-    <article class="job-card interactive-card" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+    <article class="job-card interactive-card ${job.status === 'submitted' ? 'is-applied' : ''}" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
       <div class="job-card-head"><div><h3 dir="auto">${esc(job.title)}</h3><div class="company">${esc(job.company)}</div></div><div class="score-badge">${job.score}</div></div>
       <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${esc(job.workplace)}</span><span>${statusLabel(job.status)}</span>${job.source ? `<span>${esc(job.source.kind)}</span>` : ''}</div>
       <div class="skills">${job.skills.slice(0, 6).map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>
@@ -1657,6 +1661,21 @@ async function queueJob(id, mode = 'review', resumeId = null) {
 }
 async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
 
+async function markJobSubmitted(id) {
+  try {
+    await api(`/api/jobs/${id}/mark-submitted`, { method: 'POST' });
+    toast('המשרה סומנה כהוגשה והוסרה מהדאשבורד');
+    closeModal();
+    await Promise.all([
+      loadDashboard(),
+      state.activeView === 'jobs' ? loadJobs({ silent: true }) : Promise.resolve(),
+      state.activeView === 'applications' ? loadApplications() : Promise.resolve(),
+    ]);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 async function skipJob(id) {
   try {
     await api(`/api/jobs/${id}/skip`, { method: 'POST' });
@@ -1713,6 +1732,9 @@ async function showJob(id) {
         </button>
       </div>` : `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית. הסוכן המקומי שממלא ושולח טפסים פעיל כרגע רק בחשבון הראשי.</span></div>`}
       <div class="card-actions modal-actions">
+        ${alreadySubmitted
+          ? '<button class="btn applied-job-button" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
+          : `<button class="btn secondary" type="button" onclick="markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`}
         <a class="btn secondary" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}">פתח באתר החברה</a>
         ${job.application_links?.slice(1).map((link) => `<a class="btn secondary" target="_blank" rel="noopener" href="${safeUrl(link.apply_url)}">הגש דרך ${esc(link.source || 'מקור נוסף')}</a>`).join('') || ''}
         <button class="btn secondary" type="button" onclick="openDraftComposer(${job.id})">טיוטת תשובה פתוחה</button>

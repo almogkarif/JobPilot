@@ -987,10 +987,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # Dashboard recommendations are the strongest active opportunities in the
         # entire catalog. Recency is only a tie-breaker; an excellent older role
         # should not disappear just because it was discovered before today.
+        top_jobs_statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+            Job.is_active.is_(True), Job.career_track == career_track,
+        )
+        if not guest_catalog:
+            top_jobs_statement = top_jobs_statement.where(Job.status != "submitted")
         top_jobs = catalog_db.scalars(
-            select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-                Job.is_active.is_(True), Job.career_track == career_track
-            ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at)).limit(5)
+            top_jobs_statement.order_by(
+                desc(Job.score), desc(Job.published_at), desc(Job.discovered_at),
+            ).limit(5)
         ).all()
         recent_jobs = [
             _job_payload_for_request(job, request, profile=profile)
@@ -1883,6 +1888,46 @@ def skip_job(job_id: int, db: Session = Depends(get_db)):
         job.application.status = "skipped"
     db.commit()
     return {"status": "skipped"}
+
+
+@app.post("/api/jobs/{job_id}/mark-submitted")
+def mark_job_submitted(job_id: int, db: Session = Depends(get_db)):
+    """Record a manual application directly from any job card."""
+    job = _active_job_or_404(db, job_id)
+    application = job.application
+    if not application:
+        profile = get_user_profile(db)
+        application = Application(
+            job_id=job.id,
+            status="submitted",
+            mode="manual",
+            resume_path=profile.cv_path if profile else "",
+            submitted_at=utcnow(),
+        )
+        db.add(application)
+    else:
+        application.status = "submitted"
+        application.mode = "manual" if application.mode == "review" else application.mode
+        application.submitted_at = application.submitted_at or utcnow()
+        application.last_error = ""
+        answers = loads(application.answers_json, {})
+        answers.pop(ONE_TIME_SUBMIT_KEY, None)
+        application.answers_json = dumps(answers)
+        for blocker in application.blockers:
+            if blocker.status == "open":
+                blocker.status = "resolved"
+                blocker.answer = "הושלם ידנית"
+                blocker.resolved_at = utcnow()
+    job.status = "submitted"
+    db.add(AuditLog(
+        event_type="application_marked_submitted",
+        entity_type="job",
+        entity_id=str(job.id),
+        message="Job marked as already applied manually",
+    ))
+    db.commit()
+    db.refresh(application)
+    return _application_dict(application, db)
 
 
 @app.get("/api/applications")
