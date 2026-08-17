@@ -95,7 +95,7 @@ def test_dynamic_sources_have_canonical_detail_templates_when_ids_arrive_without
     assert PRESETS["elbit"]["href_template"].startswith("https://elbitsystemscareer.com/job/")
     assert PRESETS["rafael"]["href_template"].startswith("https://career.rafael.co.il/job/")
     assert PRESETS["iai"]["href_template"].startswith("https://jobs.iai.co.il/job/")
-    assert PRESETS["salesforce"]["href_template"].startswith("https://www.salesforce.com/company/careers/jobs/")
+    assert PRESETS["salesforce"]["href_template"].startswith("https://careers.salesforce.com/en/jobs/")
 
 
 def test_dynamic_boards_recover_ids_from_visible_text_when_links_are_missing():

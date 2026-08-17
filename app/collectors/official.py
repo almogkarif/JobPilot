@@ -12,7 +12,7 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
-from .base import NormalizedJob
+from .base import NormalizedJob, PreserveExistingJobs
 
 
 PRESETS = {
@@ -35,7 +35,7 @@ PRESETS = {
     "arm-israel": {"url": "https://careers.arm.com/location/israel-jobs/33099/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Arm", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "dustphotonics": {"url": "https://www.dustphotonics.com/careers/", "selector": 'a[href*="career"], a[href*="job"], a[href*="position"]', "id_pattern": r"(?:careers?|jobs?|positions?)[^/?#]*/([^/?#]+)", "company": "DustPhotonics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+    "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True, "preserve_on_empty": True},
     "arbe": {"url": "https://arberobotics.com/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
@@ -58,16 +58,16 @@ PRESETS = {
         "company": "Amazon",
         "title_from_slug": True,
     },
-    "microsoft": {"url": "https://careers.microsoft.com/v2/global/en/locations/israel.html", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Microsoft"},
+    "microsoft": {"url": "https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/(\d+)", "company": "Microsoft", "prefer_link_text": True, "settle_ms": 4500, "selector_timeout_ms": 25000, "dynamic_scroll": True},
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2},
-    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&m=cpcareers", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*ID\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/")},
+    "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks"},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
-    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/[^/?#]+/([^/?#]+)", "company": "monday.com"},
+    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco"},
     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
-    "salesforce": {"url": "https://www.salesforce.com/company/careers/jobs/?country=Israel", "selector": 'a[href*="JR"], a[href*="jr"], [data-href*="JR"], [data-href*="jr"], [data-url*="JR"], [data-url*="jr"]', "id_pattern": r"(?i)(jr\d+)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True, "capture_network": True, "href_template": "https://www.salesforce.com/company/careers/jobs/{id}/", "text_id_pattern": r"(?i)\b(JR\d{5,})\b", "sitemap_candidates": ("https://www.salesforce.com/sitemap.xml",)},
-    "meta": {"url": "https://metacareers.dejobs.org/locations/tel-aviv-isr/jobs/", "selector": 'a[href*="/tel-aviv-isr/"][href*="/job/"]', "id_pattern": r"/([A-Fa-f0-9]{16,})/job/", "company": "Meta"},
+    "salesforce": {"url": "https://careers.salesforce.com/en/jobs/?search=&country=Israel", "selector": 'a[href*="/jobs/JR"], a[href*="/jobs/jr"], a[href*="/lavori/JR"], a[href*="/lavori/jr"], [data-href*="/jobs/JR"], [data-href*="/jobs/jr"], [data-url*="/jobs/JR"], [data-url*="/jobs/jr"]', "id_pattern": r"(?i)/(?:jobs|lavori)/(jr\d+)(?:/|$)", "company": "Salesforce", "title_from_slug": True, "settle_ms": 4500, "selector_timeout_ms": 25000, "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "dynamic_scroll": True, "capture_network": True, "href_template": "https://careers.salesforce.com/en/jobs/{id}/", "text_id_pattern": r"(?i)\b(JR\d{5,})\b", "sitemap_candidates": ("https://careers.salesforce.com/sitemap.xml",), "preserve_on_empty": True},
+    "meta": {"url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/(\d{10,})/?", "company": "Meta", "prefer_link_text": True, "settle_ms": 4000, "selector_timeout_ms": 22000, "dynamic_scroll": True, "preserve_on_empty": True},
     "qualcomm": {"url": "https://careers.qualcomm.com/careers?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Qualcomm"},
     "samsung": {"url": "https://research.samsung.com/sril/careers", "selector": 'a[href*="career"], a[href*="job"]', "id_pattern": r"(?:job|career)[^0-9]*([A-Za-z0-9_-]{4,})", "company": "Samsung Research Israel"},
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
@@ -126,6 +126,10 @@ class OfficialCareersCollector:
         if not rows and preset.get("sitemap_candidates"):
             rows = await _collect_sitemap_rows(preset)
 
+        if not rows and rendered_error is not None and (identifier == "rafael" or preset.get("preserve_on_empty")):
+            raise PreserveExistingJobs(
+                f"{preset['company']} temporarily blocked automated access; preserving the last successful job snapshot"
+            ) from rendered_error
         if not rows and rendered_error is not None:
             raise rendered_error
 
@@ -145,6 +149,9 @@ class OfficialCareersCollector:
                 path_offset=int(preset.get("title_path_offset", -1)),
                 prefer_link_text=bool(preset.get("prefer_link_text")),
             )
+            title = _repair_known_listing_title(identifier, title, text)
+            if not title:
+                continue
             if identifier == "wix" and not _row_has_human_title({"title": title}):
                 # Never persist Wix infrastructure IDs (oracle/seat/REF) as titles.
                 # A later scan can recover the job once its detail page is readable.
@@ -157,7 +164,12 @@ class OfficialCareersCollector:
                 location=location, workplace="onsite", description=text,
                 apply_url=href, source_url=href,
             )
-        return list(results.values())
+        normalized = list(results.values())
+        if not normalized and preset.get("preserve_on_empty"):
+            raise PreserveExistingJobs(
+                f"{preset['company']} did not expose a reliable job payload; preserving the last successful snapshot"
+            ) from rendered_error
+        return normalized
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:
@@ -242,7 +254,10 @@ class OfficialCareersCollector:
                 try:
                     await links.first.wait_for(state="attached", timeout=int(preset.get("selector_timeout_ms", 12_000)))
                 except Exception as exc:
-                    body_text = " ".join((await page.locator("body").inner_text(timeout=3_000)).split())
+                    try:
+                        body_text = " ".join((await page.locator("body").inner_text(timeout=3_000)).split())
+                    except Exception:
+                        body_text = ""
                     empty_markers = tuple(str(marker).casefold() for marker in preset.get("empty_markers", ()))
                     if preset.get("allow_empty") and any(marker in body_text.casefold() for marker in empty_markers):
                         return []
@@ -753,11 +768,35 @@ def _resolve_title(
         candidate = " ".join(word.upper() if word.casefold() in keep_upper else word.capitalize() for word in words)
     return candidate
 
+
+def _repair_known_listing_title(identifier: str, title: str, text: str) -> str:
+    """Recover titles from cards whose visible link contains only a CTA or ID."""
+    compact = " ".join(str(text or "").split()).strip()
+    if identifier == "texas-instruments":
+        match = re.match(r"(.+?)\s+(?:Israel|Ra['’]anana, Israel)\s+POSTING DATE", compact, re.I)
+        return match.group(1).strip() if match else title
+    if identifier == "speedata":
+        match = re.match(r"(.+?)\s+Israel\s+About the position", compact, re.I)
+        return match.group(1).strip() if match else title
+    if identifier == "camtek":
+        if title.casefold() == "open positions":
+            return ""
+        if re.fullmatch(r"[A-Fa-f0-9]{2,3}[.-][A-Fa-f0-9]{3}", title):
+            match = re.match(
+                r"(.+?)\s+(?:R&D|Marketing|Operations|Engineering|Product|Applications?)\s+Migdal",
+                compact, re.I,
+            )
+            return match.group(1).strip() if match else ""
+    if identifier in {"samsung", "sentinelone"} and title.strip() in {"SNS", "\\"}:
+        return ""
+    return title
+
 _ISRAEL_CITY_NAMES = (
     "Tel Aviv", "Tel Aviv-Yafo", "Haifa", "Herzliya", "Jerusalem", "Ramat Gan", "Petah Tikva",
     "Kiryat Gat", "Beer Sheva", "Be'er Sheva", "Yokneam", "Yoqneam", "Ra'anana",
     "Raanana", "Rehovot", "Netanya", "Caesarea", "Bnei Brak", "Rishon Lezion",
     "Kfar Saba", "Hod Hasharon", "Modiin", "Nes Ziona", "Or Yehuda", "Yehud",
+    "Migdal Haemek", "Migdal Ha'Emek", "Ramat-Gan", "Tel Aviv-Yafo",
 )
 
 _HEBREW_ISRAEL_LOCATIONS = {
@@ -790,6 +829,11 @@ def _extract_israel_location(text: str) -> str:
         if re.search(rf"(?<![A-Za-z]){re.escape(city)}(?![A-Za-z])", compact, re.IGNORECASE):
             canonical = city.replace("Beer Sheva", "Be'er Sheva").replace("Raanana", "Ra'anana").replace("Yoqneam", "Yokneam")
             return f"{canonical}, Israel"
+    # Several Israeli startup boards use ISO country codes instead of spelling out
+    # the country (for example ``location_on IL`` or ``Tel Aviv · IL``). Require a
+    # standalone token so words such as "skills" cannot create a false match.
+    if re.search(r"(?<![A-Za-z])IL(?![A-Za-z])", compact):
+        return "Israel"
     if re.search(r"(?<![A-Za-z])Israel(?![A-Za-z])", compact, re.IGNORECASE) or "ישראל" in compact:
         return "Israel"
     return ""

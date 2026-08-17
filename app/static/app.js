@@ -1396,7 +1396,9 @@ function showScanReport(result) {
       <div class="scan-source-name"><i aria-hidden="true"></i><strong>${esc(item.source || 'מקור')}</strong></div>
       ${item.error
         ? `<span class="scan-source-error">${esc(item.error)}</span>`
-        : `<span class="scan-source-counts"><b>${Number(item.found || 0)}</b> בישראל <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
+        : item.deferred
+          ? `<span class="scan-source-counts">הגישה נחסמה זמנית — המשרות מהסריקה התקינה האחרונה נשמרו</span>`
+          : `<span class="scan-source-counts"><b>${Number(item.israel_found ?? item.found ?? 0)}</b> בישראל <b>${Number(item.found || 0)}</b> מתאימות <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
     </div>
   `).join('');
 

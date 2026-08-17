@@ -305,6 +305,8 @@ EE_STRONG_TITLE_TERMS = {
     "מהנדס חשמל", "מהנדסת חשמל", "מהנדס חומרה", "מהנדסת חומרה", "וריפיקציה", "תכנון כרטיסים",
     "אלקטרואופטיקה", "אלקטרוניקה", "מהנדס.ת חשמל", "מהנדס.ת חומרה", "מהנדס.ת אלקטרוניקה",
     "תוכנת נתב", "קושחה", "מכטרוניקה",
+    "electro-optics", "electro optics", "optics", "silicon validation", "design emulation",
+    "system test", "wifi", "wi-fi", "soc architect", "circuit design", "logic design",
 }
 EE_CONTEXT_TERMS = {
     "verilog", "systemverilog", "vhdl", "uvm", "fpga", "asic", "rtl", "vlsi", "soc", "pcb",

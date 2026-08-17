@@ -19,5 +19,9 @@ class NormalizedJob:
     metadata: dict = field(default_factory=dict)
 
 
+class PreserveExistingJobs(RuntimeError):
+    """The public source temporarily blocked collection; keep its last good rows."""
+
+
 class Collector(Protocol):
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]: ...

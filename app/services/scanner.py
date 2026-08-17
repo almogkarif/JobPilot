@@ -7,6 +7,7 @@ from collections.abc import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 from ..collectors import COLLECTORS
+from ..collectors.base import PreserveExistingJobs
 from ..models import Application, AuditLog, Job, Profile, ResumeProfile, Source
 from ..database import get_user_profile
 from ..utils import dumps, loads
@@ -144,7 +145,7 @@ async def scan_all_sources(
             })
         progress_callback(payload)
 
-    async def collect_one(snapshot: dict) -> tuple[dict, list, str | None]:
+    async def collect_one(snapshot: dict) -> tuple[dict, list | None, str | None]:
         source_id = int(snapshot["id"])
         source_name = str(snapshot["name"])
         collector_cls = COLLECTORS.get(str(snapshot["kind"]))
@@ -162,6 +163,8 @@ async def scan_all_sources(
                 return snapshot, items, None
             except asyncio.TimeoutError:
                 return snapshot, [], f"Source scan timed out after {SOURCE_SCAN_TIMEOUT_SECONDS} seconds"
+            except PreserveExistingJobs:
+                return snapshot, None, None
             except Exception as exc:  # noqa: BLE001 - one collector must not stop the rest
                 return snapshot, [], str(exc)
             finally:
@@ -182,6 +185,30 @@ async def scan_all_sources(
             source_updated = 0
             source_filtered_foreign = 0
             source_filtered_mismatch = 0
+
+            if items is None:
+                source.last_scanned_at = datetime.now(timezone.utc)
+                source.last_error = ""
+                source.consecutive_failures = 0
+                source.health_score = max(80, int(source.health_score or 100))
+                source.disabled_until = None
+                db.add(AuditLog(
+                    event_type="source_scan_deferred",
+                    entity_type="source",
+                    entity_id=str(source.id),
+                    message=f"Preserved the last successful snapshot for {source.name}",
+                    details_json=dumps({"reason": "temporary source access block"}),
+                ))
+                db.commit()
+                source_result = {
+                    "source": source.name, "collected": 0, "israel_found": 0, "found": 0,
+                    "filtered_foreign": 0, "filtered_mismatch": 0,
+                    "new": 0, "updated": 0, "error": "", "deferred": True,
+                }
+                per_source.append(source_result)
+                completed_count += 1
+                emit_progress(last=source_result)
+                continue
 
             if collect_error:
                 db.rollback()
@@ -207,7 +234,7 @@ async def scan_all_sources(
                 error = {"source": str(snapshot["name"]), "error": str(collect_error)}
                 errors.append(error)
                 source_result = {
-                    "source": str(snapshot["name"]), "collected": 0, "found": 0,
+                    "source": str(snapshot["name"]), "collected": 0, "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
                     "new": 0, "updated": 0, "error": str(collect_error),
                 }
@@ -337,6 +364,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": source.name,
                     "collected": len(items),
+                    "israel_found": len(israel_items),
                     "found": len(eligible_items),
                     "filtered_foreign": source_filtered_foreign,
                     "filtered_mismatch": source_filtered_mismatch,
@@ -366,7 +394,7 @@ async def scan_all_sources(
                     ))
                     db.commit()
                 source_result = {
-                    "source": str(snapshot["name"]), "collected": len(items), "found": 0,
+                    "source": str(snapshot["name"]), "collected": len(items), "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
                     "new": 0, "updated": 0, "error": str(exc),
                 }

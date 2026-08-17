@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 
-from app.collectors.base import NormalizedJob
+from app.collectors.base import NormalizedJob, PreserveExistingJobs
 from app.database import Base
 from app.models import Job, Profile, Source
 from app.services import scanner
@@ -121,6 +121,35 @@ def test_one_broken_source_does_not_cancel_successful_sources(monkeypatch):
     assert result["new"] == 2
     assert result["errors"][0]["source"] == "Broken"
     assert db.scalar(select(func.count()).select_from(Job)) == 2
+    db.close()
+
+
+def test_temporary_access_block_preserves_last_good_source_snapshot(monkeypatch):
+    class BlockedCollector:
+        async def collect(self, identifier: str, company_name: str = ""):
+            raise PreserveExistingJobs("temporary bot protection")
+
+    monkeypatch.setitem(scanner.COLLECTORS, "greenhouse", BlockedCollector)
+    db = _session()
+    db.add(_profile())
+    source = Source(name="Rafael", kind="greenhouse", identifier="rafael", company_name="Rafael", enabled=True)
+    db.add(source)
+    db.flush()
+    job = Job(
+        source_id=source.id, external_id="12345", title="FPGA Engineer", company="Rafael",
+        location="Haifa, Israel", workplace="onsite", description="FPGA hardware",
+        apply_url="https://career.rafael.co.il/job/12345/", is_active=True,
+    )
+    db.add(job)
+    db.commit()
+
+    result = asyncio.run(scanner.scan_all_sources(db))
+
+    assert result["status"] == "ok"
+    assert result["errors"] == []
+    assert result["per_source"][0]["deferred"] is True
+    assert db.get(Job, job.id).is_active is True
+    assert db.get(Source, source.id).last_error == ""
     db.close()
 
 
