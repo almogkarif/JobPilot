@@ -74,7 +74,7 @@ PRESETS = {
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
     "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "data_url": "https://elbitsystemscareer.com/cron/jobs.json", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "prefer_link_text": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml",), "network_id_keys": ("jid", "jobId", "job_id", "requisitionId", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name"), "network_location_keys": ("location", "locationAddress", "city", "site"), "network_description_keys": ("description", "requirements", "skills")},
     "rafael": {"url": "https://career.rafael.co.il/search/", "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 18000, "settle_ms": 1800, "challenge_wait_rounds": 8, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
-    "iai": {"url": "https://jobs.iai.co.il/jobs/", "data_url": "https://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "href_template": "https://jobs.iai.co.il/job/{id}/", "raw_id_fallback": True, "capture_network": True, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml",), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name", "tl"), "network_location_keys": ("location", "city", "site", "address", "jobLocation", "locationName", "ct"), "network_description_keys": ("description", "jobDescription", "dc", "jc", "tp")},
+    "iai": {"url": "https://jobs.iai.co.il/jobs/", "data_url": "https://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json", "data_fallback_urls": ("https://r.jina.ai/http://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json",), "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "href_template": "https://jobs.iai.co.il/job/{id}/", "raw_id_fallback": True, "capture_network": True, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml",), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name", "tl"), "network_location_keys": ("location", "city", "site", "address", "jobLocation", "locationName", "ct"), "network_description_keys": ("description", "jobDescription", "dc", "jc", "tp")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
     "similarweb": {"url": "https://www.similarweb.com/corp/careers/", "selector": 'a[href*="greenhouse.io/similarweb/jobs/"]', "id_pattern": r"/jobs/(\d+)", "company": "Similarweb"},
@@ -478,16 +478,31 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
         "Accept": "application/json,text/plain;q=0.9,*/*;q=0.5",
         "Referer": str(preset["url"]),
     }
-    async with httpx.AsyncClient(follow_redirects=True, timeout=20.0, headers=headers) as client:
-        response = await client.get(str(preset["data_url"]))
-        response.raise_for_status()
-        if len(response.content) > 16_000_000:
-            raise RuntimeError("Official jobs feed exceeded the safe size limit")
-    rows = _extract_structured_job_rows(response.text, preset)
+    endpoints = [str(preset["data_url"]), *(str(url) for url in preset.get("data_fallback_urls", ()))]
+    response = None
+    rows: list[dict] = []
+    route = "direct"
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0, headers=headers) as client:
+        for index, endpoint in enumerate(endpoints):
+            response = await client.get(endpoint)
+            if len(response.content) > 16_000_000:
+                raise RuntimeError("Official jobs feed exceeded the safe size limit")
+            payload = response.text
+            if index:
+                wrapped = re.search(r"(?s)Markdown Content:\s*(\[.*)", payload)
+                if wrapped:
+                    payload = wrapped.group(1)
+            rows = _extract_structured_job_rows(payload, preset)
+            route = "direct" if index == 0 else f"fallback-{index}"
+            if rows:
+                break
+            if response.status_code >= 400 and index == len(endpoints) - 1:
+                response.raise_for_status()
     if preset.get("data_only"):
         print(
             f"[collector-feed] company={preset.get('company')} status={response.status_code} "
-            f"bytes={len(response.content)} rows={len(rows)} content_type={response.headers.get('content-type', '')[:80]}",
+            f"bytes={len(response.content)} rows={len(rows)} route={route} "
+            f"content_type={response.headers.get('content-type', '')[:80]}",
             flush=True,
         )
         if not rows:
