@@ -103,6 +103,8 @@ class OfficialCareersCollector:
         if preset.get("data_url"):
             try:
                 rows = await _collect_data_rows(preset)
+            except PreserveExistingJobs:
+                raise
             except Exception as exc:
                 if preset.get("data_only"):
                     raise RuntimeError(f"Official jobs feed unavailable for {identifier}: {exc}") from exc
@@ -481,7 +483,18 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
         response.raise_for_status()
         if len(response.content) > 16_000_000:
             raise RuntimeError("Official jobs feed exceeded the safe size limit")
-    return _extract_structured_job_rows(response.text, preset)
+    rows = _extract_structured_job_rows(response.text, preset)
+    if preset.get("data_only"):
+        print(
+            f"[collector-feed] company={preset.get('company')} status={response.status_code} "
+            f"bytes={len(response.content)} rows={len(rows)} content_type={response.headers.get('content-type', '')[:80]}",
+            flush=True,
+        )
+        if not rows:
+            raise PreserveExistingJobs(
+                f"{preset.get('company')} returned an empty or unrecognized official jobs feed"
+            )
+    return rows
 
 
 def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:

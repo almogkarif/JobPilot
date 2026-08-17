@@ -183,7 +183,24 @@ async def run_scheduled(*, force: bool = False) -> int:
     return ran
 
 
+async def diagnose_official_sources() -> int:
+    from app.collectors.official import OfficialCareersCollector
+
+    for identifier in ("iai", "rafael"):
+        try:
+            jobs = await asyncio.wait_for(
+                OfficialCareersCollector().collect(identifier, identifier.upper()),
+                timeout=60,
+            )
+            print(f"[diagnose] source={identifier} collected={len(jobs)}", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[diagnose] source={identifier} error={type(exc).__name__}: {exc}", flush=True)
+    return 1
+
+
 def work_available(mode: str) -> bool:
+    if mode == "diagnose":
+        return True
     if mode == "all":
         return bool(known_user_ids())
     for user_id in known_user_ids():
@@ -204,14 +221,16 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
         available = work_available(args.mode)
         print(f"[scan] work_available={str(available).lower()} mode={args.mode}", flush=True)
         return 0 if available else 3
-    if args.mode == "queued":
+    if args.mode == "diagnose":
+        count = await diagnose_official_sources()
+    elif args.mode == "queued":
         count = await run_queued()
     elif args.mode == "scheduled":
         count = await run_scheduled(force=False)
