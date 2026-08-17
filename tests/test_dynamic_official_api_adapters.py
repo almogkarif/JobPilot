@@ -1,4 +1,11 @@
-from app.collectors.official import PRESETS, _extract_structured_job_rows, _resolve_row_href
+import json
+
+from app.collectors.official import (
+    PRESETS,
+    _extract_drushim_company_rows,
+    _extract_structured_job_rows,
+    _resolve_row_href,
+)
 
 
 def _one(identifier: str, payload: str):
@@ -41,6 +48,43 @@ def test_rafael_api_object_becomes_canonical_job_row():
     assert external_id == "13034"
     assert href == "https://career.rafael.co.il/job/13034/"
     assert row["title"] == "מהנדס/ת חומרה"
+
+
+def test_rafael_drushim_fallback_keeps_official_id_link_and_job_details():
+    payload = json.dumps({"Company": {"Jobs": [{
+        "Code": 37897232,
+        "SendCVButtonModel": {
+            "ExternalLink": (
+                "https://career.rafael.co.il/job?jobid=11431&referid=97"
+                "https://career.rafael.co.il/job?jobid=11431&referid=97"
+            ),
+        },
+        "JobInfo": {"EmployerJobCode": "7652"},
+        "JobContent": {
+            "Name": "פלנר.ית חומר – משרת בוגרי תעשייה וניהול",
+            "Description": "<p>תכנון חומר לפרויקטים וניתוח המלצות MRP</p>",
+            "Requirements": "<p>תואר בהנדסת תעשייה וניהול</p>",
+            "Addresses": [{"City": "קריית ביאליק"}],
+            "Experience": {"NameInHebrew": "ללא נסיון"},
+        },
+    }]}})
+    rows = _extract_drushim_company_rows(payload, PRESETS["rafael"])
+    assert len(rows) == 1
+    href, match = _resolve_row_href(rows[0], PRESETS["rafael"])
+    assert match is not None
+    assert match.group(1) == "11431"
+    assert href == "https://career.rafael.co.il/job?jobid=11431&referid=97"
+    assert rows[0]["title"].startswith("פלנר.ית חומר")
+    assert "קריית ביאליק" in rows[0]["text"]
+    assert "תעשייה וניהול" in rows[0]["text"]
+
+
+def test_rafael_drushim_fallback_rejects_non_rafael_apply_links():
+    payload = json.dumps({"Company": {"Jobs": [{
+        "SendCVButtonModel": {"ExternalLink": "https://example.com/job/9999"},
+        "JobContent": {"Name": "Software Engineer"},
+    }]}})
+    assert _extract_drushim_company_rows(payload, PRESETS["rafael"]) == []
 
 
 def test_elbit_api_object_becomes_canonical_job_row():

@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -73,7 +73,7 @@ PRESETS = {
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
     "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "data_url": "https://elbitsystemscareer.com/cron/jobs.json", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "prefer_link_text": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml",), "network_id_keys": ("jid", "jobId", "job_id", "requisitionId", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name"), "network_location_keys": ("location", "locationAddress", "city", "site"), "network_description_keys": ("description", "requirements", "skills")},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 18000, "settle_ms": 1800, "challenge_wait_rounds": 8, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "external_fallback_url": "https://www.drushim.co.il/api/company/profile/?companycode=27381&companyname=%D7%A8%D7%A4%D7%90%D7%9C", "external_fallback_kind": "drushim_company", "external_fallback_before_browser": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 18000, "settle_ms": 1800, "challenge_wait_rounds": 8, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
     "iai": {"url": "https://jobs.iai.co.il/jobs/", "data_url": "https://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json", "data_fallback_urls": ("https://r.jina.ai/http://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json",), "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "href_template": "https://jobs.iai.co.il/job/{id}/", "raw_id_fallback": True, "capture_network": True, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml",), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name", "tl"), "network_location_keys": ("location", "city", "site", "address", "jobLocation", "locationName", "ct"), "network_description_keys": ("description", "jobDescription", "dc", "jc", "tp")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
@@ -118,6 +118,13 @@ class OfficialCareersCollector:
                 rows = []
 
         rendered_error: Exception | None = None
+        external_fallback_attempted = False
+        if not rows and preset.get("external_fallback_before_browser"):
+            external_fallback_attempted = True
+            try:
+                rows = await _collect_external_fallback_rows(preset)
+            except Exception as exc:
+                rendered_error = exc
         if not rows and not preset.get("data_only") and not preset.get("static_only"):
             try:
                 rows = await self._collect_rendered_rows(identifier, preset)
@@ -127,6 +134,17 @@ class OfficialCareersCollector:
 
         if not rows and preset.get("sitemap_candidates"):
             rows = await _collect_sitemap_rows(preset)
+
+        # Some employers block every data-center route to their official board.
+        # A fixed, company-owned listing on a known Israeli job board is a safer
+        # last resort than deleting the previous snapshot or inventing job URLs.
+        # Keep the official site first and retain its canonical apply links.
+        if not rows and preset.get("external_fallback_url") and not external_fallback_attempted:
+            try:
+                rows = await _collect_external_fallback_rows(preset)
+            except Exception as exc:
+                if rendered_error is None:
+                    rendered_error = exc
 
         if not rows and rendered_error is not None and (identifier == "rafael" or preset.get("preserve_on_empty")):
             raise PreserveExistingJobs(
@@ -510,6 +528,84 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
                 f"{preset.get('company')} returned an empty or unrecognized official jobs feed"
             )
     return rows
+
+
+async def _collect_external_fallback_rows(preset: dict) -> list[dict]:
+    """Read a bounded third-party mirror while preserving official apply URLs."""
+    if preset.get("external_fallback_kind") != "drushim_company":
+        return []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.drushim.co.il/",
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=25.0, headers=headers) as client:
+        response = await client.get(str(preset["external_fallback_url"]))
+        response.raise_for_status()
+    if len(response.content) > 8_000_000:
+        raise RuntimeError("External jobs fallback exceeded the safe size limit")
+    rows = _extract_drushim_company_rows(response.text, preset)
+    print(
+        f"[collector-fallback] company={preset.get('company')} provider=drushim "
+        f"status={response.status_code} bytes={len(response.content)} rows={len(rows)}",
+        flush=True,
+    )
+    return rows
+
+
+def _extract_drushim_company_rows(raw_payload: str, preset: dict) -> list[dict]:
+    """Convert Drushim's public company profile payload to canonical job rows."""
+    try:
+        payload = json.loads(raw_payload)
+    except Exception:
+        return []
+    jobs = payload.get("Company", {}).get("Jobs", []) if isinstance(payload, dict) else []
+    if not isinstance(jobs, list):
+        return []
+    rows: list[dict] = []
+    for job in jobs[:250]:
+        if not isinstance(job, dict):
+            continue
+        content = job.get("JobContent") if isinstance(job.get("JobContent"), dict) else {}
+        send_model = job.get("SendCVButtonModel") if isinstance(job.get("SendCVButtonModel"), dict) else {}
+        href = " ".join(str(send_model.get("ExternalLink") or "").split()).strip()
+        # A small number of Drushim records concatenate the same external URL
+        # twice. Keep only the first complete Rafael application URL.
+        clean_href = re.match(
+            r"(?i)(https?://[^\s?#]+/job\?jobid=[A-Za-z0-9-]+(?:&referid=\d+)?)",
+            href,
+        )
+        if clean_href:
+            href = clean_href.group(1)
+        # Only accept links which resolve to this preset's canonical identifier.
+        # Drushim's own job code is deliberately not used as Rafael's external ID.
+        official_host = (urlparse(str(preset["url"])).hostname or "").casefold()
+        fallback_host = (urlparse(href).hostname or "").casefold()
+        if fallback_host != official_host or not _resolve_row_href({"href": href}, preset)[1]:
+            continue
+        title = " ".join(str(content.get("Name") or "").split()).strip()
+        if not _row_has_human_title({"title": title}):
+            continue
+        addresses = content.get("Addresses") if isinstance(content.get("Addresses"), list) else []
+        locations = [
+            " ".join(str(item.get("City") or item.get("CityEnglish") or "").split()).strip()
+            for item in addresses if isinstance(item, dict)
+        ]
+        locations = [value for value in locations if value]
+        parts = [title, *locations]
+        for key in ("Description", "Requirements"):
+            value = content.get(key)
+            if value:
+                parts.append(BeautifulSoup(str(value), "html.parser").get_text(" ", strip=True))
+        experience = content.get("Experience")
+        if isinstance(experience, dict) and experience.get("NameInHebrew"):
+            parts.append(str(experience["NameInHebrew"]))
+        rows.append({
+            "href": href, "onclick": "", "title": title, "linkText": title,
+            "text": " ".join(parts)[:12000],
+        })
+    return _dedupe_rows(rows, preset)
 
 
 def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
