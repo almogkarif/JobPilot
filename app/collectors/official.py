@@ -482,7 +482,7 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
     response = None
     rows: list[dict] = []
     route = "direct"
-    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0, headers=headers) as client:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=75.0, headers=headers) as client:
         for index, endpoint in enumerate(endpoints):
             response = await client.get(endpoint)
             if len(response.content) > 16_000_000:

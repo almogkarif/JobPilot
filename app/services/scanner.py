@@ -155,14 +155,15 @@ async def scan_all_sources(
             running_sources[source_id] = source_name
             emit_progress(current_source=source_name)
             try:
+                source_timeout = 90 if str(snapshot["kind"]) == "official_careers" and str(snapshot["identifier"]) == "iai" else SOURCE_SCAN_TIMEOUT_SECONDS
                 items = await asyncio.wait_for(
                     collector_cls().collect(str(snapshot["identifier"]), str(snapshot["company_name"] or "")),
-                    timeout=SOURCE_SCAN_TIMEOUT_SECONDS,
+                    timeout=source_timeout,
                 )
                 validate_source_payload(source_name, items)
                 return snapshot, items, None
             except asyncio.TimeoutError:
-                return snapshot, [], f"Source scan timed out after {SOURCE_SCAN_TIMEOUT_SECONDS} seconds"
+                return snapshot, [], f"Source scan timed out after {source_timeout} seconds"
             except PreserveExistingJobs:
                 return snapshot, None, None
             except Exception as exc:  # noqa: BLE001 - one collector must not stop the rest

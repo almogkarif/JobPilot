@@ -190,7 +190,7 @@ async def diagnose_official_sources() -> int:
         try:
             jobs = await asyncio.wait_for(
                 OfficialCareersCollector().collect(identifier, identifier.upper()),
-                timeout=60,
+                timeout=100,
             )
             print(f"[diagnose] source={identifier} collected={len(jobs)}", flush=True)
         except Exception as exc:  # noqa: BLE001
