@@ -195,6 +195,47 @@ def test_successful_rescan_permanently_removes_jobs_missing_upstream(monkeypatch
     db.close()
 
 
+def test_successful_rescan_removes_job_that_no_longer_matches_track(monkeypatch):
+    class MixedCollector:
+        async def collect(self, identifier: str, company_name: str = ""):
+            return [
+                NormalizedJob(
+                    external_id="software", title="Software Engineer", company=company_name,
+                    location="Haifa, Israel", workplace="hybrid", description="Python backend development",
+                    apply_url="https://example.com/jobs/software",
+                ),
+                NormalizedJob(
+                    external_id="buyer", title="Strategic Buyer", company=company_name,
+                    location="Haifa, Israel", workplace="onsite", description="Procurement and supplier contracts",
+                    apply_url="https://example.com/jobs/buyer",
+                ),
+            ]
+
+    monkeypatch.setitem(scanner.COLLECTORS, "greenhouse", MixedCollector)
+    db = _session()
+    db.add(_profile())
+    source = Source(name="Mixed", kind="greenhouse", identifier="mixed", company_name="Example", enabled=True, career_track="computer_science")
+    db.add(source)
+    db.flush()
+    # Simulate a role admitted by the former permissive CS rule.
+    stale = Job(
+        source_id=source.id, career_track="computer_science", external_id="buyer", title="Strategic Buyer", company="Example",
+        location="Haifa, Israel", description="Procurement and supplier contracts",
+        apply_url="https://example.com/jobs/buyer", is_active=True,
+    )
+    db.add(stale)
+    db.commit()
+
+    result = asyncio.run(scanner.scan_all_sources(db))
+
+    assert result["found"] == 1, result
+    assert result["filtered_mismatch"] == 1
+    assert result["removed"] == 1
+    assert db.scalar(select(Job).where(Job.external_id == "buyer")) is None
+    assert db.scalar(select(Job).where(Job.external_id == "software")) is not None
+    db.close()
+
+
 def test_targeted_scan_refreshes_only_selected_sources(monkeypatch):
     class SelectedCollector:
         async def collect(self, identifier: str, company_name: str = ""):

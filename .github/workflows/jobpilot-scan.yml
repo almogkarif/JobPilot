@@ -15,6 +15,7 @@ on:
           - scheduled
           - all
           - diagnose
+          - audit
 
 permissions:
   contents: read

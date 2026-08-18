@@ -133,6 +133,23 @@ def test_iem_relevance_accepts_operations_and_rejects_unrelated_software():
     assert track_job_relevance(bad, INDUSTRIAL_ENGINEERING)[0] is False
 
 
+def test_cs_relevance_accepts_software_and_rejects_unrelated_company_roles():
+    software = SimpleNamespace(title="Backend Software Engineer", description="Build Python microservices on Kubernetes")
+    embedded = SimpleNamespace(title="Embedded Software Developer", description="Develop real-time C++ software")
+    degree = SimpleNamespace(title="Research Engineer", description="BSc Computer Science; algorithms and Python")
+    secretary = SimpleNamespace(title="מזכיר.ת אגף", description="ניהול יומן ותיאום פגישות")
+    procurement = SimpleNamespace(title="Strategic Buyer", description="Procurement, suppliers and contracts")
+    electrical = SimpleNamespace(title="Electrical Engineer", description="Board design, RF and electronics")
+    mechanical = SimpleNamespace(title="Mechanical Engineer", description="Mechanical design and production")
+    assert track_job_relevance(software, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(embedded, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(degree, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(secretary, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(procurement, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(electrical, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(mechanical, COMPUTER_SCIENCE)[0] is False
+
+
 
 def test_track_state_keeps_all_search_settings_and_cv_separate_but_contact_shared():
     from app.models import Profile

@@ -99,6 +99,33 @@ SENIORITY_LEVELS = {
     "manager": {"engineering manager", "manager", "director", "מנהל"},
 }
 DEV_TERMS = {"software", "developer", "engineer", "backend", "automation", "infrastructure", "tools", "embedded", "integration", "r&d", "research", "algorithm"}
+CS_STRONG_TITLE_TERMS = {
+    "software engineer", "software developer", "software architect", "developer", "backend", "back-end", "frontend",
+    "front-end", "full stack", "fullstack", "web developer", "mobile developer", "android developer",
+    "ios developer", "devops", "site reliability", "sre", "cloud engineer", "platform engineer",
+    "data engineer", "data scientist", "machine learning", "ml engineer", "ai engineer", "algorithm",
+    "computer vision", "nlp", "cyber", "security engineer", "security researcher", "security analyst",
+    "application security", "penetration tester", "qa automation", "automation developer", "test automation",
+    "embedded software", "embedded developer", "firmware", "integration engineer", "software integration",
+    "systems programmer", "system programmer", "database engineer", "dba", "solutions architect",
+    "מהנדס תוכנה", "מהנדסת תוכנה", "מפתח תוכנה", "מפתחת תוכנה", "פיתוח תוכנה", "מתכנת",
+    "מתכנתת", "פול סטאק", "בקאנד", "פרונטאנד", "אלגוריתם", "אלגוריתמים", "למידת מכונה",
+    "בינה מלאכותית", "מדען נתונים", "מדענית נתונים", "מהנדס נתונים", "מהנדסת נתונים",
+    "אבטחת מידע", "סייבר", "חוקר אבטחה", "חוקרת אבטחה", "אוטומציה", "קושחה",
+    "תוכנה משובצת", "אינטגרציית תוכנה",
+}
+CS_CONTEXT_TERMS = {
+    "computer science", "software engineering", "software", "python", "java", "javascript", "typescript", "c++", "c#",
+    "golang", "react", "node.js", "linux", "kubernetes", "docker", "aws", "azure", "gcp", "sql",
+    "distributed systems", "microservices", "machine learning", "deep learning", "computer vision",
+    "data structures", "algorithms", "embedded software", "real-time software", "cyber security",
+    "מדעי המחשב", "הנדסת תוכנה", "פיתוח תוכנה", "תוכנה", "אלגוריתמים", "למידת מכונה",
+    "בינה מלאכותית", "מערכות הפעלה", "אבטחת מידע", "סייבר",
+}
+CS_GENERIC_TITLE_TERMS = {
+    "engineer", "developer", "architect", "programmer", "researcher", "scientist", "analyst",
+    "מהנדס", "מהנדסת", "מפתח", "מפתחת", "ארכיטקט", "חוקר", "חוקרת", "מדען", "מדענית",
+}
 IEM_STRONG_TITLE_TERMS = {
     "industrial engineer", "industrial engineering", "business analyst", "data analyst", "bi analyst",
     "operations analyst", "supply chain", "production planner", "material planner", "demand planner",
@@ -318,11 +345,27 @@ EE_CONTEXT_TERMS = {
 def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
     """Return whether a collected job belongs in the requested professional track.
 
-    CS keeps the permissive legacy behavior. IEM is deliberately stricter because
-    broad company boards otherwise flood the track with unrelated software roles.
+    Broad company boards contain many unrelated professions, so every track needs
+    a positive professional signal rather than treating a company's whole board as
+    relevant.
     """
     if career_track == COMPUTER_SCIENCE:
-        return True, "legacy_cs_scope"
+        title = str(getattr(job, "title", "") or "").casefold()
+        description = str(getattr(job, "description", "") or "").casefold()
+        text = f"{title} {description}"
+        if any(term in title for term in CS_STRONG_TITLE_TERMS):
+            return True, "cs_title"
+        context_hits = sum(1 for term in CS_CONTEXT_TERMS if term in text)
+        degree_signal = any(term in text for term in (
+            "computer science", "software engineering", "computer engineering",
+            "מדעי המחשב", "הנדסת תוכנה", "הנדסת מחשבים",
+        ))
+        generic_title = any(term in title for term in CS_GENERIC_TITLE_TERMS)
+        if degree_signal and generic_title:
+            return True, "cs_degree_signal"
+        if generic_title and context_hits >= 2:
+            return True, "cs_context"
+        return False, "outside_cs_scope"
     title = str(getattr(job, "title", "") or "").casefold()
     description = str(getattr(job, "description", "") or "").casefold()
     text = f"{title} {description}"

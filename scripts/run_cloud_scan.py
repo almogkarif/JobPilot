@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.database import SessionLocal, get_user_profile, user_session  # noqa: E402
-from app.models import AppIdentity  # noqa: E402
+from app.models import AppIdentity, Job, Source  # noqa: E402
 from app.services.career_tracks import active_track, normalize_track  # noqa: E402
 from app.services.scan_runtime import (  # noqa: E402
     create_scan_run,
@@ -198,8 +198,43 @@ async def diagnose_official_sources() -> int:
     return 1
 
 
+async def audit_catalog_tracks() -> int:
+    """Report active catalogue roles that fail their track's current classifier."""
+    from app.services.matching import track_job_relevance
+
+    audited = 0
+    for user_id in known_user_ids():
+        with user_session(user_id) as db:
+            jobs = db.scalars(
+                select(Job).where(Job.is_active.is_(True)).order_by(Job.career_track, Job.company, Job.title)
+            ).all()
+            sources = {source.id: source.name for source in db.scalars(select(Source)).all()}
+            counts: dict[str, dict[str, int]] = {}
+            for job in jobs:
+                bucket = counts.setdefault(job.career_track, {"active": 0, "mismatch": 0})
+                bucket["active"] += 1
+                relevant, reason = track_job_relevance(job, job.career_track)
+                if not relevant:
+                    bucket["mismatch"] += 1
+                    print(
+                        "[audit-mismatch] "
+                        f"account={account_label(user_id)} track={job.career_track} "
+                        f"source={sources.get(job.source_id, job.source_id)} company={job.company} "
+                        f"title={job.title} reason={reason}",
+                        flush=True,
+                    )
+            for track, values in sorted(counts.items()):
+                print(
+                    f"[audit] account={account_label(user_id)} track={track} "
+                    f"active={values['active']} mismatch={values['mismatch']}",
+                    flush=True,
+                )
+            audited += 1
+    return audited
+
+
 def work_available(mode: str) -> bool:
-    if mode == "diagnose":
+    if mode in {"diagnose", "audit"}:
         return True
     if mode == "all":
         return bool(known_user_ids())
@@ -221,7 +256,7 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose", "audit"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
@@ -230,6 +265,8 @@ async def main() -> int:
         return 0 if available else 3
     if args.mode == "diagnose":
         count = await diagnose_official_sources()
+    elif args.mode == "audit":
+        count = await audit_catalog_tracks()
     elif args.mode == "queued":
         count = await run_queued()
     elif args.mode == "scheduled":

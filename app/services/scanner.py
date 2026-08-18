@@ -345,6 +345,15 @@ async def scan_all_sources(
                         else:
                             delete_job_tree(db, old)
                             source_removed += 1
+                    elif not track_job_relevance(old, career_track)[0]:
+                        # Reconcile jobs saved under older/broader track rules too.
+                        # Preserve application history, but never show an irrelevant
+                        # role in the active track catalogue.
+                        if old.application:
+                            old.is_active = False
+                        else:
+                            delete_job_tree(db, old)
+                            source_removed += 1
                     elif old.external_id not in seen_external_ids:
                         removed_jobs.append({
                             "id": old.id, "external_id": old.external_id,
