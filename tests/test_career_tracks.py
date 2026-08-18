@@ -136,6 +136,10 @@ def test_iem_relevance_accepts_operations_and_rejects_unrelated_software():
 def test_cs_relevance_accepts_software_and_rejects_unrelated_company_roles():
     software = SimpleNamespace(title="Backend Software Engineer", description="Build Python microservices on Kubernetes")
     embedded = SimpleNamespace(title="Embedded Software Developer", description="Develop real-time C++ software")
+    firmware = SimpleNamespace(title="Embedded FW Engineer", description="")
+    deep_learning = SimpleNamespace(title="Deep Learning Tech Lead", description="")
+    sysadmin = SimpleNamespace(title="Senior Linux Systems Administrator", description="")
+    qa = SimpleNamespace(title="QA Engineer", description="")
     degree = SimpleNamespace(title="Research Engineer", description="BSc Computer Science; algorithms and Python")
     secretary = SimpleNamespace(title="מזכיר.ת אגף", description="ניהול יומן ותיאום פגישות")
     procurement = SimpleNamespace(title="Strategic Buyer", description="Procurement, suppliers and contracts")
@@ -143,6 +147,10 @@ def test_cs_relevance_accepts_software_and_rejects_unrelated_company_roles():
     mechanical = SimpleNamespace(title="Mechanical Engineer", description="Mechanical design and production")
     assert track_job_relevance(software, COMPUTER_SCIENCE)[0] is True
     assert track_job_relevance(embedded, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(firmware, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(deep_learning, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(sysadmin, COMPUTER_SCIENCE)[0] is True
+    assert track_job_relevance(qa, COMPUTER_SCIENCE)[0] is True
     assert track_job_relevance(degree, COMPUTER_SCIENCE)[0] is True
     assert track_job_relevance(secretary, COMPUTER_SCIENCE)[0] is False
     assert track_job_relevance(procurement, COMPUTER_SCIENCE)[0] is False

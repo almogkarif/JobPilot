@@ -223,6 +223,14 @@ async def audit_catalog_tracks() -> int:
                         f"title={job.title} reason={reason}",
                         flush=True,
                     )
+                else:
+                    print(
+                        "[audit-match] "
+                        f"account={account_label(user_id)} track={job.career_track} "
+                        f"source={sources.get(job.source_id, job.source_id)} company={job.company} "
+                        f"title={job.title} reason={reason}",
+                        flush=True,
+                    )
             for track, values in sorted(counts.items()):
                 print(
                     f"[audit] account={account_label(user_id)} track={track} "

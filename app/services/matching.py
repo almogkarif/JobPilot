@@ -100,14 +100,17 @@ SENIORITY_LEVELS = {
 }
 DEV_TERMS = {"software", "developer", "engineer", "backend", "automation", "infrastructure", "tools", "embedded", "integration", "r&d", "research", "algorithm"}
 CS_STRONG_TITLE_TERMS = {
-    "software engineer", "software developer", "software architect", "developer", "backend", "back-end", "frontend",
+    "software engineer", "software developer", "software architect", "sw engineer", "sw developer", "sw automation",
+    "developer", "backend", "back-end", "frontend",
     "front-end", "full stack", "fullstack", "web developer", "mobile developer", "android developer",
     "ios developer", "devops", "site reliability", "sre", "cloud engineer", "platform engineer",
-    "data engineer", "data scientist", "machine learning", "ml engineer", "ai engineer", "algorithm",
-    "computer vision", "nlp", "cyber", "security engineer", "security researcher", "security analyst",
-    "application security", "penetration tester", "qa automation", "automation developer", "test automation",
-    "embedded software", "embedded developer", "firmware", "integration engineer", "software integration",
-    "systems programmer", "system programmer", "database engineer", "dba", "solutions architect",
+    "data engineer", "data scientist", "data science", "machine learning", "deep learning", "ml engineer",
+    "ai engineer", "algorithm", "computer vision", "vision language", "nlp", "cyber", "security engineer",
+    "security researcher", "security analyst", "ai security", "application security", "penetration tester", "dfir",
+    "qa engineer", "qa automation", "automation developer", "test automation", "embedded software",
+    "embedded developer", "embedded fw", "firmware", "integration engineer", "software integration", "tech lead",
+    "systems programmer", "system programmer", "system administrator", "systems administrator", "sysadmin",
+    "database engineer", "network engineer", "dba", "solutions architect", "solutions engineer",
     "מהנדס תוכנה", "מהנדסת תוכנה", "מפתח תוכנה", "מפתחת תוכנה", "פיתוח תוכנה", "מתכנת",
     "מתכנתת", "פול סטאק", "בקאנד", "פרונטאנד", "אלגוריתם", "אלגוריתמים", "למידת מכונה",
     "בינה מלאכותית", "מדען נתונים", "מדענית נתונים", "מהנדס נתונים", "מהנדסת נתונים",
