@@ -36,6 +36,17 @@ def test_collapsed_profile_cards_use_natural_rows_without_masonry_overlap():
     assert ".profile-detail-section.is-collapsed { grid-row-end:auto !important;" in CSS
 
 
+def test_profile_contact_and_section_layout_is_compact_and_unambiguous():
+    phone_group = HTML[HTML.index('class="phone-input-group"'):HTML.index('class="phone-input-group"') + 500]
+    assert 'name="extra_phone_country_code"' in phone_group
+    assert 'name="phone"' in phone_group
+    assert HTML.count('name="extra_phone_country_code"') == 1
+    assert 'class="profile-section-index">09<' in HTML
+    assert ".personal-profile-layout{grid-template-columns:minmax(0,1fr)" in CSS
+    assert "personalProfileLayout.appendChild(section)" in JS
+    assert ">שמור הכול</button>" in HTML
+
+
 def test_negative_experience_preferences_are_semantically_clear_not_red_selected_cards():
     assert 'ש<strong class="negative-word">לא</strong> לחפש עבורך' in HTML
     assert HTML.count('class="negative-x"') >= 5

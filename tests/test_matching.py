@@ -39,6 +39,29 @@ def test_entry_role_scores_higher_than_senior_role():
 def test_experience_extraction():
     assert extract_experience("Requires 0-2 years experience") == (0.0, 2.0)
     assert extract_experience("At least 3 years of experience") == (3.0, 3.0)
+    assert extract_experience("ניסיון מוכח של 3 שנים לפחות בפיתוח תוכנה משובצת מחשב") == (3.0, 3.0)
+
+
+def test_missing_mandatory_embedded_experience_cannot_be_a_perfect_match():
+    result = score_job(
+        job(
+            title="מפתח תוכנה משובצת",
+            description=(
+                "דרישות: ניסיון מוכח של 3 שנים לפחות בפיתוח תוכנה משובצת מחשב "
+                "עבור מערכות מורכבות ורב תחומיות תוך הבנה מעמיקה בנושאים הטכניים."
+            ),
+        ),
+        profile(skills_json='["python", "git"]', years_experience=0),
+    )
+    assert result.experience_min == 3
+    assert result.score <= 69
+    assert any("חסרות דרישות חובה: embedded" in reason["label"] for reason in result.reasons)
+
+
+def test_incomplete_collector_text_is_never_ranked_as_a_top_match():
+    result = score_job(job(description="Apply now"), profile())
+    assert result.score <= 55
+    assert any(reason["label"] == "פרטי המשרה נקלטו באופן חלקי" for reason in result.reasons)
 
 
 def test_well_known_company_scores_higher():

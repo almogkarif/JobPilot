@@ -2761,6 +2761,27 @@ def privacy_overview(db: Session = Depends(get_db)):
             "site_lock_configured": SECURITY_FILE.exists() if settings.auth_mode != "supabase" else False}
 
 
+@app.post("/api/profile/application-password/reveal")
+def reveal_application_password(db: Session = Depends(get_db)):
+    """Reveal the authenticated user's stored form password only on explicit request."""
+    profile = get_user_profile(db)
+    if not profile or not profile.application_password:
+        raise HTTPException(404, "No application password is stored")
+    try:
+        password = decrypt_credential(profile.application_password)
+    except Exception as exc:
+        raise HTTPException(409, "The stored password cannot be decrypted") from exc
+    db.add(AuditLog(
+        event_type="application_password_revealed", entity_type="profile", entity_id=str(profile.id),
+        message="Stored application password revealed by its owner",
+    ))
+    db.commit()
+    return JSONResponse(
+        {"password": password},
+        headers={"Cache-Control": "no-store, private", "Pragma": "no-cache"},
+    )
+
+
 @app.delete("/api/privacy/{resource}")
 def delete_private_resource(resource: str, db: Session = Depends(get_db)):
     if resource == "password": get_user_profile(db).application_password = ""
@@ -3257,7 +3278,12 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
     else:
         data.update({"ranking_engine": "v1", "ranking_tier": None, "ranking_confidence": None, "eligibility": None})
     if full:
-        data["description"] = j.description
+        from .services.job_text import clean_job_text, job_text_quality
+        cleaned_description = clean_job_text(j.description)
+        data["description"] = (
+            cleaned_description if job_text_quality(cleaned_description) != "missing"
+            else "פרטי המשרה המלאים לא נקלטו מהמקור. מומלץ לפתוח את עמוד המשרה המקורי."
+        )
     return data
 
 

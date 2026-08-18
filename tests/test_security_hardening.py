@@ -50,6 +50,37 @@ def test_application_password_is_encrypted_at_rest_and_omitted_from_backup():
         assert decrypt_credential(profile.application_password) == password
 
 
+def test_application_password_can_only_be_revealed_by_explicit_non_cached_request():
+    password = "Reveal-only-password-456!"
+    with TestClient(app) as client:
+        current = client.get("/api/profile").json()
+        payload = {
+            "full_name": current.get("full_name", ""), "email": current.get("email", ""),
+            "phone": current.get("phone", ""), "location": current.get("location", "Israel"),
+            "linkedin_url": current.get("linkedin_url", ""), "github_url": current.get("github_url", ""),
+            "portfolio_url": current.get("portfolio_url", ""), "application_password": password,
+            "years_experience_options": current.get("years_experience_options", ["0"]),
+            "work_authorization": current.get("work_authorization", True),
+            "needs_sponsorship": current.get("needs_sponsorship", False),
+            "skills": current.get("skills", []), "desired_titles": current.get("desired_titles", []),
+            "preferred_locations": current.get("preferred_locations", ["Israel"]),
+            "preferred_work_modes": current.get("preferred_work_modes", []),
+            "keywords": current.get("keywords", []), "excluded_keywords": current.get("excluded_keywords", []),
+            "auto_apply_threshold": current.get("auto_apply_threshold", 80), "auto_submit_enabled": False,
+        }
+        assert client.put("/api/profile", json=payload).status_code == 200
+        regular = client.get("/api/profile")
+        revealed = client.post("/api/profile/application-password/reveal")
+        assert password not in regular.text
+        assert revealed.status_code == 200
+        assert revealed.json() == {"password": password}
+        assert "no-store" in revealed.headers["cache-control"]
+
+    with SessionLocal() as db:
+        from app.models import AuditLog
+        assert db.scalar(select(AuditLog).where(AuditLog.event_type == "application_password_revealed")) is not None
+
+
 def test_fake_pdf_resume_is_rejected_before_storage():
     with TestClient(app) as client:
         response = client.post(

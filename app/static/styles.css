@@ -1988,6 +1988,7 @@ body.theme-dark.track-industrial-engineering {
 .auth-password-field button { position:absolute; inset-inline-end:5px; top:50%; width:35px; height:35px; display:grid; place-items:center; padding:0; border:0; border-radius:10px; background:transparent; color:var(--accent-muted); transform:translateY(-50%); }
 .auth-password-field button:hover,.auth-password-field button:focus-visible,.auth-password-field button.is-revealed { background:var(--accent-soft); color:var(--accent-text); outline:none; }
 .auth-password-field svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.profile-password-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.profile-password-control .auth-password-field{display:block}.profile-password-control .btn{white-space:nowrap}@media(max-width:560px){.profile-password-control{grid-template-columns:1fr}.profile-password-control .btn{width:100%}}
 .auth-submit { width:100%; min-height:45px; margin-top:1px; }
 .auth-signup { display:block; width:max-content; max-width:100%; margin:12px auto 0; color:var(--accent-text); font-size:10px; }
 .auth-guest { min-height:50px; margin-top:0; border-color:var(--control-border); background:var(--surface-soft); color:var(--ink); }
@@ -3346,8 +3347,25 @@ body.track-electrical-engineering.theme-dark .btn.secondary:hover{background:var
 .experience-section .experience-picker{margin:0;border:0;padding:0;background:transparent!important}
 .experience-section .experience-options{grid-template-columns:repeat(6,minmax(72px,1fr));gap:10px}
 .experience-section .experience-options>label{min-height:48px;cursor:pointer;user-select:none}
+.personal-profile-layout{grid-template-columns:minmax(0,1fr);gap:12px}.personal-profile-layout .profile-detail-section{grid-column:1/-1;width:100%}.personal-profile-layout .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.phone-input-group{display:grid;grid-template-columns:92px minmax(0,1fr);gap:7px}.phone-input-group input{min-width:0;text-align:left;direction:ltr}.phone-input-group input:first-child{text-align:center}.profile-detail-section .profile-detail-head{flex-wrap:wrap}.profile-detail-section .profile-detail-head>.card-head-actions{flex-wrap:wrap}
+@media(max-width:900px){.personal-profile-layout .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-identity-grid .phone-contact-field{grid-column:auto}}
+@media(max-width:620px){.personal-profile-layout .form-grid{grid-template-columns:minmax(0,1fr)}.phone-input-group{grid-template-columns:84px minmax(0,1fr)}.profile-detail-head>.btn,.profile-detail-head>.card-head-actions{width:100%}.profile-detail-head>.btn{min-width:0}.profile-detail-head>.card-head-actions .btn{flex:1 1 auto}}
 @media(max-width:900px){.experience-section .experience-options{grid-template-columns:repeat(3,minmax(72px,1fr))}}
 @media(max-width:560px){.experience-section .experience-options{grid-template-columns:repeat(2,minmax(72px,1fr))}}
+
+/* Applications workspace: queue and human-in-the-loop share one destination. */
+.application-section-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.application-section-nav button{position:relative}.application-section-nav button em{position:absolute;inset-inline-end:10px;top:8px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 5px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-style:normal;font-weight:900}.application-pane{display:none}.application-pane.active{display:grid;gap:16px;animation:viewReveal var(--motion-slow) var(--ease-apple-out) both}.application-attention-panel{min-height:240px}
+
+/* User settings */
+.settings-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.settings-card{min-width:0}.text-size-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.text-size-options button{display:grid;place-items:center;gap:5px;min-height:132px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-soft);color:var(--ink);cursor:pointer}.text-size-options button:hover,.text-size-options button.active{border-color:var(--brand);background:var(--brand-soft);box-shadow:var(--focus-ring)}.text-size-options button small{color:var(--muted)}.text-size-sample{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:var(--panel);color:var(--brand);font-weight:900}.sample-default{font-size:16px}.sample-large{font-size:19px}.sample-xlarge{font-size:22px}.settings-theme-row{display:flex;align-items:center;min-height:132px}.settings-theme-row .theme-switch{width:min(100%,360px);height:54px}.settings-theme-row .theme-switch button{flex:1;min-width:0;gap:5px}.settings-theme-row .theme-switch button span{font-size:18px}.settings-theme-row .theme-switch button small{display:inline}
+
+/* Three tested reading sizes. Fixed layout chrome stays stable; readable leaf text grows. */
+body.text-size-large{--user-font-boost:1.5px}body.text-size-xlarge{--user-font-boost:3px}
+body:is(.text-size-large,.text-size-xlarge) :where(p,label,input,select,textarea,button,td,th,.job-description-section li,.flow-list li){font-size:calc(13px + var(--user-font-boost))!important;line-height:1.55}
+body:is(.text-size-large,.text-size-xlarge) :where(small,.kicker,.eyebrow,.page-context){font-size:calc(11px + var(--user-font-boost))!important;line-height:1.5}
+body:is(.text-size-large,.text-size-xlarge) :where(h3){font-size:calc(15px + var(--user-font-boost))!important}body:is(.text-size-large,.text-size-xlarge) :where(h2){font-size:calc(21px + var(--user-font-boost))!important}body:is(.text-size-large,.text-size-xlarge) :where(h1){font-size:calc(28px + var(--user-font-boost))!important}
+body:is(.text-size-large,.text-size-xlarge) .sidebar nav button .nav-label{min-width:112px;white-space:normal}body:is(.text-size-large,.text-size-xlarge) :where(.btn,.filter-control,.job-search-field,.metric,.job-row,.job-card){min-width:0}
+@media(max-width:900px){.settings-layout{grid-template-columns:1fr}}@media(max-width:620px){.text-size-options{grid-template-columns:1fr}.text-size-options button{grid-template-columns:auto 1fr;grid-template-rows:auto auto;place-items:start;min-height:76px;text-align:start}.text-size-options .text-size-sample{grid-row:1/3}.application-section-nav button{min-width:0;padding-inline:8px}.application-section-nav button small{white-space:normal}}
 
 
 /* v0.3.2 — Developer Control Center */

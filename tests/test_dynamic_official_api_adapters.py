@@ -40,6 +40,20 @@ def test_iai_live_feed_shape_becomes_complete_job_row():
     assert "הנדסת חשמל" in row["text"]
 
 
+def test_structured_feed_keeps_nested_description_but_drops_metadata_noise():
+    row, _, _ = _one(
+        "iai",
+        json.dumps({"jobs": [{
+            "jobId": "76048939", "title": "Embedded Engineer", "city": "יהוד",
+            "description": {"html": "<p>3 years embedded software required</p>"},
+            "trackingId": "d6fa6b68-42a0-4aba-bec7-c68b218c382e",
+            "isActive": True,
+        }]}),
+    )
+    assert "3 years embedded software required" in row["text"]
+    assert "d6fa6b68" not in row["text"]
+
+
 def test_rafael_api_object_becomes_canonical_job_row():
     row, href, external_id = _one(
         "rafael",

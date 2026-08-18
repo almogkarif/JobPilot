@@ -288,8 +288,8 @@ def test_all_main_views_load_without_javascript_errors(browser_page):
     page, _ = browser_page
     navigation = [
         ("dashboard", "לוח בקרה"), ("jobs", "משרות"), ("applications", "הגשות"),
-        ("blockers", "דורש טיפול"), ("skills", "סקילים"), ("preferences", "העדפות חיפוש"),
-        ("sources", "מקורות"), ("profile", "הפרופיל שלי"),
+        ("skills", "סקילים"), ("preferences", "העדפות חיפוש"),
+        ("sources", "מקורות"), ("profile", "הפרופיל שלי"), ("settings", "הגדרות"),
     ]
     for view, _label in navigation:
         page.locator(f'#nav button[data-view="{view}"]').click()
@@ -297,6 +297,29 @@ def test_all_main_views_load_without_javascript_errors(browser_page):
         content_view = "profile" if view == "preferences" else view
         assert page.locator(f"#view-{content_view}.active").count() == 1
         assert page.locator("body").is_visible()
+
+    page.locator('#nav button[data-view="applications"]').click()
+    page.locator('[data-application-section="attention"]').click()
+    assert page.locator('[data-application-pane="attention"]').is_visible()
+    assert page.locator("#blockers-list").is_visible()
+
+
+def test_all_text_sizes_fit_settings_applications_and_profile_without_overlap(browser_page):
+    page, _ = browser_page
+    for viewport in ({"width": 1440, "height": 1000}, {"width": 390, "height": 844}):
+        page.set_viewport_size(viewport)
+        for size in ("default", "large", "xlarge"):
+            page.evaluate("view => switchView(view)", "settings")
+            page.locator(f'#view-settings [data-text-size="{size}"]').click()
+            for view in ("settings", "applications", "profile"):
+                page.evaluate("view => switchView(view)", view)
+                overflow = page.locator(f"#view-{view}").evaluate("""root => {
+                  const visible = el => { const r=el.getBoundingClientRect(); const s=getComputedStyle(el); return r.width>0 && r.height>0 && s.display!=='none' && s.visibility!=='hidden'; };
+                  const collisions = [...root.querySelectorAll('button,input,select,textarea,.panel,.profile-detail-section')]
+                    .filter(visible).filter(el => el.scrollWidth > el.clientWidth + 3 && getComputedStyle(el).overflowX === 'visible');
+                  return {collisions: collisions.slice(0,5).map(el=>el.id||el.className||el.tagName)};
+                }""")
+                assert overflow == {"collisions": []}, (viewport, size, view, overflow)
 
 
 def test_languages_can_be_added_with_level_and_available_now(browser_page, live_server):

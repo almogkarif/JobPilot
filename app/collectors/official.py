@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 from .base import NormalizedJob, PreserveExistingJobs
+from ..services.job_text import clean_job_text, job_text_quality
 
 
 PRESETS = {
@@ -50,6 +51,8 @@ PRESETS = {
         "id_pattern": r"/details/([^/]+)/",
         "company": "Apple",
         "title_from_slug": True,
+        "hydrate_details": True,
+        "max_detail_jobs": 160,
     },
     "amazon": {
         "url": "https://www.amazon.jobs/en/search?country=ISR&loc_query=Israel&result_limit=100",
@@ -57,9 +60,11 @@ PRESETS = {
         "id_pattern": r"/jobs/(\d+)",
         "company": "Amazon",
         "title_from_slug": True,
+        "hydrate_details": True,
+        "max_detail_jobs": 160,
     },
     "microsoft": {"url": "https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/(\d+)", "company": "Microsoft", "prefer_link_text": True, "settle_ms": 4500, "selector_timeout_ms": 25000, "dynamic_scroll": True},
-    "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2},
+    "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2, "hydrate_details": True, "max_detail_jobs": 180},
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks"},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
@@ -161,7 +166,7 @@ class OfficialCareersCollector:
             href, match = _resolve_row_href(row, preset)
             if not match:
                 continue
-            text = " ".join(str(row.get("text") or "").split())
+            text = clean_job_text(row.get("text"))
             title = _resolve_title(
                 row,
                 href,
@@ -638,6 +643,17 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                     return result
         return ""
 
+    def rich_text(value) -> str:
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            return clean_job_text(value)
+        if isinstance(value, list):
+            return clean_job_text("\n".join(rich_text(item) for item in value))
+        if isinstance(value, dict):
+            preferred = ("text", "html", "value", "description", "content", "label", "name", "title")
+            parts = [rich_text(value[key]) for key in preferred if key in value]
+            return clean_job_text("\n".join(part for part in parts if part))
+        return ""
+
     def walk(node) -> None:
         if isinstance(node, dict):
             external_id = next((scalar(node.get(key)) for key in id_keys if scalar(node.get(key))), "")
@@ -646,18 +662,12 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                 location = next((scalar(node.get(key)) for key in location_keys if scalar(node.get(key))), "")
                 text_parts = [title, location]
                 for key in description_keys:
-                    value_text = scalar(node.get(key)) if key in node else ""
+                    value_text = rich_text(node.get(key)) if key in node else ""
                     if value_text:
-                        text_parts.append(value_text)
-                for key, value in node.items():
-                    if key in id_keys or key in title_keys or key in location_keys or key in description_keys:
-                        continue
-                    value_text = scalar(value)
-                    if value_text and len(value_text) <= 600:
                         text_parts.append(value_text)
                 rows.append({
                     "href": template.format(id=external_id), "onclick": "",
-                    "title": title, "linkText": title, "text": " ".join(text_parts)[:5000],
+                    "title": title, "linkText": title, "text": clean_job_text("\n".join(text_parts))[:12000],
                 })
             for value in node.values():
                 walk(value)
@@ -804,7 +814,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 heading = soup.select_one("h1, main h2, article h2, [role='main'] h2")
                 title = heading.get_text(" ", strip=True) if heading else ""
                 body = soup.select_one("main, article, [role='main']") or soup.body
-                text = body.get_text(" ", strip=True) if body else ""
+                text = clean_job_text(str(body)) if body else ""
                 canonical = soup.select_one('link[rel="canonical"]')
                 canonical_href = str(canonical.get("href") or "") if canonical else ""
                 result = dict(row)
@@ -812,7 +822,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                     "href": canonical_href or str(response.url),
                     "title": title or row.get("title") or "",
                     "linkText": title or row.get("linkText") or "",
-                    "text": text or row.get("text") or "",
+                    "text": text if job_text_quality(text) == "complete" else row.get("text") or "",
                 })
                 return result
             except Exception:

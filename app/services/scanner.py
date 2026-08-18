@@ -18,6 +18,7 @@ from .matching import build_match_context, hard_exclusion_reason, score_job, tra
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
+from .job_text import clean_job_text
 
 
 SOURCE_SCAN_TIMEOUT_SECONDS = max(5, int(settings.source_scan_timeout_seconds))
@@ -165,6 +166,9 @@ async def scan_all_sources(
                     collector_cls().collect(str(snapshot["identifier"]), str(snapshot["company_name"] or "")),
                     timeout=source_timeout,
                 )
+                # Normalize every ATS payload before filtering, persistence and ranking.
+                for item in items:
+                    item.description = clean_job_text(item.description)
                 validate_source_payload(source_name, items)
                 return snapshot, items, None
             except asyncio.TimeoutError:

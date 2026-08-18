@@ -6,6 +6,7 @@ from collections import Counter
 from urllib.parse import parse_qsl, urlparse
 
 from ..collectors.base import NormalizedJob
+from .job_text import job_text_quality
 
 
 class SourceDataQualityError(RuntimeError):
@@ -88,6 +89,12 @@ def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None
     if count >= 5 and generic_titles >= max(3, math.ceil(count * 0.35)):
         raise SourceDataQualityError(
             f"Unreliable source data: {source_name} returned generic titles for {generic_titles}/{count} jobs"
+        )
+
+    missing_descriptions = sum(1 for job in jobs if job_text_quality(job.description) == "missing")
+    if count >= 5 and missing_descriptions >= max(3, math.ceil(count * .50)):
+        raise SourceDataQualityError(
+            f"Unreliable source data: {source_name} returned no usable job description for {missing_descriptions}/{count} jobs"
         )
 
     if count >= 8:

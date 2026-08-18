@@ -4,7 +4,10 @@ import re
 
 from ..matching import KNOWN_SKILLS, _contains_variant, extract_skills
 
-REQUIRED_MARKERS = ("required", "must", "mandatory", "requirement", "חובה", "נדרש", "דרישות")
+REQUIRED_MARKERS = (
+    "required", "must", "mandatory", "requirement", "at least", "minimum",
+    "חובה", "נדרש", "נדרשת", "נדרשים", "דרישות", "לפחות", "ניסיון מוכח",
+)
 PREFERRED_MARKERS = ("preferred", "advantage", "nice to have", "יתרון", "עדיפות")
 
 

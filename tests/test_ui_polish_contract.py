@@ -20,6 +20,25 @@ def test_login_uses_real_jobpilot_mark_and_professional_controls():
     assert "document.querySelectorAll('.brand')" in JS
 
 
+def test_profile_password_has_visibility_and_explicit_restore_controls():
+    assert 'id="profile-password-toggle"' in HTML
+    assert 'id="profile-password-restore"' in HTML
+    assert "/api/profile/application-password/reveal" in JS
+
+
+def test_attention_is_nested_under_applications_and_user_settings_own_display_controls():
+    assert 'data-view="blockers"' not in HTML
+    assert 'id="view-blockers"' not in HTML
+    assert 'data-application-section="attention"' in HTML
+    assert 'id="blocker-count"' in HTML[HTML.index('data-view="applications"'):HTML.index('data-view="applications"') + 900]
+    assert 'data-view="settings"' in HTML
+    assert 'id="view-settings"' in HTML
+    assert HTML.count('id="theme-switch"') == 1
+    assert 'data-text-size="default"' in HTML and 'data-text-size="large"' in HTML and 'data-text-size="xlarge"' in HTML
+    assert 'data-go="jobs">צפה בהתאמות' not in HTML
+    assert "if(view==='blockers'){view='applications';applicationSection='attention'}" in JS
+
+
 def test_notifications_live_in_a_dedicated_dock_safe_zone():
     dock_utility = HTML.index('class="dock-utility"')
     nav_end = HTML.index('</nav>')

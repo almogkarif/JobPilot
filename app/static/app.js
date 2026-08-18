@@ -12,6 +12,7 @@ const state = {
   sources: [],
   dashboard: null,
   activeView: 'dashboard',
+  applicationSection: 'queue',
   careerTracks: [],
   activeCareerTrack: 'computer_science',
 };
@@ -563,8 +564,7 @@ async function refreshAfterCareerSwitch() {
   await loadDashboard();
   if (state.activeView === 'dashboard') return;
   if (state.activeView === 'jobs') return loadJobs({ resetPage: true });
-  if (state.activeView === 'applications') return loadApplications();
-  if (state.activeView === 'blockers') return loadBlockers();
+  if (state.activeView === 'applications') return state.applicationSection==='attention'?loadBlockers():loadApplications();
   if (state.activeView === 'skills') return loadSkills();
   if (state.activeView === 'sources') return loadSources();
   if (state.activeView === 'preferences' || state.activeView === 'profile') return loadProfile();
@@ -871,6 +871,7 @@ const VIEW_CONTEXT = {
   applications: 'מעקב אחר התור, ניסיונות ההגשה והסטטוס הנוכחי', blockers: 'פעולות שמחכות להחלטה או להשלמת מידע',
   skills: 'הכישורים שלך והפערים שעולים מהמשרות הפעילות', sources: 'אתרי הקריירה והלוחות ש־JobPilot סורק',
   preferences: 'הגדרות שמשפיעות על האיסוף, הסינון והדירוג', profile: 'המידע המאושר שמשמש למילוי טפסי מועמדות',
+  settings: 'העדפות תצוגה ונגישות שנשמרות במכשיר הזה',
 };
 
 function setPageContext(view, count = null) {
@@ -910,6 +911,8 @@ document.addEventListener('keydown', (event) => {
 
 function switchView(view, options = {}) {
   persistCurrentProfileDraft();
+  let applicationSection=options.applicationSection;
+  if(view==='blockers'){view='applications';applicationSection='attention'}
   state.activeView = view;
   try { localStorage.setItem('jobpilot-active-view', view); } catch { /* Storage may be unavailable. */ }
   const contentView = view === 'preferences' ? 'profile' : view;
@@ -925,8 +928,8 @@ function switchView(view, options = {}) {
   updateMobileTabDock(view);
   setMobileTabMenu(false);
   $('#page-title').textContent = ({
-    dashboard: 'לוח בקרה', jobs: 'משרות', applications: 'הגשות', blockers: 'דורש טיפול', skills: 'סקילים',
-    sources: 'מקורות', preferences: 'העדפות חיפוש', profile: 'הפרופיל שלי', developer: 'אפשרויות למפתחים',
+    dashboard: 'לוח בקרה', jobs: 'משרות', applications: 'הגשות', skills: 'סקילים',
+    sources: 'מקורות', preferences: 'העדפות חיפוש', profile: 'הפרופיל שלי', settings:'הגדרות', developer: 'אפשרויות למפתחים',
   })[view];
   setPageContext(view);
   $('#view-profile').classList.toggle('showing-preferences', view === 'preferences');
@@ -937,10 +940,13 @@ function switchView(view, options = {}) {
     if (options.status !== undefined) $('#job-status-filter').value = options.status;
     loadJobs();
   }
-  if (view === 'applications') loadApplications();
-  if (view === 'blockers') loadBlockers();
+  if (view === 'applications') {
+    switchApplicationSection(applicationSection||'queue');
+    if((applicationSection||'queue')==='attention')loadBlockers();else loadApplications();
+  }
   if (view === 'skills') loadSkills();
   if (view === 'sources') loadSources();
+  if (view === 'settings') requestAnimationFrame(()=>positionThemeThumb(false));
   if (view === 'developer') loadDeveloperCenter();
   if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
   if (view === 'profile') {
@@ -949,6 +955,18 @@ function switchView(view, options = {}) {
     loadProfile();
   }
 }
+
+function switchApplicationSection(section){
+  const target=section==='attention'?'attention':'queue';
+  state.applicationSection=target;
+  $$('[data-application-section]').forEach(button=>button.classList.toggle('active',button.dataset.applicationSection===target));
+  $$('[data-application-pane]').forEach(pane=>pane.classList.toggle('active',pane.dataset.applicationPane===target));
+}
+
+$$('[data-application-section]').forEach(button=>{button.onclick=()=>{
+  switchApplicationSection(button.dataset.applicationSection);
+  if(button.dataset.applicationSection==='attention')loadBlockers();else loadApplications();
+}});
 
 $$('[data-view]').forEach((button) => {
   button.onclick = () => switchView(button.dataset.view);
@@ -1191,7 +1209,9 @@ async function loadDashboard() {
       status: button.dataset.status === '' ? undefined : button.dataset.status,
     });
   });
-  $('#blocker-count').textContent = dashboard.open_blockers;
+  ['#blocker-count','#blocker-tab-count','#mobile-application-blocker-count'].forEach(selector=>{
+    const badge=$(selector);if(!badge)return;badge.textContent=dashboard.open_blockers;badge.hidden=!Number(dashboard.open_blockers);
+  });
   $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
   renderRecent(dashboard.recent_jobs);
   renderScan(dashboard.scan);
@@ -1669,7 +1689,8 @@ async function markJobSubmitted(id) {
     await Promise.all([
       loadDashboard(),
       state.activeView === 'jobs' ? loadJobs({ silent: true }) : Promise.resolve(),
-      state.activeView === 'applications' ? loadApplications() : Promise.resolve(),
+      state.activeView === 'applications' && state.applicationSection==='queue' ? loadApplications() : Promise.resolve(),
+      state.activeView === 'applications' && state.applicationSection==='attention' ? loadBlockers() : Promise.resolve(),
     ]);
   } catch (error) {
     toast(error.message);
@@ -1697,8 +1718,8 @@ async function deleteJob(id) {
     await Promise.all([
       loadDashboard(),
       state.activeView === 'jobs' ? loadJobs() : Promise.resolve(),
-      state.activeView === 'applications' ? loadApplications() : Promise.resolve(),
-      state.activeView === 'blockers' ? loadBlockers() : Promise.resolve(),
+      state.activeView === 'applications' && state.applicationSection==='queue' ? loadApplications() : Promise.resolve(),
+      state.activeView === 'applications' && state.applicationSection==='attention' ? loadBlockers() : Promise.resolve(),
     ]);
   } catch (error) {
     toast(error.message);
@@ -1945,7 +1966,9 @@ function renderBlockerCard(blocker) {
 async function loadBlockers() {
   $('#blockers-list').innerHTML = skeleton(3, 'rows');
   state.blockers = await api('/api/blockers');
-  $('#blocker-count').textContent = state.blockers.length;
+  ['#blocker-count','#blocker-tab-count','#mobile-application-blocker-count'].forEach(selector=>{
+    const badge=$(selector);if(!badge)return;badge.textContent=state.blockers.length;badge.hidden=!state.blockers.length;
+  });
   const root = $('#blockers-list');
   setPageContext('blockers', state.blockers.length);
   root.innerHTML = state.blockers.length ? state.blockers.map(renderBlockerCard).join('') : emptyState('✓', 'הכול מטופל', 'אין כרגע שאלות, אימותים או פעולות שמחכים לך.');
@@ -2504,6 +2527,8 @@ function applyProfileToForm(profile) {
   form.elements.application_password.placeholder = profile.application_password_configured
     ? 'נשמרה סיסמה · הזן חדשה רק כדי להחליף'
     : 'הזן סיסמה לשימוש בטפסי הגשה';
+  const restorePassword=$('#profile-password-restore');
+  if(restorePassword)restorePassword.hidden=!profile.application_password_configured;
   PROFILE_CHECK_FIELDS.forEach((name) => { form.elements[name].checked = !!profile[name]; });
   if (!applicationAgentAllowed() && form.elements.auto_submit_enabled) {
     form.elements.auto_submit_enabled.checked = false;
@@ -2819,6 +2844,13 @@ $$('.panel').forEach((panel, panelIndex) => {
   actions.appendChild(toggle);
 });
 const personalProfileLayout = $('.personal-profile-layout', profileElement);
+// Keep the DOM, keyboard order and visual order aligned with the numbered,
+// user-priority flow even when sections are maintained independently in HTML.
+if(personalProfileLayout){
+  [...personalProfileLayout.querySelectorAll(':scope > .profile-detail-section')]
+    .sort((a,b)=>Number($('.profile-section-index',a)?.textContent||99)-Number($('.profile-section-index',b)?.textContent||99))
+    .forEach(section=>personalProfileLayout.appendChild(section));
+}
 // Natural CSS Grid rows are intentionally used here. The old JavaScript masonry
 // span calculation could race with collapse animations and make cards overlap.
 $$('.profile-detail-section', personalProfileLayout).forEach((section) => { section.style.gridRowEnd = ''; });
@@ -3035,7 +3067,7 @@ document.addEventListener('pointerdown', (event) => {
 const COMMAND_VIEWS = [
   ['dashboard','לוח בקרה','תמונת מצב'], ['jobs','משרות','חיפוש והתאמות'], ['preferences','העדפות חיפוש','תפקידים ומיקום'],
   ['applications','הגשות','תור והיסטוריה'], ['blockers','דורש טיפול','פעולות שממתינות'], ['skills','סקילים','כישורים ופערים'],
-  ['sources','מקורות','אתרי קריירה'], ['profile','הפרופיל שלי','פרטים אישיים'],
+  ['sources','מקורות','אתרי קריירה'], ['profile','הפרופיל שלי','פרטים אישיים'], ['settings','הגדרות','תצוגה ונגישות'],
 ];
 let commandSelection = 0;
 function commandEntries(query = '') {
@@ -3107,6 +3139,22 @@ function positionThemeThumb(animate = true) {
 }
 let preferredTheme = localStorage.getItem('jobpilot-theme') || 'system';
 applyTheme(preferredTheme);
+const TEXT_SIZE_CLASSES=['text-size-large','text-size-xlarge'];
+function applyTextSize(size,announce=false){
+  const normalized=['default','large','xlarge'].includes(size)?size:'default';
+  document.body.classList.remove(...TEXT_SIZE_CLASSES);
+  if(normalized!=='default')document.body.classList.add(`text-size-${normalized}`);
+  document.body.dataset.userTextSize=normalized;
+  $$('#view-settings [data-text-size]').forEach(button=>{
+    const selected=button.dataset.textSize===normalized;
+    button.classList.toggle('active',selected);button.setAttribute('aria-checked',String(selected));
+  });
+  try{localStorage.setItem('jobpilot-text-size',normalized)}catch{}
+  requestAnimationFrame(()=>positionThemeThumb(false));
+  if(announce)toast(normalized==='default'?'גודל הטקסט הרגיל הופעל':normalized==='large'?'גודל טקסט גדול הופעל':'גודל טקסט גדול מאוד הופעל');
+}
+applyTextSize(localStorage.getItem('jobpilot-text-size')||'default');
+$$('#view-settings [data-text-size]').forEach(button=>{button.onclick=()=>applyTextSize(button.dataset.textSize,true)});
 let suppressThemeClick = false;
 function selectTheme(theme, compactMessage = false, silent = false) {
   preferredTheme = theme;
@@ -3389,6 +3437,28 @@ $('#auth-password-toggle').onclick = () => {
   button.title = reveal ? 'הסתר סיסמה' : 'הצג סיסמה';
   button.classList.toggle('is-revealed', reveal);
   input.focus({ preventScroll: true });
+};
+
+$('#profile-password-toggle').onclick=()=>{
+  const input=profileForm().elements.application_password,button=$('#profile-password-toggle');
+  const reveal=input.type==='password';
+  input.type=reveal?'text':'password';
+  button.setAttribute('aria-label',reveal?'הסתר סיסמה':'הצג סיסמה');
+  button.title=reveal?'הסתר סיסמה':'הצג סיסמה';
+  button.classList.toggle('is-revealed',reveal);
+  input.focus({preventScroll:true});
+};
+
+$('#profile-password-restore').onclick=async()=>{
+  const button=$('#profile-password-restore'),input=profileForm().elements.application_password;
+  button.disabled=true;
+  try{
+    const result=await api('/api/profile/application-password/reveal',{method:'POST'});
+    input.value=result.password||'';input.type='text';
+    const toggle=$('#profile-password-toggle');
+    toggle.setAttribute('aria-label','הסתר סיסמה');toggle.title='הסתר סיסמה';toggle.classList.add('is-revealed');
+    input.focus();toast('הסיסמה השמורה נטענה לשדה');
+  }catch(error){toast(error.message)}finally{button.disabled=false}
 };
 
 $('#auth-form').onsubmit = async (event) => {
@@ -3739,7 +3809,7 @@ function configureDeveloperTools(){
     await refreshAgentStatus();
     if (authState.config?.mode === 'supabase') window.setInterval(refreshAgentStatus, 30_000);
     const savedView = localStorage.getItem('jobpilot-active-view');
-    const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile','developer']);
+    const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile','settings','developer']);
     if (validViews.has(savedView) && savedView !== 'dashboard') switchView(savedView);
   } catch (error) {
     if (authState.config?.mode === 'supabase' && !authState.user) showAuthGate(`שגיאת התחברות: ${error.message}`);

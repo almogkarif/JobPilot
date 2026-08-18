@@ -11,6 +11,7 @@ from .eligibility import evaluate_eligibility
 from .engine import RankingEngine, RankingResult
 from .roles import role_match
 from .skills import score_skills
+from ..job_text import job_text_quality
 
 DEGREE_TERMS = ("bsc", "b.sc", "bachelor", "degree", "תואר", "מהנדס", "engineering")
 MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certification", "הסמכה")
@@ -64,9 +65,13 @@ class EligibilityRankingEngine(RankingEngine):
         breakdown = {"role": role, "skills": skills, "requirements": requirements, "preferences": preferences}
         score = sum(int(part["score"]) for part in breakdown.values())
         if skills["missing_required"]:
-            penalty = min(12, 4 * len(skills["missing_required"]))
+            penalty = min(28, 12 + 6 * len(skills["missing_required"]))
             score -= penalty
             skills["penalty"] = penalty
+            score = min(score, 69)
+        if job_text_quality(getattr(job, "description", "")) != "complete":
+            score = min(score, 55)
+            eligibility["warnings"].append("Job description is incomplete; recommendation is capped")
         score = max(0, min(100, round(score)))
         if eligibility["state"] == "excluded":
             tier = "excluded"

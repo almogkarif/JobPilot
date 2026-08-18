@@ -6,6 +6,7 @@ from functools import lru_cache
 from datetime import datetime, timezone
 from ..utils import loads
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, active_track
+from .job_text import job_text_quality
 
 KNOWN_SKILLS = {
     "c++": ["c++", "cpp"],
@@ -18,7 +19,7 @@ KNOWN_SKILLS = {
     "ci/cd": ["ci/cd", "continuous integration", "jenkins", "github actions"],
     "rest api": ["rest api", "restful", "http api"],
     "data structures": ["data structures", "algorithms"],
-    "embedded": ["embedded", "firmware", "rtos", "real-time"],
+    "embedded": ["embedded", "firmware", "rtos", "real-time", "תוכנה משובצת", "מערכות משובצות", "קושחה"],
     "computer vision": ["computer vision", "opencv", "image processing"],
     "machine learning": ["machine learning", "deep learning", "pytorch", "tensorflow"],
     "javascript": ["javascript", "typescript", "node.js", "nodejs"],
@@ -290,7 +291,7 @@ def extract_experience(text: str) -> tuple[float | None, float | None]:
         maxs = [float(b) for _, b in ranges]
         return min(mins), max(maxs)
 
-    singles = re.findall(r"(?:at least|min(?:imum)?|לפחות)?\s*(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?|שנות|שנים)", lowered)
+    singles = re.findall(r"(?:at least|min(?:imum)?|לפחות)?\s*(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?|שנות|שנים)(?:\s*(?:at least|minimum|לפחות))?", lowered)
     if singles:
         value = min(float(x) for x in singles)
         return value, value
@@ -533,6 +534,16 @@ def score_job(
         score -= 8
         reasons.append({"type": "negative", "label": "לא זוהתה חפיפת כישורים", "points": -8})
 
+    # A technology mentioned inside an explicit requirement sentence is not just
+    # supporting context. Missing it must prevent a perfect recommendation.
+    from .ranking.skills import classify_job_skills
+    required_skills, _, _ = classify_job_skills(job)
+    missing_required_skills = sorted(required_skills - effective_skills)
+    if missing_required_skills:
+        penalty = min(28, 12 + 6 * len(missing_required_skills))
+        score -= penalty
+        reasons.append({"type": "negative", "label": f"חסרות דרישות חובה: {', '.join(missing_required_skills)}", "points": -penalty})
+
     exp_min, exp_max = extract_experience(text)
     if exp_min is None:
         reasons.append({"type": "neutral", "label": "דרישת הניסיון לא חד-משמעית", "points": 0})
@@ -630,8 +641,15 @@ def score_job(
                     "breakdown_points": 15,
                 })
 
+    quality = job_text_quality(getattr(job, "description", ""))
+    score_cap = 100
+    if missing_required_skills:
+        score_cap = 69
+    if quality != "complete":
+        score_cap = min(score_cap, 55)
+        reasons.append({"type": "negative", "label": "פרטי המשרה נקלטו באופן חלקי", "points": 0})
     return MatchResult(
-        score=0 if blocked_levels or excluded_hits else min(100, max(0, round(score))),
+        score=0 if blocked_levels or excluded_hits else min(score_cap, max(0, round(score))),
         reasons=reasons,
         skills=sorted(job_skills),
         experience_min=exp_min,
