@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from ..models import Application, AuditLog, Job
+from ..models import Application, AuditLog, Job, JobRanking
 from ..storage import delete_ref
 from ..utils import dumps
 from .location_filter import is_israel_location
@@ -22,6 +22,7 @@ def delete_job_tree(db: Session, job: Job) -> None:
                 except Exception:  # noqa: BLE001 - stale remote/local files must never block DB cleanup
                     pass
         db.delete(application)
+    db.execute(delete(JobRanking).where(JobRanking.job_id == job.id))
     db.delete(job)
 
 

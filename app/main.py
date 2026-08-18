@@ -29,8 +29,8 @@ from app.utils import select_next_queued_application
 from .config import BASE_DIR, settings
 from .database import (Base, LOCAL_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
                        get_db, get_user_profile, set_user_scope, user_session)
-from .models import (AnswerMemory, Application, AppIdentity, AgentDevice, AuditLog, Blocker, Job, OpenAnswerDraft,
-                     Profile, ResumeProfile, Source, utcnow)
+from .models import (AnswerMemory, Application, AppIdentity, AgentDevice, AuditLog, Blocker, Job, JobRanking,
+                     OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
@@ -44,6 +44,7 @@ from .schemas import (
     ResumeSuggestionApply,
     ResolveBlockerRequest,
     SkillUpdateRequest,
+    RankingConfigUpdate, RankingEngineUpdate, RankingPreviewRequest, RankingShadowUpdate,
     SourceCreate,
     SourceUpdate,
 )
@@ -52,6 +53,9 @@ from .services.job_cleanup import delete_job_tree
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.matching import build_match_context, score_job
+from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
+from .services.ranking.service import (get_settings as get_ranking_settings, persist_v2_result,
+                                       rank_job as run_ranking, result_is_stale, v2_config)
 from .services.career_tracks import (
     CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
     INDUSTRIAL_ENGINEERING, TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
@@ -309,6 +313,11 @@ async def lifespan(_: FastAPI):
     _ensure_dirs()
     Base.metadata.create_all(bind=engine)
     ensure_compatibility_columns()
+    # Persist the singleton once at startup so read-only ranking endpoints never
+    # depend on an uncommitted, session-local default row.
+    with SessionLocal() as ranking_db:
+        get_ranking_settings(ranking_db)
+        ranking_db.commit()
     if cloud_storage_enabled():
         try:
             ensure_cloud_bucket()
@@ -533,6 +542,26 @@ def _job_payload_for_request(job: Job, request: Request, *, full: bool = False, 
     return data
 
 
+def _attach_v2_rankings(db: Session, jobs: list[Job]) -> None:
+    ids = [job.id for job in jobs]
+    if not ids:
+        return
+    rows = db.scalars(select(JobRanking).where(
+        JobRanking.job_id.in_(ids), JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
+    )).all()
+    by_job = {row.job_id: row for row in rows}
+    for job in jobs:
+        setattr(job, "_active_v2_ranking", by_job.get(job.id))
+
+
+def _v2_tier_order():
+    return case(
+        (JobRanking.tier == "top_match", 5), (JobRanking.tier == "strong_match", 4),
+        (JobRanking.tier == "good_match", 3), (JobRanking.tier == "low_match", 2),
+        (JobRanking.tier == "stretch", 1), else_=0,
+    )
+
+
 @app.get("/api/admin/users")
 def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
@@ -753,6 +782,214 @@ def developer_rerank(request: Request, db: Session = Depends(get_db)):
     return {"ok": True, "career_track": track, "queue": _developer_refresh_status(current_user_id(db))}
 
 
+def _ranking_settings_payload(db: Session) -> dict:
+    row = get_ranking_settings(db)
+    return {
+        "active_engine": row.active_engine, "v2_shadow_mode": row.v2_shadow_mode,
+        "config": v2_config(row).to_dict(), "config_version": row.config_version,
+        "updated_at": row.updated_at,
+    }
+
+
+def _validated_ranking_config(value: dict) -> RankingV2Config:
+    try:
+        return RankingV2Config.from_dict(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+def _ranking_user_summary(user_id: str) -> dict:
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        total = int(tenant.scalar(select(func.count()).select_from(Job).where(Job.is_active.is_(True))) or 0)
+        rows = tenant.scalars(select(JobRanking).where(JobRanking.engine == "v2")).all()
+        failed = sum(1 for row in rows if row.error)
+        stale = sum(1 for row in rows if row.stale or row.error)
+        evaluated = sum(1 for row in rows if not row.stale and not row.error)
+        durations = [row.duration_ms for row in rows if row.duration_ms]
+        latest = max((row.evaluated_at for row in rows if row.evaluated_at), default=None)
+        return {
+            "user_id": user_id, "track": active_track(profile), "total": total, "evaluated": evaluated,
+            "waiting": max(0, total - evaluated), "stale": stale, "failed": failed,
+            "average_evaluation_ms": round(sum(durations) / len(durations), 2) if durations else 0,
+            "last_evaluation": latest, "queue": _developer_refresh_status(user_id),
+        }
+
+
+@app.get("/api/admin/developer/ranking")
+def ranking_lab_overview(request: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    _require_developer(request)
+    target = user_id or current_user_id(db)
+    if settings.auth_mode == "supabase" and not db.scalar(select(AppIdentity.id).where(AppIdentity.auth_user_id == target)):
+        raise HTTPException(404, "User not found")
+    errors = []
+    with user_session(target) as tenant:
+        logs = tenant.scalars(select(AuditLog).where(AuditLog.event_type == "ranking_v2_error").order_by(desc(AuditLog.id)).limit(20)).all()
+        errors = [{"job_id": row.entity_id, "stage": loads(row.details_json, {}).get("stage", "ranking"), "error": loads(row.details_json, {}).get("error", row.message), "timestamp": row.created_at} for row in logs]
+    return {"settings": _ranking_settings_payload(db), "status": _ranking_user_summary(target), "errors": errors}
+
+
+@app.put("/api/admin/developer/ranking/engine")
+def ranking_lab_set_engine(payload: RankingEngineUpdate, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    row = get_ranking_settings(db)
+    previous = row.active_engine
+    row.active_engine = payload.engine
+    db.add(AuditLog(event_type="ranking_engine_changed", entity_type="ranking", entity_id="1", message=f"Ranking engine changed from {previous} to {payload.engine}", details_json=dumps({"previous_engine": previous, "new_engine": payload.engine})))
+    db.commit()
+    if payload.engine == "v2":
+        for user_id in _known_user_ids():
+            with user_session(user_id) as tenant:
+                profile = get_user_profile(tenant)
+                if profile:
+                    _queue_profile_derived_refresh(user_id, active_track(profile), False, False, True)
+    return {"ok": True, **_ranking_settings_payload(db)}
+
+
+@app.put("/api/admin/developer/ranking/shadow")
+def ranking_lab_set_shadow(payload: RankingShadowUpdate, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    row = get_ranking_settings(db)
+    previous = row.v2_shadow_mode
+    row.v2_shadow_mode = payload.enabled
+    db.add(AuditLog(event_type="ranking_shadow_mode_changed", entity_type="ranking", entity_id="1", message=f"V2 shadow mode {'enabled' if payload.enabled else 'disabled'}", details_json=dumps({"previous": previous, "enabled": payload.enabled})))
+    db.commit()
+    if payload.enabled:
+        for user_id in _known_user_ids():
+            with user_session(user_id) as tenant:
+                profile = get_user_profile(tenant)
+                if profile:
+                    _queue_profile_derived_refresh(user_id, active_track(profile), False, False, True)
+    return {"ok": True, **_ranking_settings_payload(db)}
+
+
+def _ranking_comparison(user_id: str, *, config: RankingV2Config | None = None, persist: bool = False, sample_size: int = 200) -> dict:
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        if not profile:
+            raise HTTPException(404, "Profile not found")
+        track = active_track(profile)
+        jobs = tenant.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True)).order_by(desc(Job.score)).limit(sample_size)).all()
+        existing = {row.job_id: row for row in tenant.scalars(select(JobRanking).where(JobRanking.engine == "v2", JobRanking.job_id.in_([job.id for job in jobs] or [-1]))).all()}
+        context = build_match_context(profile, career_track=track)
+        production_settings = get_ranking_settings(tenant)
+        output = []
+        for job in jobs:
+            row = existing.get(job.id)
+            if config is not None:
+                result = run_ranking(job, profile, "v2", config, context=context)
+                v2_score, tier, eligibility, confidence = result.score, result.tier, result.eligibility, result.confidence
+            elif row and not result_is_stale(row, job, profile, production_settings):
+                stored = loads(row.result_json, {})
+                v2_score, tier, eligibility, confidence = row.score, row.tier, stored.get("eligibility", {}), row.confidence
+            else:
+                result = run_ranking(job, profile, "v2", v2_config(production_settings), context=context)
+                v2_score, tier, eligibility, confidence = result.score, result.tier, result.eligibility, result.confidence
+                if persist:
+                    persist_v2_result(tenant, job, profile, production_settings, context=context)
+            output.append({"job_id": job.id, "job": job.title, "company": job.company, "v1_score": job.score, "v2_score": v2_score, "delta": v2_score - job.score, "tier": tier, "eligibility": eligibility.get("state", "unknown"), "confidence": confidence})
+        if persist:
+            tenant.commit()
+        tier_rank = {"top_match": 5, "strong_match": 4, "good_match": 3, "low_match": 2, "stretch": 1, "excluded": 0}
+        v1_top = sorted(output, key=lambda item: item["v1_score"], reverse=True)[:20]
+        v2_top = sorted((item for item in output if item["eligibility"] != "excluded"), key=lambda item: (tier_rank.get(item["tier"], 0), item["v2_score"]), reverse=True)[:20]
+        return {"user_id": user_id, "career_track": track, "items": output, "v1_top": v1_top, "v2_top": v2_top}
+
+
+@app.get("/api/admin/developer/ranking/compare")
+def ranking_lab_compare(user_id: str, request: Request, sort: str = "delta", db: Session = Depends(get_db)):
+    _require_developer(request)
+    result = _ranking_comparison(user_id)
+    reverse = sort != "delta_asc"
+    key = "delta" if sort.startswith("delta") else "v1_score" if sort == "v1" else "v2_score"
+    result["items"] = sorted(result["items"], key=lambda item: item[key], reverse=reverse)
+    return result
+
+
+@app.get("/api/admin/developer/ranking/users/{user_id}/jobs/{job_id}")
+def ranking_lab_inspect(user_id: str, job_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    with user_session(user_id) as tenant:
+        profile = get_user_profile(tenant)
+        job = tenant.get(Job, job_id)
+        if not profile or not job:
+            raise HTTPException(404, "Job or profile not found")
+        result = run_ranking(job, profile, "v2", v2_config(get_ranking_settings(tenant)), context=build_match_context(profile, career_track=job.career_track))
+        return {"user_id": user_id, "job": {"id": job.id, "title": job.title, "company": job.company}, "v1": {"score": job.score, "reasons": loads(job.score_reasons_json, []), "breakdown": loads(job.match_breakdown_json, {})}, "v2": result.to_dict()}
+
+
+@app.post("/api/admin/developer/ranking/preview")
+def ranking_lab_preview(payload: RankingPreviewRequest, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    config = _validated_ranking_config(payload.config)
+    current = _ranking_comparison(payload.user_id, sample_size=payload.sample_size)
+    preview = _ranking_comparison(payload.user_id, config=config, sample_size=payload.sample_size)
+    current_by_id = {item["job_id"]: item for item in current["items"]}
+    deltas = [item["v2_score"] - current_by_id[item["job_id"]]["v2_score"] for item in preview["items"]]
+    return {"current_top": current["v2_top"], "preview_top": preview["v2_top"], "statistics": {"jobs_promoted": sum(1 for value in deltas if value > 0), "jobs_demoted": sum(1 for value in deltas if value < 0), "average_score_delta": round(sum(deltas) / len(deltas), 2) if deltas else 0, "largest_score_changes": sorted((abs(value) for value in deltas), reverse=True)[:5]}}
+
+
+@app.put("/api/admin/developer/ranking/config")
+def ranking_lab_apply_config(payload: RankingConfigUpdate, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    config = _validated_ranking_config(payload.config)
+    row = get_ranking_settings(db)
+    previous_version = row.config_version
+    row.config_json = dumps(config.to_dict())
+    row.config_version += 1
+    db.add(AuditLog(event_type="ranking_config_changed", entity_type="ranking", entity_id="1", message=f"V2 config updated to version {row.config_version}", details_json=dumps({"previous_version": previous_version, "config_version": row.config_version})))
+    db.commit()
+    with SessionLocal() as global_db:
+        global_db.execute(update(JobRanking).where(JobRanking.engine == "v2").values(stale=True))
+        global_db.commit()
+    for user_id in _known_user_ids():
+        with user_session(user_id) as tenant:
+            profile = get_user_profile(tenant)
+            if profile:
+                _queue_profile_derived_refresh(user_id, active_track(profile), False, False, True)
+    return {"ok": True, **_ranking_settings_payload(db)}
+
+
+@app.post("/api/admin/developer/ranking/config/reset")
+def ranking_lab_reset_config(request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
+    row = get_ranking_settings(db)
+    row.config_json = dumps(DEFAULT_V2_CONFIG.to_dict())
+    row.config_version += 1
+    db.add(AuditLog(event_type="ranking_config_reset", entity_type="ranking", entity_id="1", message="V2 ranking config restored to defaults", details_json=dumps({"config_version": row.config_version})))
+    db.commit()
+    with SessionLocal() as global_db:
+        global_db.execute(update(JobRanking).where(JobRanking.engine == "v2").values(stale=True))
+        global_db.commit()
+    for user_id in _known_user_ids():
+        with user_session(user_id) as tenant:
+            profile = get_user_profile(tenant)
+            if profile:
+                _queue_profile_derived_refresh(user_id, active_track(profile), False, False, True)
+    return {"ok": True, **_ranking_settings_payload(db)}
+
+
+@app.post("/api/admin/developer/ranking/rerank", status_code=202)
+def ranking_lab_rerank(request: Request, user_id: str | None = None, db: Session = Depends(get_db)):
+    _require_developer(request)
+    targets = [user_id] if user_id else _known_user_ids()
+    queued = []
+    for target in targets:
+        with user_session(target) as tenant:
+            profile = get_user_profile(tenant)
+            if not profile:
+                continue
+            track = active_track(profile)
+            status = _developer_refresh_status(target)
+            if any(row["career_track"] == track and (row.get("rank_v2") or row.get("worker_alive")) for row in status["pending"]):
+                continue
+            _queue_profile_derived_refresh(target, track, False, False, True)
+            queued.append({"user_id": target, "career_track": track})
+    db.add(AuditLog(event_type="ranking_rerank_requested", entity_type="ranking", entity_id="v2", message=f"V2 rerank requested for {len(queued)} user(s)", details_json=dumps({"users": [item["user_id"] for item in queued]})))
+    db.commit()
+    return {"queued": queued, "duplicate_prevented": len(queued) < len(targets)}
+
+
 @app.post("/api/admin/developer/sources/{source_id}/test", status_code=202)
 async def developer_test_source(source_id: int, request: Request, db: Session = Depends(get_db)):
     _require_developer(request)
@@ -845,13 +1082,31 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
             stats[key]["enabled_sources"] = int(enabled_sources or 0)
             stats[key]["source_errors"] = int(source_errors or 0)
 
-    job_rows = db.execute(
-        select(
-            Job.career_track,
-            func.sum(case((Job.is_active.is_(True), 1), else_=0)),
-            func.sum(case((Job.is_active.is_(True) & (Job.score >= 80), 1), else_=0)),
-        ).group_by(Job.career_track)
-    ).all()
+    ranking_settings = get_ranking_settings(db)
+    if ranking_settings.active_engine == "v2":
+        job_rows = db.execute(
+            select(
+                Job.career_track,
+                func.sum(case((Job.is_active.is_(True), 1), else_=0)),
+                func.sum(case((
+                    Job.is_active.is_(True)
+                    & JobRanking.stale.is_(False)
+                    & (JobRanking.error == "")
+                    & JobRanking.tier.in_(("top_match", "strong_match")),
+                    1,
+                ), else_=0)),
+            ).outerjoin(
+                JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
+            ).group_by(Job.career_track)
+        ).all()
+    else:
+        job_rows = db.execute(
+            select(
+                Job.career_track,
+                func.sum(case((Job.is_active.is_(True), 1), else_=0)),
+                func.sum(case((Job.is_active.is_(True) & (Job.score >= 80), 1), else_=0)),
+            ).group_by(Job.career_track)
+        ).all()
     for track_key, jobs, strong_matches in job_rows:
         key = normalize_track(track_key)
         if key in stats:
@@ -992,11 +1247,17 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         if not guest_catalog:
             top_jobs_statement = top_jobs_statement.where(Job.status != "submitted")
-        top_jobs = catalog_db.scalars(
-            top_jobs_statement.order_by(
-                desc(Job.score), desc(Job.published_at), desc(Job.discovered_at),
-            ).limit(5)
-        ).all()
+        ranking_settings = get_ranking_settings(catalog_db)
+        if ranking_settings.active_engine == "v2":
+            top_jobs_statement = top_jobs_statement.join(JobRanking, JobRanking.job_id == Job.id).where(
+                JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
+                JobRanking.eligibility_state != "excluded",
+            ).order_by(desc(_v2_tier_order()), desc(JobRanking.score), desc(Job.published_at), desc(Job.discovered_at))
+        else:
+            top_jobs_statement = top_jobs_statement.order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at))
+        top_jobs = catalog_db.scalars(top_jobs_statement.limit(5)).all()
+        if ranking_settings.active_engine == "v2":
+            _attach_v2_rankings(catalog_db, top_jobs)
         recent_jobs = [
             _job_payload_for_request(job, request, profile=profile)
             for job in top_jobs
@@ -1200,6 +1461,13 @@ def _apply_profile_changes(
     resume_analysis_changed = tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before
     user_id = current_user_id(db)
     track = active_track(profile)
+    ranking_settings = get_ranking_settings(db)
+    v2_enabled = ranking_settings.v2_shadow_mode or ranking_settings.active_engine == "v2"
+    if matching_changed:
+        db.execute(update(JobRanking).where(
+            JobRanking.engine == "v2",
+            JobRanking.job_id.in_(select(Job.id).where(Job.career_track == track)),
+        ).values(stale=True))
 
     # Cloud saves must acknowledge the user's edit first. Re-scoring every historical
     # job (and re-analysing every CV) can take seconds on a small Render instance.
@@ -1208,11 +1476,13 @@ def _apply_profile_changes(
     if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
         db.commit()
         db.refresh(profile)
-        _queue_profile_derived_refresh(user_id, track, matching_changed, resume_analysis_changed)
+        _queue_profile_derived_refresh(user_id, track, matching_changed, resume_analysis_changed, matching_changed and v2_enabled)
         return _profile_dict(profile)
 
     if matching_changed:
         _rescore_all_jobs(db, profile)
+        if v2_enabled:
+            _rescore_v2_jobs(db, profile)
     if resume_analysis_changed:
         _refresh_resume_analyses(db, profile)
     db.commit()
@@ -1602,12 +1872,20 @@ def list_jobs(
     guest_catalog = _request_is_guest(request)
 
     with _job_catalog_session(request, db) as catalog_db:
-        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
-            Job.score >= min_score, Job.career_track == career_track
-        )
-        count_statement = select(func.count()).select_from(Job).where(
-            Job.score >= min_score, Job.career_track == career_track
-        )
+        ranking_settings = get_ranking_settings(catalog_db)
+        v2_active = ranking_settings.active_engine == "v2"
+        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(Job.career_track == career_track)
+        count_statement = select(func.count()).select_from(Job).where(Job.career_track == career_track)
+        if v2_active:
+            ranking_filter = (
+                JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
+                JobRanking.eligibility_state != "excluded", JobRanking.score >= min_score,
+            )
+            statement = statement.join(JobRanking, JobRanking.job_id == Job.id).where(*ranking_filter)
+            count_statement = count_statement.join(JobRanking, JobRanking.job_id == Job.id).where(*ranking_filter)
+        else:
+            statement = statement.where(Job.score >= min_score)
+            count_statement = count_statement.where(Job.score >= min_score)
         if active_only:
             statement = statement.where(Job.is_active.is_(True))
             count_statement = count_statement.where(Job.is_active.is_(True))
@@ -1622,14 +1900,15 @@ def list_jobs(
             statement = statement.where(query_filter)
             count_statement = count_statement.where(query_filter)
 
+        active_score = JobRanking.score if v2_active else Job.score
         sort_map = {
-            "score_desc": (desc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
-            "score_asc": (asc(Job.score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
+            "score_desc": ((desc(_v2_tier_order()), desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)) if v2_active else (desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))),
+            "score_asc": (asc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
             "newest": (desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id)),
             "oldest": (asc(func.coalesce(Job.published_at, Job.discovered_at)), asc(Job.id)),
             "discovered_desc": (desc(Job.discovered_at), desc(Job.id)),
-            "company_asc": (asc(func.lower(Job.company)), desc(Job.score), desc(Job.id)),
-            "title_asc": (asc(func.lower(Job.title)), desc(Job.score), desc(Job.id)),
+            "company_asc": (asc(func.lower(Job.company)), desc(active_score), desc(Job.id)),
+            "title_asc": (asc(func.lower(Job.title)), desc(active_score), desc(Job.id)),
         }
         if sort not in sort_map:
             raise HTTPException(400, "Unsupported jobs sort option")
@@ -1642,6 +1921,8 @@ def list_jobs(
             jobs = catalog_db.scalars(statement.offset((effective_page - 1) * page_size).limit(page_size)).all()
         else:
             jobs = catalog_db.scalars(statement.limit(limit)).all()
+        if v2_active:
+            _attach_v2_rankings(catalog_db, jobs)
         items = [_job_payload_for_request(job, request, profile=profile) for job in jobs]
 
     if not paginated:
@@ -1667,6 +1948,8 @@ def get_job(job_id: int, request: Request, db: Session = Depends(get_db)):
         job = catalog_db.get(Job, job_id, options=(joinedload(Job.source), joinedload(Job.application)))
         if not job or job.career_track != career_track:
             raise HTTPException(404, "Job not found")
+        if get_ranking_settings(catalog_db).active_engine == "v2":
+            _attach_v2_rankings(catalog_db, [job])
         return _job_payload_for_request(job, request, full=True, profile=profile)
 
 
@@ -1741,9 +2024,10 @@ def add_desired_title(payload: DesiredTitleUpdateRequest, background_tasks: Back
         db.add(AuditLog(event_type="desired_title_added", entity_type="profile", entity_id="1", message=title))
         if settings.auth_mode == "supabase":
             db.commit()
-            _queue_profile_derived_refresh(user_id, track, True, False)
+            _queue_profile_derived_refresh(user_id, track, True, False, True)
         else:
             _rescore_all_jobs(db, profile)
+            _rescore_v2_jobs(db, profile)
             db.commit()
     return {"added": title, "desired_titles": titles}
 
@@ -1763,9 +2047,10 @@ def add_profile_skill(payload: SkillUpdateRequest, background_tasks: BackgroundT
         db.add(AuditLog(event_type="profile_skill_added", entity_type="profile", entity_id="1", message=skill))
         if settings.auth_mode == "supabase":
             db.commit()
-            _queue_profile_derived_refresh(user_id, track, True, True)
+            _queue_profile_derived_refresh(user_id, track, True, True, True)
         else:
             _rescore_all_jobs(db, profile)
+            _rescore_v2_jobs(db, profile)
             _refresh_resume_analyses(db, profile)
             db.commit()
     return {"added": skill, "skills": skills}
@@ -1785,9 +2070,10 @@ def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(.
         db.add(AuditLog(event_type="profile_skill_removed", entity_type="profile", entity_id="1", message=skill.strip()))
         if settings.auth_mode == "supabase":
             db.commit()
-            _queue_profile_derived_refresh(user_id, track, True, True)
+            _queue_profile_derived_refresh(user_id, track, True, True, True)
         else:
             _rescore_all_jobs(db, profile)
+            _rescore_v2_jobs(db, profile)
             _refresh_resume_analyses(db, profile)
             db.commit()
     return {"removed": skill.strip(), "skills": remaining}
@@ -2794,7 +3080,8 @@ _profile_refresh_queue_lock = threading.Lock()
 
 
 def _queue_profile_derived_refresh(
-    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
+    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False,
+    rank_v2: bool = False,
 ) -> None:
     """Coalesce expensive derived work and run it outside the request lifecycle.
 
@@ -2804,9 +3091,10 @@ def _queue_profile_derived_refresh(
     """
     key = (user_id, normalize_track(career_track))
     with _profile_refresh_queue_lock:
-        pending = _profile_refresh_pending.setdefault(key, {"rescore_jobs": False, "refresh_resumes": False})
+        pending = _profile_refresh_pending.setdefault(key, {"rescore_jobs": False, "refresh_resumes": False, "rank_v2": False})
         pending["rescore_jobs"] = pending["rescore_jobs"] or bool(rescore_jobs)
         pending["refresh_resumes"] = pending["refresh_resumes"] or bool(refresh_resumes)
+        pending["rank_v2"] = pending["rank_v2"] or bool(rank_v2)
         worker = _profile_refresh_workers.get(key)
         if worker and worker.is_alive():
             return
@@ -2825,7 +3113,7 @@ def _profile_refresh_worker(user_id: str, career_track: str) -> None:
                 return
             _refresh_profile_derived_background(
                 user_id, career_track,
-                pending["rescore_jobs"], pending["refresh_resumes"],
+                pending["rescore_jobs"], pending["refresh_resumes"], pending["rank_v2"],
             )
     finally:
         with _profile_refresh_queue_lock:
@@ -2837,7 +3125,8 @@ def _profile_refresh_worker(user_id: str, career_track: str) -> None:
 
 
 def _refresh_profile_derived_background(
-    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False
+    user_id: str, career_track: str, rescore_jobs: bool = True, refresh_resumes: bool = False,
+    rank_v2: bool = False,
 ) -> None:
     """Refresh expensive derived profile data after the user's save response."""
     try:
@@ -2854,6 +3143,8 @@ def _refresh_profile_derived_background(
                     _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
                 if refresh_resumes:
                     _refresh_resume_analyses(db, profile, career_track=career_track)
+                if rank_v2:
+                    _rescore_v2_jobs(db, profile, career_track=career_track, commit_every=25)
                 db.commit()
     except Exception as exc:
         # A failed derived refresh must never roll back the already-confirmed user edit.
@@ -2875,6 +3166,27 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = 
         job.skills_json = dumps(result.skills)
         job.experience_min = result.experience_min
         job.experience_max = result.experience_max
+        if commit_every and index % commit_every == 0:
+            db.commit()
+
+
+def _rescore_v2_jobs(db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0) -> None:
+    track = normalize_track(career_track or active_track(profile))
+    default_resume = db.scalar(select(ResumeProfile).where(
+        ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
+    ))
+    resume_skills = loads(default_resume.skills_json, []) if default_resume else []
+    context = build_match_context(profile, resume_skills, career_track=track)
+    ranking_settings = get_ranking_settings(db)
+    for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
+        try:
+            persist_v2_result(db, job, profile, ranking_settings, context=context)
+        except Exception as exc:
+            db.add(AuditLog(
+                event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
+                message="V2 background ranking failed",
+                details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
+            ))
         if commit_every and index % commit_every == 0:
             db.commit()
 
@@ -2933,6 +3245,17 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
         "source": {"id": j.source.id, "name": j.source.name, "kind": j.source.kind, "career_track": j.source.career_track} if j.source else None,
         "application_id": j.application.id if j.application else None,
     }
+    v2_row = getattr(j, "_active_v2_ranking", None)
+    if v2_row:
+        v2_result = loads(v2_row.result_json, {})
+        data.update({
+            "score": v2_row.score, "score_reasons": v2_result.get("reasons", []),
+            "match_breakdown": v2_result.get("breakdown", {}), "ranking_engine": "v2",
+            "ranking_tier": v2_row.tier, "ranking_confidence": v2_row.confidence,
+            "eligibility": v2_result.get("eligibility", {}), "ranking_warnings": v2_result.get("warnings", []),
+        })
+    else:
+        data.update({"ranking_engine": "v1", "ranking_tier": None, "ranking_confidence": None, "eligibility": None})
     if full:
         data["description"] = j.description
     return data

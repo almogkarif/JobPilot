@@ -131,6 +131,43 @@ class Job(UserOwnedMixin, Base):
     application: Mapped[Application | None] = relationship(back_populates="job", uselist=False)
 
 
+class RankingSettings(Base):
+    __tablename__ = "ranking_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    active_engine: Mapped[str] = mapped_column(String(20), default="v1")
+    v2_shadow_mode: Mapped[bool] = mapped_column(Boolean, default=True)
+    config_json: Mapped[str] = mapped_column(Text, default="{}")
+    config_version: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class JobRanking(UserOwnedMixin, Base):
+    __tablename__ = "job_rankings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_id", "engine", name="uq_job_ranking_user_job_engine"),
+        Index("ix_job_rankings_user_engine_stale", "user_id", "engine", "stale"),
+        Index("ix_job_rankings_user_engine_tier_score", "user_id", "engine", "tier", "score"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    engine: Mapped[str] = mapped_column(String(20), default="v2", index=True)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    tier: Mapped[str] = mapped_column(String(30), default="low_match", index=True)
+    confidence: Mapped[str] = mapped_column(String(20), default="low")
+    eligibility_state: Mapped[str] = mapped_column(String(20), default="realistic", index=True)
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    engine_version: Mapped[int] = mapped_column(Integer, default=1)
+    config_version: Mapped[int] = mapped_column(Integer, default=1)
+    profile_fingerprint: Mapped[str] = mapped_column(String(64), default="")
+    job_fingerprint: Mapped[str] = mapped_column(String(64), default="")
+    stale: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    error: Mapped[str] = mapped_column(Text, default="")
+    duration_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Application(UserOwnedMixin, Base):
     __tablename__ = "applications"
 
