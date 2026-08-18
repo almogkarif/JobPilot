@@ -241,8 +241,39 @@ async def audit_catalog_tracks() -> int:
     return audited
 
 
+async def reconcile_catalog_tracks() -> int:
+    """Remove catalogue entries admitted by obsolete, over-broad track rules."""
+    from app.services.matching import track_job_relevance
+    from app.services.scanner import delete_job_tree
+
+    reconciled = 0
+    for user_id in known_user_ids():
+        with user_session(user_id) as db:
+            jobs = db.scalars(select(Job).where(Job.is_active.is_(True))).all()
+            counts: dict[str, dict[str, int]] = {}
+            for job in jobs:
+                if track_job_relevance(job, job.career_track)[0]:
+                    continue
+                bucket = counts.setdefault(job.career_track, {"deleted": 0, "deactivated": 0})
+                if job.application:
+                    job.is_active = False
+                    bucket["deactivated"] += 1
+                else:
+                    delete_job_tree(db, job)
+                    bucket["deleted"] += 1
+            db.commit()
+            for track, values in sorted(counts.items()):
+                print(
+                    f"[reconcile] account={account_label(user_id)} track={track} "
+                    f"deleted={values['deleted']} deactivated={values['deactivated']}",
+                    flush=True,
+                )
+            reconciled += 1
+    return reconciled
+
+
 def work_available(mode: str) -> bool:
-    if mode in {"diagnose", "audit"}:
+    if mode in {"diagnose", "audit", "reconcile"}:
         return True
     if mode == "all":
         return bool(known_user_ids())
@@ -264,7 +295,7 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose", "audit"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose", "audit", "reconcile"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
@@ -275,6 +306,8 @@ async def main() -> int:
         count = await diagnose_official_sources()
     elif args.mode == "audit":
         count = await audit_catalog_tracks()
+    elif args.mode == "reconcile":
+        count = await reconcile_catalog_tracks()
     elif args.mode == "queued":
         count = await run_queued()
     elif args.mode == "scheduled":

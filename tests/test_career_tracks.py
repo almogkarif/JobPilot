@@ -145,6 +145,9 @@ def test_cs_relevance_accepts_software_and_rejects_unrelated_company_roles():
     procurement = SimpleNamespace(title="Strategic Buyer", description="Procurement, suppliers and contracts")
     electrical = SimpleNamespace(title="Electrical Engineer", description="Board design, RF and electronics")
     mechanical = SimpleNamespace(title="Mechanical Engineer", description="Mechanical design and production")
+    contaminated_mechanical = SimpleNamespace(title="Mechanical Engineer", description="Work with Python software tools and Linux")
+    chip_backend = SimpleNamespace(title="Physical Design (Backend) Technical Leader", description="Python automation")
+    mixed_system = SimpleNamespace(title="Hardware and Software System Engineer", description="Python and embedded software")
     assert track_job_relevance(software, COMPUTER_SCIENCE)[0] is True
     assert track_job_relevance(embedded, COMPUTER_SCIENCE)[0] is True
     assert track_job_relevance(firmware, COMPUTER_SCIENCE)[0] is True
@@ -156,6 +159,16 @@ def test_cs_relevance_accepts_software_and_rejects_unrelated_company_roles():
     assert track_job_relevance(procurement, COMPUTER_SCIENCE)[0] is False
     assert track_job_relevance(electrical, COMPUTER_SCIENCE)[0] is False
     assert track_job_relevance(mechanical, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(contaminated_mechanical, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(chip_backend, COMPUTER_SCIENCE)[0] is False
+    assert track_job_relevance(mixed_system, COMPUTER_SCIENCE)[0] is True
+
+
+def test_iem_relevance_rejects_pure_software_quality_and_infrastructure_roles():
+    software_quality = SimpleNamespace(title="(SQA) Software Quality Engineer", description="Quality processes and testing")
+    software_infra = SimpleNamespace(title="מהנדס.ת תשתיות תוכנה", description="תואר בהנדסת תעשייה וניהול, מערכות מידע ותכנון")
+    assert track_job_relevance(software_quality, INDUSTRIAL_ENGINEERING)[0] is False
+    assert track_job_relevance(software_infra, INDUSTRIAL_ENGINEERING)[0] is False
 
 
 

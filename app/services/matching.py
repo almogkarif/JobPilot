@@ -129,6 +129,17 @@ CS_GENERIC_TITLE_TERMS = {
     "engineer", "developer", "architect", "programmer", "researcher", "scientist", "analyst",
     "מהנדס", "מהנדסת", "מפתח", "מפתחת", "ארכיטקט", "חוקר", "חוקרת", "מדען", "מדענית",
 }
+CS_OTHER_DISCIPLINE_TITLE_TERMS = {
+    "electrical engineer", "electrical engineering", "electronics engineer", "hardware engineer",
+    "mechanical engineer", "physical design", "silicon design", "board design", "rf engineer",
+    "manufacturing engineer", "production engineer", "quality engineer", "chemical engineer",
+    "מהנדס חשמל", "מהנדסת חשמל", "הנדסת חשמל", "מהנדס חומרה", "מהנדסת חומרה",
+    "מהנדס מכונות", "מהנדסת מכונות", "הנדסת מכונות", "מהנדס ייצור", "מהנדסת ייצור",
+}
+CS_EXPLICIT_SOFTWARE_TITLE_TERMS = {
+    "software", "developer", "programmer", "cyber", "security", "firmware", "embedded", "algorithm",
+    "תוכנה", "מפתח", "מפתחת", "מתכנת", "מתכנתת", "סייבר", "אבטחת מידע", "קושחה", "אלגוריתם",
+}
 IEM_STRONG_TITLE_TERMS = {
     "industrial engineer", "industrial engineering", "business analyst", "data analyst", "bi analyst",
     "operations analyst", "supply chain", "production planner", "material planner", "demand planner",
@@ -356,6 +367,11 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         title = str(getattr(job, "title", "") or "").casefold()
         description = str(getattr(job, "description", "") or "").casefold()
         text = f"{title} {description}"
+        if (
+            any(term in title for term in CS_OTHER_DISCIPLINE_TITLE_TERMS)
+            and not any(term in title for term in CS_EXPLICIT_SOFTWARE_TITLE_TERMS)
+        ):
+            return False, "non_software_discipline_title"
         if any(term in title for term in CS_STRONG_TITLE_TERMS):
             return True, "cs_title"
         context_hits = sum(1 for term in CS_CONTEXT_TERMS if term in text)
@@ -382,6 +398,8 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         if context_hits >= 3 and any(term in title for term in ("engineer", "designer", "developer", "architect", "מהנדס", "מהנדסת")):
             return True, "ee_context"
         return False, "outside_ee_scope"
+    if "software quality" in title or "software infrastructure engineer" in title or "מהנדס.ת תשתיות תוכנה" in title:
+        return False, "software_role_outside_iem_scope"
     if any(term in title for term in IEM_STRONG_TITLE_TERMS):
         return True, "iem_title"
     context_hits = sum(1 for term in IEM_CONTEXT_TERMS if term in text)

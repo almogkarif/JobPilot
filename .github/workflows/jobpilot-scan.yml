@@ -16,6 +16,7 @@ on:
           - all
           - diagnose
           - audit
+          - reconcile
 
 permissions:
   contents: read
