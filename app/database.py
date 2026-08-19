@@ -158,6 +158,8 @@ def _sqlite_additive_migrations(connection) -> None:
         },
         "app_identity": {
             "role": "VARCHAR(30) NOT NULL DEFAULT 'user'",
+            "last_login_at": "DATETIME",
+            "last_session_id": "VARCHAR(160) NOT NULL DEFAULT ''",
             "last_seen_at": "DATETIME",
         },
     }
@@ -259,6 +261,10 @@ def _postgres_multiuser_migration(connection) -> None:
             connection.execute(text("ALTER TABLE app_identity ADD COLUMN role VARCHAR(30) NOT NULL DEFAULT 'user'"))
         if "last_seen_at" not in cols:
             connection.execute(text("ALTER TABLE app_identity ADD COLUMN last_seen_at TIMESTAMPTZ"))
+        if "last_login_at" not in cols:
+            connection.execute(text("ALTER TABLE app_identity ADD COLUMN last_login_at TIMESTAMPTZ"))
+        if "last_session_id" not in cols:
+            connection.execute(text("ALTER TABLE app_identity ADD COLUMN last_session_id VARCHAR(160) NOT NULL DEFAULT ''"))
         configured_owner = str(settings.owner_email or "").strip().casefold()
         if configured_owner:
             connection.execute(

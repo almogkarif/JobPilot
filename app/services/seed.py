@@ -5,11 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_user_profile
-from ..models import Job, Profile, Source
+from ..models import AuditLog, Job, Profile, Source
 from ..utils import dumps
 from .matching import build_match_context, score_job
 from .source_catalog import install_recommended_sources
-from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, ensure_track_state
+from .career_tracks import (COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING,
+                            ensure_track_state, remove_unconfirmed_starter_skills)
 
 
 def initialize_database(db: Session, *, full_name: str | None = None, email: str = "", demo_only: bool = False, profile_only: bool = False) -> None:
@@ -19,8 +20,8 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
     one user's personal defaults never leak into another account.
     """
     profile = get_user_profile(db)
+    local_install = str(db.info.get("user_id") or "") == "local-owner"
     if not profile:
-        local_install = str(db.info.get("user_id") or "") == "local-owner"
         profile = Profile(
             full_name=("Demo Candidate" if local_install and full_name is None else (full_name or "")),
             email=email or "",
@@ -44,6 +45,14 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
     if email and not profile.email:
         profile.email = email
     ensure_track_state(profile)
+    if not local_install:
+        cleared_tracks = remove_unconfirmed_starter_skills(profile)
+        if cleared_tracks:
+            db.add(AuditLog(
+                event_type="starter_skills_removed", entity_type="profile", entity_id=str(profile.id or ""),
+                message="Removed unconfirmed legacy starter skills",
+                details_json=dumps({"career_tracks": cleared_tracks}),
+            ))
     db.add(profile)
     if demo_only:
         db.flush()

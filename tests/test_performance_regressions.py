@@ -73,3 +73,21 @@ def test_last_seen_write_is_throttled_without_delaying_real_identity_changes(mon
     changed_identity = AuthIdentity("perf-user", "new@example.com", "google")
     assert _touch_account(account, changed_identity) is True
     assert account.email == "new@example.com"
+
+
+def test_open_tab_activity_does_not_change_last_login_but_new_session_does(monkeypatch):
+    monkeypatch.setattr(settings, "owner_email", "")
+    login = utcnow() - timedelta(hours=3)
+    account = AppIdentity(
+        auth_user_id="session-user", email="same@example.com", role="user",
+        claimed_at=login, last_login_at=login, last_session_id="session-a", last_seen_at=utcnow(),
+    )
+    same_session = AuthIdentity("session-user", "same@example.com", "google", "user", False, "session-a", login)
+    assert _touch_account(account, same_session) is False
+    assert account.last_login_at == login
+
+    new_login = utcnow()
+    new_session = AuthIdentity("session-user", "same@example.com", "google", "user", False, "session-b", new_login)
+    assert _touch_account(account, new_session) is True
+    assert account.last_login_at == new_login
+    assert account.last_session_id == "session-b"

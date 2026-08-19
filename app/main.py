@@ -567,7 +567,7 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
     if not _developer_tools_allowed(identity):
         raise HTTPException(403, "Admin access required")
-    accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_seen_at), AppIdentity.id)).all()
+    accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_login_at), desc(AppIdentity.last_seen_at), AppIdentity.id)).all()
     return {
         "count": len(accounts),
         "max_users": max(1, int(settings.max_users or 10)),
@@ -577,6 +577,7 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
                 "email": account.email,
                 "role": account.role or "user",
                 "claimed_at": account.claimed_at,
+                "last_login_at": account.last_login_at or account.claimed_at,
                 "last_seen_at": account.last_seen_at,
             }
             for account in accounts
@@ -643,7 +644,7 @@ def developer_user_detail(user_id: str, request: Request, db: Session = Depends(
     with user_session(user_id) as tenant:
         profile = get_user_profile(tenant)
         track = active_track(profile) if profile else DEFAULT_TRACK
-        return {"user": {"id": account.auth_user_id, "email": account.email, "role": account.role, "claimed_at": account.claimed_at, "last_seen_at": account.last_seen_at},
+        return {"user": {"id": account.auth_user_id, "email": account.email, "role": account.role, "claimed_at": account.claimed_at, "last_login_at": account.last_login_at or account.claimed_at, "last_seen_at": account.last_seen_at},
                 "profile": {"track": track, "onboarding_version": int(profile.onboarding_version or 0) if profile else 0,
                             "skills": len(loads(profile.skills_json, [])) if profile else 0, "desired_titles": len(loads(profile.desired_titles_json, [])) if profile else 0},
                 "counts": {"jobs": tenant.scalar(select(func.count()).select_from(Job)) or 0, "sources": tenant.scalar(select(func.count()).select_from(Source)) or 0,
@@ -1402,7 +1403,7 @@ def _apply_profile_changes(
         "desired_titles_json", "preferred_locations_json", "preferred_work_modes_json",
         "keywords_json", "excluded_keywords_json",
     )
-    resume_analysis_fields = ("email", "phone", "linkedin_url", "github_url", "skills_json")
+    resume_analysis_fields = ("full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url", "skills_json")
     matching_before = tuple(getattr(profile, field) for field in matching_fields)
     resume_analysis_before = tuple(getattr(profile, field) for field in resume_analysis_fields)
 
@@ -1504,7 +1505,7 @@ def _autofill_profile_from_resume(profile: Profile, analysis: dict) -> list[str]
     detected = analysis.get("detected_profile") if isinstance(analysis, dict) else {}
     if not isinstance(detected, dict):
         return []
-    allowed = ("full_name", "email", "phone", "linkedin_url", "github_url", "portfolio_url")
+    allowed = ("full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url")
     applied: list[str] = []
     for field in allowed:
         value = str(detected.get(field, "") or "").strip()

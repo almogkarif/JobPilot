@@ -66,11 +66,23 @@ TRACK_FIELDS = (
     "cv_path",
 )
 
+LEGACY_STARTER_SKILLS: dict[str, list[str]] = {
+    COMPUTER_SCIENCE: ["C++", "Python", "Git", "Linux", "Data Structures", "REST API"],
+    INDUSTRIAL_ENGINEERING: [
+        "Excel", "SQL", "Power BI", "Data Analysis", "ERP", "SAP",
+        "Process Improvement", "Project Management",
+    ],
+    ELECTRICAL_ENGINEERING: [
+        "C", "C++", "Python", "Verilog", "SystemVerilog", "VHDL", "FPGA",
+        "UVM", "Embedded", "Linux", "MATLAB", "PCB",
+    ],
+}
+
 TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     COMPUTER_SCIENCE: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
-        "skills_json": dumps(["C++", "Python", "Git", "Linux", "Data Structures", "REST API"]),
+        "skills_json": dumps([]),
         "desired_titles_json": dumps([
             "software engineer", "backend", "r&d", "research engineer",
             "ai engineer", "machine learning engineer",
@@ -86,10 +98,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     INDUSTRIAL_ENGINEERING: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
-        "skills_json": dumps([
-            "Excel", "SQL", "Power BI", "Data Analysis", "ERP", "SAP",
-            "Process Improvement", "Project Management",
-        ]),
+        "skills_json": dumps([]),
         "desired_titles_json": dumps([
             "industrial engineer", "business analyst", "data analyst", "operations analyst",
             "supply chain", "pmo", "project manager", "production planner",
@@ -111,7 +120,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     ELECTRICAL_ENGINEERING: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
-        "skills_json": dumps(["C", "C++", "Python", "Verilog", "SystemVerilog", "VHDL", "FPGA", "UVM", "Embedded", "Linux", "MATLAB", "PCB"]),
+        "skills_json": dumps([]),
         "desired_titles_json": dumps(["electrical engineer", "hardware engineer", "fpga engineer", "asic", "vlsi", "verification engineer", "embedded engineer", "firmware engineer", "analog engineer", "rf engineer", "board design"]),
         "preferred_locations_json": dumps(["Israel", "Haifa", "Tel Aviv", "Jerusalem"]),
         "preferred_work_modes_json": dumps(["hybrid", "onsite", "remote"]),
@@ -171,6 +180,30 @@ def ensure_track_state(profile: Profile) -> dict[str, dict[str, Any]]:
     profile.track_profiles_json = dumps(track_states)
     profile.active_career_track = current
     return track_states
+
+
+def remove_unconfirmed_starter_skills(profile: Profile) -> list[str]:
+    """Remove old canned skills only from untouched cloud onboarding profiles.
+
+    Exact-list matching makes the repair deliberately conservative: any manual edit,
+    CV upload, or completed onboarding keeps the user's data intact.
+    """
+    if int(getattr(profile, "onboarding_version", 0) or 0) > 0 or str(getattr(profile, "cv_path", "") or "").strip():
+        return []
+    states = ensure_track_state(profile)
+    cleared: list[str] = []
+    for track, legacy_skills in LEGACY_STARTER_SKILLS.items():
+        state = states.get(track, {})
+        if loads(state.get("skills_json", "[]"), []) == legacy_skills:
+            state["skills_json"] = "[]"
+            cleared.append(track)
+    current = active_track(profile)
+    if loads(profile.skills_json, []) == LEGACY_STARTER_SKILLS[current]:
+        profile.skills_json = "[]"
+        if current not in cleared:
+            cleared.append(current)
+    profile.track_profiles_json = dumps(states)
+    return cleared
 
 
 def persist_active_track(profile: Profile) -> dict[str, dict[str, Any]]:

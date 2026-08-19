@@ -61,7 +61,7 @@ def test_postgres_startup_skips_already_applied_rls_and_revokes(monkeypatch):
     connection = _Connection(roles=("anon", "authenticated"))
     inspector = _Inspector(
         ["app_identity"],
-        {"app_identity": [{"name": "role"}, {"name": "last_seen_at"}]},
+        {"app_identity": [{"name": "role"}, {"name": "last_seen_at"}, {"name": "last_login_at"}, {"name": "last_session_id"}]},
     )
     monkeypatch.setattr(database_module, "inspect", lambda _connection: inspector)
     monkeypatch.setattr(database_module, "_postgres_table_rls_enabled", lambda *_args: True)

@@ -61,7 +61,7 @@ def test_track_preferences_and_skills_are_independent_and_restore_exactly():
         iem_profile = client.get("/api/profile").json()
         assert iem_profile["active_career_track"] == INDUSTRIAL_ENGINEERING
         assert cs_skill not in iem_profile["skills"]
-        assert {"Excel", "Power BI", "ERP"} <= set(iem_profile["skills"])
+        assert iem_profile["skills"] == []
         assert "industrial engineer" in iem_profile["desired_titles"]
         client.post("/api/profile/skills", json={"skill": iem_skill})
 
@@ -188,7 +188,7 @@ def test_track_state_keeps_all_search_settings_and_cv_separate_but_contact_share
     ensure_track_state(profile)
     switch_track(profile, INDUSTRIAL_ENGINEERING)
     assert profile.email == "shared@example.com" and profile.phone == "0501234567"
-    assert "Excel" in loads(profile.skills_json, [])
+    assert loads(profile.skills_json, []) == []
     assert profile.auto_apply_threshold == 78
     profile.skills_json = dumps(["Excel", "SAP", "Power BI"])
     profile.desired_titles_json = dumps(["industrial engineer", "supply chain"])

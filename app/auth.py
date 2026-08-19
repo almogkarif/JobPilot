@@ -26,6 +26,8 @@ class AuthIdentity:
     provider: str = "local"
     role: str = "user"
     is_guest: bool = False
+    session_id: str = ""
+    authenticated_at: datetime | None = None
 
 
 def auth_public_config() -> dict:
@@ -98,7 +100,20 @@ def _verify_supabase_token_remote(token: str) -> dict:
         "email": user.get("email", ""),
         "app_metadata": user.get("app_metadata", {}),
         "is_anonymous": bool(user.get("is_anonymous")),
+        "session_id": user.get("last_sign_in_at", ""),
+        "auth_time": user.get("last_sign_in_at"),
     }
+
+
+def _claim_datetime(value) -> datetime | None:
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    if isinstance(value, str) and value.strip():
+        try:
+            return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
 
 
 def verify_supabase_token(token: str) -> AuthIdentity:
@@ -114,7 +129,12 @@ def verify_supabase_token(token: str) -> AuthIdentity:
         raise HTTPException(401, "Invalid authenticated user")
     is_guest = bool(claims.get("is_anonymous"))
     provider = "anonymous" if is_guest else str((claims.get("app_metadata") or {}).get("provider") or "supabase")
-    return AuthIdentity(user_id=user_id, email=email, provider=provider, role="guest" if is_guest else "user", is_guest=is_guest)
+    return AuthIdentity(
+        user_id=user_id, email=email, provider=provider,
+        role="guest" if is_guest else "user", is_guest=is_guest,
+        session_id=str(claims.get("session_id") or "").strip(),
+        authenticated_at=_claim_datetime(claims.get("auth_time") or claims.get("iat")),
+    )
 
 
 def _claim_legacy_rows(db: Session, user_id: str) -> None:
@@ -190,6 +210,10 @@ def _touch_account(account: AppIdentity, verified: AuthIdentity) -> bool:
         changed = True
 
     now = utcnow()
+    if verified.session_id and account.last_session_id != verified.session_id:
+        account.last_session_id = verified.session_id
+        account.last_login_at = verified.authenticated_at or now
+        changed = True
     last_seen = account.last_seen_at
     if last_seen is None:
         account.last_seen_at = now
@@ -209,7 +233,7 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
 
     verified = verify_supabase_token(_bearer_token(request))
     if verified.is_guest:
-        identity = AuthIdentity(verified.user_id, "", "anonymous", "guest", True)
+        identity = AuthIdentity(verified.user_id, "", "anonymous", "guest", True, verified.session_id, verified.authenticated_at)
         _ensure_workspace_once(db, identity, new_account=True)
         return identity
 
@@ -229,7 +253,7 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
             account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == verified.user_id))
             new_account = account is None
             if account is not None:
-                identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user")
+                identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user", False, verified.session_id, verified.authenticated_at)
                 if _touch_account(account, verified):
                     db.commit()
                 _ensure_workspace_once(db, identity, new_account=False)
@@ -247,6 +271,8 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
             email=verified.email,
             role=role,
             claimed_at=utcnow(),
+            last_login_at=verified.authenticated_at or utcnow(),
+            last_session_id=verified.session_id,
             last_seen_at=utcnow(),
         )
         db.add(account)
@@ -261,7 +287,7 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
         if _touch_account(account, verified):
             db.commit()
 
-    identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user")
+    identity = AuthIdentity(verified.user_id, verified.email, verified.provider, account.role or "user", False, verified.session_id, verified.authenticated_at)
     _ensure_workspace_once(db, identity, new_account=new_account)
     # Return the DB to an unscoped state before middleware closes it; request endpoint
     # dependencies create their own tenant-scoped Session.

@@ -15,6 +15,33 @@ def test_text_resume_is_read_and_suggests_skills_and_contact_details(tmp_path: P
     assert {item["field"] for item in analysis["suggestions"]} >= {"skills", "email", "github_url"}
 
 
+def test_resume_detects_identity_location_and_links_without_protocol():
+    profile = Profile(full_name="", email="", phone="", location="", linkedin_url="", github_url="", portfolio_url="", skills_json="[]")
+    analysis = analyze_resume(
+        "Almog Karif | Software Engineer\nLocation: Tel Aviv, Israel\n"
+        "almog@example.com · 052-1234567\nlinkedin.com/in/almog-karif\ngithub.com/almogkarif",
+        profile,
+    )
+    detected = analysis["detected_profile"]
+    assert detected["full_name"] == "Almog Karif"
+    assert detected["location"] == "Tel Aviv, Israel"
+    assert detected["linkedin_url"] == "https://linkedin.com/in/almog-karif"
+    assert detected["github_url"] == "https://github.com/almogkarif"
+
+
+def test_resume_autofill_never_overwrites_existing_personal_details():
+    from app.main import _autofill_profile_from_resume
+
+    profile = Profile(full_name="Existing Name", email="existing@example.com", phone="", location="Haifa", skills_json="[]")
+    applied = _autofill_profile_from_resume(profile, {"detected_profile": {
+        "full_name": "New Name", "email": "new@example.com", "phone": "0521234567", "location": "Tel Aviv",
+    }})
+    assert applied == ["phone"]
+    assert profile.full_name == "Existing Name"
+    assert profile.email == "existing@example.com"
+    assert profile.location == "Haifa"
+
+
 def test_resume_skills_contribute_to_job_match_score():
     profile = Profile(skills_json="[]", desired_titles_json="[]", preferred_locations_json="[]",
                       keywords_json="[]", excluded_keywords_json="[]", preferred_work_modes_json="[]")

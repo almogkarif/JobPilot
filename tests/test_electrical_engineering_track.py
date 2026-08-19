@@ -11,7 +11,7 @@ HTML=(ROOT/"app/static/index.html").read_text()
 
 def test_electrical_track_is_first_class():
     assert ELECTRICAL_ENGINEERING in CAREER_TRACK_BY_KEY
-    assert "FPGA" in TRACK_DEFAULTS[ELECTRICAL_ENGINEERING]["skills_json"]
+    assert TRACK_DEFAULTS[ELECTRICAL_ENGINEERING]["skills_json"] == "[]"
     assert len(recommended_sources_for_track(ELECTRICAL_ENGINEERING)) >= 10
 
 def test_electrical_relevance_filters_generic_software():

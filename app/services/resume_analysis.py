@@ -14,7 +14,16 @@ _NAME_BLOCKLIST = {
     "resume", "curriculum", "vitae", "cv", "engineer", "developer", "manager", "analyst",
     "scientist", "student", "specialist", "director", "lead", "software", "industrial",
     "data", "project", "product", "operations", "summary", "profile", "experience", "skills",
+    "tel", "aviv", "haifa", "jerusalem", "israel", "הרצליה", "חיפה", "ירושלים", "ישראל",
 }
+
+_LOCATION_LABEL_RE = re.compile(r"^(?:location|address|מיקום|כתובת)\s*[:\-–]\s*(.+)$", re.IGNORECASE)
+_KNOWN_LOCATIONS = (
+    "Tel Aviv", "Haifa", "Jerusalem", "Herzliya", "Ramat Gan", "Petah Tikva", "Beer Sheva",
+    "Be'er Sheva", "Raanana", "Ra'anana", "Rehovot", "Netanya", "Kfar Saba", "Yokneam",
+    "תל אביב", "חיפה", "ירושלים", "הרצליה", "רמת גן", "פתח תקווה", "פתח תקוה", "באר שבע",
+    "רעננה", "רחובות", "נתניה", "כפר סבא", "יקנעם",
+)
 
 
 def _docx_relationship_targets(archive: zipfile.ZipFile, part_name: str) -> list[str]:
@@ -73,7 +82,25 @@ def extract_resume_bytes(content: bytes, filename: str = "resume.pdf") -> str:
     suffix = Path(filename).suffix.casefold()
     if suffix == ".pdf":
         from pypdf import PdfReader
-        return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(content)).pages).strip()
+        chunks: list[str] = []
+        links: list[str] = []
+        for page in PdfReader(BytesIO(content)).pages:
+            chunks.append(page.extract_text() or "")
+            try:
+                annotations = page.get("/Annots") or []
+                for reference in annotations:
+                    annotation = reference.get_object()
+                    action = annotation.get("/A") or {}
+                    uri = str(action.get("/URI") or "").strip()
+                    if uri.startswith(("http://", "https://")):
+                        links.append(uri)
+            except Exception:
+                # Visible text remains useful even when a malformed annotation
+                # cannot be resolved by pypdf.
+                pass
+        if links:
+            chunks.append("\n".join(dict.fromkeys(links)))
+        return "\n".join(chunks).strip()
     if suffix == ".docx":
         return _docx_text(content)
     if suffix in {".txt", ".rtf"}:
@@ -117,14 +144,30 @@ def _detect_full_name(text: str) -> str:
     # heading such as "Software Engineer" is never written into the user's profile.
     for raw in text.splitlines()[:18]:
         value = " ".join(raw.strip().split())
-        if not value or len(value) > 80 or "@" in value or "http" in value.casefold() or any(ch.isdigit() for ch in value):
-            continue
-        if not _WORDISH_NAME_RE.match(value):
-            continue
-        words = {word.strip(".'’-_").casefold() for word in value.split()}
-        if words & _NAME_BLOCKLIST:
-            continue
-        return value
+        # Common CV headers use "Name | Software Engineer" on one line.
+        for candidate in re.split(r"\s*[|•·]\s*", value)[:2]:
+            if not candidate or len(candidate) > 80 or "@" in candidate or "http" in candidate.casefold() or any(ch.isdigit() for ch in candidate):
+                continue
+            if not _WORDISH_NAME_RE.match(candidate):
+                continue
+            words = {word.strip(".'’-_").casefold() for word in candidate.split()}
+            if words & _NAME_BLOCKLIST:
+                continue
+            return candidate
+    return ""
+
+
+def _detect_location(text: str) -> str:
+    lines = [" ".join(line.split()).strip() for line in text.splitlines()[:45]]
+    for line in lines:
+        match = _LOCATION_LABEL_RE.match(line)
+        if match and 2 <= len(match.group(1).strip()) <= 80:
+            return match.group(1).strip(" ,.;")
+    for line in lines:
+        for location in _KNOWN_LOCATIONS:
+            if re.search(rf"(?<![\w]){re.escape(location)}(?![\w])", line, re.IGNORECASE):
+                suffix = ", Israel" if not any(token in line.casefold() for token in ("israel", "ישראל")) else ""
+                return f"{location}{suffix}"
     return ""
 
 
@@ -139,6 +182,25 @@ def _detect_portfolio_url(text: str) -> str:
     return ""
 
 
+def _detected_urls(text: str) -> dict[str, str]:
+    normalized = re.sub(
+        r"(?<![\w@/])(www\.)?(linkedin\.com/in/|github\.com/)",
+        lambda match: "https://" + (match.group(1) or "") + match.group(2),
+        text,
+        flags=re.IGNORECASE,
+    )
+    patterns = {
+        "linkedin_url": r"https?://(?:www\.)?linkedin\.com/in/[^\s<>)]+",
+        "github_url": r"https?://(?:www\.)?github\.com/[^\s<>)]+",
+    }
+    found: dict[str, str] = {}
+    for field, pattern in patterns.items():
+        match = re.search(pattern, normalized, re.IGNORECASE)
+        if match:
+            found[field] = match.group(0).rstrip(".,;:")
+    return found
+
+
 def analyze_resume(text: str, profile) -> dict:
     skills = extract_skills(text)
     suggestions: list[dict] = []
@@ -151,19 +213,21 @@ def analyze_resume(text: str, profile) -> dict:
     patterns = {
         "email": r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}",
         "phone": r"(?:\+972[- ()]?|0)5\d(?:[- ()]?\d){7}",
-        "linkedin_url": r"https?://(?:www\.)?linkedin\.com/in/[^\s<>)]+",
-        "github_url": r"https?://(?:www\.)?github\.com/[^\s<>)]+",
     }
     labels = {"full_name": "שם מלא", "email": "כתובת אימייל", "phone": "מספר טלפון",
-              "linkedin_url": "LinkedIn", "github_url": "GitHub", "portfolio_url": "Portfolio"}
+              "location": "מיקום", "linkedin_url": "LinkedIn", "github_url": "GitHub", "portfolio_url": "Portfolio"}
     detected_profile: dict[str, str] = {}
     full_name = _detect_full_name(text)
     if full_name:
         detected_profile["full_name"] = full_name
+    location = _detect_location(text)
+    if location:
+        detected_profile["location"] = location
     for field, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             detected_profile[field] = match.group(0).rstrip(".,;:")
+    detected_profile.update(_detected_urls(text))
     portfolio = _detect_portfolio_url(text)
     if portfolio:
         detected_profile["portfolio_url"] = portfolio

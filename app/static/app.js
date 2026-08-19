@@ -3242,6 +3242,13 @@ document.addEventListener('click', (event) => {
 
 $('#upload-resume').onclick = () => $('#resume-file').click();
 $('#manage-resumes').onclick = () => $('#privacy-center').click();
+const RESUME_AUTOFILL_LABELS = Object.freeze({
+  full_name:'שם מלא', email:'אימייל', phone:'טלפון', location:'מיקום',
+  linkedin_url:'LinkedIn', github_url:'GitHub', portfolio_url:'אתר אישי'
+});
+function resumeAutofillSummary(fields=[]){
+  return fields.map(field=>RESUME_AUTOFILL_LABELS[field]||field).join(' · ');
+}
 $('#resume-file').onchange = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -3257,7 +3264,7 @@ $('#resume-file').onchange = async (event) => {
     const count=result.analysis?.suggestions?.length||0;
     const filled=(result.autofilled_fields||[]).length;
     const parts=['קורות החיים הועלו ונותחו'];
-    if(filled) parts.push(`${filled} פרטים אישיים מולאו אוטומטית`);
+    if(filled) parts.push(`מולאו אוטומטית: ${resumeAutofillSummary(result.autofilled_fields)}`);
     if(count) parts.push(`${count} הצעות מחכות לאישור`);
     toast(parts.join(' · '));
   } catch (error) {
@@ -3625,7 +3632,9 @@ async function onboardingResume(event){
     const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
     const suggestions=result.analysis?.suggestions||[];
     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
-    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSetStep(onboardingState.step); toast('קורות החיים הועלו ונותחו');
+    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSetStep(onboardingState.step);
+    const filled=resumeAutofillSummary(result.autofilled_fields||[]);
+    toast(filled?`קורות החיים נותחו · מולאו: ${filled}`:'קורות החיים הועלו ונותחו');
   }catch(error){label?.classList.remove('uploading');toast(error.message)}
 }
 async function onboardingSaveSkills(){
@@ -3731,7 +3740,7 @@ async function loadDeveloperUsers(){
 function renderDeveloperUsers(){
   const root=$('#developer-users-list'),q=String($('#developer-user-search')?.value||'').trim().toLowerCase();if(!root)return;
   const users=developerUsersCache.filter(u=>!q||String(u.email||u.id).toLowerCase().includes(q));
-  root.innerHTML=users.map(u=>`<button type="button" class="developer-user-row" data-developer-user="${esc(u.id)}"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · ${u.last_seen_at?`נראה ${esc(developerDate(u.last_seen_at))}`:'טרם התחבר'}</small></span><b>›</b></button>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>';
+  root.innerHTML=users.map(u=>`<button type="button" class="developer-user-row" data-developer-user="${esc(u.id)}"><span class="cloud-user-avatar">${esc((u.email||'?').slice(0,1).toUpperCase())}</span><span><strong>${esc(u.email||u.id)}</strong><small>${u.role==='admin'?'Admin':'משתמש'} · כניסה אחרונה ${esc(developerDate(u.last_login_at||u.claimed_at))} · פעילות ${esc(developerDate(u.last_seen_at))}</small></span><b>›</b></button>`).join('')||'<div class="empty-state">אין משתמשים להצגה</div>';
   $$('[data-developer-user]',root).forEach(b=>b.onclick=()=>inspectDeveloperUser(b.dataset.developerUser));
 }
 let developerInspectedUserId='';
@@ -3773,7 +3782,7 @@ let rankingLabState={settings:null,userId:'',comparison:null};
 const RANKING_CONFIG_FIELDS=[['role_weight','Role Match'],['skills_weight','Skills / Technologies'],['requirements_weight','Professional Requirements'],['preferences_weight','Soft Preferences'],['maximum_job_age_days','Maximum job age'],['realistic_experience_gap','Realistic experience gap'],['stretch_experience_gap','Stretch experience gap'],['exclude_experience_gap','Exclude experience gap'],['top_match_threshold','Top Match threshold'],['strong_match_threshold','Strong Match threshold'],['good_match_threshold','Good Match threshold'],['low_match_threshold','Low Match threshold']];
 function rankingConfigValues(){const value={...rankingLabState.settings?.config};RANKING_CONFIG_FIELDS.forEach(([key])=>{const input=$(`[data-ranking-config="${key}"]`);if(input)value[key]=Number(input.value)});return value}
 function renderRankingConfig(config){const root=$('#ranking-config-fields');if(!root)return;root.innerHTML=RANKING_CONFIG_FIELDS.map(([key,label])=>`<label><span>${esc(label)}</span><input type="number" data-ranking-config="${key}" value="${Number(config?.[key]??0)}"></label>`).join('')}
-function rankingRow(item,compact=false){const movement=item.delta>0?`↑ ${item.delta}`:item.delta<0?`↓ ${Math.abs(item.delta)}`:'—';return `<button type="button" class="ranking-row ${item.eligibility==='excluded'?'is-excluded':''}" data-ranking-job="${item.job_id}"><span><strong>${esc(item.job)}</strong><small>${esc(item.company)} · ${esc(item.tier||'—')} · ${esc(item.eligibility||'unknown')}</small></span>${compact?`<b>${item.v2_score??item.v1_score}</b>`:`<i>V1 ${item.v1_score}</i><i>V2 ${item.v2_score}</i><b>${movement}</b>`}</button>`}
+function rankingRow(item,compact=false){const movement=item.delta>0?`↑ ${item.delta}`:item.delta<0?`↓ ${Math.abs(item.delta)}`:'—';const movementTone=item.delta>0?'up':item.delta<0?'down':'same';return `<button type="button" class="developer-source-row ranking-row ${item.eligibility==='excluded'?'is-excluded':''}" data-ranking-job="${item.job_id}"><span><strong>${esc(item.job)}</strong><small>${esc(item.company)} · ${esc(item.tier||'—')} · ${esc(item.eligibility||'unknown')}</small></span><span class="ranking-row-metrics">${compact?`<b class="ranking-score primary">${item.v2_score??item.v1_score}</b>`:`<i class="ranking-score">V1&nbsp; ${item.v1_score}</i><i class="ranking-score">V2&nbsp; ${item.v2_score}</i><b class="ranking-movement ${movementTone}">${movement}</b>`}</span></button>`}
 function bindRankingRows(){$$('[data-ranking-job]').forEach(button=>button.onclick=()=>inspectRankingJob(Number(button.dataset.rankingJob)))}
 async function loadRankingLab(){const user=$('#ranking-lab-user');if(!user)return;if(!rankingLabState.userId)rankingLabState.userId=developerUsersCache[0]?.id||authState.user?.id||'';user.innerHTML=developerUsersCache.map(item=>`<option value="${esc(item.id)}" ${item.id===rankingLabState.userId?'selected':''}>${esc(item.email||item.id)}</option>`).join('');if(!rankingLabState.userId)return;try{const data=await api(`/api/admin/developer/ranking?user_id=${encodeURIComponent(rankingLabState.userId)}`);rankingLabState.settings=data.settings;const s=data.status||{},settings=data.settings||{};$('#ranking-lab-status').innerHTML=[developerMetric('Active engine',settings.active_engine==='v2'?'V2':'V1 Legacy',`config v${settings.config_version}`),developerMetric('Shadow Mode',settings.v2_shadow_mode?'ON':'OFF',settings.active_engine==='v1'?'V1 remains user-visible':''),developerMetric('Evaluated',`${s.evaluated}/${s.total}`,`${s.waiting} waiting`),developerMetric('Stale / errors',`${s.stale} / ${s.failed}`,s.last_evaluation?developerDate(s.last_evaluation):'Never'),developerMetric('Average evaluation',`${s.average_evaluation_ms||0} ms`,s.queue?.count?'Queued / running':'Idle')].join('');$('#ranking-lab-engine-badge').textContent=settings.active_engine.toUpperCase();$('#ranking-shadow-toggle').textContent=`V2 Shadow: ${settings.v2_shadow_mode?'ON':'OFF'}`;$('#ranking-inspected-user').textContent=developerUsersCache.find(item=>item.id===rankingLabState.userId)?.email||rankingLabState.userId;renderRankingConfig(settings.config);await loadRankingComparison()}catch(e){$('#ranking-lab-status').innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
 async function loadRankingComparison(){if(!rankingLabState.userId)return;const root=$('#ranking-comparison-list');root.innerHTML='<div class="empty-state">מחשב השוואה…</div>';try{const sort=$('#ranking-comparison-sort').value;const data=await api(`/api/admin/developer/ranking/compare?user_id=${encodeURIComponent(rankingLabState.userId)}&sort=${encodeURIComponent(sort)}`);rankingLabState.comparison=data;$('#ranking-v1-top').innerHTML=(data.v1_top||[]).map(item=>rankingRow(item,true)).join('');$('#ranking-v2-top').innerHTML=(data.v2_top||[]).map(item=>rankingRow(item,true)).join('');root.innerHTML=(data.items||[]).slice(0,100).map(item=>rankingRow(item)).join('')||'<div class="empty-state">אין תוצאות דירוג</div>';bindRankingRows()}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}

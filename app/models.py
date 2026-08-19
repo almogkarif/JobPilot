@@ -24,6 +24,8 @@ class AppIdentity(Base):
     email: Mapped[str] = mapped_column(String(255), default="", index=True)
     role: Mapped[str] = mapped_column(String(30), default="user")
     claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_session_id: Mapped[str] = mapped_column(String(160), default="")
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
