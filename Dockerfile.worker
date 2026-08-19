@@ -1,0 +1,16 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python -m playwright install --with-deps chromium
+
+COPY . .
+RUN mkdir -p /app/data/agent-cache /app/data/screenshots /app/data/browser-profile
+
+ENV JOBPILOT_WORKER_TYPE=cloud \
+    JOBPILOT_AGENT_HEADLESS=true \
+    JOBPILOT_AUTO_SUBMIT=false \
+    JOBPILOT_BROWSER_PROFILE=/app/data/browser-profile
+
+CMD ["python", "-m", "agent.run_agent"]

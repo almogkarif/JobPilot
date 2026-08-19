@@ -10,7 +10,8 @@ import httpx
 from playwright.sync_api import sync_playwright
 
 from .browser import ApplicationBlocked, fill_application
-from .config import AGENT_CACHE_DIR, AGENT_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS, SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN
+from .config import (AGENT_CACHE_DIR, AGENT_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS,
+                     SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
 
 
 class AgentTaskTimeout(TimeoutError):
@@ -92,6 +93,7 @@ def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_
         f"/api/agent/tasks/{application_id}/blocked",
         json={
             "token": TOKEN,
+            "attempt_id": getattr(blocker, "attempt_id", None),
             "kind": blocker.kind,
             "field_label": blocker.label,
             "question": blocker.question,
@@ -105,6 +107,7 @@ def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_
 
 def run_task(context, task: dict):
     application_id = task["application"]["id"]
+    attempt_id = (task.get("attempt") or {}).get("id")
     existing_pages = getattr(context, "pages", [])
     anchor = existing_pages[0] if existing_pages else context.new_page()
     try:
@@ -124,10 +127,24 @@ def run_task(context, task: dict):
         prepare_resume(task)
         with task_deadline(TASK_TIMEOUT_SECONDS):
             result = fill_application(page, task, auto_submit=submit_authorized)
+        SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        screenshot_path = str(SCREENSHOT_DIR / f"submitted_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+        try:
+            page.screenshot(path=screenshot_path, full_page=True)
+            remote_screenshot = upload_screenshot(application_id, screenshot_path)
+        except Exception as screenshot_exc:  # noqa: BLE001
+            remote_screenshot = ""
+            print(f"[receipt screenshot warning] {screenshot_exc}", file=sys.stderr)
         api(
             "POST",
             f"/api/agent/tasks/{application_id}/submitted",
-            json={"token": TOKEN, "message": result["message"], "page_url": result["page_url"]},
+            json={
+                "token": TOKEN, "attempt_id": attempt_id, "message": result["message"],
+                "page_url": result["page_url"], "screenshot_path": remote_screenshot,
+                "verification_state": "verified", "evidence": result.get("evidence", []),
+                "confirmation_text": result.get("confirmation_text", ""),
+                "external_application_id": result.get("external_application_id", ""),
+            },
         )
         print(f"[submitted] {task['job']['company']} — {task['job']['title']}")
     except ApplicationBlocked as blocker:
@@ -146,6 +163,7 @@ def run_task(context, task: dict):
             remote_screenshot = upload_screenshot(application_id, screenshot_path) if screenshot_path else ""
         except Exception as upload_exc:  # noqa: BLE001
             print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
+        blocker.attempt_id = attempt_id
         report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
         print(f"[blocked:{blocker.kind}] {blocker.explanation}")
     except AgentTaskTimeout as exc:
@@ -161,14 +179,14 @@ def run_task(context, task: dict):
         except Exception as upload_exc:  # noqa: BLE001
             print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
         api("POST", f"/api/agent/tasks/{application_id}/recover",
-            json={"token": TOKEN, "message": str(exc), "page_url": page.url,
+            json={"token": TOKEN, "attempt_id": attempt_id, "message": str(exc), "page_url": page.url,
                   "screenshot_path": remote_screenshot or screenshot_path})
         print(f"[recovered] {exc}", file=sys.stderr)
     except Exception as exc:  # noqa: BLE001
         api(
             "POST",
             f"/api/agent/tasks/{application_id}/failed",
-            json={"token": TOKEN, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url},
+            json={"token": TOKEN, "attempt_id": attempt_id, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url},
         )
         print(f"[failed] {exc}", file=sys.stderr)
     finally:
@@ -181,7 +199,7 @@ def run_task(context, task: dict):
 
 
 def main():
-    print(f"JobPilot agent: {AGENT_ID} | server={BASE_URL} | auto_submit={AUTO_SUBMIT} | headless={HEADLESS}")
+    print(f"JobPilot agent: {AGENT_ID} | server={BASE_URL} | worker={WORKER_TYPE} | auto_submit={AUTO_SUBMIT} | headless={HEADLESS}")
     BROWSER_PROFILE.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         context = playwright.chromium.launch_persistent_context(
@@ -197,7 +215,7 @@ def main():
         )
         while True:
             try:
-                response = api("GET", "/api/agent/tasks/next", params={"agent_id": AGENT_ID})
+                response = api("GET", "/api/agent/tasks/next", params={"agent_id": AGENT_ID, "worker_type": WORKER_TYPE})
                 task = response.get("task")
                 if task:
                     run_task(context, task)

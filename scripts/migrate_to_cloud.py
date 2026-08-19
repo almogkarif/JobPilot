@@ -35,7 +35,7 @@ SUPABASE_URL = os.getenv("JOBPILOT_SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = (os.getenv("JOBPILOT_SUPABASE_SECRET_KEY", "").strip() or os.getenv("JOBPILOT_SUPABASE_SERVICE_ROLE_KEY", "").strip())
 BUCKET = os.getenv("JOBPILOT_SUPABASE_STORAGE_BUCKET", "jobpilot-private")
 MIGRATION_USER_ID = os.getenv("JOBPILOT_MIGRATION_USER_ID", "legacy-owner").strip() or "legacy-owner"
-USER_OWNED_TABLES = {"profiles", "sources", "jobs", "applications", "blockers", "answer_memories", "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices"}
+USER_OWNED_TABLES = {"profiles", "sources", "jobs", "applications", "blockers", "answer_memories", "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices", "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections"}
 
 
 def pg_url(value: str) -> str:

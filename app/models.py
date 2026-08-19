@@ -192,6 +192,109 @@ class Application(UserOwnedMixin, Base):
 
     job: Mapped[Job] = relationship(back_populates="application")
     blockers: Mapped[list[Blocker]] = relationship(back_populates="application", cascade="all, delete-orphan")
+    attempts: Mapped[list[ApplicationAttempt]] = relationship(back_populates="application", cascade="all, delete-orphan")
+    events: Mapped[list[ApplicationEvent]] = relationship(back_populates="application", cascade="all, delete-orphan")
+
+
+class ApplicationAttempt(UserOwnedMixin, Base):
+    __tablename__ = "application_attempts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_application_attempt_user_key"),
+        Index("ix_application_attempts_application_started", "application_id", "started_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("applications.id"), index=True)
+    attempt_number: Mapped[int] = mapped_column(Integer, default=1)
+    idempotency_key: Mapped[str] = mapped_column(String(96), index=True)
+    adapter: Mapped[str] = mapped_column(String(40), default="custom")
+    worker_type: Mapped[str] = mapped_column(String(40), default="local")
+    status: Mapped[str] = mapped_column(String(40), default="running", index=True)
+    verification_state: Mapped[str] = mapped_column(String(40), default="none", index=True)
+    confirmation_text: Mapped[str] = mapped_column(Text, default="")
+    confirmation_url: Mapped[str] = mapped_column(String(1200), default="")
+    external_application_id: Mapped[str] = mapped_column(String(255), default="")
+    screenshot_path: Mapped[str] = mapped_column(String(700), default="")
+    evidence_json: Mapped[str] = mapped_column(Text, default="[]")
+    error: Mapped[str] = mapped_column(Text, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    application: Mapped[Application] = relationship(back_populates="attempts")
+
+
+class ApplicationEvent(UserOwnedMixin, Base):
+    __tablename__ = "application_events"
+    __table_args__ = (Index("ix_application_events_application_created", "application_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("applications.id"), index=True)
+    event_type: Mapped[str] = mapped_column(String(80), index=True)
+    from_status: Mapped[str] = mapped_column(String(40), default="")
+    to_status: Mapped[str] = mapped_column(String(40), default="")
+    actor: Mapped[str] = mapped_column(String(40), default="system")
+    message: Mapped[str] = mapped_column(Text, default="")
+    details_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+    application: Mapped[Application] = relationship(back_populates="events")
+
+
+class ApplicationCampaign(UserOwnedMixin, Base):
+    __tablename__ = "application_campaigns"
+    __table_args__ = (UniqueConstraint("user_id", "career_track", name="uq_application_campaign_user_track"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    career_track: Mapped[str] = mapped_column(String(40), index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    mode: Mapped[str] = mapped_column(String(20), default="simple")
+    min_score: Mapped[int] = mapped_column(Integer, default=82)
+    blocked_companies_json: Mapped[str] = mapped_column(Text, default="[]")
+    daily_cap: Mapped[int] = mapped_column(Integer, default=5)
+    budget_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    spent: Mapped[int] = mapped_column(Integer, default=0)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    runs: Mapped[list[CampaignRun]] = relationship(back_populates="campaign", cascade="all, delete-orphan")
+
+
+class CampaignRun(UserOwnedMixin, Base):
+    __tablename__ = "campaign_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("application_campaigns.id"), index=True)
+    dry_run: Mapped[bool] = mapped_column(Boolean, default=True)
+    status: Mapped[str] = mapped_column(String(40), default="preview", index=True)
+    selected_jobs_json: Mapped[str] = mapped_column(Text, default="[]")
+    skipped_json: Mapped[str] = mapped_column(Text, default="[]")
+    queued_count: Mapped[int] = mapped_column(Integer, default=0)
+    verified_count: Mapped[int] = mapped_column(Integer, default=0)
+    failed_count: Mapped[int] = mapped_column(Integer, default=0)
+    preview_token_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
+    preview_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    campaign: Mapped[ApplicationCampaign] = relationship(back_populates="runs")
+
+
+class EmailConnection(UserOwnedMixin, Base):
+    __tablename__ = "email_connections"
+    __table_args__ = (UniqueConstraint("user_id", "provider", name="uq_email_connection_user_provider"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider: Mapped[str] = mapped_column(String(30), default="gmail")
+    email: Mapped[str] = mapped_column(String(255), default="")
+    access_token: Mapped[str] = mapped_column(Text, default="")
+    refresh_token: Mapped[str] = mapped_column(Text, default="")
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scopes_json: Mapped[str] = mapped_column(Text, default="[]")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class Blocker(UserOwnedMixin, Base):

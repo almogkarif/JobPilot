@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     agent_poll_seconds: int = 15
     scan_concurrency: int = 4
     source_scan_timeout_seconds: int = 45
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    google_oauth_redirect_uri: str = ""
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

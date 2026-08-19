@@ -177,7 +177,7 @@ def _sqlite_additive_migrations(connection) -> None:
     user_owned_tables = [
         "profiles", "sources", "jobs", "applications", "blockers", "answer_memories",
         "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-        "job_rankings",
+        "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
     ]
     existing_tables = {row[0] for row in connection.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
     for table in user_owned_tables:
@@ -277,7 +277,7 @@ def _postgres_multiuser_migration(connection) -> None:
     user_owned_tables = [
         "profiles", "sources", "jobs", "applications", "blockers", "answer_memories",
         "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-        "job_rankings",
+        "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
     ]
     for table in user_owned_tables:
         if table not in tables:
@@ -359,7 +359,8 @@ def _postgres_multiuser_migration(connection) -> None:
         private_tables = [
             "app_identity", "profiles", "sources", "jobs", "applications", "blockers",
             "answer_memories", "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-            "job_rankings", "ranking_settings",
+            "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
+            "ranking_settings",
         ]
         for table in private_tables:
             if table not in tables:

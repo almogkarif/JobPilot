@@ -255,8 +255,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
                 pass
             page.wait_for_timeout(1500)
             _detect_captcha(page)
-            if _is_success(page):
-                return {"submitted": True, "message": "Application submitted and confirmation detected", "page_url": page.url}
+            confirmation_text = _success_evidence(page)
+            if confirmation_text:
+                return {
+                    "submitted": True, "message": "Application submitted and confirmation detected",
+                    "page_url": page.url, "confirmation_text": confirmation_text,
+                    "evidence": [{"type": "confirmation_page", "value": confirmation_text, "url": page.url}],
+                }
             raise ApplicationBlocked(
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
                 "נלחץ כפתור ההגשה, אך לא זוהה מסך אישור חד־משמעי. יש לבדוק ידנית לפני ניסיון נוסף.", page.url,
@@ -1016,8 +1021,19 @@ def _diagnose_workday_profile_controls(page: Page) -> None:
 
 
 def _is_success(page: Page) -> bool:
+    return bool(_success_evidence(page))
+
+
+def _success_evidence(page: Page) -> str:
     try:
-        body = page.locator("body").inner_text(timeout=5000).lower()
-        return any(term in body for term in SUCCESS_TERMS)
+        body = page.locator("body").inner_text(timeout=5000)
+        lowered = body.lower()
+        for term in SUCCESS_TERMS:
+            position = lowered.find(term)
+            if position >= 0:
+                start = max(0, position - 120)
+                end = min(len(body), position + len(term) + 240)
+                return " ".join(body[start:end].split())[:500]
+        return ""
     except Exception:
-        return False
+        return ""

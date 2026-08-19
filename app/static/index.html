@@ -184,6 +184,14 @@
             </label>
             <label class="automation-toggle-card"><input name="auto_submit_enabled" form="profile-form" type="checkbox" /><span class="switch-track"></span><span><strong>הוספה אוטומטית לתור</strong><small>לאחר כל סריקה, לפי הסף שקבעת</small></span></label>
           </div>
+          <div class="campaign-controls" id="campaign-controls">
+            <label><span>מצב קמפיין</span><select id="campaign-mode"><option value="simple">פשוט — לפי ההתאמה</option><option value="advanced">מתקדם — עם בלמי בטיחות</option></select></label>
+            <label><span>מכסה יומית</span><input id="campaign-daily-cap" type="number" min="1" max="100" value="5" /></label>
+            <label><span>תקציב כולל</span><input id="campaign-budget-cap" type="number" min="1" max="10000" placeholder="ללא הגבלה" /></label>
+            <label class="campaign-blocked-companies"><span>חברות שלעולם לא להגיש אליהן</span><textarea id="campaign-blocked-companies" rows="2" placeholder="חברה אחת בכל שורה"></textarea></label>
+          </div>
+          <div class="campaign-actions"><button class="btn secondary" id="campaign-save" type="button">שמור קמפיין</button><button class="btn primary" id="campaign-preview" type="button">בדוק לפני הפעלה</button></div>
+          <div id="campaign-history" class="campaign-history"></div>
           <div class="automation-note"><span class="automation-note-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.8 7.4-7 9.1-4.2-1.7-7-4.8-7-9.1V6l7-2.5Z"/><path d="m8.8 12 2.1 2.1 4.5-4.6"/></svg></span><span><strong>השליטה נשארת אצלך</strong><small>כברירת מחדל הטופס יישאר פתוח לאישור שלך. השליחה הסופית תתבצע רק לאחר שתפעיל אותה במפורש.</small></span></div>
         </article>
         <div class="panel">
@@ -252,6 +260,11 @@
                 <button type="button" data-theme="dark" aria-label="מצב לילה" title="מצב לילה"><span aria-hidden="true">☾</span><small>לילה</small></button>
               </div>
             </div>
+          </article>
+          <article class="panel settings-card settings-integration-card">
+            <div class="panel-head"><div><span class="kicker">אימות הגשות</span><h2>חיבור Gmail</h2><p class="preference-help">גישה לקריאה בלבד משמשת לזיהוי אישורי הגשה. תוכן תיבת הדואר אינו נשמר.</p></div></div>
+            <div id="gmail-integration-status" class="integration-status"><span>בודק זמינות…</span></div>
+            <div class="card-actions"><button class="btn primary" id="gmail-connect" type="button">חבר Gmail</button><button class="btn secondary" id="gmail-verify" type="button" hidden>בדוק אישורי הגשה</button><button class="btn danger-outline" id="gmail-disconnect" type="button" hidden>נתק</button></div>
           </article>
         </div>
       </section>

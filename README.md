@@ -2,7 +2,11 @@
 
 **A full-stack job discovery, matching, and human-in-the-loop application platform.**
 
-JobPilot scans official career sites and public ATS boards, normalizes and filters jobs, scores each role against a user's profile, and can prepare application forms with a local Playwright agent while keeping the final submission under explicit user control.
+[**Open the live application**](https://jobpilot.onrender.com) · [**View the source code**](https://github.com/almogkarif/JobPilot) · [Architecture](#architecture) · [Run locally](#quick-start--local-mode)
+
+> **Recruiter?** Start with the [60-second overview](#for-recruiters--60-second-overview), then open the live application and choose **Continue as guest** (`המשך כאורח`). The product UI is intentionally built in Hebrew with full RTL support; the engineering documentation is in English.
+
+JobPilot scans official career sites and public ATS boards, normalizes and filters jobs, scores each role against a user's profile, and can prepare or submit supported ATS forms through a local or isolated cloud Playwright worker under explicit, one-time user approval.
 
 The project started as a local-first personal tool and evolved into a small multi-user cloud application with Supabase authentication/storage, PostgreSQL persistence, Docker deployment, scheduled scanning, and tenant-isolated data.
 
@@ -13,6 +17,29 @@ The project started as a local-first personal tool and evolved into a small mult
 > **Automation:** Playwright + GitHub Actions
 
 ![JobPilot dashboard](docs/screenshots/dashboard-light.png)
+
+## For recruiters — 60-second overview
+
+JobPilot is an end-to-end production project rather than a UI prototype. It brings together data collection, normalization, explainable ranking, multi-user authentication, browser automation, security controls, cloud deployment, and a responsive frontend in one working system.
+
+| What to evaluate | Where it appears |
+| --- | --- |
+| Product thinking | Job discovery, ranked recommendations, application tracking, profile onboarding, and explicit human approval before submission |
+| Backend engineering | FastAPI APIs, SQLAlchemy models, PostgreSQL/SQLite support, background scanning, data cleanup, and per-source failure isolation |
+| Data and ranking | Multi-source normalization, career-track filtering, resume-derived profile data, deterministic scoring, and readable match explanations |
+| Automation | A local Playwright agent that fills supported ATS forms, pauses on uncertainty, and hands control back to the user |
+| Security and reliability | Supabase Auth, tenant isolation, private file storage, hashed device tokens, fail-closed automation, and automated tests |
+| Delivery | Docker deployment on Render and scheduled scan workers in GitHub Actions |
+
+### Quick product walkthrough
+
+1. Open the [live application](https://jobpilot.onrender.com).
+2. Select **Continue as guest** (`המשך כאורח`) to explore without creating an account.
+3. Review the dashboard and open the ranked jobs list to inspect scores and match explanations.
+4. Switch between Computer Science, Electrical Engineering, and Industrial Engineering & Management to see track-specific jobs and preferences.
+5. Visit Sources, Applications, Profile, and Settings to see the rest of the workflow.
+
+Guest access is read-only and uses the live job catalog, so personal changes and application actions are disabled. The hosted web application demonstrates the product and ranking workflow; browser-based application filling runs locally by design because it requires a private browser session and explicit user handoff.
 
 ## Why I built it
 
@@ -85,7 +112,7 @@ The project combines product work, backend engineering, browser automation, data
 
 ### Cloud boundary
 
-The server can run remotely, but the browser-filling agent intentionally remains on the user's machine. This avoids running a personal authenticated browser profile inside the cloud server and makes manual takeover possible whenever an application site requires attention.
+The server can run remotely with either a local browser agent or an isolated cloud worker. The cloud worker is limited to supported anonymous ATS flows; sites requiring an existing personal session, CAPTCHA, or manual intervention are handed back to the local agent/user.
 
 In cloud mode:
 
@@ -96,6 +123,8 @@ In cloud mode:
 - PostgreSQL startup hardening enables RLS on private tables and removes direct browser access to those tables.
 - Per-device agent tokens are revocable and stored hashed rather than in plaintext.
 - The application agent can be restricted to a configured account during beta deployments.
+- Every claimed task creates an idempotent attempt record; a submission is not marked successful without structured confirmation evidence.
+- Optional Gmail read-only verification can confirm ambiguous submissions from receipt emails without storing message contents.
 
 ## Product tour
 
@@ -122,6 +151,7 @@ Search preferences are ordered, not just selected. Users can rank desired job fa
 JobPilot treats a profession as a first-class search context. `v0.3.2` includes:
 
 - **Computer Science** — software, infrastructure, algorithms, AI/ML, research, and backend roles.
+- **Electrical Engineering** — electronics, hardware, embedded systems, verification, board design, control, RF, and related engineering roles.
 - **Industrial Engineering & Management** — operations, analytics/BI, supply chain, planning, procurement, projects, process improvement, manufacturing, quality, and NPI.
 
 Sources, jobs, matching preferences, resumes, applications, and recommendations are isolated by career track. Identity and reusable application answers remain shared intentionally.
@@ -130,7 +160,7 @@ Sources, jobs, matching preferences, resumes, applications, and recommendations 
 
 The profile stores structured information commonly requested by ATS forms: identity, contact details, links, work authorization, education, employment, languages, certifications, compensation preferences, and resume versions.
 
-Resume analysis can detect skills and contact information and propose profile updates without silently changing the user's data.
+Resume analysis extracts skills, names, contact details, and professional links. Blank profile fields are filled automatically after an upload, while existing user-entered values are preserved and never overwritten silently.
 
 ![Structured profile](docs/screenshots/profile.png)
 
@@ -296,6 +326,7 @@ Render Blueprint ──────► FastAPI server
       └── GitHub Actions ───► collectors + matching ───► PostgreSQL
 
 Local Mac ─────────────► authenticated Agent API ─► Playwright/Chromium
+Cloud worker ──────────► supported anonymous ATS ─► evidence receipt
 ```
 
 Deployment values are supplied as environment variables; real credentials are never committed to the repository.
@@ -314,6 +345,7 @@ For the complete setup, see:
 | `JOBPILOT_DATABASE_URL` | SQLite or PostgreSQL SQLAlchemy URL |
 | `JOBPILOT_BASE_URL` | Public/local server URL used by agents |
 | `JOBPILOT_AGENT_TOKEN` | Legacy/local shared agent secret |
+| `JOBPILOT_WORKER_TYPE` | `local` or `cloud`; cloud claims only the supported anonymous ATS allowlist |
 | `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL` | Optional account allowed to pair the cloud application agent |
 | `JOBPILOT_ALLOWED_EMAILS` | Optional cloud allowlist |
 | `JOBPILOT_MAX_USERS` | Admission cap for a small deployment |
@@ -324,6 +356,14 @@ For the complete setup, see:
 | `JOBPILOT_GITHUB_ACTIONS_TOKEN` | Fine-grained GitHub token used by Render only to dispatch a manual scan workflow |
 | `JOBPILOT_SCAN_EXECUTION_MODE` | Set to `external` in cloud so Render never runs collectors |
 | `JOBPILOT_AUTO_SUBMIT` | Local agent final-submit permission; default false |
+| `JOBPILOT_GOOGLE_OAUTH_CLIENT_ID` / `...SECRET` | Optional Google OAuth web credentials for Gmail receipt verification |
+| `JOBPILOT_GOOGLE_OAUTH_REDIRECT_URI` | Exact public callback: `/api/integrations/gmail/callback` |
+
+### Background submission worker
+
+`Dockerfile.worker` runs the Playwright worker separately from the web service. Supply `JOBPILOT_BASE_URL`, a paired `JOBPILOT_AGENT_TOKEN`, and `JOBPILOT_WORKER_TYPE=cloud`. The worker accepts only Greenhouse, Comeet, Lever, Ashby, and SmartRecruiters tasks that carry a consumed one-time approval. Workday, custom sites, CAPTCHA, and uncertain pages remain local/manual. Keep one replica while using the beta queue.
+
+The Applications page provides a dry run before campaign activation, daily and total caps, a company deny-list, durable attempt history, and a verification receipt. A queued task can finish in `verification_pending`; it becomes `submitted` only after page evidence or an optional Gmail receipt confirms it.
 
 See `.env.example` and `.env.cloud.example` for safe templates.
 
@@ -381,7 +421,7 @@ The suite covers matching behavior, Israel-only filtering, API contracts, scanne
 
 - Career sites change markup and anti-bot behavior; collectors occasionally require maintenance.
 - Some ATS widgets still need dedicated adapters even when they look like standard form controls.
-- The browser-filling agent runs locally and is not a cloud-hosted browser automation worker.
+- The cloud worker supports only allowlisted anonymous ATS flows; session-bound and unsupported forms still require the local agent.
 - Application-agent access can be intentionally restricted to one configured account during the current beta architecture.
 - LinkedIn application flows are intentionally not automated.
 - Automatic answers are limited to supplied profile data and explicitly approved answer-library entries.

@@ -771,7 +771,8 @@ const dateFmt = (value) => value
 
 const statusLabel = (status) => ({
   new: 'חדש', saved: 'נשמרה', queued: 'בתור', applying: 'בטיפול', needs_input: 'מחכה לך',
-  submitted: 'הוגשה', interview: 'ראיון', rejected: 'נדחתה', failed: 'נכשל', skipped: 'דולג',
+  verification_pending: 'ממתין לאימות', submitted: 'הוגשה ואומתה', phone_screen: 'סינון טלפוני',
+  test: 'מבחן', interview: 'ראיון', offer: 'הצעה', accepted: 'התקבלתי', rejected: 'נדחתה', failed: 'נכשל', skipped: 'דולג',
 }[status] || status);
 
 const blockerMeta = (kind) => ({
@@ -845,10 +846,31 @@ function renderApplicationActions(application) {
         : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();switchView('blockers')">ענה במערכת</button>`}
       <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
   }
-  if (application.status === 'submitted') return '';
+  if (application.status === 'submitted' || application.status === 'verification_pending') {
+    return `<button class="btn ${application.status === 'submitted' ? 'primary' : 'secondary'} small" type="button" onclick="event.stopPropagation();showApplicationTimeline(${application.id})">${application.status === 'submitted' ? 'קבלה ואימות' : 'בדוק אימות'}</button>`;
+  }
   return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();retryApp(${application.id})">נסה שוב</button>
+    <button class="btn secondary small" type="button" onclick="event.stopPropagation();showApplicationTimeline(${application.id})">היסטוריה</button>
     <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
 }
+
+async function showApplicationTimeline(applicationId) {
+  try {
+    const data = await api(`/api/applications/${applicationId}/timeline`);
+    const receipt = data.application?.latest_receipt;
+    const evidence = receipt?.evidence || [];
+    modal(`<span class="kicker">קבלה דיגיטלית וציר זמן</span><h2>${esc(data.application?.job?.company)} — ${esc(data.application?.job?.title)}</h2>
+      <div class="application-receipt ${receipt?.verification_state === 'verified' ? 'verified' : 'pending'}">
+        <div><strong>${receipt?.verification_state === 'verified' ? 'ההגשה אומתה' : 'עדיין אין אימות חד־משמעי'}</strong><span>${receipt ? `${esc(receipt.adapter)} · ניסיון ${receipt.attempt_number}` : 'לא נרשם עדיין ניסיון הגשה'}</span></div>
+        ${receipt?.confirmation_text ? `<p>${esc(receipt.confirmation_text)}</p>` : ''}
+        ${receipt?.external_application_id ? `<p><b>מספר מועמדות:</b> ${esc(receipt.external_application_id)}</p>` : ''}
+        ${evidence.length ? `<ul>${evidence.map(item => `<li>${esc(item.type || 'ראיה')}: ${esc(item.value || item.url || '')}</li>`).join('')}</ul>` : ''}
+        <div class="card-actions">${receipt?.confirmation_url ? `<a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(receipt.confirmation_url)}">פתח עמוד אישור</a>` : ''}${receipt?.screenshot_url ? `<a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(receipt.screenshot_url)}">צילום מסך</a>` : ''}</div>
+      </div>
+      <div class="application-timeline">${data.events.length ? data.events.map(event => `<article><i></i><span><strong>${esc(event.message || statusLabel(event.to_status) || event.event_type)}</strong><small>${dateFmt(event.created_at)} · ${esc(event.actor)}</small></span></article>`).join('') : '<p>אין עדיין אירועים.</p>'}</div>`);
+  } catch (error) { toast(error.message); }
+}
+window.showApplicationTimeline = showApplicationTimeline;
 
 function toast(message) {
   const element = $('#toast');
@@ -946,7 +968,10 @@ function switchView(view, options = {}) {
   }
   if (view === 'skills') loadSkills();
   if (view === 'sources') loadSources();
-  if (view === 'settings') requestAnimationFrame(()=>positionThemeThumb(false));
+  if (view === 'settings') {
+    requestAnimationFrame(()=>positionThemeThumb(false));
+    loadGmailIntegration();
+  }
   if (view === 'developer') loadDeveloperCenter();
   if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
   if (view === 'profile') {
@@ -1687,13 +1712,46 @@ async function queueJob(id, mode = 'review', resumeId = null) {
     return;
   }
   try {
-    await api(`/api/jobs/${id}/queue`, { method: 'POST', body: JSON.stringify({ mode, resume_id: resumeId }) });
-    toast(mode === 'auto' ? 'המשרה נכנסה לתור האוטומטי' : 'המשרה נכנסה לתור');
+    const query = resumeId ? `?resume_id=${encodeURIComponent(resumeId)}` : '';
+    const preview = await api(`/api/jobs/${id}/application-preview${query}`);
+    const missing = preview.missing || [];
+    const warnings = preview.warnings || [];
+    const safeguards = preview.safeguards || [];
+    const token = encodeURIComponent(preview.preview_token || '');
+    const adapter = preview.adapter || {};
+    modal(`<span class="kicker">בדיקה לפני הגשה</span>
+      <h2>${esc(preview.job?.company)} — ${esc(preview.job?.title)}</h2>
+      <div class="submission-preview-summary">
+        <span><strong>מערכת הגיוס</strong><b>${esc(adapter.label || 'אתר קריירה')}</b></span>
+        <span><strong>מסלול ביצוע</strong><b>Agent מאובטח</b></span>
+        <span><strong>קורות חיים</strong><b>${esc(preview.resume?.filename || 'לא נבחרו')}</b></span>
+      </div>
+      ${missing.length ? `<div class="submission-preview-blocked"><strong>חסרים פרטים לפני שניתן לאשר שליחה אוטומטית:</strong><ul>${missing.map(item => `<li>${esc(item.label)}</li>`).join('')}</ul></div>` : '<div class="submission-preview-ready"><strong>הבדיקה הראשונית עברה.</strong> הפרטים הבסיסיים וקורות החיים מוכנים.</div>'}
+      ${warnings.length ? `<div class="submission-preview-warnings"><strong>מה חשוב לדעת</strong><ul>${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></div>` : ''}
+      <details class="submission-preview-safeguards"><summary>בלמי הבטיחות שיופעלו</summary><ul>${safeguards.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" onclick="confirmApplicationPreview(${id},'${esc(mode)}',${resumeId || 'null'},decodeURIComponent('${token}'),false)">הוסף לתור לבדיקה</button>
+        <button class="btn primary" type="button" ${preview.ready ? '' : 'disabled'} onclick="confirmApplicationPreview(${id},'auto',${resumeId || 'null'},decodeURIComponent('${token}'),true)">אשר הגשה אוטומטית חד־פעמית</button>
+      </div>`);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function confirmApplicationPreview(id, mode, resumeId, previewToken, approveSubmit) {
+  try {
+    await api(`/api/jobs/${id}/queue`, {
+      method: 'POST',
+      body: JSON.stringify({ mode, resume_id: resumeId, preview_token: previewToken, approve_submit: approveSubmit }),
+    });
+    closeModal();
+    toast(approveSubmit ? 'ההגשה האוטומטית אושרה ונכנסה לתור' : 'המשרה נכנסה לתור לבדיקה');
     await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
   } catch (error) {
     toast(error.message);
   }
 }
+window.confirmApplicationPreview = confirmApplicationPreview;
 async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
 
 async function markJobSubmitted(id) {
@@ -1806,6 +1864,7 @@ function syncApplicationsViewButtons() {
 
 async function loadApplications() {
   syncApplicationsViewButtons();
+  loadApplicationCampaign().catch((error) => console.warn('Campaign load failed', error));
   $('#applications-list').innerHTML = skeleton(4, 'rows');
   state.applications = await api('/api/applications');
   const root = $('#applications-list');
@@ -1813,21 +1872,73 @@ async function loadApplications() {
   setPageContext('applications', state.applications.length);
   if (applicationsView === 'kanban') { renderApplicationsKanban(root); return; }
   root.innerHTML = state.applications.length ? `
-    <table><thead><tr><th>משרה</th><th>חברה</th><th>סטטוס</th><th>מצב</th><th>ניסיונות</th><th>עודכן</th><th>פעולה</th></tr></thead>
+    <table><thead><tr><th>פעולה</th><th>משרה</th><th>חברה</th><th>סטטוס</th><th>מצב</th><th>ניסיונות</th><th>עודכן</th></tr></thead>
     <tbody>${state.applications.map((application) => `
       <tr class="interactive-table-row" data-job-id="${application.job_id}" tabindex="0">
+        <td class="application-row-actions">${renderApplicationActions(application)}</td>
         <td>${esc(application.job?.title)}</td><td>${esc(application.job?.company)}</td>
         <td class="application-status-cell">${renderApplicationStatus(application)}</td><td>${esc(application.mode)}</td>
         <td>${application.attempt_count}</td><td>${dateFmt(application.updated_at)}</td>
-        <td class="application-row-actions" data-no-row-click>${renderApplicationActions(application)}</td>
       </tr>`).join('')}</tbody></table>
   ` : emptyState('↗', 'עדיין אין הגשות', 'משרות שתוסיף לתור יופיעו כאן עם סטטוס וניסיונות ההגשה.', '<button class="btn primary small" type="button" onclick="switchView(\'jobs\')">מצא משרה להגשה</button>');
   $$('.interactive-table-row', root).forEach((row) => {
     const open = () => showJob(Number(row.dataset.jobId));
-    row.onclick = (event) => { if (!event.target.closest('[data-no-row-click]')) open(); };
+    row.onclick = (event) => { if (!event.target.closest('button,a,input,select,textarea')) open(); };
     row.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } };
   });
 }
+
+let applicationCampaign = null;
+async function loadApplicationCampaign() {
+  if (!applicationAgentAllowed() || !$('#campaign-controls')) return;
+  applicationCampaign = await api('/api/application-campaign');
+  $('#campaign-mode').value = applicationCampaign.mode || 'simple';
+  $('#campaign-daily-cap').value = applicationCampaign.daily_cap || 5;
+  $('#campaign-budget-cap').value = applicationCampaign.budget_cap || '';
+  $('#campaign-blocked-companies').value = (applicationCampaign.blocked_companies || []).join('\n');
+  const runs = await api('/api/application-campaign/runs');
+  $('#campaign-history').innerHTML = runs.length ? `<details><summary>היסטוריית בדיקות והרצות (${runs.length})</summary><div>${runs.slice(0,8).map(run => `<span><b>${run.status === 'activated' ? 'הופעל' : 'בדיקה'}</b><small>${dateFmt(run.created_at)} · ${run.queued_count || run.selected_count} בתור · ${run.skipped_count} דולגו</small></span>`).join('')}</div></details>` : '';
+}
+
+function campaignPayload() {
+  return {
+    mode: $('#campaign-mode').value,
+    min_score: Number($('#threshold').value || 82),
+    daily_cap: Number($('#campaign-daily-cap').value || 5),
+    budget_cap: $('#campaign-budget-cap').value ? Number($('#campaign-budget-cap').value) : null,
+    blocked_companies: $('#campaign-blocked-companies').value.split(/\n|,/).map(value => value.trim()).filter(Boolean),
+  };
+}
+
+async function saveApplicationCampaign(showToast = true) {
+  applicationCampaign = await api('/api/application-campaign', {method:'PATCH', body:JSON.stringify(campaignPayload())});
+  if (showToast) toast('הקמפיין נשמר');
+  return applicationCampaign;
+}
+
+async function previewApplicationCampaign() {
+  try {
+    await saveApplicationCampaign(false);
+    const preview = await api('/api/application-campaign/dry-run', {method:'POST'});
+    const token = encodeURIComponent(preview.preview_token || '');
+    modal(`<span class="kicker">הרצה יבשה — דבר עדיין לא נשלח</span><h2>${preview.will_queue_count} משרות מוכנות לקמפיין</h2>
+      <div class="campaign-preview-list">${preview.selected.length ? preview.selected.map(item => `<article><span><strong>${esc(item.title)}</strong><small>${esc(item.company)} · ${item.score}% · ${esc(item.adapter)}</small></span><b>מוכן</b></article>`).join('') : '<p>לא נמצאו משרות שעוברות את כל התנאים.</p>'}</div>
+      <p class="muted">${preview.skipped.length} משרות דולגו בגלל חוסרים, חסימת חברה, כפילות או מגבלות הקמפיין.</p>
+      <div class="modal-actions"><button class="btn secondary" type="button" onclick="closeModal()">חזרה להגדרות</button><button class="btn primary" type="button" ${preview.will_queue_count ? '' : 'disabled'} onclick="activateApplicationCampaign(${preview.run_id},decodeURIComponent('${token}'))">אשר והכנס לתור האוטומטי</button></div>`);
+  } catch (error) { toast(error.message); }
+}
+
+async function activateApplicationCampaign(runId, previewToken) {
+  try {
+    const result = await api(`/api/application-campaign/runs/${runId}/activate`, {method:'POST',body:JSON.stringify({preview_token:previewToken})});
+    closeModal();
+    toast(`${result.queued_count} משרות נכנסו לתור האוטומטי`);
+    await Promise.all([loadApplications(), loadDashboard()]);
+  } catch (error) { toast(error.message); }
+}
+window.activateApplicationCampaign = activateApplicationCampaign;
+$('#campaign-save').onclick = () => saveApplicationCampaign();
+$('#campaign-preview').onclick = previewApplicationCampaign;
 
 $('#kanban-view').onclick=()=>{applicationsView='kanban';localStorage.setItem('jobpilot-applications-view',applicationsView);syncApplicationsViewButtons();loadApplications();};
 $('#table-view').onclick=()=>{applicationsView='table';localStorage.setItem('jobpilot-applications-view',applicationsView);syncApplicationsViewButtons();loadApplications();};
@@ -1839,7 +1950,7 @@ async function openDraftComposer(jobId) {
 async function saveDraft(jobId){const result=await api(`/api/jobs/${jobId}/answer-drafts`,{method:'POST',body:JSON.stringify({question:$('#draft-question').value,draft:$('#draft-text').value||null,approved:$('#draft-approved').checked})});$('#draft-text').value=result.draft;toast(result.approved?'הטיוטה נשמרה ואושרה':'הטיוטה נשמרה ומחכה לאישור');}
 
 function renderApplicationsKanban(root) {
-  const columns = [['saved','נשמרה'],['queued','בתור'],['applying','בטיפול'],['needs_input','מחכה לך'],['submitted','הוגשה'],['interview','ראיון'],['rejected','נדחתה']];
+  const columns = [['saved','נשמרה'],['queued','בתור'],['applying','בטיפול'],['verification_pending','אימות'],['submitted','הוגשה'],['interview','ראיון'],['offer','הצעה'],['rejected','נדחתה']];
   root.classList.add('kanban-wrap');
   root.innerHTML = state.applications.length ? `<div class="kanban-board">${columns.map(([status,label]) => `<section class="kanban-column" data-status="${status}"><header><strong>${label}</strong><span>${state.applications.filter(a=>a.status===status).length}</span></header><div>${state.applications.filter(a=>a.status===status).map(a=>`<article class="kanban-card" draggable="true" data-application-id="${a.id}" onclick="showJob(${a.job_id})"><strong>${esc(a.job?.title)}</strong><span>${esc(a.job?.company)}</span>${a.reminder_at ? `<small>תזכורת: ${dateFmt(a.reminder_at)}</small>`:''}<button type="button" onclick="event.stopPropagation();editApplication(${a.id})">ניהול</button></article>`).join('')}</div></section>`).join('')}</div>` : emptyState('↗','עדיין אין הגשות','משרות שתשמור או תוסיף לתור יופיעו כאן.');
   $$('.kanban-card', root).forEach(card => card.ondragstart = e => e.dataTransfer.setData('text/plain', card.dataset.applicationId));
@@ -1850,7 +1961,7 @@ async function updateApplication(id, payload) { await api(`/api/applications/${i
 
 async function editApplication(id) {
   const item=state.applications.find(a=>a.id===id); if(!item)return;
-  modal(`<span class="kicker">מעקב הגשה</span><h2>${esc(item.job?.title)}</h2><label>שלב<select id="application-stage">${['saved','queued','applying','needs_input','submitted','interview','rejected'].map(s=>`<option value="${s}" ${s===item.status?'selected':''}>${statusLabel(s)}</option>`).join('')}</select></label><label>הערות<textarea id="application-notes">${esc(item.notes||'')}</textarea></label><label>מועד תזכורת<input id="application-reminder" type="datetime-local" /></label><label>מה להזכיר<input id="application-reminder-note" value="${esc(item.reminder_note||'')}" placeholder="מעקב מול המגייסת" /></label><button class="btn primary" type="button" onclick="saveApplicationEdit(${id})">שמור</button>`);
+  modal(`<span class="kicker">מעקב הגשה</span><h2>${esc(item.job?.title)}</h2><label>שלב<select id="application-stage">${['saved','queued','applying','needs_input','verification_pending','submitted','phone_screen','test','interview','offer','accepted','rejected'].map(s=>`<option value="${s}" ${s===item.status?'selected':''}>${statusLabel(s)}</option>`).join('')}</select></label><label>הערות<textarea id="application-notes">${esc(item.notes||'')}</textarea></label><label>מועד תזכורת<input id="application-reminder" type="datetime-local" /></label><label>מה להזכיר<input id="application-reminder-note" value="${esc(item.reminder_note||'')}" placeholder="מעקב מול המגייסת" /></label><button class="btn primary" type="button" onclick="saveApplicationEdit(${id})">שמור</button>`);
 }
 async function saveApplicationEdit(id){await updateApplication(id,{status:$('#application-stage').value,notes:$('#application-notes').value,reminder_at:$('#application-reminder').value||null,reminder_note:$('#application-reminder-note').value});closeModal();}
 
@@ -3819,6 +3930,38 @@ function configureDeveloperTools(){
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }
 
+async function loadGmailIntegration(){
+  const status=$('#gmail-integration-status'),connect=$('#gmail-connect'),verify=$('#gmail-verify'),disconnect=$('#gmail-disconnect');
+  if(!status)return;
+  try{
+    const data=await api('/api/integrations/gmail');
+    connect.hidden=!!data.connected||!data.available;
+    verify.hidden=!data.connected;disconnect.hidden=!data.connected;
+    if(data.connected){
+      status.innerHTML=`<strong>Gmail מחובר</strong><span>${esc(data.email||'חשבון Google')} · בדיקה אחרונה ${esc(developerDate(data.last_checked_at))}</span>`;
+    }else if(!data.available){
+      status.innerHTML='<strong>החיבור עדיין לא הוגדר בשרת</strong><span>נדרשים פרטי OAuth של Google. הנתונים נשמרים מוצפנים והמערכת קוראת רק כותרות של הודעות אישור.</span>';
+    }else{
+      status.innerHTML='<strong>Gmail לא מחובר</strong><span>חיבור אופציונלי מאפשר לאמת שההגשה התקבלה בפועל.</span>';
+    }
+  }catch(error){status.innerHTML=`<strong>לא ניתן לבדוק את החיבור</strong><span>${esc(error.message)}</span>`}
+}
+
+async function connectGmail(){
+  try{const data=await api('/api/integrations/gmail/connect');window.location.assign(data.authorization_url)}catch(error){toast(error.message)}
+}
+async function verifyGmailApplications(){
+  const button=$('#gmail-verify');button.disabled=true;
+  try{const data=await api('/api/integrations/gmail/verify-applications',{method:'POST'});toast(`הבדיקה הסתיימה: ${data.verified_count||0} הגשות אומתו`);await Promise.all([loadGmailIntegration(),loadApplications()])}catch(error){toast(error.message)}finally{button.disabled=false}
+}
+async function disconnectGmail(){
+  if(!confirm('לנתק את Gmail? הגשות שכבר אומתו יישארו שמורות.'))return;
+  try{await api('/api/integrations/gmail',{method:'DELETE'});toast('Gmail נותק');await loadGmailIntegration()}catch(error){toast(error.message)}
+}
+$('#gmail-connect').onclick=connectGmail;
+$('#gmail-verify').onclick=verifyGmailApplications;
+$('#gmail-disconnect').onclick=disconnectGmail;
+
 (async () => {
   try {
     if (!await initAuthentication()) return;
@@ -3835,6 +3978,12 @@ function configureDeveloperTools(){
     const savedView = localStorage.getItem('jobpilot-active-view');
     const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile','settings','developer']);
     if (validViews.has(savedView) && savedView !== 'dashboard') switchView(savedView);
+    const gmailResult=new URLSearchParams(location.search).get('gmail');
+    if(gmailResult){
+      toast(gmailResult==='connected'?'Gmail חובר בהצלחה':'חיבור Gmail לא הושלם');
+      history.replaceState({},'',location.pathname+location.hash);
+      switchView('settings');
+    }
   } catch (error) {
     if (authState.config?.mode === 'supabase' && !authState.user) showAuthGate(`שגיאת התחברות: ${error.message}`);
     else toast(`שגיאת חיבור: ${error.message}`);

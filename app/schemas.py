@@ -131,6 +131,8 @@ class SourceUpdate(BaseModel):
 class QueueApplicationRequest(BaseModel):
     mode: str = "review"
     resume_id: int | None = None
+    preview_token: str = Field(default="", max_length=2_000)
+    approve_submit: bool = False
 
 
 class ApplicationUpdate(BaseModel):
@@ -177,6 +179,7 @@ class AnswerLibraryBulkUpdate(BaseModel):
 
 class AgentBlockerRequest(BaseModel):
     token: str
+    attempt_id: int | None = None
     kind: str = "unknown_field"
     field_label: str = ""
     question: str = ""
@@ -191,6 +194,20 @@ class AgentResultRequest(BaseModel):
     message: str = ""
     page_url: str = ""
     screenshot_path: str = ""
+    attempt_id: int | None = None
+    verification_state: str = Field(default="verified", pattern="^(verified|pending|uncertain|none)$")
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    confirmation_text: str = Field(default="", max_length=4_000)
+    external_application_id: str = Field(default="", max_length=255)
+
+
+class CampaignUpdate(BaseModel):
+    enabled: bool | None = None
+    mode: str | None = Field(default=None, pattern="^(simple|advanced)$")
+    min_score: int | None = Field(default=None, ge=0, le=100)
+    blocked_companies: list[str] | None = None
+    daily_cap: int | None = Field(default=None, ge=1, le=100)
+    budget_cap: int | None = Field(default=None, ge=1, le=10_000)
 
 
 class ImportJobRequest(BaseModel):

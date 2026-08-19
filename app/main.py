@@ -14,11 +14,14 @@ import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import RedirectResponse
+import httpx
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import asc, case, desc, func, select, update
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
@@ -29,12 +32,13 @@ from app.utils import select_next_queued_application
 from .config import BASE_DIR, settings
 from .database import (Base, LOCAL_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
                        get_db, get_user_profile, set_user_scope, user_session)
-from .models import (AnswerMemory, Application, AppIdentity, AgentDevice, AuditLog, Blocker, Job, JobRanking,
+from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationCampaign, ApplicationEvent,
+                     AppIdentity, AgentDevice, AuditLog, Blocker, CampaignRun, EmailConnection, Job, JobRanking,
                      OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
-    AgentResultRequest,
+    AgentResultRequest, CampaignUpdate,
     DesiredTitleUpdateRequest,
     ImportJobRequest,
     ProfilePatch,
@@ -50,6 +54,8 @@ from .schemas import (
 )
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
 from .services.job_cleanup import delete_job_tree
+from .services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
+                                               verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.matching import build_match_context, score_job
@@ -72,7 +78,7 @@ from .utils import dumps, loads
 from .auth import (application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
                    create_agent_device, device_dict, require_application_agent_owner)
 from .storage import cloud_storage_enabled, delete_ref, ensure_cloud_bucket, materialized_file, read_bytes, save_bytes
-from .security import decrypt_credential, encrypt_credential
+from .security import credential_encryption_available, decrypt_credential, encrypt_credential
 
 STATIC_DIR = BASE_DIR / "app" / "static"
 DATA_DIR = BASE_DIR / "data"
@@ -383,7 +389,7 @@ async def cloud_auth_guard(request: Request, call_next):
     path = request.url.path
     public = (
         path == "/" or path.startswith("/static/") or path in {"/api/health", "/api/auth/config"}
-        or path.startswith("/api/agent/tasks/") or path == "/api/cron/scan"
+        or path.startswith("/api/agent/tasks/") or path == "/api/cron/scan" or path == "/api/integrations/gmail/callback"
     )
     if public:
         return await call_next(request)
@@ -2110,6 +2116,42 @@ def _active_blocker_or_404(db: Session, blocker_id: int) -> Blocker:
     return blocker
 
 
+def _record_application_event(
+    db: Session, application: Application, event_type: str, *, from_status: str = "",
+    to_status: str = "", actor: str = "system", message: str = "", details: dict | None = None,
+) -> ApplicationEvent:
+    event = ApplicationEvent(
+        application_id=application.id, event_type=event_type, from_status=from_status,
+        to_status=to_status, actor=actor, message=message, details_json=dumps(details or {}),
+    )
+    db.add(event)
+    return event
+
+
+def _attempt_dict(attempt: ApplicationAttempt | None) -> dict | None:
+    if not attempt:
+        return None
+    return {
+        "id": attempt.id, "attempt_number": attempt.attempt_number,
+        "idempotency_key": attempt.idempotency_key, "adapter": attempt.adapter,
+        "worker_type": attempt.worker_type, "status": attempt.status,
+        "verification_state": attempt.verification_state,
+        "confirmation_text": attempt.confirmation_text,
+        "confirmation_url": attempt.confirmation_url,
+        "external_application_id": attempt.external_application_id,
+        "screenshot_url": f"/api/application-attempts/{attempt.id}/screenshot" if attempt.screenshot_path else "",
+        "evidence": loads(attempt.evidence_json, []), "error": attempt.error,
+        "started_at": attempt.started_at, "finished_at": attempt.finished_at,
+    }
+
+
+def _result_attempt(db: Session, application_id: int, attempt_id: int | None = None) -> ApplicationAttempt | None:
+    statement = select(ApplicationAttempt).where(ApplicationAttempt.application_id == application_id)
+    if attempt_id:
+        statement = statement.where(ApplicationAttempt.id == attempt_id)
+    return db.scalar(statement.order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
+
+
 @app.delete("/api/jobs/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
     job = _active_job_or_404(db, job_id)
@@ -2136,6 +2178,17 @@ def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depen
     job = _active_job_or_404(db, job_id)
     application = job.application
     selected_resume = db.get(ResumeProfile, payload.resume_id) if payload.resume_id else _best_resume_for_job(db, job)
+    if selected_resume and selected_resume.career_track != job.career_track:
+        raise HTTPException(404, "Resume not found")
+    preview = build_submission_preview(job, get_user_profile(db), selected_resume)
+    if payload.approve_submit:
+        approved = verify_preview_token(
+            payload.preview_token, user_id=current_user_id(db), job_id=job.id,
+            resume_id=selected_resume.id if selected_resume else None,
+        )
+        if not approved or not approved.get("ok") or not preview["ready"]:
+            raise HTTPException(409, "תצוגת ההגשה פגה או שהפרופיל עדיין אינו מוכן. יש לבצע בדיקה מחדש.")
+        payload.mode = "auto"
     if not application:
         profile = get_user_profile(db)
         application = Application(job_id=job.id, mode=payload.mode,
@@ -2151,11 +2204,205 @@ def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depen
         if selected_resume:
             application.resume_id = selected_resume.id
             application.resume_path = selected_resume.path
+    if payload.approve_submit:
+        answers = loads(application.answers_json, {})
+        answers[ONE_TIME_SUBMIT_KEY] = True
+        application.answers_json = dumps(answers)
     job.status = "queued"
-    db.add(AuditLog(event_type="application_queued", entity_type="job", entity_id=str(job.id), message=job.title))
+    db.flush()
+    _record_application_event(
+        db, application, "auto_submit_approved" if payload.approve_submit else "queued",
+        from_status="", to_status="queued", actor="user", message=job.title,
+        details={"adapter": preview["adapter"]["key"], "one_time_submit": bool(payload.approve_submit)},
+    )
+    db.add(AuditLog(
+        event_type="application_auto_submit_approved" if payload.approve_submit else "application_queued",
+        entity_type="job", entity_id=str(job.id), message=job.title,
+        details_json=dumps({"adapter": preview["adapter"]["key"], "resume_id": selected_resume.id if selected_resume else None,
+                            "one_time_submit": bool(payload.approve_submit)}),
+    ))
     db.commit()
     db.refresh(application)
     return _application_dict(application)
+
+
+@app.get("/api/jobs/{job_id}/application-preview")
+def application_preview(job_id: int, resume_id: int | None = None, db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    job = _active_job_or_404(db, job_id)
+    selected_resume = db.get(ResumeProfile, resume_id) if resume_id else _best_resume_for_job(db, job)
+    if selected_resume and selected_resume.career_track != job.career_track:
+        raise HTTPException(404, "Resume not found")
+    preview = build_submission_preview(job, get_user_profile(db), selected_resume)
+    preview["preview_token"] = issue_preview_token(
+        user_id=current_user_id(db), job_id=job.id,
+        resume_id=selected_resume.id if selected_resume else None, ready=preview["ready"],
+    )
+    preview["expires_in_seconds"] = 600
+    return preview
+
+
+def _campaign_for_active_track(db: Session) -> ApplicationCampaign:
+    track = active_track(get_user_profile(db))
+    campaign = db.scalar(select(ApplicationCampaign).where(ApplicationCampaign.career_track == track))
+    if not campaign:
+        campaign = ApplicationCampaign(career_track=track, min_score=get_user_profile(db).auto_apply_threshold)
+        db.add(campaign)
+        db.commit()
+        db.refresh(campaign)
+    return campaign
+
+
+def _campaign_dict(campaign: ApplicationCampaign) -> dict:
+    return {
+        "id": campaign.id, "career_track": campaign.career_track, "enabled": campaign.enabled,
+        "mode": campaign.mode, "min_score": campaign.min_score,
+        "blocked_companies": loads(campaign.blocked_companies_json, []),
+        "daily_cap": campaign.daily_cap, "budget_cap": campaign.budget_cap,
+        "spent": campaign.spent, "last_run_at": campaign.last_run_at,
+        "updated_at": campaign.updated_at,
+    }
+
+
+@app.get("/api/application-campaign")
+def get_application_campaign(db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    return _campaign_dict(_campaign_for_active_track(db))
+
+
+@app.patch("/api/application-campaign")
+def update_application_campaign(payload: CampaignUpdate, db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    campaign = _campaign_for_active_track(db)
+    values = payload.model_dump(exclude_unset=True)
+    if "blocked_companies" in values:
+        clean = list(dict.fromkeys(str(item).strip()[:200] for item in values.pop("blocked_companies") if str(item).strip()))
+        campaign.blocked_companies_json = dumps(clean[:200])
+    for key, value in values.items():
+        setattr(campaign, key, value)
+    db.commit()
+    db.refresh(campaign)
+    return _campaign_dict(campaign)
+
+
+@app.post("/api/application-campaign/dry-run")
+def dry_run_application_campaign(db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    campaign = _campaign_for_active_track(db)
+    profile = get_user_profile(db)
+    blocked = {name.casefold() for name in loads(campaign.blocked_companies_json, [])}
+    remaining_budget = campaign.budget_cap - campaign.spent if campaign.budget_cap is not None else campaign.daily_cap
+    limit = max(0, min(campaign.daily_cap, remaining_budget))
+    jobs = db.scalars(select(Job).where(
+        Job.career_track == campaign.career_track, Job.is_active.is_(True), Job.score >= campaign.min_score,
+        Job.status.in_(["new", "saved", "failed"]),
+    ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at))).all()
+    selected, skipped = [], []
+    for job in jobs:
+        if job.company.casefold() in blocked:
+            skipped.append({"job_id": job.id, "reason": "blocked_company"})
+            continue
+        if job.application and job.application.status in {"submitted", "verification_pending", "applying", "queued"}:
+            skipped.append({"job_id": job.id, "reason": "already_in_pipeline"})
+            continue
+        resume = _best_resume_for_job(db, job)
+        preview = build_submission_preview(job, profile, resume)
+        if not preview["ready"]:
+            skipped.append({"job_id": job.id, "reason": "profile_incomplete", "missing": preview["missing"]})
+            continue
+        if len(selected) >= limit:
+            skipped.append({"job_id": job.id, "reason": "daily_or_budget_cap"})
+            continue
+        selected.append({
+            "job_id": job.id, "title": job.title, "company": job.company, "score": job.score,
+            "adapter": preview["adapter"]["key"], "resume_id": resume.id if resume else None,
+        })
+    raw_token = secrets.token_urlsafe(32)
+    run = CampaignRun(
+        campaign_id=campaign.id, dry_run=True, status="preview",
+        selected_jobs_json=dumps(selected), skipped_json=dumps(skipped),
+        preview_token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+        preview_expires_at=utcnow() + timedelta(minutes=10),
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return {
+        "run_id": run.id, "preview_token": raw_token, "expires_in_seconds": 600,
+        "selected": selected, "skipped": skipped,
+        "will_queue_count": len(selected), "campaign": _campaign_dict(campaign),
+    }
+
+
+@app.post("/api/application-campaign/runs/{run_id}/activate")
+async def activate_application_campaign(run_id: int, request: Request, db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    body = await request.json()
+    raw_token = str(body.get("preview_token") or "")
+    run = db.get(CampaignRun, run_id)
+    campaign = _campaign_for_active_track(db)
+    if not run or run.campaign_id != campaign.id or run.status != "preview":
+        raise HTTPException(404, "Campaign preview not found")
+    preview_expires_at = run.preview_expires_at
+    if preview_expires_at and preview_expires_at.tzinfo is None:
+        preview_expires_at = preview_expires_at.replace(tzinfo=timezone.utc)
+    if not preview_expires_at or preview_expires_at < utcnow():
+        raise HTTPException(409, "תצוגת הקמפיין פגה. יש להריץ בדיקה מחדש.")
+    if not raw_token or not hmac.compare_digest(hashlib.sha256(raw_token.encode()).hexdigest(), run.preview_token_hash):
+        raise HTTPException(403, "Invalid campaign preview token")
+    queued = []
+    profile = get_user_profile(db)
+    for item in loads(run.selected_jobs_json, []):
+        job = db.get(Job, int(item["job_id"]))
+        if not job or not job.is_active or job.status not in {"new", "saved", "failed"}:
+            continue
+        resume = db.get(ResumeProfile, item.get("resume_id")) if item.get("resume_id") else _best_resume_for_job(db, job)
+        if not build_submission_preview(job, profile, resume)["ready"]:
+            continue
+        application = job.application
+        if application and application.status in {"submitted", "verification_pending", "applying", "queued"}:
+            continue
+        if not application:
+            application = Application(job_id=job.id, mode="auto")
+            db.add(application)
+        application.status = "queued"
+        application.mode = "auto"
+        application.resume_id = resume.id if resume else None
+        application.resume_path = resume.path if resume else profile.cv_path
+        answers = loads(application.answers_json, {})
+        answers[ONE_TIME_SUBMIT_KEY] = True
+        application.answers_json = dumps(answers)
+        job.status = "queued"
+        db.flush()
+        _record_application_event(db, application, "campaign_queued", to_status="queued", actor="campaign",
+                                  message=job.title, details={"campaign_run_id": run.id, "adapter": item.get("adapter")})
+        queued.append(job.id)
+    run.status = "activated"
+    run.dry_run = False
+    run.queued_count = len(queued)
+    run.activated_at = utcnow()
+    run.preview_token_hash = ""
+    campaign.enabled = True
+    campaign.spent += len(queued)
+    campaign.last_run_at = utcnow()
+    db.commit()
+    return {"activated": True, "run_id": run.id, "queued_job_ids": queued, "queued_count": len(queued)}
+
+
+@app.get("/api/application-campaign/runs")
+def list_application_campaign_runs(limit: int = Query(25, ge=1, le=100), db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    campaign = _campaign_for_active_track(db)
+    runs = db.scalars(select(CampaignRun).where(CampaignRun.campaign_id == campaign.id).order_by(
+        desc(CampaignRun.created_at), desc(CampaignRun.id)
+    ).limit(limit)).all()
+    return [{
+        "id": run.id, "dry_run": run.dry_run, "status": run.status,
+        "selected_count": len(loads(run.selected_jobs_json, [])),
+        "skipped_count": len(loads(run.skipped_json, [])), "queued_count": run.queued_count,
+        "verified_count": run.verified_count, "failed_count": run.failed_count,
+        "created_at": run.created_at, "activated_at": run.activated_at,
+    } for run in runs]
 
 
 @app.post("/api/jobs/{job_id}/save")
@@ -2231,6 +2478,7 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
             joinedload(Application.job).joinedload(Job.source),
             joinedload(Application.job).joinedload(Job.application),
             selectinload(Application.blockers),
+            selectinload(Application.attempts),
         )
         .where(Job.career_track == track)
         .order_by(desc(Application.updated_at))
@@ -2249,7 +2497,9 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
 @app.patch("/api/applications/{application_id}")
 def update_application(application_id: int, payload: ApplicationUpdate, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
-    allowed = {"saved", "queued", "applying", "needs_input", "submitted", "interview", "rejected", "failed"}
+    previous_status = application.status
+    allowed = {"saved", "queued", "applying", "needs_input", "verification_pending", "submitted",
+               "phone_screen", "test", "interview", "offer", "accepted", "rejected", "failed"}
     if payload.status is not None:
         if payload.status not in allowed:
             raise HTTPException(400, "Invalid application status")
@@ -2266,8 +2516,33 @@ def update_application(application_id: int, payload: ApplicationUpdate, db: Sess
         application.resume_id, application.resume_path = resume.id, resume.path
     db.add(AuditLog(event_type="application_updated", entity_type="application", entity_id=str(application.id),
                     message=f"Application moved to {application.status}"))
+    if application.status != previous_status:
+        _record_application_event(
+            db, application, "status_changed", from_status=previous_status, to_status=application.status,
+            actor="user", message=f"הסטטוס עודכן מ-{previous_status} ל-{application.status}",
+        )
     db.commit(); db.refresh(application)
     return _application_dict(application, db)
+
+
+@app.get("/api/applications/{application_id}/timeline")
+def application_timeline(application_id: int, db: Session = Depends(get_db)):
+    application = _active_application_or_404(db, application_id)
+    events = db.scalars(select(ApplicationEvent).where(
+        ApplicationEvent.application_id == application.id
+    ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
+    attempts = db.scalars(select(ApplicationAttempt).where(
+        ApplicationAttempt.application_id == application.id
+    ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))).all()
+    return {
+        "application": _application_dict(application, db),
+        "events": [{
+            "id": item.id, "event_type": item.event_type, "from_status": item.from_status,
+            "to_status": item.to_status, "actor": item.actor, "message": item.message,
+            "details": loads(item.details_json, {}), "created_at": item.created_at,
+        } for item in events],
+        "attempts": [_attempt_dict(item) for item in attempts],
+    }
 
 
 @app.post("/api/jobs/{job_id}/answer-drafts")
@@ -2413,6 +2688,22 @@ def blocker_screenshot(blocker_id: int, db: Session = Depends(get_db)):
     try:
         _, media_type = _detect_image_type(content)
     except HTTPException as exc:
+        raise HTTPException(404, "Screenshot not found") from exc
+    return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, no-store"})
+
+
+@app.get("/api/application-attempts/{attempt_id}/screenshot")
+def application_attempt_screenshot(attempt_id: int, db: Session = Depends(get_db)):
+    attempt = db.get(ApplicationAttempt, attempt_id)
+    if not attempt or not attempt.screenshot_path:
+        raise HTTPException(404, "Screenshot not found")
+    application = _active_application_or_404(db, attempt.application_id)
+    if application.id != attempt.application_id:
+        raise HTTPException(404, "Screenshot not found")
+    try:
+        content = read_bytes(attempt.screenshot_path)
+        _, media_type = _detect_image_type(content)
+    except Exception as exc:  # noqa: BLE001
         raise HTTPException(404, "Screenshot not found") from exc
     return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
@@ -2806,6 +3097,197 @@ def delete_private_resource(resource: str, db: Session = Depends(get_db)):
     db.commit(); return {"deleted": resource}
 
 
+# ---------------- Gmail confirmation verification ----------------
+
+GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email"
+GMAIL_CONFIRMATION_TERMS = (
+    "application received", "thank you for applying", "thanks for applying", "application submitted",
+    "we received your application", "מועמדותך התקבלה", "קיבלנו את מועמדותך", "קורות החיים התקבלו",
+)
+
+
+def _gmail_available() -> bool:
+    return bool(settings.google_oauth_client_id and settings.google_oauth_client_secret and credential_encryption_available())
+
+
+def _gmail_redirect_uri() -> str:
+    return settings.google_oauth_redirect_uri.strip() or f"{settings.base_url.rstrip('/')}/api/integrations/gmail/callback"
+
+
+def _gmail_state(user_id: str) -> str:
+    payload = base64.urlsafe_b64encode(dumps({"u": user_id, "exp": int(utcnow().timestamp()) + 600}).encode()).decode().rstrip("=")
+    signature = hmac.new(settings.google_oauth_client_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{signature}"
+
+
+def _gmail_state_user(state: str) -> str:
+    try:
+        payload, signature = state.split(".", 1)
+        expected = hmac.new(settings.google_oauth_client_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return ""
+        decoded = loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)).decode(), {})
+        if int(decoded.get("exp", 0)) < int(utcnow().timestamp()):
+            return ""
+        return str(decoded.get("u") or "")
+    except Exception:
+        return ""
+
+
+@app.get("/api/integrations/gmail")
+def gmail_connection_status(db: Session = Depends(get_db)):
+    connection = db.scalar(select(EmailConnection).where(EmailConnection.provider == "gmail"))
+    return {
+        "available": _gmail_available(), "connected": bool(connection and connection.enabled),
+        "email": connection.email if connection and connection.enabled else "",
+        "last_checked_at": connection.last_checked_at if connection else None,
+        "required_configuration": [] if _gmail_available() else [
+            "JOBPILOT_GOOGLE_OAUTH_CLIENT_ID", "JOBPILOT_GOOGLE_OAUTH_CLIENT_SECRET",
+            "JOBPILOT_CREDENTIAL_ENCRYPTION_KEY",
+        ],
+    }
+
+
+@app.get("/api/integrations/gmail/connect")
+def connect_gmail(db: Session = Depends(get_db)):
+    if not _gmail_available():
+        raise HTTPException(503, "חיבור Gmail עדיין לא הוגדר בשרת")
+    params = {
+        "client_id": settings.google_oauth_client_id, "redirect_uri": _gmail_redirect_uri(),
+        "response_type": "code", "scope": GMAIL_SCOPES, "access_type": "offline",
+        "prompt": "consent", "include_granted_scopes": "true", "state": _gmail_state(current_user_id(db)),
+    }
+    return {"authorization_url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}
+
+
+@app.get("/api/integrations/gmail/callback", include_in_schema=False)
+async def gmail_callback(code: str = "", state: str = "", error: str = ""):
+    if error:
+        return RedirectResponse(url=f"/?gmail=error&reason={error}")
+    user_id = _gmail_state_user(state) if _gmail_available() else ""
+    if not user_id or not code:
+        return RedirectResponse(url="/?gmail=error&reason=invalid_state")
+    async with httpx.AsyncClient(timeout=30) as client:
+        token_response = await client.post("https://oauth2.googleapis.com/token", data={
+            "code": code, "client_id": settings.google_oauth_client_id,
+            "client_secret": settings.google_oauth_client_secret,
+            "redirect_uri": _gmail_redirect_uri(), "grant_type": "authorization_code",
+        })
+        if token_response.status_code >= 400:
+            return RedirectResponse(url="/?gmail=error&reason=token_exchange")
+        tokens = token_response.json()
+        access_token = str(tokens.get("access_token") or "")
+        profile_response = await client.get("https://www.googleapis.com/oauth2/v2/userinfo",
+                                            headers={"Authorization": f"Bearer {access_token}"})
+        email = str((profile_response.json() if profile_response.status_code < 400 else {}).get("email") or "")
+    with user_session(user_id) as db:
+        connection = db.scalar(select(EmailConnection).where(EmailConnection.provider == "gmail"))
+        if not connection:
+            connection = EmailConnection(provider="gmail")
+            db.add(connection)
+        connection.email = email
+        connection.access_token = encrypt_credential(access_token)
+        if tokens.get("refresh_token"):
+            connection.refresh_token = encrypt_credential(str(tokens["refresh_token"]))
+        connection.token_expires_at = utcnow() + timedelta(seconds=int(tokens.get("expires_in") or 3600))
+        connection.scopes_json = dumps(str(tokens.get("scope") or GMAIL_SCOPES).split())
+        connection.enabled = True
+        db.commit()
+    return RedirectResponse(url="/?gmail=connected")
+
+
+@app.delete("/api/integrations/gmail")
+def disconnect_gmail(db: Session = Depends(get_db)):
+    connection = db.scalar(select(EmailConnection).where(EmailConnection.provider == "gmail"))
+    if connection:
+        db.delete(connection)
+        db.commit()
+    return {"disconnected": True}
+
+
+async def _gmail_access_token(connection: EmailConnection, db: Session) -> str:
+    """Return a usable access token, refreshing it without exposing either token to the browser."""
+    expires_at = connection.token_expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if not expires_at or expires_at > utcnow() + timedelta(minutes=2):
+        return decrypt_credential(connection.access_token)
+    if not connection.refresh_token:
+        raise HTTPException(409, "הרשאת Gmail פגה; יש לחבר את החשבון מחדש")
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.post("https://oauth2.googleapis.com/token", data={
+            "client_id": settings.google_oauth_client_id,
+            "client_secret": settings.google_oauth_client_secret,
+            "refresh_token": decrypt_credential(connection.refresh_token),
+            "grant_type": "refresh_token",
+        })
+    if response.status_code >= 400:
+        raise HTTPException(409, "לא ניתן לחדש את הרשאת Gmail; יש לחבר את החשבון מחדש")
+    tokens = response.json()
+    access_token = str(tokens.get("access_token") or "")
+    if not access_token:
+        raise HTTPException(502, "Google לא החזירה הרשאת גישה תקינה")
+    connection.access_token = encrypt_credential(access_token)
+    connection.token_expires_at = utcnow() + timedelta(seconds=int(tokens.get("expires_in") or 3600))
+    db.flush()
+    return access_token
+
+
+@app.post("/api/integrations/gmail/verify-applications")
+async def verify_applications_from_gmail(db: Session = Depends(get_db)):
+    connection = db.scalar(select(EmailConnection).where(EmailConnection.provider == "gmail", EmailConnection.enabled.is_(True)))
+    if not connection:
+        raise HTTPException(409, "Gmail אינו מחובר")
+    access_token = await _gmail_access_token(connection, db)
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get("https://gmail.googleapis.com/gmail/v1/users/me/messages", params={
+            "q": "newer_than:14d", "maxResults": 100,
+        }, headers={"Authorization": f"Bearer {access_token}"})
+        if response.status_code == 401:
+            raise HTTPException(409, "הרשאת Gmail פגה; יש לחבר את החשבון מחדש")
+        response.raise_for_status()
+        message_ids = [item.get("id") for item in response.json().get("messages", []) if item.get("id")]
+        messages = []
+        for message_id in message_ids:
+            item = await client.get(f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}", params={
+                "format": "metadata", "metadataHeaders": ["Subject", "From", "Date"],
+            }, headers={"Authorization": f"Bearer {access_token}"})
+            if item.status_code >= 400:
+                continue
+            data = item.json()
+            headers = {h.get("name", "").casefold(): h.get("value", "") for h in data.get("payload", {}).get("headers", [])}
+            messages.append({"id": message_id, "text": f"{headers.get('subject','')} {headers.get('from','')} {data.get('snippet','')}"})
+    verified_ids = []
+    applications = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
+        Application.status == "verification_pending"
+    )).all()
+    for application in applications:
+        company_terms = [part.casefold() for part in application.job.company.split() if len(part) >= 3]
+        title_terms = [part.casefold() for part in application.job.title.split() if len(part) >= 4]
+        match = next((message for message in messages if
+                      any(term in message["text"].casefold() for term in GMAIL_CONFIRMATION_TERMS)
+                      and (not company_terms or any(term in message["text"].casefold() for term in company_terms))
+                      and (not title_terms or any(term in message["text"].casefold() for term in title_terms))), None)
+        if not match:
+            continue
+        attempt = _result_attempt(db, application.id)
+        if attempt:
+            evidence = loads(attempt.evidence_json, [])
+            evidence.append({"type": "confirmation_email", "message_id_hash": hashlib.sha256(match["id"].encode()).hexdigest()[:16]})
+            attempt.evidence_json = dumps(evidence)
+            attempt.verification_state = "verified"
+            attempt.status = "verified"
+        previous = application.status
+        application.status = application.job.status = "submitted"
+        application.submitted_at = application.submitted_at or utcnow()
+        _record_application_event(db, application, "submission_verified_by_email", from_status=previous,
+                                  to_status="submitted", actor="gmail", message="ההגשה אומתה באמצעות מייל אישור")
+        verified_ids.append(application.id)
+    connection.last_checked_at = utcnow()
+    db.commit()
+    return {"checked_messages": len(messages), "verified_application_ids": verified_ids, "verified_count": len(verified_ids)}
+
+
 # ---------------- Cloud Agent devices + Local Agent API ----------------
 
 @app.get("/api/agent-devices")
@@ -2945,11 +3427,21 @@ async def agent_upload_screenshot(application_id: int, token: str = Form(...), a
 
 
 @app.get("/api/agent/tasks/next")
-def agent_next_task(request: Request, agent_id: str, token: str = "", db: Session = Depends(get_db)):
+def agent_next_task(request: Request, agent_id: str, token: str = "", worker_type: str = "local", db: Session = Depends(get_db)):
     agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
     _check_agent_token(db, agent_token, agent_id=agent_id)
     track = active_track(get_user_profile(db))
-    application = select_next_queued_application(db, career_track=track)
+    worker_type = str(worker_type or "local").strip().lower()
+    if worker_type == "cloud":
+        candidates = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
+            Application.status == "queued", Application.mode == "auto", Job.career_track == track,
+        ).order_by(Application.updated_at).limit(50)).all()
+        cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
+        application = next((item for item in candidates if detect_adapter(
+            item.job.apply_url, item.job.source.kind if item.job.source else ""
+        ).key in cloud_adapters), None)
+    else:
+        application = select_next_queued_application(db, career_track=track)
     if not application:
         return {"task": None}
     # Claim with a conditional write and commit immediately. This prevents two
@@ -2986,6 +3478,20 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", db: Sessio
     application.attempt_count += 1
     application.job.status = "applying"
     application.last_error = ""
+    adapter = detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "")
+    attempt = ApplicationAttempt(
+        application_id=application.id, attempt_number=application.attempt_count,
+        idempotency_key=f"app-{application.id}-{application.attempt_count}-{secrets.token_hex(12)}",
+        adapter=adapter.key, worker_type="cloud" if worker_type == "cloud" else "local",
+        status="running", verification_state="none",
+    )
+    db.add(attempt)
+    db.flush()
+    _record_application_event(
+        db, application, "attempt_started", from_status="queued", to_status="applying",
+        actor=attempt.worker_type, message=f"ניסיון הגשה {application.attempt_count} התחיל",
+        details={"attempt_id": attempt.id, "adapter": adapter.key, "worker": attempt.worker_type},
+    )
     db.commit()
     profile = get_user_profile(db)
     memories = db.scalars(select(AnswerMemory).where(AnswerMemory.auto_use.is_(True))).all()
@@ -2996,6 +3502,8 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", db: Sessio
         "task": {
             "application": _application_dict(application, db),
             "job": _job_dict(application.job, full=True),
+            "submission_adapter": {"key": adapter.key, "label": adapter.label},
+            "attempt": _attempt_dict(attempt),
             "profile": _agent_profile_dict(profile),
             "answers": answers,
             "submit_approved_once": submit_approved_once,
@@ -3038,10 +3546,26 @@ def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session
                           options_json=dumps(payload.options), screenshot_path=payload.screenshot_path,
                           page_url=payload.page_url)
         db.add(blocker)
-    application.status = "needs_input"
-    application.job.status = "needs_input"
+    previous_status = application.status
+    uncertain_submission = payload.kind == "confirmation_missing"
+    application.status = "verification_pending" if uncertain_submission else "needs_input"
+    application.job.status = application.status
     compact_error = f"[blocked:{payload.kind}] {payload.explanation or payload.question or payload.field_label}".strip()
     application.last_error = compact_error[:2000]
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if attempt:
+        attempt.status = "pending_verification" if uncertain_submission else "blocked"
+        attempt.verification_state = "uncertain" if uncertain_submission else "none"
+        attempt.confirmation_url = payload.page_url
+        attempt.screenshot_path = payload.screenshot_path
+        attempt.error = compact_error[:2000]
+        attempt.finished_at = utcnow()
+    _record_application_event(
+        db, application, "verification_pending" if uncertain_submission else "blocked",
+        from_status=previous_status, to_status=application.status, actor="agent",
+        message=payload.explanation or payload.question,
+        details={"attempt_id": attempt.id if attempt else None, "kind": payload.kind, "page_url": payload.page_url},
+    )
     db.add(AuditLog(event_type="application_blocked", entity_type="application", entity_id=str(application_id),
                     message=payload.question or payload.explanation))
     db.commit()
@@ -3055,10 +3579,31 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
-    application.status = "submitted"
-    application.submitted_at = utcnow()
+    previous_status = application.status
+    # Legacy Agents report a success message only after their confirmation-page
+    # detector passes. Keep that contract while newer Agents attach structured evidence.
+    verified = payload.verification_state == "verified" and bool(payload.evidence or payload.confirmation_text or payload.message)
+    application.status = "submitted" if verified else "verification_pending"
+    application.submitted_at = utcnow() if verified else None
     application.last_error = ""
-    application.job.status = "submitted"
+    application.job.status = application.status
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if attempt:
+        attempt.status = "verified" if verified else "pending_verification"
+        attempt.verification_state = "verified" if verified else (payload.verification_state or "pending")
+        attempt.confirmation_text = payload.confirmation_text or payload.message
+        attempt.confirmation_url = payload.page_url
+        attempt.external_application_id = payload.external_application_id
+        attempt.screenshot_path = payload.screenshot_path
+        attempt.evidence_json = dumps(payload.evidence)
+        attempt.finished_at = utcnow()
+    _record_application_event(
+        db, application, "submission_verified" if verified else "verification_pending",
+        from_status=previous_status, to_status=application.status, actor="agent",
+        message=payload.message or application.job.title,
+        details={"attempt_id": attempt.id if attempt else None, "evidence": payload.evidence,
+                 "external_application_id": payload.external_application_id, "page_url": payload.page_url},
+    )
     db.add(AuditLog(event_type="application_submitted", entity_type="application", entity_id=str(application_id),
                     message=payload.message or application.job.title, details_json=dumps({"page_url": payload.page_url})))
     db.commit()
@@ -3071,9 +3616,22 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    previous_status = application.status
     application.status = "failed"
     application.last_error = payload.message[:2000]
     application.job.status = "failed"
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if attempt:
+        attempt.status = "failed"
+        attempt.verification_state = "none"
+        attempt.error = payload.message[:2000]
+        attempt.confirmation_url = payload.page_url
+        attempt.screenshot_path = payload.screenshot_path
+        attempt.finished_at = utcnow()
+    _record_application_event(
+        db, application, "attempt_failed", from_status=previous_status, to_status="failed", actor="agent",
+        message=payload.message, details={"attempt_id": attempt.id if attempt else None, "page_url": payload.page_url},
+    )
     db.add(AuditLog(event_type="application_failed", entity_type="application", entity_id=str(application_id),
                     message=payload.message))
     db.commit()
@@ -3085,6 +3643,7 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     _check_agent_token(db, payload.token)
     application = db.get(Application, application_id)
     if not application: raise HTTPException(404, "Application not found")
+    previous_status = application.status
     application.last_error = ("ה־Agent זיהה חלון שלא הגיב, שמר צילום מצב והחזיר את המשרה לתור. " + payload.message)[:2000]
     if application.attempt_count < 3:
         application.status = application.job.status = "queued"
@@ -3095,6 +3654,17 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
         db.add(Blocker(application_id=application.id, kind="agent_recovery", question="ה־Agent התאושש מחלון תקוע",
                        explanation=application.last_error, page_url=payload.page_url,
                        screenshot_path=payload.screenshot_path))
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if attempt:
+        attempt.status = "failed"
+        attempt.error = application.last_error
+        attempt.confirmation_url = payload.page_url
+        attempt.screenshot_path = payload.screenshot_path
+        attempt.finished_at = utcnow()
+    _record_application_event(
+        db, application, "agent_recovered", from_status=previous_status, to_status=application.status,
+        actor="agent", message=application.last_error, details={"attempt_id": attempt.id if attempt else None},
+    )
     db.add(AuditLog(event_type="agent_recovered", entity_type="application", entity_id=str(application.id),
                     message=application.last_error))
     db.commit(); return _application_dict(application, db)
@@ -3347,6 +3917,10 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         stage = "נעצר"
         waiting_for = "תשובה/המשך מהמשתמש"
         detail = a.last_error or "ה-Agent נתקע וצריך פעולה מצדך"
+    elif status == "verification_pending":
+        stage = "ממתין לאימות"
+        waiting_for = "אישור מהאתר או ממייל"
+        detail = a.last_error or "השליחה בוצעה, אך עדיין אין ראיה חד־משמעית שהמועמדות נקלטה"
     elif status == "failed":
         stage = "נכשל"
         waiting_for = "בדיקה חוזרת או נסיון חדש"
@@ -3376,6 +3950,14 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         if queue_position is not None:
             expected_start_at = (utcnow() + timedelta(minutes=max(2, queue_position * 2))).isoformat()
 
+    latest_attempt = None
+    if db is not None:
+        latest_attempt = db.scalar(select(ApplicationAttempt).where(
+            ApplicationAttempt.application_id == a.id
+        ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
+    elif getattr(a, "attempts", None):
+        latest_attempt = max(a.attempts, key=lambda item: (item.started_at, item.id))
+
     return {
         "id": a.id, "job_id": a.job_id, "status": a.status, "mode": a.mode,
         "resume_path": a.resume_path, "answers": loads(a.answers_json, {}), "started_at": a.started_at,
@@ -3388,6 +3970,8 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         "agent_failure_detail": detail,
         "queue_position": queue_position,
         "expected_start_at": expected_start_at,
+        "verification_state": latest_attempt.verification_state if latest_attempt else "none",
+        "latest_receipt": _attempt_dict(latest_attempt),
         "job": _job_dict(a.job) if a.job else None,
     }
 

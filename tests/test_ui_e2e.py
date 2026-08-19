@@ -264,7 +264,9 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     page.get_by_role("button", name="הגשה עם בקרה").click()
-    page.get_by_text("המשרה נכנסה לתור", exact=True).wait_for(state="visible")
+    page.get_by_text("בדיקה לפני הגשה", exact=True).wait_for(state="visible")
+    page.get_by_role("button", name="הוסף לתור לבדיקה").click()
+    page.get_by_text("המשרה נכנסה לתור לבדיקה", exact=True).wait_for(state="visible")
 
     # Application rows open job details.
     page.get_by_role("button", name="הגשות").click()
