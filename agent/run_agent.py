@@ -12,7 +12,7 @@ from playwright.sync_api import sync_playwright
 
 from .browser import ApplicationBlocked, fill_application
 from .config import (AGENT_CACHE_DIR, AGENT_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS,
-                     SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
+                     RUN_ONCE, SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
 
 
 class AgentTaskTimeout(TimeoutError):
@@ -230,7 +230,12 @@ def main():
                 task = response.get("task")
                 if task:
                     run_task(context, task)
+                    if RUN_ONCE:
+                        break
                 else:
+                    if RUN_ONCE:
+                        print("[worker] no queued application task")
+                        break
                     time.sleep(POLL_SECONDS)
             except KeyboardInterrupt:
                 break

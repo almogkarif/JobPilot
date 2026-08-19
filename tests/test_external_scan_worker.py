@@ -110,6 +110,17 @@ def test_github_workflow_runs_worker_directly_and_render_image_has_no_chromium_i
     assert "playwright install" not in dockerfile
 
 
+def test_application_workflow_is_headless_one_shot_and_uses_repository_secrets():
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github" / "workflows" / "jobpilot-application.yml").read_text()
+    assert "secrets.JOBPILOT_AGENT_TOKEN" in workflow
+    assert "secrets.JOBPILOT_BASE_URL" in workflow
+    assert "JOBPILOT_WORKER_TYPE: cloud" in workflow
+    assert "JOBPILOT_AGENT_HEADLESS: 'true'" in workflow
+    assert "JOBPILOT_RUN_ONCE: 'true'" in workflow
+    assert "python -m agent.run_agent" in workflow
+
+
 
 def test_duplicate_manual_scan_request_reuses_same_active_run():
     _clear_scan_runs()

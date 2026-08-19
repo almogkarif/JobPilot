@@ -70,7 +70,7 @@ from .services.career_tracks import (
 from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
 from .services.scan_runtime import create_scan_run, persistent_scan_status, update_scan_run
-from .services.github_actions import dispatch_scan_workflow
+from .services.github_actions import dispatch_application_workflow, dispatch_scan_workflow
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
@@ -981,6 +981,7 @@ def ranking_lab_rerank(request: Request, user_id: str | None = None, db: Session
     _require_developer(request)
     targets = [user_id] if user_id else _known_user_ids()
     queued = []
+    queued_application_ids = []
     for target in targets:
         with user_session(target) as tenant:
             profile = get_user_profile(tenant)
@@ -2171,7 +2172,7 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/jobs/{job_id}/queue")
-def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
+async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
     require_application_agent_owner(db)
     if payload.mode not in {"review", "batch", "auto"}:
         raise HTTPException(400, "Invalid mode")
@@ -2223,6 +2224,24 @@ def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depen
     ))
     db.commit()
     db.refresh(application)
+    if payload.approve_submit:
+        try:
+            await run_in_threadpool(dispatch_application_workflow, application.id)
+            _record_application_event(
+                db, application, "worker_dispatched", from_status="queued", to_status="queued",
+                actor="system", message="GitHub Actions worker הופעל",
+                details={"application_id": application.id},
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            application.last_error = f"לא ניתן להפעיל worker ברקע: {exc}"[:2000]
+            _record_application_event(
+                db, application, "worker_dispatch_failed", from_status="queued", to_status="queued",
+                actor="system", message="המשימה נשמרה בתור, אך ה-worker לא הופעל",
+                details={"error": str(exc)[:500]},
+            )
+            db.commit()
+            raise HTTPException(503, "המשימה נשמרה בתור, אך לא ניתן היה להפעיל את ה-worker ברקע. בדוק את הגדרת GitHub Actions.") from exc
     return _application_dict(application)
 
 
@@ -2377,6 +2396,7 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
         _record_application_event(db, application, "campaign_queued", to_status="queued", actor="campaign",
                                   message=job.title, details={"campaign_run_id": run.id, "adapter": item.get("adapter")})
         queued.append(job.id)
+        queued_application_ids.append(application.id)
     run.status = "activated"
     run.dry_run = False
     run.queued_count = len(queued)
@@ -2386,7 +2406,20 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
     campaign.spent += len(queued)
     campaign.last_run_at = utcnow()
     db.commit()
-    return {"activated": True, "run_id": run.id, "queued_job_ids": queued, "queued_count": len(queued)}
+    dispatch_errors = []
+    for application_id in queued_application_ids:
+        try:
+            await run_in_threadpool(dispatch_application_workflow, application_id)
+            application = db.get(Application, application_id)
+            if application:
+                _record_application_event(db, application, "worker_dispatched", from_status="queued", to_status="queued",
+                                          actor="system", message="GitHub Actions worker הופעל",
+                                          details={"application_id": application_id, "campaign_run_id": run.id})
+                db.commit()
+        except Exception as exc:  # noqa: BLE001
+            dispatch_errors.append({"application_id": application_id, "error": str(exc)[:300]})
+    return {"activated": True, "run_id": run.id, "queued_job_ids": queued, "queued_count": len(queued),
+            "worker_dispatch_errors": dispatch_errors}
 
 
 @app.get("/api/application-campaign/runs")

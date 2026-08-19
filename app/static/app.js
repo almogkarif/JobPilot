@@ -970,6 +970,7 @@ function switchView(view, options = {}) {
   if (view === 'sources') loadSources();
   if (view === 'settings') {
     requestAnimationFrame(()=>positionThemeThumb(false));
+    loadBackgroundWorkerSetup();
     loadGmailIntegration();
   }
   if (view === 'developer') loadDeveloperCenter();
@@ -3146,7 +3147,7 @@ const NOTIFICATION_VIEWS = {
 };
 let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
 let applicationTrackingTimer=null,applicationTrackingData=null;
-const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','ממתינה ל־worker מאובטח'],['attempt_started','ה־worker התחיל','המשימה נלקחה לעבודה ברקע'],['page_opened','עמוד ההגשה נפתח','נפתח בדפדפן ענן נסתר'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים מולאו','הפרופיל וקורות החיים הוזנו'],['submit_clicked','הטופס נשלח','כפתור השליחה הסופי נלחץ'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
+const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה נשמרה בבטחה'],['worker_dispatched','ה־worker הופעל','GitHub Actions מכין סביבת עבודה זמנית'],['attempt_started','סביבת הרקע מוכנה','המשימה נלקחה לעבודה בלעדית'],['page_opened','עמוד ההגשה נפתח','נפתח ב־Chromium נסתר בענן'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים מולאו','הפרופיל וקורות החיים הוזנו'],['submit_clicked','הטופס נשלח','כפתור השליחה הסופי נלחץ'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
 function openNotifications(){setMobileTabMenu(false);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
 function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
@@ -3941,6 +3942,34 @@ function configureDeveloperTools(){
   const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }
+
+let backgroundWorkerDevice=null;
+const GITHUB_ACTIONS_SECRETS_URL='https://github.com/almogkarif/JobPilot/settings/secrets/actions';
+async function loadBackgroundWorkerSetup(){
+  const status=$('#background-worker-status'),create=$('#background-worker-create'),revoke=$('#background-worker-revoke');if(!status)return;
+  try{
+    const data=await api('/api/agent-devices');
+    backgroundWorkerDevice=(data.devices||[]).find(item=>item.enabled&&String(item.name||'').startsWith('GitHub Actions Worker'))||null;
+    create.hidden=!!backgroundWorkerDevice;revoke.hidden=!backgroundWorkerDevice;
+    if(!backgroundWorkerDevice)status.innerHTML='<strong>עדיין לא חובר worker</strong><span>צור token חד־פעמי, שמור אותו ב־GitHub Secret והרץ בדיקת חיבור.</span>';
+    else if(backgroundWorkerDevice.last_seen_at)status.innerHTML=`<strong>Worker חובר בהצלחה</strong><span>GitHub Actions התחבר לאחרונה ${esc(developerDate(backgroundWorkerDevice.last_seen_at))}. כל ההגשות הנתמכות ירוצו ברקע.</span>`;
+    else status.innerHTML='<strong>ה־token נוצר וממתין לחיבור ראשון</strong><span>השלם את שני ה־Secrets ב־GitHub. החיבור יאומת אוטומטית בהרצה הראשונה.</span>';
+  }catch(error){status.innerHTML=`<strong>לא ניתן לבדוק את ה־worker</strong><span>${esc(error.message)}</span>`}
+}
+function backgroundWorkerGuide(token='',baseUrl=location.origin){
+  const tokenSection=token?`<div class="worker-secret-block"><label>Secret ראשון · JOBPILOT_AGENT_TOKEN</label><code id="worker-token-value">${esc(token)}</code><button class="btn secondary small" type="button" onclick="navigator.clipboard.writeText(document.querySelector('#worker-token-value').textContent);toast('ה־token הועתק')">העתק token</button></div>`:'<div class="submission-preview-warnings"><strong>אין token זמין להצגה.</strong> מטעמי אבטחה token מוצג רק בזמן יצירתו. אם איבדת אותו, בטל את החיבור וצור חדש.</div>';
+  modal(`<span class="kicker">חיבור חד־פעמי · ללא תשלום</span><h2>GitHub Actions Worker</h2><ol class="worker-setup-steps"><li><b>1</b><span>פתח את GitHub Secrets בקישור למטה.</span></li><li><b>2</b><span>צור secret בשם <code>JOBPILOT_AGENT_TOKEN</code> והדבק את ה־token.</span></li><li><b>3</b><span>צור secret בשם <code>JOBPILOT_BASE_URL</code> עם הערך <code>${esc(baseUrl)}</code>.</span></li><li><b>4</b><span>חזור לכאן. ההגשה הראשונה תפעיל את ה־worker אוטומטית.</span></li></ol>${tokenSection}<div class="worker-secret-block"><label>Secret שני · JOBPILOT_BASE_URL</label><code id="worker-base-url">${esc(baseUrl)}</code><button class="btn secondary small" type="button" onclick="navigator.clipboard.writeText(document.querySelector('#worker-base-url').textContent);toast('הכתובת הועתקה')">העתק כתובת</button></div><div class="modal-actions"><a class="btn primary" target="_blank" rel="noopener" href="${GITHUB_ACTIONS_SECRETS_URL}">פתח GitHub Secrets</a><button class="btn secondary" type="button" onclick="closeModal();loadBackgroundWorkerSetup()">סיימתי</button></div>`);
+}
+async function createBackgroundWorker(){
+  try{const result=await api('/api/agent-devices',{method:'POST',body:JSON.stringify({name:'GitHub Actions Worker'})});backgroundWorkerDevice=result.device;backgroundWorkerGuide(result.token,result.base_url||location.origin);await loadBackgroundWorkerSetup()}catch(error){toast(error.message)}
+}
+async function revokeBackgroundWorker(){
+  if(!backgroundWorkerDevice||!confirm('לבטל את חיבור GitHub Actions Worker? הגשות חדשות יישארו בתור.'))return;
+  try{await api(`/api/agent-devices/${backgroundWorkerDevice.id}`,{method:'DELETE'});backgroundWorkerDevice=null;toast('חיבור ה־worker בוטל');await loadBackgroundWorkerSetup()}catch(error){toast(error.message)}
+}
+$('#background-worker-create').onclick=createBackgroundWorker;
+$('#background-worker-guide').onclick=()=>backgroundWorkerGuide('',authState.config?.base_url||location.origin);
+$('#background-worker-revoke').onclick=revokeBackgroundWorker;
 
 async function loadGmailIntegration(){
   const status=$('#gmail-integration-status'),connect=$('#gmail-connect'),verify=$('#gmail-verify'),disconnect=$('#gmail-disconnect');

@@ -1,0 +1,57 @@
+name: JobPilot background application worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_id:
+        description: Queued JobPilot application ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobpilot-application-worker
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      JOBPILOT_BASE_URL: ${{ secrets.JOBPILOT_BASE_URL }}
+      JOBPILOT_AGENT_TOKEN: ${{ secrets.JOBPILOT_AGENT_TOKEN }}
+      JOBPILOT_AGENT_ID: github-actions-${{ github.run_id }}
+      JOBPILOT_WORKER_TYPE: cloud
+      JOBPILOT_AGENT_HEADLESS: 'true'
+      JOBPILOT_AUTO_SUBMIT: 'false'
+      JOBPILOT_RUN_ONCE: 'true'
+      JOBPILOT_TASK_TIMEOUT_SECONDS: '600'
+      JOBPILOT_BROWSER_PROFILE: /tmp/jobpilot-browser-profile
+    steps:
+      - name: Checkout JobPilot
+        uses: actions/checkout@v4
+
+      - name: Validate worker configuration
+        env:
+          REQUESTED_APPLICATION_ID: ${{ inputs.application_id }}
+        run: |
+          [[ "$REQUESTED_APPLICATION_ID" =~ ^[0-9]+$ ]] || { echo "Invalid application ID" >&2; exit 1; }
+          [[ -n "$JOBPILOT_BASE_URL" ]] || { echo "JOBPILOT_BASE_URL secret is missing" >&2; exit 1; }
+          [[ "$JOBPILOT_AGENT_TOKEN" == jp_agent_* ]] || { echo "JOBPILOT_AGENT_TOKEN secret is missing or invalid" >&2; exit 1; }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install worker dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install headless Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Process one queued application in the background
+        run: python -m agent.run_agent

@@ -10,6 +10,7 @@ HEADLESS = os.getenv("JOBPILOT_AGENT_HEADLESS", "false").lower() == "true"
 AUTO_SUBMIT = os.getenv("JOBPILOT_AUTO_SUBMIT", "false").lower() == "true"
 POLL_SECONDS = int(os.getenv("JOBPILOT_POLL_SECONDS", "15"))
 TASK_TIMEOUT_SECONDS = int(os.getenv("JOBPILOT_TASK_TIMEOUT_SECONDS", "180"))
+RUN_ONCE = os.getenv("JOBPILOT_RUN_ONCE", "false").lower() == "true"
 BROWSER_PROFILE = Path(os.getenv("JOBPILOT_BROWSER_PROFILE", str(ROOT / "agent" / "browser-profile")))
 SCREENSHOT_DIR = ROOT / "data" / "screenshots"
 AGENT_CACHE_DIR = ROOT / "data" / "agent-cache"

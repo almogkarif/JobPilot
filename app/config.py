@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     github_actions_token: str = ""
     github_repository: str = "almogkarif/JobPilot"
     github_scan_workflow: str = "jobpilot-scan.yml"
+    github_application_workflow: str = "jobpilot-application.yml"
     github_ref: str = "main"
     agent_poll_seconds: int = 15
     scan_concurrency: int = 4

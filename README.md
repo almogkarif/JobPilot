@@ -363,6 +363,8 @@ For the complete setup, see:
 
 `Dockerfile.worker` runs the Playwright worker separately from the web service. Supply `JOBPILOT_BASE_URL`, a paired `JOBPILOT_AGENT_TOKEN`, and `JOBPILOT_WORKER_TYPE=cloud`. The worker accepts only Greenhouse, Comeet, Lever, Ashby, and SmartRecruiters tasks that carry a consumed one-time approval. Workday, custom sites, CAPTCHA, and uncertain pages remain local/manual. Keep one replica while using the beta queue.
 
+For a no-cost public-repository deployment, `.github/workflows/jobpilot-application.yml` runs one isolated headless worker on demand. The web server dispatches it immediately after one-time approval. Add `JOBPILOT_AGENT_TOKEN` and `JOBPILOT_BASE_URL` as GitHub Actions repository secrets; the Settings screen generates the scoped, revocable Agent token and shows the exact values without persisting the raw token in the browser.
+
 The Applications page provides a dry run before campaign activation, daily and total caps, a company deny-list, durable attempt history, and a verification receipt. A queued task can finish in `verification_pending`; it becomes `submitted` only after page evidence or an optional Gmail receipt confirms it.
 
 See `.env.example` and `.env.cloud.example` for safe templates.

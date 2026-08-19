@@ -52,5 +52,7 @@ services:
         value: almogkarif/JobPilot
       - key: JOBPILOT_GITHUB_SCAN_WORKFLOW
         value: jobpilot-scan.yml
+      - key: JOBPILOT_GITHUB_APPLICATION_WORKFLOW
+        value: jobpilot-application.yml
       - key: JOBPILOT_GITHUB_REF
         value: main
