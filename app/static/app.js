@@ -2811,7 +2811,7 @@ $$('.preference-group', profileElement).forEach((group, index) => {
 // collapse control live together in the upper-left corner.
 $$('.panel').forEach((panel, panelIndex) => {
   const head = panel.querySelector(':scope > .panel-head');
-  if (!head || panel.classList.contains('jobs-toolbar')) return;
+  if (!head || panel.classList.contains('jobs-toolbar') || panel.classList.contains('settings-card')) return;
   let actions = head.querySelector(':scope > .card-head-actions');
   if (!actions) {
     actions = document.createElement('div');
