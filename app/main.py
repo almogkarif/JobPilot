@@ -3368,6 +3368,16 @@ def agent_status(db: Session = Depends(get_db)):
     return {"connected": bool(online), "online": len(online), "devices": payload, "available": True}
 
 
+@app.post("/api/background-worker/test", status_code=202)
+async def test_background_worker(db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
+    try:
+        await run_in_threadpool(dispatch_application_workflow, 0)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, f"לא ניתן להפעיל בדיקת GitHub Actions: {exc}") from exc
+    return {"status": "dispatched", "worker": "github_actions"}
+
+
 @app.post("/api/cron/scan", status_code=202)
 async def cron_scan(request: Request):
     configured = settings.cron_secret.strip()

@@ -3946,11 +3946,11 @@ function configureDeveloperTools(){
 let backgroundWorkerDevice=null;
 const GITHUB_ACTIONS_SECRETS_URL='https://github.com/almogkarif/JobPilot/settings/secrets/actions';
 async function loadBackgroundWorkerSetup(){
-  const status=$('#background-worker-status'),create=$('#background-worker-create'),revoke=$('#background-worker-revoke');if(!status)return;
+  const status=$('#background-worker-status'),create=$('#background-worker-create'),test=$('#background-worker-test'),revoke=$('#background-worker-revoke');if(!status)return;
   try{
     const data=await api('/api/agent-devices');
     backgroundWorkerDevice=(data.devices||[]).find(item=>item.enabled&&String(item.name||'').startsWith('GitHub Actions Worker'))||null;
-    create.hidden=!!backgroundWorkerDevice;revoke.hidden=!backgroundWorkerDevice;
+    create.hidden=!!backgroundWorkerDevice;test.hidden=!backgroundWorkerDevice;revoke.hidden=!backgroundWorkerDevice;
     if(!backgroundWorkerDevice)status.innerHTML='<strong>עדיין לא חובר worker</strong><span>צור token חד־פעמי, שמור אותו ב־GitHub Secret והרץ בדיקת חיבור.</span>';
     else if(backgroundWorkerDevice.last_seen_at)status.innerHTML=`<strong>Worker חובר בהצלחה</strong><span>GitHub Actions התחבר לאחרונה ${esc(developerDate(backgroundWorkerDevice.last_seen_at))}. כל ההגשות הנתמכות ירוצו ברקע.</span>`;
     else status.innerHTML='<strong>ה־token נוצר וממתין לחיבור ראשון</strong><span>השלם את שני ה־Secrets ב־GitHub. החיבור יאומת אוטומטית בהרצה הראשונה.</span>';
@@ -3967,7 +3967,12 @@ async function revokeBackgroundWorker(){
   if(!backgroundWorkerDevice||!confirm('לבטל את חיבור GitHub Actions Worker? הגשות חדשות יישארו בתור.'))return;
   try{await api(`/api/agent-devices/${backgroundWorkerDevice.id}`,{method:'DELETE'});backgroundWorkerDevice=null;toast('חיבור ה־worker בוטל');await loadBackgroundWorkerSetup()}catch(error){toast(error.message)}
 }
+async function testBackgroundWorker(){
+  const button=$('#background-worker-test');button.disabled=true;
+  try{await api('/api/background-worker/test',{method:'POST'});toast('בדיקת החיבור הופעלה; GitHub מכין Chromium ברקע');[15000,45000,90000].forEach(delay=>setTimeout(loadBackgroundWorkerSetup,delay))}catch(error){toast(error.message)}finally{setTimeout(()=>{button.disabled=false},2000)}
+}
 $('#background-worker-create').onclick=createBackgroundWorker;
+$('#background-worker-test').onclick=testBackgroundWorker;
 $('#background-worker-guide').onclick=()=>backgroundWorkerGuide('',authState.config?.base_url||location.origin);
 $('#background-worker-revoke').onclick=revokeBackgroundWorker;
 

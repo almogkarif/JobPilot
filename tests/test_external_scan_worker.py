@@ -121,6 +121,16 @@ def test_application_workflow_is_headless_one_shot_and_uses_repository_secrets()
     assert "python -m agent.run_agent" in workflow
 
 
+def test_background_worker_connection_check_dispatches_without_claiming_a_real_application(monkeypatch):
+    calls = []
+    monkeypatch.setattr(main, "dispatch_application_workflow", lambda application_id: calls.append(application_id))
+    with TestClient(main.app) as client:
+        response = client.post("/api/background-worker/test")
+    assert response.status_code == 202
+    assert response.json() == {"status": "dispatched", "worker": "github_actions"}
+    assert calls == [0]
+
+
 
 def test_duplicate_manual_scan_request_reuses_same_active_run():
     _clear_scan_runs()
