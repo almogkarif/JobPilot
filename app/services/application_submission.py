@@ -18,7 +18,7 @@ _PREVIEW_SECRET = secrets.token_bytes(32)
 class ATSAdapter:
     key: str
     label: str
-    execution: str = "local_browser"
+    execution: str = "cloud_browser"
     supports_automatic_submit: bool = True
     notes: str = ""
 
@@ -28,10 +28,11 @@ ADAPTERS = {
     "comeet": ATSAdapter("comeet", "Comeet", notes="טופס ישראלי נפוץ עם שאלות מותאמות לפי חברה."),
     "lever": ATSAdapter("lever", "Lever", notes="טופס מועמדות ציבורי עם מבנה עקבי יחסית."),
     "ashby": ATSAdapter("ashby", "Ashby", notes="טופס מועמדות דינמי; נדרש אימות הצלחה אחרי השליחה."),
-    "workday": ATSAdapter("workday", "Workday", notes="דורש דפדפן וסשן משתמש; לעיתים כולל יצירת חשבון ואימות."),
+    "workday": ATSAdapter("workday", "Workday", execution="manual_only", supports_automatic_submit=False,
+                           notes="דורש בדרך כלל סשן משתמש או יצירת חשבון ולכן אינו נשלח אוטומטית ברקע."),
     "smartrecruiters": ATSAdapter("smartrecruiters", "SmartRecruiters"),
-    "custom": ATSAdapter("custom", "אתר קריירה מותאם", supports_automatic_submit=True,
-                         notes="הטופס ייבדק בזמן אמת וה-Agent יעצור בכל שדה לא מוכר."),
+    "custom": ATSAdapter("custom", "אתר קריירה מותאם", execution="manual_only", supports_automatic_submit=False,
+                         notes="נדרש adapter מאומת לפני שהאתר יורשה לרוץ אוטומטית ברקע."),
 }
 
 
@@ -77,6 +78,8 @@ def build_submission_preview(job, profile, resume=None) -> dict:
         warnings.append("LinkedIn לא הוגדר; אם הוא שדה חובה ה-Agent יעצור ויבקש השלמה.")
     if adapter.key == "workday" and not bool(profile.application_password):
         warnings.append("ב-Workday ייתכן שתידרש סיסמה או יצירת חשבון במהלך ההגשה.")
+    if not adapter.supports_automatic_submit:
+        warnings.append("המקור הזה עדיין לא מורשה להגשה אוטומטית ברקע; JobPilot לא יפתח עבורך חלון דפדפן.")
     warnings.append("שאלות ייחודיות ו-CAPTCHA נבדקים בזמן אמת; המערכת לא תנחש תשובה ולא תעקוף אימות אנושי.")
     ready = not missing and adapter.supports_automatic_submit
     return {

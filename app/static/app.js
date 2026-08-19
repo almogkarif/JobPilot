@@ -1590,7 +1590,7 @@ function jobCardActions(job) {
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
-    ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'review')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'החזר לתור' : 'הגש'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'בדוק והחזר לתור' : 'הגש ברקע'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
     <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
     <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
@@ -1723,14 +1723,13 @@ async function queueJob(id, mode = 'review', resumeId = null) {
       <h2>${esc(preview.job?.company)} — ${esc(preview.job?.title)}</h2>
       <div class="submission-preview-summary">
         <span><strong>מערכת הגיוס</strong><b>${esc(adapter.label || 'אתר קריירה')}</b></span>
-        <span><strong>מסלול ביצוע</strong><b>Agent מאובטח</b></span>
+        <span><strong>מסלול ביצוע</strong><b>${adapter.execution==='cloud_browser'?'Worker ענן · ברקע':'ידני בלבד כרגע'}</b></span>
         <span><strong>קורות חיים</strong><b>${esc(preview.resume?.filename || 'לא נבחרו')}</b></span>
       </div>
       ${missing.length ? `<div class="submission-preview-blocked"><strong>חסרים פרטים לפני שניתן לאשר שליחה אוטומטית:</strong><ul>${missing.map(item => `<li>${esc(item.label)}</li>`).join('')}</ul></div>` : '<div class="submission-preview-ready"><strong>הבדיקה הראשונית עברה.</strong> הפרטים הבסיסיים וקורות החיים מוכנים.</div>'}
       ${warnings.length ? `<div class="submission-preview-warnings"><strong>מה חשוב לדעת</strong><ul>${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></div>` : ''}
       <details class="submission-preview-safeguards"><summary>בלמי הבטיחות שיופעלו</summary><ul>${safeguards.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>
       <div class="modal-actions">
-        <button class="btn secondary" type="button" onclick="confirmApplicationPreview(${id},'${esc(mode)}',${resumeId || 'null'},decodeURIComponent('${token}'),false)">הוסף לתור לבדיקה</button>
         <button class="btn primary" type="button" ${preview.ready ? '' : 'disabled'} onclick="confirmApplicationPreview(${id},'auto',${resumeId || 'null'},decodeURIComponent('${token}'),true)">אשר הגשה אוטומטית חד־פעמית</button>
       </div>`);
   } catch (error) {
@@ -1740,12 +1739,13 @@ async function queueJob(id, mode = 'review', resumeId = null) {
 
 async function confirmApplicationPreview(id, mode, resumeId, previewToken, approveSubmit) {
   try {
-    await api(`/api/jobs/${id}/queue`, {
+    const application = await api(`/api/jobs/${id}/queue`, {
       method: 'POST',
       body: JSON.stringify({ mode, resume_id: resumeId, preview_token: previewToken, approve_submit: approveSubmit }),
     });
     closeModal();
     toast(approveSubmit ? 'ההגשה האוטומטית אושרה ונכנסה לתור' : 'המשרה נכנסה לתור לבדיקה');
+    startApplicationTracking(application.id, true);
     await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
   } catch (error) {
     toast(error.message);
@@ -1822,11 +1822,8 @@ async function showJob(id) {
       <h3>אפשרויות הגשה</h3>
       ${resumes.length ? `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>JobPilot ממליץ על הגרסה עם חפיפת הסקילים הגבוהה ביותר. אפשר לשנות ידנית לפני הכנסה לתור.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.sort((a,b)=>(b.fit?.score||0)-(a.fit?.score||0)).map((resume) => `<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.fit?.recommended ? 'selected' : ''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${resume.fit?.score ?? 0}% התאמה</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit"></div>` : '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>'}
       ${applicationAgentAllowed() ? `<div class="application-options">
-        <button class="application-option application-option-review" type="button" onclick="queueJob(${job.id},'review',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
-          <i class="application-option-icon">✓</i><span class="application-option-copy"><small>מומלץ</small><strong>הגשה עם בקרה</strong><span>ה־Agent ימלא את הטופס ויעצור לאישור לפני השליחה.</span></span><b>←</b>
-        </button>
         <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
-          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>מהיר</small><strong>הכנסה לתור אוטומטי</strong><span>יתקדם לבד בעזרת הפרטים והתשובות שכבר אישרת.</span></span><b>←</b>
+          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>בדיקה והגשה אוטומטית</strong><span>ירוץ ב־worker ענן נסתר. לא ייפתח אצלך אתר או חלון דפדפן.</span></span><b>←</b>
         </button>
       </div>` : `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית. הסוכן המקומי שממלא ושולח טפסים פעיל כרגע רק בחשבון הראשי.</span></div>`}
       <div class="card-actions modal-actions">
@@ -3147,6 +3144,19 @@ const NOTIFICATION_VIEWS = {
   profile: { icon: '○', title: 'הפרופיל עדיין לא מלא', copy: 'השלמת הפרטים תשפר את מילוי הטפסים' },
   sources: { icon: '↯', title: 'מקורות דורשים בדיקה', copy: 'מקור אחד או יותר דיווח על שגיאה' },
 };
+let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
+let applicationTrackingTimer=null,applicationTrackingData=null;
+const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','ממתינה ל־worker מאובטח'],['attempt_started','ה־worker התחיל','המשימה נלקחה לעבודה ברקע'],['page_opened','עמוד ההגשה נפתח','נפתח בדפדפן ענן נסתר'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים מולאו','הפרופיל וקורות החיים הוזנו'],['submit_clicked','הטופס נשלח','כפתור השליחה הסופי נלחץ'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
+function openNotifications(){setMobileTabMenu(false);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
+function applicationProgressMarkup(){
+  if(!applicationTrackingData)return '';
+  const data=applicationTrackingData,events=data.events||[],types=new Set(events.map(event=>event.event_type)),status=data.application?.status||'';types.add('queued');
+  const failed=['failed','needs_input'].includes(status),verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
+  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;return `<li class="${done?'done':current?(failed?'failed':'active'):'pending'}"><i>${done?'✓':current&&failed?'!':index+1}</i><span><strong>${esc(title)}</strong><small>${esc(done?(event?.message||copy):copy)}</small></span></li>`}).join('');
+  return `<section class="application-live-tracker ${verified?'verified':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
+}
+async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);renderNotificationCenter();if(['submitted','failed','needs_input'].includes(applicationTrackingData.application?.status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
+function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
 function notificationItems() {
   const dashboard = state.dashboard || {};
   const items = [];
@@ -3164,10 +3174,12 @@ function renderNotificationCenter() {
   const items = notificationItems();
   $('#notification-count').hidden = !items.length;
   $('#notification-count').textContent = items.length;
-  root.innerHTML = items.length ? items.map((item) => {
+  const tracker=applicationProgressMarkup();
+  const notices=items.length ? items.map((item) => {
     const meta = item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
     return `<button class="notification-item" type="button" data-notification-view="${item.view}"><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
-  }).join('') : emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.');
+  }).join('') : (!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
+  root.innerHTML=tracker+notices;
   $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
 }
 function closeNotifications() {
@@ -3974,6 +3986,7 @@ $('#gmail-disconnect').onclick=disconnectGmail;
     renderNotificationCenter();
     updateScanCountdown();
     await refreshAgentStatus();
+    if(trackedApplicationId)startApplicationTracking(trackedApplicationId,false);
     if (authState.config?.mode === 'supabase') window.setInterval(refreshAgentStatus, 30_000);
     const savedView = localStorage.getItem('jobpilot-active-view');
     const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile','settings','developer']);

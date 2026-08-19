@@ -246,8 +246,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     recent = page.locator("#recent-jobs .job-row").first
     recent.click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    assert page.get_by_role("button", name="הגשה עם בקרה").is_visible()
-    assert page.get_by_role("button", name="הכנסה לתור אוטומטי").is_visible()
+    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").is_visible()
     page.locator(".modal-close").click()
 
     # Metric cards navigate and apply their filter.
@@ -263,10 +262,14 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     card.wait_for(state="visible")
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    page.get_by_role("button", name="הגשה עם בקרה").click()
+    page.get_by_role("button", name="בדיקה והגשה אוטומטית").click()
     page.get_by_text("בדיקה לפני הגשה", exact=True).wait_for(state="visible")
-    page.get_by_role("button", name="הוסף לתור לבדיקה").click()
-    page.get_by_text("המשרה נכנסה לתור לבדיקה", exact=True).wait_for(state="visible")
+    # The seeded custom career page is deliberately background-ineligible. It
+    # must remain disabled instead of opening a visible local browser.
+    assert page.get_by_role("button", name="אשר הגשה אוטומטית חד־פעמית").is_disabled()
+    page.locator(".modal-close").click()
+    first_job = page.evaluate("async()=>await (await fetch('/api/jobs')).json()")[0]
+    page.evaluate("async id=>await fetch(`/api/jobs/${id}/mark-submitted`,{method:'POST'})", first_job["id"])
 
     # Application rows open job details.
     page.get_by_role("button", name="הגשות").click()

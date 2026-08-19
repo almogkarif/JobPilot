@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import time
 import signal
+import inspect
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -125,8 +126,18 @@ def run_task(context, task: dict):
     try:
         submit_authorized = AUTO_SUBMIT or bool(task.get("submit_approved_once"))
         prepare_resume(task)
+        def report_progress(stage, message, page_url):
+            try:
+                api("POST", f"/api/agent/tasks/{application_id}/progress", json={
+                    "token": TOKEN, "attempt_id": attempt_id, "stage": stage,
+                    "message": message, "page_url": page_url,
+                })
+            except Exception as progress_exc:  # noqa: BLE001
+                print(f"[progress warning] {progress_exc}", file=sys.stderr)
         with task_deadline(TASK_TIMEOUT_SECONDS):
-            result = fill_application(page, task, auto_submit=submit_authorized)
+            supports_progress = "progress" in inspect.signature(fill_application).parameters
+            result = fill_application(page, task, auto_submit=submit_authorized, progress=report_progress) \
+                if supports_progress else fill_application(page, task, auto_submit=submit_authorized)
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"submitted_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         try:

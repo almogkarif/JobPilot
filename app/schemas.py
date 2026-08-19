@@ -201,6 +201,14 @@ class AgentResultRequest(BaseModel):
     external_application_id: str = Field(default="", max_length=255)
 
 
+class AgentProgressRequest(BaseModel):
+    token: str
+    attempt_id: int | None = None
+    stage: str = Field(pattern="^(page_opened|form_detected|details_filled|submit_clicked)$")
+    message: str = Field(default="", max_length=500)
+    page_url: str = Field(default="", max_length=2_000)
+
+
 class CampaignUpdate(BaseModel):
     enabled: bool | None = None
     mode: str | None = Field(default=None, pattern="^(simple|advanced)$")

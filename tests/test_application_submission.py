@@ -63,7 +63,7 @@ def test_application_preview_api_exposes_adapter_and_short_lived_approval():
         assert response.status_code == 200
         payload = response.json()
         assert payload["job"]["id"] == job["id"]
-        assert payload["adapter"]["execution"] == "local_browser"
+        assert payload["adapter"]["execution"] in {"cloud_browser", "manual_only"}
         assert payload["expires_in_seconds"] == 600
         assert payload["preview_token"]
 

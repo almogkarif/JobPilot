@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 from .fields import known_value, missing_profile_context, normalize
@@ -56,7 +57,7 @@ def ensure_supported(url: str) -> None:
         )
 
 
-def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
+def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None) -> dict:
     job = task["job"]
     profile = task["profile"]
     answers = task.get("answers", {})
@@ -68,6 +69,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
 
     page.goto(job["apply_url"], wait_until="domcontentloaded", timeout=60_000)
     page.wait_for_timeout(1500)
+    if progress:
+        progress("page_opened", "עמוד ההגשה נפתח ברקע", page.url)
     _detect_captcha(page)
 
     filled = []
@@ -120,6 +123,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
                 field.get("visible") or (field.get("type") == "file" and is_application_path)
             )
         ]
+        if actionable_fields and progress:
+            progress("form_detected", "טופס המועמדות זוהה", page.url)
 
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
@@ -229,6 +234,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
                 page.url, field.get("options", []),
             )
 
+        if progress:
+            progress("details_filled", f"הפרטים הידועים מולאו ({len(filled)} שדות)", page.url)
+
         # Submit the existing-account form first. Account creation is only
         # allowed above after the site explicitly says that no account exists.
         if has_password and not sign_in_submitted:
@@ -249,6 +257,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool) -> dict:
                     page.url, ["אשר ושלח", "דלג"],
                 )
             submit_button.click()
+            if progress:
+                progress("submit_clicked", "כפתור השליחה הסופי נלחץ", page.url)
             try:
                 page.wait_for_load_state("networkidle", timeout=15_000)
             except PlaywrightTimeoutError:

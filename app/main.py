@@ -38,7 +38,7 @@ from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationC
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
-    AgentResultRequest, CampaignUpdate,
+    AgentResultRequest, AgentProgressRequest, CampaignUpdate,
     DesiredTitleUpdateRequest,
     ImportJobRequest,
     ProfilePatch,
@@ -3441,7 +3441,11 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             item.job.apply_url, item.job.source.kind if item.job.source else ""
         ).key in cloud_adapters), None)
     else:
-        application = select_next_queued_application(db, career_track=track)
+        # Automatic submissions are background-only. A visible local browser may
+        # claim review tasks, but must never pop open for an automatic campaign.
+        application = db.scalar(select(Application).join(Job, Application.job_id == Job.id).where(
+            Application.status == "queued", Application.mode != "auto", Job.career_track == track,
+        ).order_by(Application.updated_at).limit(1))
     if not application:
         return {"task": None}
     # Claim with a conditional write and commit immediately. This prevents two
@@ -3571,6 +3575,30 @@ def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session
     db.commit()
     db.refresh(blocker)
     return _blocker_dict(blocker)
+
+
+@app.post("/api/agent/tasks/{application_id}/progress")
+def agent_progress(application_id: int, payload: AgentProgressRequest, db: Session = Depends(get_db)):
+    _check_agent_token(db, payload.token)
+    application = db.get(Application, application_id)
+    if not application:
+        raise HTTPException(404, "Application not found")
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if not attempt or attempt.status != "running":
+        raise HTTPException(409, "Application attempt is no longer active")
+    details = {"attempt_id": attempt.id, "page_url": payload.page_url}
+    existing_events = db.scalars(select(ApplicationEvent).where(
+        ApplicationEvent.application_id == application_id,
+        ApplicationEvent.event_type == payload.stage,
+    )).all()
+    duplicate = any(loads(item.details_json, {}).get("attempt_id") == attempt.id for item in existing_events)
+    if not duplicate:
+        _record_application_event(
+            db, application, payload.stage, from_status=application.status, to_status=application.status,
+            actor=attempt.worker_type, message=payload.message, details=details,
+        )
+        db.commit()
+    return {"recorded": not duplicate, "stage": payload.stage}
 
 
 @app.post("/api/agent/tasks/{application_id}/submitted")
