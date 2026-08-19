@@ -1230,6 +1230,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     career_track = active_track(profile)
     guest_catalog = _request_is_guest(request)
+    ranking_refresh = {"running": False, "message": ""} if guest_catalog else _ranking_refresh_status(
+        current_user_id(db), career_track,
+    )
 
     # Guest mode mirrors the primary admin's live opportunity catalog while every
     # personal surface (profile, applications, blockers, answers) stays isolated.
@@ -1319,6 +1322,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "recommendation_date": None,
         "recommendations_from_previous_day": False,
         "recommendation_basis": "top_score_all_catalog",
+        "ranking_refresh": ranking_refresh,
         "readiness": readiness,
         "guest_catalog": guest_catalog,
     }
@@ -3097,7 +3101,24 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
 
 _profile_refresh_pending: dict[tuple[str, str], dict[str, bool]] = {}
 _profile_refresh_workers: dict[tuple[str, str], threading.Thread] = {}
+_profile_refresh_active: dict[tuple[str, str], dict[str, bool]] = {}
 _profile_refresh_queue_lock = threading.Lock()
+
+
+def _ranking_refresh_status(user_id: str, career_track: str) -> dict:
+    """Expose only job-ranking work, without leaking unrelated profile refreshes."""
+    key = (user_id, normalize_track(career_track))
+    with _profile_refresh_queue_lock:
+        pending = _profile_refresh_pending.get(key, {})
+        active = _profile_refresh_active.get(key, {})
+        running = any(bool(state.get(flag)) for state in (pending, active) for flag in ("rescore_jobs", "rank_v2"))
+    return {
+        "running": running,
+        "message": (
+            "אנחנו מדרגים מחדש את המשרות לפי הפרופיל וההעדפות העדכניים שלך. "
+            "ההתאמות המוצגות יתעדכנו אוטומטית עם השלמת התהליך."
+        ) if running else "",
+    }
 
 
 def _queue_profile_derived_refresh(
@@ -3132,13 +3153,20 @@ def _profile_refresh_worker(user_id: str, career_track: str) -> None:
                 pending = _profile_refresh_pending.pop(key, None)
             if not pending:
                 return
-            _refresh_profile_derived_background(
-                user_id, career_track,
-                pending["rescore_jobs"], pending["refresh_resumes"], pending["rank_v2"],
-            )
+            with _profile_refresh_queue_lock:
+                _profile_refresh_active[key] = dict(pending)
+            try:
+                _refresh_profile_derived_background(
+                    user_id, career_track,
+                    pending["rescore_jobs"], pending["refresh_resumes"], pending["rank_v2"],
+                )
+            finally:
+                with _profile_refresh_queue_lock:
+                    _profile_refresh_active.pop(key, None)
     finally:
         with _profile_refresh_queue_lock:
             _profile_refresh_workers.pop(key, None)
+            _profile_refresh_active.pop(key, None)
             # A save can race with the worker's final empty check. Restart if needed.
             pending = _profile_refresh_pending.get(key)
         if pending:

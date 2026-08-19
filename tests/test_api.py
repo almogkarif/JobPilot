@@ -11,6 +11,7 @@ def test_health_and_dashboard():
         dashboard = client.get("/api/dashboard").json()
         assert dashboard["total_jobs"] >= 3
         assert "strong_matches" in dashboard
+        assert dashboard["ranking_refresh"] == {"running": False, "message": ""}
         assert set(dashboard["readiness"]) >= {
             "ready", "profile_complete", "resume_uploaded", "sources_enabled", "agent_token_secure"
         }

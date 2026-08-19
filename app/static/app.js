@@ -1170,6 +1170,8 @@ async function saveAllAnswers() {
 $('#save-all-answers').onclick = saveAllAnswers;
 $('#save-answer-pane').onclick = saveAllAnswers;
 
+let dashboardRankingRefreshTimer = null;
+
 async function loadDashboard() {
   if (state.activeView === 'dashboard') {
     $('#metrics').innerHTML = skeleton(5, 'metrics');
@@ -1213,6 +1215,19 @@ async function loadDashboard() {
     const badge=$(selector);if(!badge)return;badge.textContent=dashboard.open_blockers;badge.hidden=!Number(dashboard.open_blockers);
   });
   $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
+  const rankingStatus = $('#recommendations-ranking-status');
+  const rankingRefresh = dashboard.ranking_refresh || {};
+  rankingStatus.hidden = !rankingRefresh.running;
+  rankingStatus.innerHTML = rankingRefresh.running ? `
+    <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
+    <span><strong>מתבצע דירוג מחדש של המשרות</strong><small>${esc(rankingRefresh.message || 'ההתאמות יתעדכנו אוטומטית עם השלמת התהליך.')}</small></span>
+  ` : '';
+  clearTimeout(dashboardRankingRefreshTimer);
+  if (rankingRefresh.running) {
+    dashboardRankingRefreshTimer = setTimeout(() => {
+      if (state.activeView === 'dashboard') loadDashboard().catch((error) => toast(error.message));
+    }, 2500);
+  }
   renderRecent(dashboard.recent_jobs);
   renderScan(dashboard.scan);
 }
