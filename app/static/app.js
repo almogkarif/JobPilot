@@ -844,6 +844,12 @@ function renderApplicationActions(application) {
       <button class="btn secondary small" type="button" onclick="event.stopPropagation();resolveBlockerAction(${blocker.id},'skip')">דלג</button>
       <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
   }
+  if (blocker?.kind === 'grade_sheet_required') {
+    const hasGradeSheet = Boolean(state.profile?.grade_sheet_uploaded);
+    return `<button class="btn primary small" type="button" onclick="event.stopPropagation();${hasGradeSheet ? `resolveBlockerAction(${blocker.id},'use_profile_grade_sheet',${application.id})` : 'openGradeSheetProfile()'}">${hasGradeSheet ? 'השתמש בגיליון הציונים השמור' : 'העלה גיליון ציונים'}</button>
+      <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח את הטופס</a>
+      <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
+  }
   if (blocker) {
     return `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח והמשך</a>
       ${blocker.kind === 'submit_not_sent'
@@ -1762,7 +1768,12 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
       body: JSON.stringify({ mode, resume_id: resumeId, preview_token: previewToken, approve_submit: approveSubmit }),
     });
     closeModal();
-    toast(approveSubmit ? 'ההגשה האוטומטית אושרה ונכנסה לתור' : 'המשרה נכנסה לתור לבדיקה');
+    const queuePosition = Number(application.queue_position || 1);
+    toast(approveSubmit
+      ? (queuePosition > 1
+        ? `ההגשה נשלחה לתור · מיקום ${queuePosition} · תופעל אוטומטית ברצף`
+        : 'ההגשה נשלחה לתור ותופעל אוטומטית כשה־worker יתפנה')
+      : 'המשרה נכנסה לתור לבדיקה');
     startApplicationTracking(application.id, true);
     await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
   } catch (error) {
@@ -2199,7 +2210,8 @@ function renderBlockerCard(blocker) {
       <button class="btn secondary" type="button" onclick="resolveBlockerAction(${blocker.id},'skip')">דלג על המשרה</button>
     </div>`;
   } else if (blocker.kind === 'grade_sheet_required') {
-    interaction = `<div class="blocker-manual-note">גיליון הציונים נשמר בפרופיל ומשמש אוטומטית בכל הגשה שתבקש אותו.</div><div class="blocker-decision"><button class="btn primary" type="button" onclick="openGradeSheetProfile()">העלה גיליון ציונים בפרופיל</button></div>`;
+    const hasGradeSheet = Boolean(state.profile?.grade_sheet_uploaded);
+    interaction = `<div class="blocker-manual-note">גיליון הציונים נשמר בפרופיל ומשמש אוטומטית בכל הגשה שתבקש אותו.</div><div class="blocker-decision"><button class="btn primary" type="button" onclick="${hasGradeSheet ? `resolveBlockerAction(${blocker.id},'use_profile_grade_sheet',${blocker.application_id})` : 'openGradeSheetProfile()'}">${hasGradeSheet ? 'השתמש בגיליון הציונים השמור והמשך' : 'העלה גיליון ציונים בפרופיל'}</button></div>`;
   } else if (blocker.kind === 'file_required') {
     interaction = `<div class="blocker-manual-note">הטופס דורש מסמך נוסף שאינו קורות חיים או גיליון ציונים. כרגע יש להשלים את המסמך הזה ידנית.</div>`;
   } else if (blocker.kind === 'submit_not_sent') {
@@ -2291,12 +2303,15 @@ function bindChoiceBlockerButtons(root) {
   });
 }
 
-async function resolveBlockerAction(id, action) {
+async function resolveBlockerAction(id, action, applicationId = null) {
   try {
     await api(`/api/blockers/${id}/resolve`, {
       method: 'POST', body: JSON.stringify({ action }),
     });
-    toast(action === 'approve_submit' ? 'אישור חד־פעמי נשמר — ה־Agent ישלח בניסיון הבא' : 'ההגשה דולגה');
+    if (action === 'approve_submit') toast('אישור חד־פעמי נשמר — ה־Agent ישלח בניסיון הבא');
+    else if (action === 'use_profile_grade_sheet') toast('גיליון הציונים השמור צורף · ההגשה חזרה לתור');
+    else toast('ההגשה דולגה');
+    if (action === 'use_profile_grade_sheet' && applicationId) startApplicationTracking(applicationId, true);
     await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
   } catch (error) {
     toast(error.message);
@@ -3334,13 +3349,16 @@ function openNotifications(){setMobileTabMenu(false);renderNotificationCenter();
 function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
   const data=applicationTrackingData,events=data.events||[],types=new Set(events.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
+  const queuePosition=Number(data.application?.queue_position||0),queuedWaiting=status==='queued';
   const choiceOptions=blocker?.kind==='choice_required'&&Array.isArray(blocker.options)?blocker.options.filter(Boolean):[],choiceWaiting=status==='needs_input'&&choiceOptions.length>=2&&choiceOptions.length<=6;
   const gradeSheetWaiting=status==='needs_input'&&blocker?.kind==='grade_sheet_required',attentionWaiting=choiceWaiting||gradeSheetWaiting;
   const verificationPending=status==='verification_pending',failed=['failed','needs_input'].includes(status)&&!attentionWaiting,verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
-  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(attentionWaiting?'choice-waiting':verificationPending&&key==='submission_verified'?'verification-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&gradeSheetWaiting?'↑':current&&verificationPending&&key==='submission_verified'?'…':current&&failed?'!':index+1;const rowCopy=current&&gradeSheetWaiting?'חסר גיליון ציונים בפרופיל':current&&verificationPending&&key==='submission_verified'?'נצפתה בקשת Submit; ממתינים לראיית אישור חד־משמעית מהאתר או ממייל':done?(event?.message||copy):copy;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(rowCopy)}</small></span></li>`}).join('');
+  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=queuedWaiting?(key==='queued'||(key==='worker_dispatched'&&types.has(key))):(types.has(key)||(key==='submission_verified'&&verified)),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(attentionWaiting?'choice-waiting':verificationPending&&key==='submission_verified'?'verification-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&gradeSheetWaiting?'↑':current&&verificationPending&&key==='submission_verified'?'…':current&&failed?'!':index+1;const rowCopy=current&&queuedWaiting&&key==='attempt_started'?(queuePosition>1?`מיקום ${queuePosition} בתור · תופעל אוטומטית ברצף אחרי ההגשות שלפניה`:'ממתינה ל־worker · תתחיל אוטומטית כשהוא יתפנה'):current&&gradeSheetWaiting?'חסר גיליון ציונים בפרופיל':current&&verificationPending&&key==='submission_verified'?'נצפתה בקשת Submit; ממתינים לראיית אישור חד־משמעית מהאתר או ממייל':done?(event?.message||copy):copy;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(rowCopy)}</small></span></li>`}).join('');
   const choicePanel=choiceWaiting?`<div class="application-live-choice"><strong>${esc(blocker.question||'נדרשת בחירה כדי להמשיך')}</strong><div>${choiceOptions.map((option)=>`<button type="button" data-choice-blocker="${blocker.id}" data-choice-application="${data.application.id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div><small>בחר תשובה וה־Agent יחזור אוטומטית להגשה עם הבחירה הזו.</small></div>`:'';
-  const gradeSheetPanel=gradeSheetWaiting?`<div class="application-live-choice application-live-document"><strong>${esc(blocker.question||'נדרש גיליון ציונים')}</strong><div><button type="button" onclick="openGradeSheetProfile()">העלה גיליון ציונים בפרופיל</button></div><small>מעלים פעם אחת בפרטים האישיים; הקובץ ישמש אוטומטית גם בהגשות הבאות.</small></div>`:'';
-  return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':gradeSheetWaiting?'חסר גיליון ציונים בפרופיל':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:gradeSheetWaiting?gradeSheetPanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
+  const hasGradeSheet=Boolean(state.profile?.grade_sheet_uploaded);
+  const gradeSheetPanel=gradeSheetWaiting?`<div class="application-live-choice application-live-document"><strong>${esc(blocker.question||'נדרש גיליון ציונים')}</strong><div><button type="button" onclick="${hasGradeSheet?`resolveBlockerAction(${blocker.id},'use_profile_grade_sheet',${data.application.id})`:'openGradeSheetProfile()'}">${hasGradeSheet?'השתמש בגיליון הציונים השמור והמשך':'העלה גיליון ציונים בפרופיל'}</button></div><small>הקובץ נשמר בפרטים האישיים ומשמש אוטומטית בכל הגשה שתבקש אותו.</small></div>`:'';
+  const queuePanel=queuedWaiting?`<div class="application-live-queue"><span class="live-dot"></span><strong>ממתינה בתור להגשה אוטומטית</strong><small>${queuePosition>1?`מיקום ${queuePosition} בתור. ההגשות מופעלות ברצף, והמשרה הזו תתחיל אוטומטית כשיגיע תורה.`:'המשימה שמורה בתור ותתחיל אוטומטית כשה־worker יתפנה.'}</small></div>`:'';
+  return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':queuedWaiting?'has-queue':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':gradeSheetWaiting?'נדרש גיליון ציונים':queuedWaiting?'ממתינה בתור להגשה אוטומטית':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:gradeSheetWaiting?gradeSheetPanel:queuedWaiting?queuePanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
 }
 async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);renderNotificationCenter();if(['submitted','verification_pending','failed','needs_input'].includes(applicationTrackingData.application?.status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
 function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
@@ -3348,6 +3366,7 @@ function notificationItems() {
   const dashboard = state.dashboard || {};
   const items = [];
   if (Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
+  if (Number(dashboard.queued)) items.push({ view:'applications', count:Number(dashboard.queued), queue:true });
   if (Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
   const fresh = Number(dashboard.scan?.last_result?.new || 0);
   if (fresh) items.push({ view:'jobs', count:fresh });
@@ -3363,7 +3382,7 @@ function renderNotificationCenter() {
   $('#notification-count').textContent = items.length;
   const tracker=applicationProgressMarkup();
   const notices=items.length ? items.map((item) => {
-    const meta = item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
+    const meta = item.queue ? {icon:'↻',title:'ממתינות להגשה אוטומטית',copy:'המשימות שמורות בתור ויופעלו ברצף'} : item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
     return `<button class="notification-item" type="button" data-notification-view="${item.view}"><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
   }).join('') : (!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
   root.innerHTML=tracker+notices;

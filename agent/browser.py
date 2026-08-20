@@ -46,6 +46,11 @@ CHOICE_PLACEHOLDERS = {
     "choose option", "please choose", "בחר", "בחר תשובה", "נא לבחור",
 }
 
+GENERIC_FILE_ACTION_LABELS = {
+    "upload", "upload file", "attach", "attach file", "choose file", "select file",
+    "browse", "browse file", "add file", "העלה קובץ", "צרף קובץ", "בחר קובץ",
+}
+
 
 class ApplicationBlocked(Exception):
     def __init__(self, kind: str, label: str, question: str, explanation: str, page_url: str, options=None):
@@ -560,6 +565,21 @@ def _extract_fields(page: Page) -> list[dict]:
                 label = lines.find(value => value.length >= 3 && value.length <= 300 && !optionText.has(value) && !generic.has(value.toLowerCase())) || '';
               }
             }
+            let fileContext = '';
+            if ((el.type || '').toLowerCase() === 'file') {
+              const fileNoise = /^(upload(?: file)?|attach(?: file| resume\/?cv)?|choose file|select file|browse(?: file)?|add file|dropbox|google drive|העלה קובץ|צרף קובץ|בחר קובץ)$/i;
+              let ancestor = el.parentElement;
+              for (let depth = 0; ancestor && depth < 7; depth++, ancestor = ancestor.parentElement) {
+                const raw = (ancestor.innerText || '').trim();
+                if (!raw || raw.length > 900) continue;
+                const lines = raw.split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
+                const meaningful = lines.filter(value => value.length >= 3 && value.length <= 300 && !fileNoise.test(value) && !/^(accepted|supported|file types?|max(?:imum)? size)/i.test(value));
+                if (!meaningful.length) continue;
+                const candidate = meaningful.slice(0, 3).join(' ').slice(0, 500);
+                fileContext = candidate;
+                if (/grade sheet|gradesheet|transcript|academic record|resume|curriculum vitae|קורות חיים|גיליון ציונים|גליון ציונים/i.test(candidate)) break;
+              }
+            }
             label = (label || '').replace(/\s+/g, ' ').trim().slice(0, 300);
             let options = [];
             if (el.tagName === 'SELECT') options = [...el.options].map(o => o.text.trim()).filter(Boolean);
@@ -581,6 +601,7 @@ def _extract_fields(page: Page) -> list[dict]:
               role: el.getAttribute('role') || '',
               aria_label: el.getAttribute('aria-label') || '',
               label,
+              file_context: fileContext,
               placeholder: el.placeholder || '',
               accept: el.getAttribute('accept') || '',
               multiple: !!el.multiple,
@@ -671,13 +692,27 @@ def _dedupe_unknown(fields: list[dict]) -> list[dict]:
     return result
 
 
+def _is_generic_file_action_label(value: str) -> bool:
+    key = normalize(value)
+    return not key or key in GENERIC_FILE_ACTION_LABELS
+
+
 def _display_field_label(field: dict) -> str:
     label = str(field.get("label") or "").strip()
+    file_context = str(field.get("file_context") or "").strip()
     raw_name = str(field.get("name") or "").strip()
     placeholder = str(field.get("placeholder") or "").strip()
     technical_name = bool(re.fullmatch(r"cards\[[^]]+\]\[field\d+\]", raw_name, flags=re.IGNORECASE))
+    # Lever and several hosted ATSs label the file control itself only as
+    # "Upload file". The actual question (for example Grade Sheet Submission)
+    # lives on the surrounding application-question container. Prefer that
+    # context so persistent profile documents can be matched correctly.
+    if field.get("type") == "file" and file_context and _is_generic_file_action_label(label):
+        return file_context[:500]
     if label:
         return label
+    if field.get("type") == "file" and file_context:
+        return file_context[:500]
     if raw_name and not technical_name:
         return raw_name
     if placeholder:
@@ -1428,9 +1463,21 @@ def _lever_required_file_issue(page: Page) -> dict | None:
                 if (el.disabled || !(el.required || el.getAttribute('aria-required') === 'true') || (el.files && el.files.length)) continue;
                 const id = el.id || '';
                 const direct = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
-                const group = el.closest('label, .application-question, [role="group"], fieldset, li');
-                const label = clean(direct?.innerText || group?.innerText || el.getAttribute('aria-label') || el.name || 'Required file');
-                return {label: label.slice(0, 300), accept: el.getAttribute('accept') || ''};
+                const fileNoise = /^(upload(?: file)?|attach(?: file| resume\/?cv)?|choose file|select file|browse(?: file)?|add file|dropbox|google drive)$/i;
+                let context = '';
+                let ancestor = el.parentElement;
+                for (let depth = 0; ancestor && depth < 7; depth++, ancestor = ancestor.parentElement) {
+                  const raw = (ancestor.innerText || '').trim();
+                  if (!raw || raw.length > 900) continue;
+                  const lines = raw.split(/\n+/).map(clean).filter(Boolean);
+                  const meaningful = lines.filter(value => value.length >= 3 && value.length <= 300 && !fileNoise.test(value) && !/^(accepted|supported|file types?|max(?:imum)? size)/i.test(value));
+                  if (!meaningful.length) continue;
+                  context = meaningful.slice(0, 3).join(' ').slice(0, 500);
+                  if (/grade sheet|gradesheet|transcript|academic record|resume|curriculum vitae/i.test(context)) break;
+                }
+                const directLabel = clean(direct?.innerText || el.getAttribute('aria-label') || '');
+                const label = (fileNoise.test(directLabel) ? context : directLabel) || context || clean(el.name) || 'Required file';
+                return {label: label.slice(0, 500), accept: el.getAttribute('accept') || ''};
               }
               return null;
             }"""

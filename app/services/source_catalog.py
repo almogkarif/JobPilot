@@ -81,6 +81,16 @@ IEM_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name": "Pagaya — Operations & Analytics", "kind": "greenhouse", "identifier": "pagayais", "company_name": "Pagaya"},
     {"name": "Check Point — Operations", "kind": "official_careers", "identifier": "checkpoint", "company_name": "Check Point"},
     {"name": "CyberArk — Business Operations", "kind": "smartrecruiters", "identifier": "Cyberark1", "company_name": "CyberArk"},
+    {"name": "Aidoc — Operations & Product Analytics", "kind": "greenhouse", "identifier": "aidocmedical", "company_name": "Aidoc"},
+    {"name": "Axon — Program & R&D Operations Israel", "kind": "greenhouse", "identifier": "axon", "company_name": "Axon"},
+    {"name": "Gong — Operational Excellence & Analytics", "kind": "greenhouse", "identifier": "gongio", "company_name": "Gong"},
+    {"name": "Armis — Data & Program Operations", "kind": "greenhouse", "identifier": "armissecurity", "company_name": "Armis"},
+    {"name": "Forter — Business & Finance Operations", "kind": "greenhouse", "identifier": "forter", "company_name": "Forter"},
+    {"name": "Torq — Business Analysis & Operations", "kind": "greenhouse", "identifier": "torq", "company_name": "Torq"},
+    {"name": "QuantHealth — Operations Israel", "kind": "greenhouse", "identifier": "quanthealth", "company_name": "QuantHealth"},
+    {"name": "Wolt — Supply Chain & Operations Israel", "kind": "greenhouse", "identifier": "wolt", "company_name": "Wolt"},
+    {"name": "Eleos Health — Operations & Process Improvement", "kind": "greenhouse", "identifier": "eleoshealth", "company_name": "Eleos Health"},
+    {"name": "Ashley Digital — BI & Data Solutions Israel", "kind": "greenhouse", "identifier": "residenthome", "company_name": "Ashley Digital"},
 )
 
 

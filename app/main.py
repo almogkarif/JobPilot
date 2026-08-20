@@ -123,6 +123,37 @@ def _is_grade_sheet_label(label: str) -> bool:
     ))
 
 
+def _is_generic_upload_label(label: str) -> bool:
+    normalized = re.sub(r"[^a-zא-ת ]+", " ", str(label or "").casefold())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized in {
+        "upload", "upload file", "attach", "attach file", "choose file", "select file",
+        "browse", "browse file", "add file", "העלה קובץ", "צרף קובץ", "בחר קובץ",
+    }
+
+
+def _is_mobileye_lever_job(job: Job | None) -> bool:
+    if not job:
+        return False
+    apply_url = str(getattr(job, "apply_url", "") or "").casefold()
+    company = str(getattr(job, "company", "") or "").casefold()
+    return "lever.co/mobileye/" in apply_url or ("mobileye" in company and "lever.co/" in apply_url)
+
+
+def _blocker_requests_grade_sheet(blocker: Blocker | None, job: Job | None = None) -> bool:
+    if not blocker:
+        return False
+    legacy_label = _legacy_required_file_label(blocker)
+    candidate = legacy_label or blocker.field_label or blocker.question
+    if _is_grade_sheet_label(candidate):
+        return blocker.kind in {"grade_sheet_required", "file_required", "submit_not_sent"}
+    # Patch-11's first version could persist only the upload button text from
+    # Mobileye Lever instead of the surrounding Grade Sheet question. Mobileye's
+    # hosted Lever forms use this generic control for their grade-sheet upload, so
+    # repair that already-open blocker instead of asking the user to upload again.
+    return blocker.kind == "file_required" and _is_generic_upload_label(candidate) and _is_mobileye_lever_job(job)
+
+
 def _legacy_required_file_label(blocker: Blocker | None) -> str:
     if not blocker or blocker.kind != "submit_not_sent":
         return ""
@@ -133,12 +164,15 @@ def _legacy_required_file_label(blocker: Blocker | None) -> str:
     return explanation.split(marker, 1)[1].strip()[:500]
 
 
-def _effective_blocker_fields(blocker: Blocker) -> tuple[str, str, str, str]:
+def _effective_blocker_fields(blocker: Blocker, job: Job | None = None) -> tuple[str, str, str, str]:
     legacy_file_label = _legacy_required_file_label(blocker)
-    if legacy_file_label and _is_grade_sheet_label(legacy_file_label):
+    if _blocker_requests_grade_sheet(blocker, job):
+        question = legacy_file_label or blocker.question or blocker.field_label
+        if _is_generic_upload_label(question):
+            question = "Please submit your grade sheet"
         return (
-            "grade_sheet_required", "גיליון ציונים", legacy_file_label,
-            "Lever דורש גיליון ציונים. העלה אותו פעם אחת בפרטים האישיים וה־Agent ימשיך אוטומטית.",
+            "grade_sheet_required", "גיליון ציונים", question,
+            "Lever דורש גיליון ציונים. JobPilot ישתמש בקובץ הקבוע ששמור בפרטים האישיים וימשיך אוטומטית.",
         )
     return blocker.kind, blocker.field_label, blocker.question, blocker.explanation
 
@@ -2431,7 +2465,7 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
             )
             db.commit()
             raise HTTPException(503, "המשימה נשמרה בתור, אך לא ניתן היה להפעיל את ה-worker ברקע. בדוק את הגדרת GitHub Actions.") from exc
-    return _application_dict(application)
+    return _application_dict(application, db)
 
 
 @app.get("/api/jobs/{job_id}/application-preview")
@@ -3021,13 +3055,13 @@ async def upload_grade_sheet(file: UploadFile = File(...), db: Session = Depends
         .order_by(Blocker.created_at)
     ).all()
     for blocker in blockers:
-        legacy_label = _legacy_required_file_label(blocker)
-        effective_label = legacy_label or blocker.field_label or blocker.question
-        if not _is_grade_sheet_label(effective_label):
-            continue
-        if blocker.kind not in {"grade_sheet_required", "file_required"} and not legacy_label:
-            continue
         application = blocker.application
+        if not _blocker_requests_grade_sheet(blocker, application.job if application else None):
+            continue
+        legacy_label = _legacy_required_file_label(blocker)
+        effective_label = legacy_label or blocker.question or blocker.field_label
+        if _is_generic_upload_label(effective_label):
+            effective_label = "Please submit your grade sheet"
         blocker.kind = "grade_sheet_required"
         blocker.field_label = "גיליון ציונים"
         blocker.question = effective_label or "גיליון ציונים"
@@ -3076,6 +3110,32 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     answers = loads(application.answers_json, {})
     answer_key = blocker.field_label or blocker.question
     action = (payload.action or "").strip().lower()
+
+    if action == "use_profile_grade_sheet":
+        profile = get_user_profile(db)
+        if not profile or not str(profile.grade_sheet_path or "").strip():
+            raise HTTPException(409, "לא שמור גיליון ציונים בפרופיל. העלה אותו קודם בפרטים האישיים.")
+        if not _blocker_requests_grade_sheet(blocker, application.job):
+            raise HTTPException(400, "החסימה הזו אינה שדה גיליון ציונים")
+        blocker.kind = "grade_sheet_required"
+        blocker.field_label = "גיליון ציונים"
+        blocker.question = "Please submit your grade sheet" if _is_generic_upload_label(blocker.question or blocker.field_label) else (blocker.question or "גיליון ציונים")
+        blocker.explanation = "גיליון הציונים הקבוע מהפרופיל ישמש בניסיון הבא."
+        blocker.answer = profile.grade_sheet_filename or "profile_grade_sheet"
+        blocker.remember_answer = False
+        blocker.status = "resolved"
+        blocker.resolved_at = utcnow()
+        application.status = "queued"
+        application.job.status = "queued"
+        application.last_error = ""
+        db.add(AuditLog(
+            event_type="profile_grade_sheet_reused", entity_type="blocker", entity_id=str(blocker.id),
+            message=profile.grade_sheet_filename or "profile grade sheet",
+        ))
+        db.commit()
+        db.refresh(blocker)
+        await _dispatch_resolved_auto_application(db, application)
+        return _blocker_dict(blocker)
 
     if blocker.kind == "review_before_submit":
         normalized_answer = payload.answer.strip().lower()
@@ -4400,7 +4460,7 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
     active_blocker = max(open_blockers, key=lambda blocker: blocker.created_at) if open_blockers else None
     blocker_summary = None
     if active_blocker:
-        blocker_kind, blocker_label, blocker_question, blocker_explanation = _effective_blocker_fields(active_blocker)
+        blocker_kind, blocker_label, blocker_question, blocker_explanation = _effective_blocker_fields(active_blocker, a.job)
         blocker_summary = {
             "id": active_blocker.id,
             "kind": blocker_kind,
@@ -4576,7 +4636,7 @@ def _draft_dict(draft: OpenAnswerDraft) -> dict:
 
 
 def _blocker_dict(b: Blocker) -> dict:
-    kind, field_label, question, explanation = _effective_blocker_fields(b)
+    kind, field_label, question, explanation = _effective_blocker_fields(b, b.application.job if b.application else None)
     return {
         "id": b.id, "application_id": b.application_id, "kind": kind, "field_label": field_label,
         "question": question, "explanation": explanation, "options": loads(b.options_json, []),

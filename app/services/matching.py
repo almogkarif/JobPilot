@@ -194,6 +194,10 @@ IEM_CONTEXT_TERMS = {
     "רכש", "לוגיסטיקה", "תכנון", "ייצור", "תפ\"י", "תפי", "אקסל", "מערכות מידע",
 }
 IEM_GENERIC_TITLE_TERMS = {"analyst", "operations", "project", "program", "planner", "planning", "coordinator", "quality", "business", "strategy", "אנליסט", "פרויקט", "תפעול", "תכנון", "איכות"}
+IEM_NON_PROFESSIONAL_TITLE_TERMS = {
+    "warehouse worker", "warehouse associate", "picker", "order picker", "store associate",
+    "מחסנאי", "מחסנאית", "מחסנאים", "מלקט", "מלקטת", "מלקטים",
+}
 KNOWN_COMPANIES = {
     "google": ["google", "alphabet"],
     "apple": ["apple"],
@@ -484,6 +488,8 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         return False, "outside_ee_scope"
     if "software quality" in title or "software infrastructure engineer" in title or "מהנדס.ת תשתיות תוכנה" in title:
         return False, "software_role_outside_iem_scope"
+    if any(term in title for term in IEM_NON_PROFESSIONAL_TITLE_TERMS):
+        return False, "iem_non_professional_operations_role"
     if any(term in title for term in IEM_STRONG_TITLE_TERMS):
         return True, "iem_title"
     context_hits = sum(1 for term in IEM_CONTEXT_TERMS if term in text)
