@@ -30,6 +30,12 @@ SUBMIT_TERMS = [
     "שלח מועמדות", "שליחה סופית",
 ]
 
+SMALL_CHOICE_MAX_OPTIONS = 6
+CHOICE_PLACEHOLDERS = {
+    "select", "select an option", "select option", "please select", "choose", "choose an option",
+    "choose option", "please choose", "בחר", "בחר תשובה", "נא לבחור",
+}
+
 
 class ApplicationBlocked(Exception):
     def __init__(self, kind: str, label: str, question: str, explanation: str, page_url: str, options=None):
@@ -227,6 +233,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         if unknown:
             field = unknown[0]
             label = _display_field_label(field)
+            choice_options = _small_choice_options(field)
+            if choice_options:
+                raise ApplicationBlocked(
+                    "choice_required", label, label,
+                    "נדרשת בחירה מאושרת כדי להמשיך. בחר אחת מהאפשרויות והסוכן ימשיך אוטומטית.",
+                    page.url, choice_options,
+                )
             missing = missing_profile_context(label)
             raise ApplicationBlocked(
                 "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
@@ -438,6 +451,27 @@ def _select_best(locator: Locator, value: str) -> bool:
     except Exception:
         return False
     return False
+
+
+def _small_choice_options(field: dict) -> list[str]:
+    """Return compact, user-selectable choices for a closed required question.
+
+    We intentionally keep this narrow: radio groups and native selects only,
+    with a small number of real options. Large selects (country, school, etc.)
+    and free-text/checkbox fields keep the normal blocker flow.
+    """
+    if field.get("type") != "radio" and field.get("tag") != "select":
+        return []
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in field.get("options", []) or []:
+        value = re.sub(r"\s+", " ", str(raw or "")).strip()
+        key = normalize(value)
+        if not value or not key or key in CHOICE_PLACEHOLDERS or key in seen:
+            continue
+        cleaned.append(value)
+        seen.add(key)
+    return cleaned if 2 <= len(cleaned) <= SMALL_CHOICE_MAX_OPTIONS else []
 
 
 def _dedupe_unknown(fields: list[dict]) -> list[dict]:

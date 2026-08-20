@@ -121,21 +121,32 @@ def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
         blocked = client.post(
             f"/api/agent/tasks/{application_id}/blocked",
             json={
-                "token": "change-me", "kind": "unknown_field", "field_label": "Family at Mobileye",
+                "token": "change-me", "kind": "choice_required", "field_label": "Family at Mobileye",
                 "question": "Is a family member employed by Mobileye?", "explanation": "Answer required",
                 "options": ["Yes", "No"],
             },
         ).json()
+        listed = next(item for item in client.get("/api/applications").json() if item["id"] == application_id)
+        assert listed["blocker"]["kind"] == "choice_required"
+        assert listed["blocker"]["options"] == ["Yes", "No"]
+
+        invalid = client.post(
+            f"/api/blockers/{blocked['id']}/resolve", json={"answer": "Maybe", "remember": False},
+        )
+        assert invalid.status_code == 400
+        assert next(item for item in client.get("/api/applications").json() if item["id"] == application_id)["status"] == "needs_input"
+
         with SessionLocal() as db:
             application = db.get(Application, application_id)
             application.mode = "auto"
             db.commit()
 
         resolved = client.post(
-            f"/api/blockers/{blocked['id']}/resolve", json={"answer": "No", "remember": True},
+            f"/api/blockers/{blocked['id']}/resolve", json={"answer": "No", "remember": False},
         )
 
     assert resolved.status_code == 200, resolved.text
+    assert resolved.json()["answer"] == "No"
     assert dispatched == [application_id]
 
 

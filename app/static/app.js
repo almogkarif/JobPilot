@@ -778,6 +778,7 @@ const statusLabel = (status) => ({
 const blockerMeta = (kind) => ({
   captcha: { icon: '🧩', label: 'CAPTCHA', short: 'נדרש אימות אנושי', tone: 'danger' },
   review_before_submit: { icon: '✓', label: 'ממתין לאישור', short: 'הטופס מוכן לשליחה', tone: 'warning' },
+  choice_required: { icon: '?', label: 'נדרשת בחירה', short: 'בחר אחת מהאפשרויות כדי להמשיך', tone: 'warning' },
   unknown_field: { icon: '?', label: 'חסר פרט', short: 'נדרשת תשובה שלך', tone: 'warning' },
   missing_profile_detail: { icon: '◌', label: 'חסר בפרופיל', short: 'נדרש להשלים פרטים אישיים', tone: 'warning' },
   linkedin_manual: { icon: 'in', label: 'LinkedIn ידני', short: 'נדרשת השלמה ידנית', tone: 'warning' },
@@ -2081,6 +2082,8 @@ function renderBlockerCard(blocker) {
     </div>`;
   } else if (blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') {
     interaction = `<div class="blocker-manual-note">הטופס זמין בקישור הישיר. לאחר שסיימת בו ידנית, אפשר לסמן את ההגשה כהושלמה.</div>`;
+  } else if (blocker.kind === 'choice_required' && Array.isArray(blocker.options) && blocker.options.length) {
+    interaction = `<div class="blocker-choice-options" aria-label="אפשרויות תשובה">${blocker.options.map((option) => `<button class="btn secondary small" type="button" data-choice-blocker="${blocker.id}" data-choice-application="${blocker.application_id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div>`;
   } else {
     interaction = `<div class="blocker-answer"><input id="answer-${blocker.id}" placeholder="כתוב תשובה מאושרת" />
       <label class="remember-label"><input id="remember-${blocker.id}" type="checkbox" /> זכור לפעם הבאה</label>
@@ -2108,6 +2111,7 @@ async function loadBlockers() {
   const root = $('#blockers-list');
   setPageContext('blockers', state.blockers.length);
   root.innerHTML = state.blockers.length ? state.blockers.map(renderBlockerCard).join('') : emptyState('✓', 'הכול מטופל', 'אין כרגע שאלות, אימותים או פעולות שמחכים לך.');
+  bindChoiceBlockerButtons(root);
 }
 
 async function resolveBlocker(id) {
@@ -2123,6 +2127,34 @@ async function resolveBlocker(id) {
   } catch (error) {
     toast(error.message);
   }
+}
+
+async function resolveChoiceBlocker(blockerId, applicationId, answer, button = null) {
+  if (!answer) return;
+  const originalText = button?.textContent || '';
+  if (button) { button.disabled = true; button.textContent = 'ממשיך…'; }
+  try {
+    await api(`/api/blockers/${blockerId}/resolve`, {
+      method: 'POST', body: JSON.stringify({ answer, remember: false }),
+    });
+    toast('התשובה נשמרה — ההגשה ממשיכה אוטומטית');
+    await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
+    if (Number(applicationId) === Number(trackedApplicationId)) startApplicationTracking(applicationId, false);
+  } catch (error) {
+    if (button) { button.disabled = false; button.textContent = originalText; }
+    toast(error.message);
+  }
+}
+
+function bindChoiceBlockerButtons(root) {
+  $$('[data-choice-blocker]', root).forEach((button) => {
+    button.onclick = () => resolveChoiceBlocker(
+      Number(button.dataset.choiceBlocker),
+      Number(button.dataset.choiceApplication),
+      button.dataset.choiceAnswer || '',
+      button,
+    );
+  });
 }
 
 async function resolveBlockerAction(id, action) {
@@ -3163,10 +3195,12 @@ const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה 
 function openNotifications(){setMobileTabMenu(false);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
 function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
-  const data=applicationTrackingData,events=data.events||[],types=new Set(events.map(event=>event.event_type)),status=data.application?.status||'';types.add('queued');
-  const failed=['failed','needs_input'].includes(status),verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
-  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;return `<li class="${done?'done':current?(failed?'failed':'active'):'pending'}"><i>${done?'✓':current&&failed?'!':index+1}</i><span><strong>${esc(title)}</strong><small>${esc(done?(event?.message||copy):copy)}</small></span></li>`}).join('');
-  return `<section class="application-live-tracker ${verified?'verified':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
+  const data=applicationTrackingData,events=data.events||[],types=new Set(events.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
+  const choiceOptions=blocker?.kind==='choice_required'&&Array.isArray(blocker.options)?blocker.options.filter(Boolean):[],choiceWaiting=status==='needs_input'&&choiceOptions.length>=2&&choiceOptions.length<=6;
+  const failed=['failed','needs_input'].includes(status)&&!choiceWaiting,verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
+  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(choiceWaiting?'choice-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&failed?'!':index+1;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(done?(event?.message||copy):copy)}</small></span></li>`}).join('');
+  const choicePanel=choiceWaiting?`<div class="application-live-choice"><strong>${esc(blocker.question||'נדרשת בחירה כדי להמשיך')}</strong><div>${choiceOptions.map((option)=>`<button type="button" data-choice-blocker="${blocker.id}" data-choice-application="${data.application.id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div><small>בחר תשובה וה־Agent יחזור אוטומטית להגשה עם הבחירה הזו.</small></div>`:'';
+  return `<section class="application-live-tracker ${verified?'verified':choiceWaiting?'has-choice':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
 }
 async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);renderNotificationCenter();if(['submitted','failed','needs_input'].includes(applicationTrackingData.application?.status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
 function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
@@ -3193,6 +3227,7 @@ function renderNotificationCenter() {
     return `<button class="notification-item" type="button" data-notification-view="${item.view}"><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
   }).join('') : (!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
   root.innerHTML=tracker+notices;
+  bindChoiceBlockerButtons(root);
   $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
 }
 function closeNotifications() {

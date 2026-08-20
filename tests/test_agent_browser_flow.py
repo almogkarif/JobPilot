@@ -2,7 +2,7 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import ApplicationBlocked, _display_field_label, _extract_fields, _file_already_uploaded, fill_application
+from agent.browser import ApplicationBlocked, _display_field_label, _extract_fields, _file_already_uploaded, _small_choice_options, fill_application
 
 
 def _launch(playwright):
@@ -132,6 +132,50 @@ def test_unknown_required_field_reports_aria_labelled_question_and_options():
         assert field["label"] == "האם תהיה מוכן לעבוד במשמרת ירח?"
         assert field["options"] == ["בחר תשובה", "כן", "לא"]
         browser.close()
+
+
+def test_small_choice_options_filters_placeholder_and_rejects_large_selects():
+    assert _small_choice_options({
+        "tag": "select", "type": "select-one", "options": ["Select an option", "Yes", "No"],
+    }) == ["Yes", "No"]
+    assert _small_choice_options({
+        "tag": "select", "type": "select-one", "options": ["Choose", "A", "B", "C", "D", "E", "F", "G"],
+    }) == []
+    assert _small_choice_options({
+        "tag": "input", "type": "text", "options": ["Yes", "No"],
+    }) == []
+
+
+def test_required_small_select_becomes_choice_blocker():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form>
+            <div role="group">
+              <div id="family-question">Is a family member currently employed by Mobileye?</div>
+              <select name="family" aria-labelledby="family-question" required>
+                <option value="">Select an option</option><option>Yes</option><option>No</option>
+              </select>
+            </div>
+            <button type="submit">Submit Application</button>
+          </form>
+        """))
+        task = {
+            "job": {"apply_url": "https://careers.example.test/apply"},
+            "profile": {"full_name": "Demo Candidate"},
+            "answers": {},
+            "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The closed required question should pause for an inline choice")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "choice_required"
+            assert blocker.question == "Is a family member currently employed by Mobileye?"
+            assert blocker.options == ["Yes", "No"]
+        finally:
+            browser.close()
 
 
 def test_comeet_generated_field_name_uses_plain_text_ancestor_question():

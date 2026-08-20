@@ -2800,6 +2800,16 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     answer = payload.answer.strip()
     if not answer:
         raise HTTPException(400, "Answer is required")
+    if blocker.kind == "choice_required":
+        options = [str(option).strip() for option in loads(blocker.options_json, []) if str(option).strip()]
+        answer_key_normalized = " ".join(answer.split()).casefold()
+        matched_option = next(
+            (option for option in options if " ".join(option.split()).casefold() == answer_key_normalized),
+            None,
+        )
+        if matched_option is None:
+            raise HTTPException(400, "Choose one of the available options")
+        answer = matched_option
 
     blocker.answer = answer
     blocker.remember_answer = payload.remember
@@ -4015,6 +4025,9 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
             "page_url": active_blocker.page_url,
             "screenshot_url": f"/api/blockers/{active_blocker.id}/screenshot" if active_blocker.screenshot_path else "",
         }
+        blocker_options = loads(active_blocker.options_json, [])
+        if blocker_options:
+            blocker_summary["options"] = blocker_options
 
     status = a.status
     if status == "applying" and active_blocker:
