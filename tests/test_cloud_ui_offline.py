@@ -111,7 +111,7 @@ def test_cloud_without_session_shows_login_gate():
         browser.close()
 
 
-def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
+def test_cloud_regular_user_can_submit_but_cannot_manage_worker_credentials():
     chromium = _chromium_path()
     if not chromium:
         pytest.skip("No system Chromium executable")
@@ -142,13 +142,13 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
               window.fetch=async(input,options={})=>{
                 const url=String(input); let data={}; let status=200;
                 if(url==='/api/auth/config') data={mode:'supabase',supabase_url:'https://project.supabase.co',supabase_publishable_key:'publishable',google_enabled:true};
-                else if(url==='/api/auth/me') data={authenticated:true,mode:'supabase',user:{id:'friend-user',email:'friend@example.com',provider:'google',role:'user'},capabilities:{application_agent:false}};
+                else if(url==='/api/auth/me') data={authenticated:true,mode:'supabase',user:{id:'friend-user',email:'friend@example.com',provider:'google',role:'user'},capabilities:{application_agent:true,developer_tools:false}};
                 else if(url==='/api/security/status') data={configured:false,locked:false,cloud_auth:true};
                 else if(url==='/api/career-tracks') data=tracks;
                 else if(url==='/api/profile') data=profile;
                 else if(url.startsWith('/api/dashboard')) data={total_jobs:1,strong_matches:1,queued:0,applying:0,submitted:0,needs_input:0,open_blockers:0,due_reminders:0,readiness:{ready:true,profile_complete:true,resume_uploaded:false,sources_enabled:2,sources_with_errors:0,agent_token_secure:false},scan:{running:false,last_result:null,progress:{phase:'idle',completed:0,total:0,active_sources:[]}},recent_jobs:[]};
-                else if(url==='/api/agent/status') data={connected:false,online:0,devices:[],available:false,reason:'סוכן ההגשות פתוח כרגע רק לחשבון הראשי'};
-                else if(url==='/api/agent-devices') data={devices:[],available:false,reason:'סוכן ההגשות פתוח כרגע רק לחשבון הראשי'};
+                else if(url==='/api/agent/status') data={connected:true,online:0,devices:[],available:true,centrally_managed:true};
+                else if(url==='/api/agent-devices') data={devices:[],available:false,centrally_managed:true,reason:'ה־worker המרכזי מנוהל על ידי מנהל המערכת'};
                 else if(url==='/api/answer-library'||url==='/api/resumes'||url==='/api/blockers'||url==='/api/applications'||url==='/api/sources'||url.startsWith('/api/jobs?')) data=[];
                 return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
               };
@@ -158,13 +158,14 @@ def test_cloud_non_owner_cannot_pair_or_enable_application_agent():
         page.add_script_tag(content=js)
         page.wait_for_function("document.querySelector('#account-chip') && !document.querySelector('#account-chip').hidden")
         auto_submit = page.locator('input[name="auto_submit_enabled"]')
-        assert auto_submit.is_disabled()
-        assert not auto_submit.is_checked()
-        assert page.locator('#agent-state').inner_text() == 'לא זמין בחשבון זה'
+        assert auto_submit.is_enabled()
+        assert auto_submit.is_checked()
+        assert page.locator('#agent-state').inner_text() == 'מחובר · 0'
+        assert page.locator('#admin-worker-setting').is_hidden()
         page.locator('#account-chip').click()
         page.wait_for_function("document.querySelector('#modal').classList.contains('open')")
         modal_text = page.locator('#modal-content').inner_text()
-        assert 'פעיל רק בחשבון הראשי' in modal_text
+        assert 'ה־worker מנוהל עבורך' in modal_text
         assert page.get_by_role('button', name='חבר Mac חדש').count() == 0
         assert errors == []
         browser.close()

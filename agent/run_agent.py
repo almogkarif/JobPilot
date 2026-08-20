@@ -11,7 +11,7 @@ import httpx
 from playwright.sync_api import sync_playwright
 
 from .browser import ApplicationBlocked, fill_application
-from .config import (AGENT_CACHE_DIR, AGENT_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS,
+from .config import (AGENT_CACHE_DIR, AGENT_ID, APPLICATION_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS,
                      RUN_ONCE, SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
 
 
@@ -226,7 +226,9 @@ def main():
         )
         while True:
             try:
-                response = api("GET", "/api/agent/tasks/next", params={"agent_id": AGENT_ID, "worker_type": WORKER_TYPE})
+                response = api("GET", "/api/agent/tasks/next", params={
+                    "agent_id": AGENT_ID, "worker_type": WORKER_TYPE, "application_id": APPLICATION_ID,
+                })
                 task = response.get("task")
                 if task:
                     run_task(context, task)

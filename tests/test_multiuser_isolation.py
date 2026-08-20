@@ -155,7 +155,20 @@ def test_agent_token_is_bound_to_its_user(monkeypatch):
             assert task_a["application"]["id"] == app_ids["multi-user-a"]
             # B's queued item remains private and unclaimed because B cannot pair an Agent.
             with user_session("multi-user-b") as db:
-                assert db.get(Application, app_ids["multi-user-b"]).status == "queued"
+                application_b = db.get(Application, app_ids["multi-user-b"])
+                assert application_b.status == "queued"
+                application_b.mode = "auto"
+                application_b.job.apply_url = "https://boards.greenhouse.io/example/jobs/123"
+                db.commit()
+
+            # The administrator-managed cloud credential may claim the exact
+            # dispatched application for B, without exposing the credential to B.
+            central_task = client.get("/api/agent/tasks/next", params={
+                "agent_id": "github-actions-test", "worker_type": "cloud",
+                "application_id": app_ids["multi-user-b"],
+            }, headers={"X-JobPilot-Agent-Token": token_a}).json()["task"]
+            assert central_task["application"]["id"] == app_ids["multi-user-b"]
+            assert central_task["application"]["job"]["title"] == "Agent B Job"
     finally:
         for identity in USERS.values():
             _cleanup_user(identity.user_id)

@@ -463,7 +463,7 @@ def auth_me(request: Request):
             "is_guest": is_guest,
         },
         "capabilities": {
-            "application_agent": False if is_guest else application_agent_allowed(email=identity.email),
+            "application_agent": not is_guest,
             "developer_tools": False if is_guest else _developer_tools_allowed(identity),
             "write": not is_guest,
         },
@@ -1424,11 +1424,6 @@ def _apply_profile_changes(
         if value is not None:
             setattr(profile, field, value)
 
-    if "auto_submit_enabled" in values and settings.auth_mode == "supabase":
-        account = db.scalar(select(AppIdentity).where(AppIdentity.auth_user_id == current_user_id(db)))
-        if not account or not application_agent_allowed(email=account.email):
-            profile.auto_submit_enabled = False
-
     # Blank/omitted means keep the encrypted-at-rest application password value.
     if values.get("application_password"):
         profile.application_password = encrypt_credential(values["application_password"])
@@ -2173,7 +2168,6 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/jobs/{job_id}/queue")
 async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     if payload.mode not in {"review", "batch", "auto"}:
         raise HTTPException(400, "Invalid mode")
     job = _active_job_or_404(db, job_id)
@@ -2247,7 +2241,6 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
 
 @app.get("/api/jobs/{job_id}/application-preview")
 def application_preview(job_id: int, resume_id: int | None = None, db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     job = _active_job_or_404(db, job_id)
     selected_resume = db.get(ResumeProfile, resume_id) if resume_id else _best_resume_for_job(db, job)
     if selected_resume and selected_resume.career_track != job.career_track:
@@ -2285,13 +2278,11 @@ def _campaign_dict(campaign: ApplicationCampaign) -> dict:
 
 @app.get("/api/application-campaign")
 def get_application_campaign(db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     return _campaign_dict(_campaign_for_active_track(db))
 
 
 @app.patch("/api/application-campaign")
 def update_application_campaign(payload: CampaignUpdate, db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     campaign = _campaign_for_active_track(db)
     values = payload.model_dump(exclude_unset=True)
     if "blocked_companies" in values:
@@ -2306,7 +2297,6 @@ def update_application_campaign(payload: CampaignUpdate, db: Session = Depends(g
 
 @app.post("/api/application-campaign/dry-run")
 def dry_run_application_campaign(db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     campaign = _campaign_for_active_track(db)
     profile = get_user_profile(db)
     blocked = {name.casefold() for name in loads(campaign.blocked_companies_json, [])}
@@ -2355,7 +2345,6 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
 
 @app.post("/api/application-campaign/runs/{run_id}/activate")
 async def activate_application_campaign(run_id: int, request: Request, db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     body = await request.json()
     raw_token = str(body.get("preview_token") or "")
     run = db.get(CampaignRun, run_id)
@@ -2424,7 +2413,6 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
 
 @app.get("/api/application-campaign/runs")
 def list_application_campaign_runs(limit: int = Query(25, ge=1, le=100), db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     campaign = _campaign_for_active_track(db)
     runs = db.scalars(select(CampaignRun).where(CampaignRun.campaign_id == campaign.id).order_by(
         desc(CampaignRun.created_at), desc(CampaignRun.id)
@@ -2613,7 +2601,6 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 
 @app.post("/api/applications/{application_id}/retry")
 def retry_application(application_id: int, db: Session = Depends(get_db)):
-    require_application_agent_owner(db)
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
@@ -3329,7 +3316,8 @@ def list_agent_devices(db: Session = Depends(get_db)):
         require_application_agent_owner(db)
     except HTTPException as exc:
         if exc.status_code == 403:
-            return {"devices": [], "cloud_mode": settings.auth_mode == "supabase", "available": False, "reason": "סוכן ההגשות פתוח כרגע רק לחשבון הראשי"}
+            return {"devices": [], "cloud_mode": settings.auth_mode == "supabase", "available": False,
+                    "centrally_managed": True, "reason": "ה־worker המרכזי מנוהל על ידי מנהל המערכת"}
         raise
     devices = db.scalars(select(AgentDevice).order_by(desc(AgentDevice.last_seen_at), desc(AgentDevice.created_at))).all()
     return {"devices": [device_dict(device) for device in devices], "cloud_mode": settings.auth_mode == "supabase", "available": True}
@@ -3360,7 +3348,13 @@ def agent_status(db: Session = Depends(get_db)):
         require_application_agent_owner(db)
     except HTTPException as exc:
         if exc.status_code == 403:
-            return {"connected": False, "online": 0, "devices": [], "available": False, "reason": "סוכן ההגשות פתוח כרגע רק לחשבון הראשי"}
+            db.expunge_all()
+            db.info.pop("user_id", None)
+            device = db.scalar(select(AgentDevice).where(
+                AgentDevice.enabled.is_(True), AgentDevice.name.startswith("GitHub Actions Worker")
+            ).order_by(desc(AgentDevice.created_at)).limit(1))
+            return {"connected": bool(device), "online": 0, "devices": [], "available": True,
+                    "centrally_managed": True, "reason": "ה־worker המרכזי מנוהל על ידי מנהל המערכת"}
         raise
     devices = db.scalars(select(AgentDevice).where(AgentDevice.enabled.is_(True))).all()
     payload = [device_dict(device) for device in devices]
@@ -3429,14 +3423,25 @@ async def cron_scan(request: Request):
     return {"status": "started" if started else "not_due", "started_users": started, "users": results}
 
 
-def _check_agent_token(db: Session, token: str, *, agent_id: str = ""):
-    return authenticate_agent(db, token, agent_id=agent_id)
+def _check_agent_token(db: Session, token: str, *, agent_id: str = "", application_id: int | None = None):
+    device = authenticate_agent(db, token, agent_id=agent_id)
+    # The administrator's GitHub worker credential is intentionally privileged,
+    # but every request is narrowed immediately to the application named in the
+    # workflow dispatch. Regular users never receive or manage this credential.
+    if settings.auth_mode == "supabase" and device is not None and application_id:
+        db.expunge_all()
+        db.info.pop("user_id", None)
+        owner_id = db.scalar(select(Application.user_id).where(Application.id == application_id))
+        if not owner_id:
+            raise HTTPException(404, "Application not found")
+        set_user_scope(db, owner_id)
+    return device
 
 
 @app.get("/api/agent/tasks/{application_id}/resume")
 def agent_resume_file(application_id: int, request: Request, token: str = "", agent_id: str = "", db: Session = Depends(get_db)):
     agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
-    _check_agent_token(db, agent_token, agent_id=agent_id)
+    _check_agent_token(db, agent_token, agent_id=agent_id, application_id=application_id)
     application = db.get(Application, application_id)
     if not application or not application.resume_path:
         raise HTTPException(404, "Resume not found")
@@ -3456,7 +3461,7 @@ def agent_resume_file(application_id: int, request: Request, token: str = "", ag
 @app.post("/api/agent/tasks/{application_id}/screenshot")
 async def agent_upload_screenshot(application_id: int, token: str = Form(...), agent_id: str = Form(""),
                                   file: UploadFile = File(...), db: Session = Depends(get_db)):
-    _check_agent_token(db, token, agent_id=agent_id)
+    _check_agent_token(db, token, agent_id=agent_id, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -3470,19 +3475,22 @@ async def agent_upload_screenshot(application_id: int, token: str = Form(...), a
 
 
 @app.get("/api/agent/tasks/next")
-def agent_next_task(request: Request, agent_id: str, token: str = "", worker_type: str = "local", db: Session = Depends(get_db)):
+def agent_next_task(request: Request, agent_id: str, token: str = "", worker_type: str = "local",
+                    application_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
     agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
-    _check_agent_token(db, agent_token, agent_id=agent_id)
-    track = active_track(get_user_profile(db))
     worker_type = str(worker_type or "local").strip().lower()
+    _check_agent_token(db, agent_token, agent_id=agent_id,
+                       application_id=application_id if worker_type == "cloud" else None)
+    if worker_type == "cloud" and application_id == 0:
+        return {"task": None}
+    track = active_track(get_user_profile(db))
     if worker_type == "cloud":
-        candidates = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
-            Application.status == "queued", Application.mode == "auto", Job.career_track == track,
-        ).order_by(Application.updated_at).limit(50)).all()
         cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
-        application = next((item for item in candidates if detect_adapter(
-            item.job.apply_url, item.job.source.kind if item.job.source else ""
-        ).key in cloud_adapters), None)
+        application = db.get(Application, application_id)
+        if (not application or application.status != "queued" or application.mode != "auto"
+                or detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "").key
+                not in cloud_adapters):
+            application = None
     else:
         # Automatic submissions are background-only. A visible local browser may
         # claim review tasks, but must never pop open for an automatic campaign.
@@ -3573,7 +3581,7 @@ def skill_suggestions(text: str = Query("", max_length=20_000), db: Session = De
 
 @app.post("/api/agent/tasks/{application_id}/blocked")
 def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session = Depends(get_db)):
-    _check_agent_token(db, payload.token)
+    _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -3622,7 +3630,7 @@ def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session
 
 @app.post("/api/agent/tasks/{application_id}/progress")
 def agent_progress(application_id: int, payload: AgentProgressRequest, db: Session = Depends(get_db)):
-    _check_agent_token(db, payload.token)
+    _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -3646,7 +3654,7 @@ def agent_progress(application_id: int, payload: AgentProgressRequest, db: Sessi
 
 @app.post("/api/agent/tasks/{application_id}/submitted")
 def agent_submitted(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
-    _check_agent_token(db, payload.token)
+    _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -3683,7 +3691,7 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
 
 @app.post("/api/agent/tasks/{application_id}/failed")
 def agent_failed(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
-    _check_agent_token(db, payload.token)
+    _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -3711,7 +3719,7 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
 
 @app.post("/api/agent/tasks/{application_id}/recover")
 def agent_recover(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
-    _check_agent_token(db, payload.token)
+    _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application: raise HTTPException(404, "Application not found")
     previous_status = application.status

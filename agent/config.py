@@ -11,6 +11,7 @@ AUTO_SUBMIT = os.getenv("JOBPILOT_AUTO_SUBMIT", "false").lower() == "true"
 POLL_SECONDS = int(os.getenv("JOBPILOT_POLL_SECONDS", "15"))
 TASK_TIMEOUT_SECONDS = int(os.getenv("JOBPILOT_TASK_TIMEOUT_SECONDS", "180"))
 RUN_ONCE = os.getenv("JOBPILOT_RUN_ONCE", "false").lower() == "true"
+APPLICATION_ID = int(os.getenv("JOBPILOT_APPLICATION_ID", "0") or 0)
 BROWSER_PROFILE = Path(os.getenv("JOBPILOT_BROWSER_PROFILE", str(ROOT / "agent" / "browser-profile")))
 SCREENSHOT_DIR = ROOT / "data" / "screenshots"
 AGENT_CACHE_DIR = ROOT / "data" / "agent-cache"

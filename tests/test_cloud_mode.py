@@ -228,7 +228,7 @@ def test_supabase_storage_namespaces_objects_by_user(monkeypatch):
     assert any("users/user-b/resumes/cv.pdf" in url for url in calls)
 
 
-def test_application_agent_is_restricted_to_configured_primary_email(monkeypatch):
+def test_worker_credentials_are_admin_only_but_regular_users_can_access_submission_flow(monkeypatch):
     monkeypatch.setattr(settings, "auth_mode", "supabase")
     monkeypatch.setattr(settings, "storage_mode", "local")
     monkeypatch.setattr(settings, "owner_email", "owner@example.com")
@@ -245,12 +245,12 @@ def test_application_agent_is_restricted_to_configured_primary_email(monkeypatch
         with TestClient(app) as client:
             assert client.get("/api/profile", headers=headers).status_code == 200
             me = client.get("/api/auth/me", headers=headers).json()
-            assert me["capabilities"]["application_agent"] is False
+            assert me["capabilities"]["application_agent"] is True
             devices = client.get("/api/agent-devices", headers=headers)
             assert devices.status_code == 200
             assert devices.json()["available"] is False
             assert client.post("/api/agent-devices", headers=headers, json={"name": "Friend Mac"}).status_code == 403
-            assert client.post("/api/jobs/999999/queue", headers=headers, json={"mode": "review"}).status_code == 403
+            assert client.post("/api/jobs/999999/queue", headers=headers, json={"mode": "review"}).status_code == 404
     finally:
         with SessionLocal() as db:
             db.execute(delete(AgentDevice).where(AgentDevice.user_id == "friend-agent-block"))

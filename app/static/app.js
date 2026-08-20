@@ -417,7 +417,7 @@ async function openCloudAccount() {
     <small class="cloud-users-note">הרשאות הצטרפות מנוהלות כרגע דרך JOBPILOT_ALLOWED_EMAILS בשרת.</small>
   </div>` : '';
   const agentSection = devices.available === false
-    ? `<div class="agent-restricted-note"><strong>Application Agent עדיין סגור לחשבון הזה</strong><span>בשלב הבטא סוכן ההגשות האוטומטי פעיל רק בחשבון הראשי. חיפוש משרות, דירוג ושאר האתר ממשיכים לעבוד כרגיל.</span></div>`
+    ? `<div class="agent-restricted-note"><strong>ה־worker מנוהל עבורך</strong><span>מנהל המערכת הגדיר את תשתית ההגשות המרכזית. אין בחשבון שלך token או הגדרת GitHub, ואפשר להגיש משרות נתמכות ישירות ברקע.</span></div>`
     : `<div class="panel-head"><div><span class="kicker">Application Agent</span><h3>מכשירי Agent</h3></div><button class="btn secondary small" type="button" onclick="createAgentDevice()">חבר Mac חדש</button></div><div class="agent-device-list">${rows || '<div class="empty-state"><strong>אין Agent מחובר</strong><span>צור token חד-פעמי וחבר את ה-Mac שלך.</span></div>'}</div>`;
   modal(`<span class="kicker">JobPilot Cloud</span><h2>החשבון והמכשירים שלך</h2>
     <p>${esc(me.user?.email || '')}</p>
@@ -3940,6 +3940,7 @@ function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}
 
 function configureDeveloperTools(){
   const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  const workerSetting=$('#admin-worker-setting');if(workerSetting)workerSetting.hidden=!allowed;
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }
 
@@ -3947,6 +3948,7 @@ let backgroundWorkerDevice=null;
 const GITHUB_ACTIONS_SECRETS_URL='https://github.com/almogkarif/JobPilot/settings/secrets/actions';
 async function loadBackgroundWorkerSetup(){
   const status=$('#background-worker-status'),create=$('#background-worker-create'),test=$('#background-worker-test'),revoke=$('#background-worker-revoke');if(!status)return;
+  if($('#admin-worker-setting')?.hidden)return;
   try{
     const data=await api('/api/agent-devices');
     backgroundWorkerDevice=(data.devices||[]).find(item=>item.enabled&&String(item.name||'').startsWith('GitHub Actions Worker'))||null;

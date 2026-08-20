@@ -27,6 +27,7 @@ jobs:
       JOBPILOT_AGENT_HEADLESS: 'true'
       JOBPILOT_AUTO_SUBMIT: 'false'
       JOBPILOT_RUN_ONCE: 'true'
+      JOBPILOT_APPLICATION_ID: ${{ inputs.application_id }}
       JOBPILOT_TASK_TIMEOUT_SECONDS: '600'
       JOBPILOT_BROWSER_PROFILE: /tmp/jobpilot-browser-profile
     steps:
