@@ -243,8 +243,12 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
 
     # Recent dashboard job opens the same rich job dialog as the Jobs tab.
     page.get_by_role("button", name="לוח בקרה").click()
+    page.locator("#view-dashboard.active").wait_for(state="visible")
     recent = page.locator("#recent-jobs .job-row").first
-    assert recent.locator(".auto-submit-badge.manual").is_visible()
+    recent.wait_for(state="visible")
+    manual_badge = recent.locator(".auto-submit-badge.manual")
+    manual_badge.wait_for(state="visible")
+    assert manual_badge.is_visible()
     recent.click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
