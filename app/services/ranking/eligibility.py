@@ -5,7 +5,10 @@ from datetime import timezone
 from ...utils import loads
 from ..location_filter import is_israel_location
 from ..matching import hard_exclusion_reason, track_job_relevance
-from .experience import SENIORITY_ORDER, detect_seniority, employment_type, parse_experience, profile_seniority
+from .experience import (
+    SENIORITY_ORDER, detect_seniority, employment_type, experience_requirement_buckets,
+    parse_experience, profile_experience_options, profile_seniority,
+)
 
 LOCATION_ALIASES = {
     "israel": {"israel", "ישראל"},
@@ -65,10 +68,33 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
     exp_min, exp_max = parse_experience(job)
     years = float(getattr(profile, "years_experience", 0) or 0)
     gap = None if exp_min is None else max(0.0, exp_min - years)
+    selected_experience = profile_experience_options(profile)
+    requirement_buckets = experience_requirement_buckets(exp_min, exp_max)
     experience_status = "unknown"
-    if gap is None:
+    if exp_min is None:
         unknown.append("experience")
+    elif selected_experience:
+        # The profile UI intentionally allows several experience values. Treat
+        # those choices as the hard filter instead of collapsing them to max()
+        # and then quietly allowing an additional configured gap.
+        matching_buckets = sorted(selected_experience & requirement_buckets)
+        if matching_buckets:
+            experience_status = "match"
+            reasons.append(
+                "Experience requirement matches selected profile range: "
+                + ", ".join(matching_buckets)
+            )
+        else:
+            experience_status = "mismatch"
+            state = "excluded"
+            required_label = ", ".join(sorted(requirement_buckets)) or f"{exp_min:g}+"
+            selected_label = ", ".join(sorted(selected_experience))
+            reasons.append(
+                f"Experience requirement ({required_label}) is outside selected profile values ({selected_label})"
+            )
     elif gap <= config.realistic_experience_gap:
+        # Legacy/fallback profiles without the multi-select field keep the old
+        # gap-based behavior so upgrades never fail closed unexpectedly.
         experience_status = "match"
         reasons.append(f"Experience realistic: requires {exp_min:g}, profile {years:g}")
     elif gap < config.exclude_experience_gap:
@@ -152,7 +178,9 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
         "eligible": state != "excluded", "state": state, "tier": state,
         "career_track_status": track_status, "experience_status": experience_status,
         "experience_gap": gap, "required_experience_min": exp_min, "required_experience_max": exp_max,
-        "profile_experience": years, "seniority_status": seniority_status,
+        "required_experience_buckets": sorted(requirement_buckets),
+        "profile_experience": years, "profile_experience_options": sorted(selected_experience),
+        "seniority_status": seniority_status,
         "job_seniority": job_level, "profile_seniority": user_level,
         "location_status": location_status, "job_location": job_location or None,
         "recency_status": recency_status, "age_days": age_days,

@@ -60,7 +60,7 @@ from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.matching import build_match_context, score_job
 from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
-from .services.ranking.service import (get_settings as get_ranking_settings, persist_v2_result,
+from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result,
                                        rank_job as run_ranking, result_is_stale, v2_config)
 from .services.career_tracks import (
     CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
@@ -268,13 +268,39 @@ async def _daily_scheduler() -> None:
             await asyncio.gather(*tasks, return_exceptions=True)
 
 
-def _prepare_user_workspace(user_id: str) -> tuple[str, list[int]]:
+def _v2_engine_refresh_required(db: Session, career_track: str) -> bool:
+    """Return whether persisted V2 rows predate the current ranking semantics.
+
+    Engine-version upgrades are rare, but when eligibility rules change we must not
+    keep serving old rows until the user happens to edit the profile or run a scan.
+    The actual work is queued outside startup; this check only detects old-version
+    rows for the active track.
+    """
+    ranking_settings = get_ranking_settings(db)
+    if not (ranking_settings.active_engine == "v2" or ranking_settings.v2_shadow_mode):
+        return False
+    current_version = get_ranking_engine("v2").version
+    outdated = db.scalar(
+        select(JobRanking.id)
+        .join(Job, JobRanking.job_id == Job.id)
+        .where(
+            Job.career_track == normalize_track(career_track),
+            Job.is_active.is_(True),
+            JobRanking.engine == "v2",
+            JobRanking.engine_version != current_version,
+        )
+        .limit(1)
+    )
+    return outdated is not None
+
+
+def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool]:
     repaired_source_ids: list[int] = []
     with user_session(user_id) as db:
         initialize_database(db)
         profile = get_user_profile(db)
         if not profile:
-            return DEFAULT_TRACK, []
+            return DEFAULT_TRACK, [], False
         ensure_track_state(profile)
         startup_track = active_track(profile)
         pending_resume_analysis = db.scalars(select(ResumeProfile).where(
@@ -310,7 +336,20 @@ def _prepare_user_workspace(user_id: str) -> tuple[str, list[int]]:
         if stuck:
             db.add(AuditLog(event_type="stuck_tasks_recovered", message=f"Recovered {len(stuck)} stale Agent tasks"))
             db.commit()
-        return startup_track, repaired_source_ids
+        refresh_v2 = _v2_engine_refresh_required(db, startup_track)
+        if refresh_v2:
+            current_version = get_ranking_engine("v2").version
+            db.execute(
+                update(JobRanking)
+                .where(
+                    JobRanking.engine == "v2",
+                    JobRanking.job_id.in_(select(Job.id).where(Job.career_track == startup_track)),
+                    JobRanking.engine_version != current_version,
+                )
+                .values(stale=True)
+            )
+            db.commit()
+        return startup_track, repaired_source_ids, refresh_v2
 
 
 @asynccontextmanager
@@ -334,7 +373,13 @@ async def lifespan(_: FastAPI):
     # authenticated login; existing cloud accounts are maintained independently here.
     for user_id in _known_user_ids():
         try:
-            startup_track, repaired = _prepare_user_workspace(user_id)
+            startup_track, repaired, refresh_v2 = _prepare_user_workspace(user_id)
+            if refresh_v2:
+                # Ranking-engine upgrades must take effect immediately even when the
+                # user has not edited the profile. Recompute in the existing daemon
+                # queue so Render startup remains fast. V1 is refreshed too because
+                # Job.experience_min/max are shared display fields.
+                _queue_profile_derived_refresh(user_id, startup_track, True, False, True)
             if repaired and settings.scheduler_enabled:
                 task = asyncio.create_task(_run_targeted_scan(user_id, set(repaired), startup_track))
                 startup_retry_tasks.add(task)
@@ -570,7 +615,9 @@ def _attach_v2_rankings(db: Session, jobs: list[Job]) -> None:
     if not ids:
         return
     rows = db.scalars(select(JobRanking).where(
-        JobRanking.job_id.in_(ids), JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
+        JobRanking.job_id.in_(ids), JobRanking.engine == "v2",
+        JobRanking.engine_version == get_ranking_engine("v2").version,
+        JobRanking.stale.is_(False), JobRanking.error == "",
     )).all()
     by_job = {row.job_id: row for row in rows}
     for job in jobs:
@@ -802,7 +849,11 @@ def developer_rerank(request: Request, db: Session = Depends(get_db)):
     _require_developer(request)
     profile = get_user_profile(db)
     track = active_track(profile)
-    _queue_profile_derived_refresh(current_user_id(db), track, rescore_jobs=True, refresh_resumes=False)
+    ranking_settings = get_ranking_settings(db)
+    _queue_profile_derived_refresh(
+        current_user_id(db), track, rescore_jobs=True, refresh_resumes=False,
+        rank_v2=ranking_settings.active_engine == "v2" or ranking_settings.v2_shadow_mode,
+    )
     return {"ok": True, "career_track": track, "queue": _developer_refresh_status(current_user_id(db))}
 
 
@@ -1112,11 +1163,20 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
         job_rows = db.execute(
             select(
                 Job.career_track,
-                func.sum(case((Job.is_active.is_(True), 1), else_=0)),
                 func.sum(case((
                     Job.is_active.is_(True)
                     & JobRanking.stale.is_(False)
                     & (JobRanking.error == "")
+                    & (JobRanking.engine_version == get_ranking_engine("v2").version)
+                    & (JobRanking.eligibility_state != "excluded"),
+                    1,
+                ), else_=0)),
+                func.sum(case((
+                    Job.is_active.is_(True)
+                    & JobRanking.stale.is_(False)
+                    & (JobRanking.error == "")
+                    & (JobRanking.engine_version == get_ranking_engine("v2").version)
+                    & (JobRanking.eligibility_state != "excluded")
                     & JobRanking.tier.in_(("top_match", "strong_match")),
                     1,
                 ), else_=0)),
@@ -1278,8 +1338,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ranking_settings = get_ranking_settings(catalog_db)
         if ranking_settings.active_engine == "v2":
             top_jobs_statement = top_jobs_statement.join(JobRanking, JobRanking.job_id == Job.id).where(
-                JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
-                JobRanking.eligibility_state != "excluded",
+                JobRanking.engine == "v2",
+                JobRanking.engine_version == get_ranking_engine("v2").version,
+                JobRanking.stale.is_(False), JobRanking.error == "", JobRanking.eligibility_state != "excluded",
             ).order_by(desc(_v2_tier_order()), desc(JobRanking.score), desc(Job.published_at), desc(Job.discovered_at))
         else:
             top_jobs_statement = top_jobs_statement.order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at))
@@ -1902,7 +1963,9 @@ def list_jobs(
         count_statement = select(func.count()).select_from(Job).where(Job.career_track == career_track)
         if v2_active:
             ranking_filter = (
-                JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.error == "",
+                JobRanking.engine == "v2",
+                JobRanking.engine_version == get_ranking_engine("v2").version,
+                JobRanking.stale.is_(False), JobRanking.error == "",
                 JobRanking.eligibility_state != "excluded", JobRanking.score >= min_score,
             )
             statement = statement.join(JobRanking, JobRanking.job_id == Job.id).where(*ranking_filter)

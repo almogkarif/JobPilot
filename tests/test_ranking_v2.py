@@ -12,7 +12,9 @@ from app.services.ranking.service import rank_job
 NOW = datetime(2026, 8, 18, tzinfo=timezone.utc)
 
 
-def profile(track="computer_science", *, years=3, skills=None, titles=None, excluded=None, locations=None):
+def profile(track="computer_science", *, years=3, years_options=None, skills=None, titles=None, excluded=None, locations=None):
+    if years_options is None:
+        years_options = ["5+" if float(years) >= 5 else str(int(years))]
     return Profile(
         user_id="ranking-test", active_career_track=track, years_experience=years,
         skills_json=repr(skills or []).replace("'", '"'),
@@ -20,7 +22,7 @@ def profile(track="computer_science", *, years=3, skills=None, titles=None, excl
         excluded_keywords_json=repr(excluded or []).replace("'", '"'),
         preferred_locations_json=repr(locations or ["Israel"]).replace("'", '"'),
         preferred_work_modes_json='["hybrid","remote","onsite"]', keywords_json="[]",
-        years_experience_options_json=f'["{years}"]', work_authorization=True, needs_sponsorship=False,
+        years_experience_options_json=repr(years_options).replace("'", '"'), work_authorization=True, needs_sponsorship=False,
     )
 
 
@@ -41,6 +43,17 @@ def score(candidate, opening, config=None):
     ("computer_science", "Frontend Developer", "React TypeScript web application", True),
     ("computer_science", "Machine Learning Engineer", "Python deep learning computer science", True),
     ("computer_science", "RF Hardware Engineer", "RF circuit board electronics", False),
+    ("computer_science", "DFT Engineer", "Electrical Engineering, Computer Engineering, ATPG and MBIST", False),
+    ("computer_science", "Backend STA Engineer", "Silicon physical design and static timing analysis", False),
+    ("computer_science", "Logic Design Engineer", "Computer Engineering, RTL, SystemVerilog and ASIC design", False),
+    ("computer_science", "CPU Power Architect", "Computer Science or Computer Engineering. Silicon power architecture", False),
+    ("computer_science", "Optical Sub-System Architect", "Optical and electrical system design for silicon platforms", False),
+    ("computer_science", "Wireless Connectivity System and Architecture Engineer", "SoC validation, Computer Engineering and semiconductor technologies", False),
+    ("computer_science", "Power & Performance Engineer", "AI hardware, silicon, chip development and Electrical Engineering", False),
+    ("computer_science", "Design Verification Engineer", "SystemVerilog UVM ASIC and silicon verification", False),
+    ("computer_science", "Computer Architecture Engineer", "CPU microarchitecture, RTL and semiconductor design", False),
+    ("computer_science", "Power Management Firmware Architect", "Embedded firmware, C++, operating systems and SoC power management", True),
+    ("computer_science", "Principal Open-Source Networking Architect", "Software for Open Networking, SONiC, Linux and network operating systems", True),
     ("computer_science", "Procurement Specialist", "supply chain purchasing", False),
     ("electrical_engineering", "RTL Design Engineer", "SystemVerilog ASIC VLSI", True),
     ("electrical_engineering", "FPGA Engineer", "VHDL RTL electrical engineering", True),
@@ -54,7 +67,9 @@ def score(candidate, opening, config=None):
     ("industrial_engineering", "Frontend Developer", "React TypeScript", False),
 ])
 def test_track_eligibility_matrix(track, title, description, expected):
-    candidate = profile(track)
+    # Keep seniority/experience from obscuring what this matrix is meant to test:
+    # professional-track admission only.
+    candidate = profile(track, years=5, years_options=["0", "1", "2", "3", "4", "5+"])
     result = score(candidate, job(title, description, track=track))
     assert result.eligibility["career_track_status"] == ("match" if expected else "mismatch")
     assert result.eligibility["eligible"] is expected
@@ -62,9 +77,9 @@ def test_track_eligibility_matrix(track, title, description, expected):
 
 @pytest.mark.parametrize(("name", "opening", "candidate", "state", "field"), [
     ("explicit exclusion", job("Senior Backend Software Engineer", "Python"), profile(excluded=["senior"]), "excluded", "explicit_exclusion"),
-    ("experience realistic", job("Backend Software Engineer", "Python. 4 years experience"), profile(years=3), "realistic", "experience_status"),
-    ("experience stretch", job("Backend Software Engineer", "Python. 6 years experience"), profile(years=3), "stretch", "experience_status"),
-    ("experience excluded", job("Backend Software Engineer", "Python. 8 years experience"), profile(years=3), "excluded", "experience_status"),
+    ("experience selected", job("Backend Software Engineer", "Python. 4 years experience"), profile(years=4, years_options=["4"]), "realistic", "experience_status"),
+    ("experience selected range overlap", job("Backend Software Engineer", "Python. 3+ years experience"), profile(years=4, years_options=["4"]), "realistic", "experience_status"),
+    ("experience outside selected values", job("Backend Software Engineer", "Python. 3 years experience"), profile(years=2, years_options=["0", "1", "2"]), "excluded", "experience_status"),
     ("old opening", job("Backend Software Engineer", "Python", age=60), profile(), "excluded", "recency_status"),
     ("location alias", job("Backend Software Engineer", "Python", location="תל-אביב"), profile(locations=["Tel Aviv"]), "realistic", "location_status"),
     ("soft location mismatch", job("Backend Software Engineer", "Python", location="Haifa"), profile(locations=["Tel Aviv"]), "realistic", "location_status"),
@@ -76,6 +91,39 @@ def test_eligibility_edge_cases(name, opening, candidate, state, field):
     result = score(candidate, opening)
     assert result.eligibility["state"] == state, name
     assert field in result.eligibility
+
+
+def test_profile_experience_multiselect_is_the_hard_filter():
+    candidate = profile(years=2, years_options=["0", "1", "2"], titles=["backend software engineer"])
+    implicit = score(candidate, job("Backend Software Engineer", "Experience working with Python services"))
+    three_plus = score(candidate, job("Backend Software Engineer", "3+ years of experience with Python services"))
+    zero_to_two = score(candidate, job("Backend Software Engineer", "0-2 years experience with Python services"))
+
+    assert implicit.eligibility["required_experience_min"] == 1
+    assert implicit.eligibility["experience_status"] == "match"
+    assert implicit.eligibility["required_experience_buckets"] == ["1", "2", "3", "4", "5+"]
+    assert zero_to_two.eligibility["experience_status"] == "match"
+    assert three_plus.eligibility["state"] == "excluded"
+    assert three_plus.eligibility["experience_status"] == "mismatch"
+
+
+def test_implicit_one_year_requirement_respects_exact_profile_selection():
+    opening = job("Backend Software Engineer", "Experience working with Python services is required")
+    zero_only = score(profile(years=0, years_options=["0"]), opening)
+    one_only = score(profile(years=1, years_options=["1"]), opening)
+
+    assert zero_only.eligibility["required_experience_min"] == 1
+    assert zero_only.eligibility["state"] == "excluded"
+    assert zero_only.eligibility["experience_status"] == "mismatch"
+    assert one_only.eligibility["state"] == "realistic"
+    assert one_only.eligibility["experience_status"] == "match"
+
+
+def test_legacy_profile_without_experience_choices_keeps_gap_fallback():
+    candidate = profile(years=3, years_options=[])
+    result = score(candidate, job("Backend Software Engineer", "4 years experience"))
+    assert result.eligibility["experience_status"] == "match"
+    assert result.eligibility["state"] == "realistic"
 
 
 def test_strict_location_turns_preference_mismatch_into_exclusion():

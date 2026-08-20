@@ -1843,7 +1843,9 @@ function rankingYears(value) {
 function v2ExperienceDetail(e) {
   const min=rankingYears(e.required_experience_min),max=rankingYears(e.required_experience_max),profile=rankingYears(e.profile_experience);
   const required=min===null?'לא זוהתה דרישת ניסיון':max!==null&&max!==min?`${min}–${max} שנות ניסיון`:max===min?`${min} שנות ניסיון`:`${min}+ שנות ניסיון`;
-  return profile===null?required:`${required} · בפרופיל ${profile}`;
+  const selected=Array.isArray(e.profile_experience_options)?e.profile_experience_options.filter(Boolean):[];
+  if (selected.length) return `${required} · מסנן בפרופיל: ${selected.join(' · ')}`;
+  return profile===null?required:`${required} · ניסיון בפרופיל: ${profile}`;
 }
 
 function v2RoleDetail(part) {

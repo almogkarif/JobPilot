@@ -38,8 +38,24 @@ def test_entry_role_scores_higher_than_senior_role():
 
 def test_experience_extraction():
     assert extract_experience("Requires 0-2 years experience") == (0.0, 2.0)
-    assert extract_experience("At least 3 years of experience") == (3.0, 3.0)
-    assert extract_experience("ניסיון מוכח של 3 שנים לפחות בפיתוח תוכנה משובצת מחשב") == (3.0, 3.0)
+    assert extract_experience("At least 3 years of experience") == (3.0, None)
+    assert extract_experience("8 or more years of professional experience") == (8.0, None)
+    assert extract_experience("ניסיון מוכח של 3 שנים לפחות בפיתוח תוכנה משובצת מחשב") == (3.0, None)
+
+
+def test_implicit_work_experience_without_years_defaults_to_one_year():
+    assert extract_experience("Experience working with Python and distributed systems is required") == (1.0, None)
+    assert extract_experience("Hands-on experience developing production services") == (1.0, None)
+    assert extract_experience("ניסיון עבודה עם מערכות Linux בסביבת production") == (1.0, None)
+    assert extract_experience("נסיון עבודה עם מערכות Linux בסביבת production") == (1.0, None)
+    assert extract_experience("Experience in distributed systems is required") == (1.0, None)
+
+
+def test_optional_or_explicit_no_experience_does_not_invent_one_year():
+    assert extract_experience("Experience working with Kubernetes is a plus") == (None, None)
+    assert extract_experience("Preferred: hands-on experience with AWS") == (None, None)
+    assert extract_experience("No prior experience required") == (0.0, 1.0)
+    assert extract_experience("Graduate degree required; 5 years of experience") == (5.0, None)
 
 
 def test_missing_mandatory_embedded_experience_cannot_be_a_perfect_match():

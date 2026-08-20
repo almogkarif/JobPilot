@@ -109,9 +109,10 @@ CS_STRONG_TITLE_TERMS = {
     "ai engineer", "algorithm", "computer vision", "vision language", "nlp", "cyber", "security engineer",
     "security researcher", "security analyst", "ai security", "application security", "penetration tester", "dfir",
     "qa engineer", "qa automation", "automation developer", "test automation", "embedded software",
-    "embedded developer", "embedded fw", "firmware", "integration engineer", "software integration", "tech lead",
+    "embedded developer", "embedded fw", "firmware", "software integration", "tech lead",
     "systems programmer", "system programmer", "system administrator", "systems administrator", "sysadmin",
-    "database engineer", "network engineer", "dba", "solutions architect", "solutions engineer",
+    "database engineer", "network engineer", "dba", "solutions architect", "cloud architect", "data architect",
+    "security architect", "network architect", "networking architect", "platform architect", "solutions engineer",
     "מהנדס תוכנה", "מהנדסת תוכנה", "מפתח תוכנה", "מפתחת תוכנה", "פיתוח תוכנה", "מתכנת",
     "מתכנתת", "פול סטאק", "בקאנד", "פרונטאנד", "אלגוריתם", "אלגוריתמים", "למידת מכונה",
     "בינה מלאכותית", "מדען נתונים", "מדענית נתונים", "מהנדס נתונים", "מהנדסת נתונים",
@@ -127,19 +128,49 @@ CS_CONTEXT_TERMS = {
     "בינה מלאכותית", "מערכות הפעלה", "אבטחת מידע", "סייבר",
 }
 CS_GENERIC_TITLE_TERMS = {
-    "engineer", "developer", "architect", "programmer", "researcher", "scientist", "analyst",
-    "מהנדס", "מהנדסת", "מפתח", "מפתחת", "ארכיטקט", "חוקר", "חוקרת", "מדען", "מדענית",
+    # A bare “architect” is intentionally not generic CS. Hardware/system/building
+    # architecture must earn a software-specific signal instead of being admitted
+    # simply because the description happens to mention Computer Science.
+    "engineer", "developer", "programmer", "researcher", "scientist", "analyst",
+    "מהנדס", "מהנדסת", "מפתח", "מפתחת", "חוקר", "חוקרת", "מדען", "מדענית",
 }
 CS_OTHER_DISCIPLINE_TITLE_TERMS = {
-    "electrical engineer", "electrical engineering", "electronics engineer", "hardware engineer",
-    "mechanical engineer", "physical design", "silicon design", "board design", "rf engineer",
-    "manufacturing engineer", "production engineer", "quality engineer", "chemical engineer",
+    "electrical engineer", "electrical engineering", "electronics engineer", "electronics engineering",
+    "computer engineer", "computer engineering", "hardware engineer", "mechanical engineer",
+    "physical design", "silicon design", "board design", "rf engineer", "manufacturing engineer",
+    "production engineer", "quality engineer", "chemical engineer",
     "מהנדס חשמל", "מהנדסת חשמל", "הנדסת חשמל", "מהנדס חומרה", "מהנדסת חומרה",
+    "הנדסת מחשבים", "מהנדס מחשבים", "מהנדסת מחשבים",
     "מהנדס מכונות", "מהנדסת מכונות", "הנדסת מכונות", "מהנדס ייצור", "מהנדסת ייצור",
 }
+# Semiconductor/electrical titles that were previously admitted by broad words such
+# as “engineer”, “backend”, “automation” or a Computer Engineering degree mention.
+# Explicit software/firmware titles remain valid because embedded software is allowed
+# to overlap the CS and EE catalogues.
+CS_HARDWARE_TITLE_TERMS = {
+    "dft", "design for test", "design verification", "verification engineer",
+    "fpga", "rtl", "asic", "vlsi", "logic design",
+    "circuit design", "circuit engineer", "physical design", "sta engineer", "static timing",
+    "timing engineer", "silicon design", "silicon validation", "chip design", "chip engineer",
+    "hardware", "hw emulation", "hardware emulation", "soc test", "soc validation",
+    "post-silicon", "pre-silicon", "power integrity", "signal integrity", "board design",
+    "cpu architect", "processor architect", "chip architect", "soc architect", "computer architecture",
+    "pcb", "analog", "mixed signal", "mixed-signal", "rfic", "rf engineer", "optical",
+    "electro-optic", "electro optic", "wireless connectivity system",
+}
+CS_HARDWARE_CONTEXT_TERMS = {
+    "electrical engineering", "electronics engineering", "computer engineering", "semiconductor",
+    "silicon", "chip development", "chip design", "rtl", "asic", "fpga", "vlsi", "systemverilog",
+    "verilog", "uvm", "dft", "atpg", "mbist", "jtag", "physical design", "static timing",
+    "timing analysis", "circuit", "transistor", "power integrity", "signal integrity", "pcb",
+    "board design", "rfic", "mixed signal", "mixed-signal", "pre-silicon", "post-silicon",
+    "soc", "שבבים", "סיליקון", "הנדסת חשמל", "הנדסת מחשבים", "חומרה",
+}
 CS_EXPLICIT_SOFTWARE_TITLE_TERMS = {
-    "software", "developer", "programmer", "cyber", "security", "firmware", "embedded", "algorithm",
-    "תוכנה", "מפתח", "מפתחת", "מתכנת", "מתכנתת", "סייבר", "אבטחת מידע", "קושחה", "אלגוריתם",
+    "software", "firmware", "embedded software", "sw engineer", "sw developer", "developer", "programmer",
+    "devops", "site reliability", "sre", "cloud engineer", "platform engineer", "data engineer",
+    "data scientist", "machine learning", "ml engineer", "ai engineer", "frontend", "front-end",
+    "full stack", "fullstack", "תוכנה", "קושחה", "מפתח", "מפתחת", "מתכנת", "מתכנתת",
 }
 IEM_STRONG_TITLE_TERMS = {
     "industrial engineer", "industrial engineering", "business analyst", "data analyst", "bi analyst",
@@ -281,20 +312,67 @@ def _score_breakdown(reasons: list[dict]) -> dict[str, int]:
 
 
 def extract_experience(text: str) -> tuple[float | None, float | None]:
-    lowered = text.lower()
-    if any(term in lowered for term in ["no experience", "ללא ניסיון", "new grad", "graduate"]):
-        return 0, 1
+    """Extract the stated experience requirement.
 
-    ranges = re.findall(r"(\d+(?:\.\d+)?)\s*(?:-|–|to)\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?|שנים)", lowered)
+    Numeric ranges keep both ends. A single number is treated as a minimum (``3+``),
+    which matches how job requirements are normally written. When a posting clearly
+    requires hands-on/work experience but gives no duration, JobPilot intentionally
+    maps it to a conservative one-year minimum instead of leaving it unknown.
+    """
+    lowered = str(text or "").casefold()
+    no_experience_terms = (
+        "no experience", "no prior experience", "no previous experience",
+        "experience not required", "no professional experience required",
+        "ללא ניסיון", "ללא נסיון", "אין צורך בניסיון", "אין צורך בנסיון",
+        "לא נדרש ניסיון", "לא נדרש נסיון", "new grad", "new graduate",
+    )
+    if any(term in lowered for term in no_experience_terms):
+        return 0.0, 1.0
+
+    ranges = re.findall(
+        r"(\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?\.?|שנות|שנים)",
+        lowered,
+    )
     if ranges:
         mins = [float(a) for a, _ in ranges]
         maxs = [float(b) for _, b in ranges]
         return min(mins), max(maxs)
 
-    singles = re.findall(r"(?:at least|min(?:imum)?|לפחות)?\s*(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?|שנות|שנים)(?:\s*(?:at least|minimum|לפחות))?", lowered)
+    singles = re.findall(
+        r"(?:at least|min(?:imum)?(?:\s+of)?|לפחות)?\s*"
+        r"(\d+(?:\.\d+)?)\s*(?:\+|or more|plus)?\s*"
+        r"(?:years?|yrs?\.?|שנות|שנים)(?:\s*(?:of\s+experience|experience|at least|minimum|לפחות))?",
+        lowered,
+    )
     if singles:
         value = min(float(x) for x in singles)
-        return value, value
+        return value, None
+
+    implicit_patterns = (
+        r"\bhands[- ]on experience\b",
+        r"\bprofessional experience\b",
+        r"\bcommercial experience\b",
+        r"\bindustry experience\b",
+        r"\bwork experience\b",
+        r"\bexperience\s+(?:working|developing|building|designing|implementing|using)\b",
+        r"\bexperience\s+(?:with|in)\b",
+        r"ני?סיון\s+(?:עבודה|בעבודה)\s+עם",
+        r"ני?סיון\s+מעשי",
+        r"ני?סיון\s+מוכח",
+    )
+    optional_cues = (
+        "preferred", "advantage", "a plus", "nice to have", "nice-to-have", "bonus",
+        "יתרון", "רצוי", "עדיפות",
+    )
+    for pattern in implicit_patterns:
+        for match in re.finditer(pattern, lowered):
+            # Keep optional/preferred experience from becoming a hard one-year
+            # requirement. The local window is deliberate so an unrelated
+            # “preferred” elsewhere in a long description does not suppress it.
+            window = lowered[max(0, match.start() - 90):min(len(lowered), match.end() + 120)]
+            if any(cue in window for cue in optional_cues):
+                continue
+            return 1.0, None
     return None, None
 
 
@@ -368,19 +446,24 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         title = str(getattr(job, "title", "") or "").casefold()
         description = str(getattr(job, "description", "") or "").casefold()
         text = f"{title} {description}"
-        if (
-            any(term in title for term in CS_OTHER_DISCIPLINE_TITLE_TERMS)
-            and not any(term in title for term in CS_EXPLICIT_SOFTWARE_TITLE_TERMS)
-        ):
+        explicit_software_title = any(term in title for term in CS_EXPLICIT_SOFTWARE_TITLE_TERMS)
+        if any(term in title for term in CS_HARDWARE_TITLE_TERMS) and not explicit_software_title:
+            return False, "hardware_discipline_title"
+        if any(term in title for term in CS_OTHER_DISCIPLINE_TITLE_TERMS) and not explicit_software_title:
             return False, "non_software_discipline_title"
         if any(term in title for term in CS_STRONG_TITLE_TERMS):
             return True, "cs_title"
         context_hits = sum(1 for term in CS_CONTEXT_TERMS if term in text)
+        hardware_context_hits = sum(1 for term in CS_HARDWARE_CONTEXT_TERMS if term in text)
         degree_signal = any(term in text for term in (
-            "computer science", "software engineering", "computer engineering",
-            "מדעי המחשב", "הנדסת תוכנה", "הנדסת מחשבים",
+            # Computer Engineering is intentionally not a CS admission signal. It
+            # frequently appeared in chip/electrical role degree lists and let the
+            # entire hardware role through. Explicit software titles still pass.
+            "computer science", "software engineering", "מדעי המחשב", "הנדסת תוכנה",
         ))
         generic_title = any(term in title for term in CS_GENERIC_TITLE_TERMS)
+        if generic_title and hardware_context_hits >= 2 and not explicit_software_title:
+            return False, "hardware_discipline_context"
         if degree_signal and generic_title:
             return True, "cs_degree_signal"
         if generic_title and context_hits >= 2:
