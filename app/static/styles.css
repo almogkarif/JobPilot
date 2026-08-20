@@ -2877,9 +2877,7 @@ body.guest-mode .job-status-control { display:none !important; }
 @media(max-width:700px){.onboarding-track-grid{grid-template-columns:1fr}.onboarding-skill-checks{grid-template-columns:repeat(2,minmax(0,1fr));max-height:280px}.onboarding-track-card{padding:14px}.onboarding-review-hero{margin-top:12px}.onboarding-radar{width:150px;height:150px}.developer-users-list{max-height:272px}}
 @media(prefers-reduced-motion:reduce){.onboarding-radar:before,.onboarding-scan-stage.complete .onboarding-scan{animation:none!important}}
 
-/* v0.3.2 save responsiveness + safe non-admin preview */
-.preview-non-admin .admin-only-nav{display:none!important}
-.preview-non-admin #view-developer{display:none!important}
+/* v0.3.2 save responsiveness + server-authorized non-admin preview */
 .admin-preview-exit{position:fixed;z-index:390;inset-inline-start:18px;bottom:18px;border:1px solid var(--line);background:var(--panel);color:var(--text);box-shadow:0 12px 35px rgba(0,0,0,.18);border-radius:999px;padding:11px 17px;font-weight:800;cursor:pointer}
 .admin-preview-exit[hidden]{display:none!important}
 @media(max-width:700px){.admin-preview-exit{bottom:calc(82px + env(safe-area-inset-bottom));inset-inline-start:12px}}

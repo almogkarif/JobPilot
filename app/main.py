@@ -75,7 +75,7 @@ from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
 from .utils import dumps, loads
-from .auth import (application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
+from .auth import (AuthIdentity, application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
                    create_agent_device, device_dict, require_application_agent_owner)
 from .storage import cloud_storage_enabled, delete_ref, ensure_cloud_bucket, materialized_file, read_bytes, save_bytes
 from .security import credential_encryption_available, decrypt_credential, encrypt_credential
@@ -408,6 +408,21 @@ async def cloud_auth_guard(request: Request, call_next):
     except HTTPException as exc:
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
     identity = getattr(request.state, "identity", None)
+    # Developer "View as user" is a privilege-reducing server-side preview, not
+    # merely a CSS disguise. Every normal API request behaves as it would for a
+    # regular user while preserving the same tenant data. The header is honored
+    # only for an account that already has developer access, so it cannot grant
+    # privileges to another user.
+    if (
+        identity
+        and request.headers.get("X-JobPilot-Preview-Role", "").strip().casefold() == "user"
+        and _developer_tools_allowed(identity)
+    ):
+        identity = AuthIdentity(
+            identity.user_id, identity.email, identity.provider, "user", False,
+            identity.session_id, identity.authenticated_at, True,
+        )
+        request.state.identity = identity
     if identity and identity.role == "guest" and request.method not in {"GET", "HEAD", "OPTIONS"}:
         # Guest mode is a portfolio/demo surface. The only server-side mutation we
         # permit is switching the guest's isolated career-track view; all profile,
@@ -473,6 +488,8 @@ def auth_me(request: Request):
 
 def _developer_tools_allowed(identity) -> bool:
     """Developer tools are restricted to the configured owner/admin account."""
+    if getattr(identity, "preview_regular_user", False):
+        return False
     if settings.auth_mode != "supabase":
         return True
     if not identity or getattr(identity, "is_guest", False):
@@ -3420,6 +3437,7 @@ async def add_agent_device(request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/agent-devices/{device_id}")
 def revoke_agent_device(device_id: int, db: Session = Depends(get_db)):
+    require_application_agent_owner(db)
     device = db.get(AgentDevice, device_id)
     if not device:
         raise HTTPException(404, "Agent device not found")

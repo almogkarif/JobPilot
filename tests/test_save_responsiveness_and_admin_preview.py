@@ -17,12 +17,15 @@ def test_cloud_derived_refresh_is_detached_coalesced_and_incremental():
     assert "commit_every=25" in Path(main.__file__).read_text()
     assert "yield_per(50)" in Path(main.__file__).read_text()
 
-def test_admin_can_preview_regular_ui_without_dropping_server_permissions():
+def test_admin_preview_uses_regular_user_permissions_with_only_return_control_extra():
     assert 'id="developer-preview-non-admin"' in HTML
     assert 'id="admin-preview-exit"' in HTML
     assert "jobpilot-preview-non-admin" in JS
-    assert "preview-non-admin" in CSS
-    assert "הרשאות השרת שלך נשארו Admin" in JS
+    assert "X-JobPilot-Preview-Role" in JS
+    assert "authState.capabilities?.developer_tools === true" in JS
+    assert ".preview-non-admin .admin-only-nav" not in CSS
+    assert ".preview-non-admin #view-developer" not in CSS
+    assert "הרשאות השרת שלך נשארו Admin" not in JS
 
 def test_assets_bumped():
     assert "app.js?v=0.29.9" in HTML

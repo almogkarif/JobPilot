@@ -414,6 +414,8 @@ def get_db(request: Request):
         identity = getattr(request.state, "identity", None)
         if identity is not None:
             set_user_scope(db, identity.user_id)
+            if getattr(identity, "preview_regular_user", False):
+                db.info["preview_regular_user"] = True
         elif settings.auth_mode != "supabase":
             set_user_scope(db, LOCAL_USER_ID)
         yield db

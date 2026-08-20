@@ -280,3 +280,41 @@ def test_worker_credentials_are_admin_only_but_regular_users_can_access_submissi
             db.execute(delete(AgentDevice).where(AgentDevice.user_id == "friend-agent-block"))
             db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id == "friend-agent-block"))
             db.commit()
+
+
+def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
+    monkeypatch.setattr(settings, "auth_mode", "supabase")
+    monkeypatch.setattr(settings, "owner_email", "preview-owner@example.com")
+    monkeypatch.setattr(settings, "application_agent_owner_email", "preview-owner@example.com")
+    monkeypatch.setattr(auth_module, "verify_supabase_token", lambda token: AuthIdentity(
+        "preview-owner", "preview-owner@example.com", "google"
+    ))
+    with SessionLocal() as db:
+        db.execute(delete(AgentDevice).where(AgentDevice.user_id == "preview-owner"))
+        db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id == "preview-owner"))
+        db.commit()
+
+    admin_headers = {"Authorization": "Bearer preview-valid"}
+    preview_headers = {**admin_headers, "X-JobPilot-Preview-Role": "user"}
+    with TestClient(app) as client:
+        normal_me = client.get("/api/auth/me", headers=admin_headers)
+        assert normal_me.status_code == 200
+        assert normal_me.json()["capabilities"]["developer_tools"] is True
+
+        created = client.post("/api/agent-devices", headers=admin_headers, json={"name": "Preview protected worker"})
+        assert created.status_code == 200
+        protected_device_id = created.json()["device"]["id"]
+
+        preview_me = client.get("/api/auth/me", headers=preview_headers)
+        assert preview_me.status_code == 200
+        assert preview_me.json()["user"]["role"] == "user"
+        assert preview_me.json()["capabilities"]["developer_tools"] is False
+
+        devices = client.get("/api/agent-devices", headers=preview_headers)
+        assert devices.status_code == 200
+        assert devices.json()["centrally_managed"] is True
+        assert devices.json()["devices"] == []
+
+        assert client.get("/api/admin/users", headers=preview_headers).status_code == 403
+        assert client.post("/api/agent-devices", headers=preview_headers, json={"name": "Should not exist"}).status_code == 403
+        assert client.delete(f"/api/agent-devices/{protected_device_id}", headers=preview_headers).status_code == 403

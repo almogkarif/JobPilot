@@ -146,6 +146,7 @@ const api = async (path, options = {}) => {
     headers: {
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...authHeaders(),
+      ...(adminPreviewActive() ? { 'X-JobPilot-Preview-Role': 'user' } : {}),
       ...(options.headers || {}),
     },
   });
@@ -401,7 +402,7 @@ async function openCloudAccount() {
   }
   const [devices, adminUsers] = await Promise.all([
     api('/api/agent-devices'),
-    me.user?.role === 'admin' ? api('/api/admin/users') : Promise.resolve(null),
+    me.capabilities?.developer_tools === true ? api('/api/admin/users') : Promise.resolve(null),
   ]);
   const rows = (devices.devices || []).map((device) => `<div class="agent-device-row ${device.online ? 'online' : ''}">
     <i></i><span><strong>${esc(device.name)}</strong><small>${device.online ? 'מחובר עכשיו' : device.last_seen_at ? `נראה לאחרונה ${esc(new Date(device.last_seen_at).toLocaleString('he-IL'))}` : 'עדיין לא התחבר'} · ${esc(device.token_prefix)}…</small></span>
@@ -1285,7 +1286,7 @@ function renderReadiness(readiness) {
     { ok: readiness.resume_uploaded, label: 'קורות חיים', action: "switchView('profile')" },
     { ok: readiness.sources_enabled > 0, label: 'מקורות פעילים', successLabel: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
   ];
-  const showAgentToken = Boolean(readiness.agent_required) && authState.user?.role === 'admin' && applicationAgentAllowed();
+  const showAgentToken = Boolean(readiness.agent_required) && authState.capabilities?.developer_tools === true && applicationAgentAllowed();
   if (showAgentToken) checks.push({ ok: readiness.agent_token_secure, label: 'Token מאובטח ל־Agent', action: null });
   const missingChecks = checks.filter((check) => !check.ok);
   if (!missingChecks.length) {
@@ -3981,12 +3982,17 @@ $('#developer-reset-onboarding').onclick=async()=>{if(!confirm('לאפס את ה
 $('#developer-hard-refresh').onclick=()=>{if(!confirm('לנקות cache מקומי של תצוגה ולרענן? נתוני השרת לא יימחקו.'))return;['jobpilot-active-view','jobpilot-profile-section'].forEach(k=>localStorage.removeItem(k));location.reload()};
 const ADMIN_PREVIEW_KEY='jobpilot-preview-non-admin';
 function adminPreviewActive(){try{return sessionStorage.getItem(ADMIN_PREVIEW_KEY)==='1'}catch{return false}}
-function applyAdminPreviewMode(){const active=adminPreviewActive();document.body.classList.toggle('preview-non-admin',active);const exit=$('#admin-preview-exit');if(exit)exit.hidden=!active}
-function enterNonAdminPreview(){try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}applyAdminPreviewMode();switchView('dashboard');toast('מצב תצוגת משתמש רגיל פעיל. הרשאות השרת שלך נשארו Admin לצורכי בטיחות.')}
-function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}applyAdminPreviewMode();toast('חזרת לתצוגת Admin')}
+function applyAdminPreviewMode(){const exit=$('#admin-preview-exit');if(exit)exit.hidden=!adminPreviewActive()}
+async function refreshPreviewIdentity(){
+  if(authState.config?.mode==='supabase'&&authState.session){await verifyCloudSession({throwOnError:true});renderCloudAccount()}
+  configureDeveloperTools();
+  await Promise.allSettled([refreshAgentStatus(),loadDashboard()]);
+}
+async function enterNonAdminPreview(){try{sessionStorage.setItem(ADMIN_PREVIEW_KEY,'1')}catch{}configureDeveloperTools();try{await refreshPreviewIdentity();switchView('dashboard');toast('תצוגת משתמש רגיל פעילה — השרת וה־UI משתמשים כעת בדיוק בהרשאות משתמש רגיל.')}catch(error){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}configureDeveloperTools();toast(error.message)}}
+async function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}configureDeveloperTools();try{await refreshPreviewIdentity();toast('חזרת לתצוגת Admin')}catch(error){toast(error.message)}}
 
 function configureDeveloperTools(){
-  const allowed=authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true;$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  const allowed=!adminPreviewActive()&&(authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true);$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
   const workerSetting=$('#admin-worker-setting');if(workerSetting)workerSetting.hidden=!allowed;
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }

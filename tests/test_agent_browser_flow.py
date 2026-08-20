@@ -3,7 +3,8 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
-                           _file_already_uploaded, _small_choice_options, fill_application)
+                           _file_already_uploaded, _is_lever_submission_endpoint, _lever_submission_response_result,
+                           _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
 
 
@@ -40,6 +41,37 @@ def test_lever_regular_apply_url_is_not_success_evidence():
     )
     assert evidence == ""
     assert application_id == ""
+
+
+
+def test_lever_submission_post_response_is_definitive_evidence():
+    assert _is_lever_submission_endpoint(
+        "https://api.eu.lever.co/v0/postings/mobileye/d1f956e3-fc71-4a88-90d1-bdaf99fa96f0?key=secret"
+    ) is True
+    assert _is_lever_submission_endpoint(
+        "https://jobs.eu.lever.co/mobileye/d1f956e3-fc71-4a88-90d1-bdaf99fa96f0/apply"
+    ) is True
+    assert _is_lever_submission_endpoint("https://example.com/apply") is False
+
+    evidence, application_id, error = _lever_submission_response_result(
+        "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
+        200,
+        {"ok": True, "applicationId": "lever-app-123"},
+    )
+    assert "Lever accepted" in evidence
+    assert application_id == "lever-app-123"
+    assert error == ""
+
+    evidence, application_id, error = _lever_submission_response_result(
+        "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
+        400,
+        {"ok": False, "error": "custom question is required"},
+    )
+    assert evidence == ""
+    assert application_id == ""
+    assert "HTTP 400" in error
+    assert "custom question is required" in error
+
 
 def test_agent_enters_application_form_fills_steps_and_stops_before_submit():
     with sync_playwright() as playwright:

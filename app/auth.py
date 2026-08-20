@@ -28,6 +28,7 @@ class AuthIdentity:
     is_guest: bool = False
     session_id: str = ""
     authenticated_at: datetime | None = None
+    preview_regular_user: bool = False
 
 
 def auth_public_config() -> dict:
@@ -308,6 +309,8 @@ def application_agent_allowed(*, email: str = "") -> bool:
 
 def require_application_agent_owner(db: Session, *, user_id: str | None = None) -> AppIdentity | None:
     """Fail closed for cloud users who are not the current submission-Agent owner."""
+    if db.info.get("preview_regular_user"):
+        raise HTTPException(403, "Application Agent credentials are hidden in regular-user preview")
     if settings.auth_mode != "supabase":
         return None
     uid = user_id or current_user_id(db)
