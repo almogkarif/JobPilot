@@ -2,7 +2,9 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import ApplicationBlocked, _display_field_label, _extract_fields, _file_already_uploaded, _small_choice_options, fill_application
+from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
+                           _file_already_uploaded, _small_choice_options, fill_application)
+from app.services.application_submission import lever_confirmation_from_url
 
 
 def _launch(playwright):
@@ -13,6 +15,31 @@ def _launch(playwright):
         kwargs["args"] = ["--no-sandbox"]
     return playwright.chromium.launch(**kwargs)
 
+
+
+def test_lever_success_urls_are_strong_submission_evidence():
+    evidence, application_id = lever_confirmation_from_url(
+        "https://jobs.eu.lever.co/mobileye/abc123/thanks"
+    )
+    assert "Lever confirmation" in evidence
+    assert application_id == ""
+
+    evidence, application_id = lever_confirmation_from_url(
+        "https://www.lever.co/hp-b?LeverAppId=6aa4d8f7-1111-2222-3333-abcdefabcdef"
+    )
+    assert "Lever accepted" in evidence
+    assert application_id == "6aa4d8f7-1111-2222-3333-abcdefabcdef"
+    assert _external_application_id_from_url(
+        "https://www.lever.co/hp-b?LeverAppId=6aa4d8f7-1111-2222-3333-abcdefabcdef"
+    ) == application_id
+
+
+def test_lever_regular_apply_url_is_not_success_evidence():
+    evidence, application_id = lever_confirmation_from_url(
+        "https://jobs.eu.lever.co/mobileye/abc123/apply"
+    )
+    assert evidence == ""
+    assert application_id == ""
 
 def test_agent_enters_application_form_fills_steps_and_stops_before_submit():
     with sync_playwright() as playwright:

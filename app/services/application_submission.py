@@ -7,7 +7,7 @@ import json
 import secrets
 import time
 from dataclasses import asdict, dataclass
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 PREVIEW_TTL_SECONDS = 10 * 60
@@ -34,6 +34,25 @@ ADAPTERS = {
     "custom": ATSAdapter("custom", "אתר קריירה מותאם", execution="manual_only", supports_automatic_submit=False,
                          notes="נדרש adapter מאומת לפני שהאתר יורשה לרוץ אוטומטית ברקע."),
 }
+
+
+def lever_confirmation_from_url(url: str) -> tuple[str, str]:
+    """Return strong hosted-Lever confirmation evidence and application id."""
+    try:
+        parsed = urlparse(str(url or ""))
+    except Exception:
+        return "", ""
+    host = (parsed.hostname or "").casefold()
+    path = (parsed.path or "").rstrip("/").casefold()
+    if host in {"jobs.lever.co", "jobs.eu.lever.co"} and path.endswith("/thanks"):
+        return "Lever confirmation page reached after submitting the application", ""
+    if host in {"lever.co", "www.lever.co"} and path == "/hp-b":
+        query = parse_qs(parsed.query)
+        application_id = next((values[0] for key, values in query.items()
+                               if key.casefold() == "leverappid" and values), "")
+        if application_id:
+            return f"Lever accepted the application (application id: {application_id})", application_id
+    return "", ""
 
 
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:

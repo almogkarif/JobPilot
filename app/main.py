@@ -55,7 +55,7 @@ from .schemas import (
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
 from .services.job_cleanup import delete_job_tree
 from .services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
-                                               verify_preview_token)
+                                               lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.matching import build_match_context, score_job
@@ -2546,9 +2546,61 @@ def update_application(application_id: int, payload: ApplicationUpdate, db: Sess
     return _application_dict(application, db)
 
 
+def _reconcile_lever_confirmation_url(db: Session, application: Application) -> bool:
+    """Read-repair a pending Lever receipt when its stored URL is conclusive."""
+    if application.status != "verification_pending":
+        return False
+    adapter = detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "")
+    if adapter.key != "lever":
+        return False
+    blocker = db.scalar(select(Blocker).where(
+        Blocker.application_id == application.id, Blocker.status == "open", Blocker.kind == "confirmation_missing",
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    if not blocker:
+        return False
+    confirmation_text, external_application_id = lever_confirmation_from_url(blocker.page_url)
+    if not confirmation_text:
+        return False
+
+    previous_status = application.status
+    application.status = "submitted"
+    application.job.status = "submitted"
+    application.submitted_at = application.submitted_at or utcnow()
+    application.last_error = ""
+    blocker.status = "resolved"
+    blocker.answer = "auto_verified_from_lever_confirmation_url"
+    blocker.resolved_at = utcnow()
+
+    attempt = _result_attempt(db, application.id)
+    if attempt:
+        attempt.status = "verified"
+        attempt.verification_state = "verified"
+        attempt.confirmation_text = confirmation_text
+        attempt.confirmation_url = blocker.page_url or attempt.confirmation_url
+        attempt.external_application_id = external_application_id or attempt.external_application_id
+        attempt.evidence_json = dumps([{
+            "type": "lever_confirmation_url", "value": confirmation_text, "url": blocker.page_url,
+        }])
+        attempt.error = ""
+        attempt.finished_at = attempt.finished_at or utcnow()
+
+    _record_application_event(
+        db, application, "submission_verified", from_status=previous_status, to_status="submitted",
+        actor="system", message=confirmation_text,
+        details={"attempt_id": attempt.id if attempt else None, "page_url": blocker.page_url,
+                 "external_application_id": external_application_id, "reconciled": True},
+    )
+    db.add(AuditLog(event_type="application_submission_reconciled", entity_type="application",
+                    entity_id=str(application.id), message=confirmation_text))
+    db.commit()
+    db.refresh(application)
+    return True
+
+
 @app.get("/api/applications/{application_id}/timeline")
 def application_timeline(application_id: int, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
+    _reconcile_lever_confirmation_url(db, application)
     events = db.scalars(select(ApplicationEvent).where(
         ApplicationEvent.application_id == application.id
     ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()

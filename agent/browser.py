@@ -5,13 +5,15 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
+from app.services.application_submission import lever_confirmation_from_url
 from .fields import known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
 CAPTCHA_TERMS = ["captcha", "recaptcha", "hcaptcha", "verify you are human", "אימות שאינך רובוט"]
 SUCCESS_TERMS = [
     "application submitted", "thank you for applying", "thanks for applying", "application received",
-    "successfully submitted", "מועמדותך התקבלה", "הבקשה נשלחה", "תודה שהגשת",
+    "successfully submitted", "your application has been submitted", "your application was already submitted",
+    "thanks for your application", "מועמדותך התקבלה", "הבקשה נשלחה", "תודה שהגשת",
 ]
 APPLY_START_TERMS = [
     "apply", "apply now", "apply for this job", "apply for job", "apply to this job", "start application",
@@ -272,18 +274,29 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             submit_button.click()
             if progress:
                 progress("submit_clicked", "כפתור השליחה הסופי נלחץ", page.url)
+            # Lever and other SPA ATSs may keep background network traffic alive
+            # after the form POST, so networkidle is not a reliable success gate.
+            # Give the browser a short chance to settle, then poll both the URL
+            # and visible confirmation text. The whole call is still protected by
+            # the task-level deadline in run_agent.py.
             try:
-                page.wait_for_load_state("networkidle", timeout=15_000)
+                page.wait_for_load_state("domcontentloaded", timeout=5_000)
             except PlaywrightTimeoutError:
                 pass
-            page.wait_for_timeout(1500)
-            _detect_captcha(page)
-            confirmation_text = _success_evidence(page)
+            confirmation_text = ""
+            for _ in range(40):
+                _detect_captcha(page)
+                confirmation_text = _success_evidence(page)
+                if confirmation_text:
+                    break
+                page.wait_for_timeout(500)
             if confirmation_text:
+                external_application_id = _external_application_id_from_url(page.url)
                 return {
                     "submitted": True, "message": "Application submitted and confirmation detected",
                     "page_url": page.url, "confirmation_text": confirmation_text,
                     "evidence": [{"type": "confirmation_page", "value": confirmation_text, "url": page.url}],
+                    "external_application_id": external_application_id,
                 }
             raise ApplicationBlocked(
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
@@ -1115,7 +1128,14 @@ def _is_success(page: Page) -> bool:
     return bool(_success_evidence(page))
 
 
+def _external_application_id_from_url(url: str) -> str:
+    return lever_confirmation_from_url(url)[1]
+
+
 def _success_evidence(page: Page) -> str:
+    url_evidence, _ = lever_confirmation_from_url(page.url)
+    if url_evidence:
+        return url_evidence
     try:
         body = page.locator("body").inner_text(timeout=5000)
         lowered = body.lower()

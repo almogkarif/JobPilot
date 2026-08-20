@@ -4,9 +4,9 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database import SessionLocal
-from app.models import ApplicationAttempt, ApplicationEvent
+from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker
 from app.services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
-                                                     verify_preview_token)
+                                                     lever_confirmation_from_url, verify_preview_token)
 
 
 def _profile(**overrides):
@@ -25,6 +25,49 @@ def _job(url: str):
         source=SimpleNamespace(kind="official"),
     )
 
+
+
+def test_lever_confirmation_url_parser_accepts_only_strong_success_urls():
+    evidence, application_id = lever_confirmation_from_url("https://jobs.eu.lever.co/mobileye/job-1/thanks")
+    assert evidence
+    assert application_id == ""
+    evidence, application_id = lever_confirmation_from_url("https://www.lever.co/hp-b?LeverAppId=lever-123")
+    assert "Lever accepted" in evidence
+    assert application_id == "lever-123"
+    assert lever_confirmation_from_url("https://jobs.eu.lever.co/mobileye/job-1/apply") == ("", "")
+
+
+def test_timeline_reconciles_existing_pending_lever_confirmation_url():
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Lever Reconcile Engineer", "company": "Mobileye", "location": "Israel",
+            "apply_url": "https://jobs.eu.lever.co/mobileye/reconcile-job/apply",
+        }).json()
+        application = client.post(f"/api/jobs/{job['id']}/mark-submitted").json()
+        with SessionLocal() as db:
+            row = db.get(Application, application["id"])
+            row.status = "verification_pending"
+            row.job.status = "verification_pending"
+            row.submitted_at = None
+            attempt = ApplicationAttempt(
+                application_id=row.id, attempt_number=1, idempotency_key=f"lever-pending-{row.id}",
+                adapter="lever", status="pending_verification", verification_state="uncertain",
+                confirmation_url="https://jobs.eu.lever.co/mobileye/reconcile-job/thanks",
+            )
+            blocker = Blocker(
+                application_id=row.id, kind="confirmation_missing", question="האם המועמדות נשלחה?",
+                explanation="לא זוהה אישור", page_url="https://jobs.eu.lever.co/mobileye/reconcile-job/thanks",
+            )
+            db.add_all([attempt, blocker])
+            db.commit()
+
+        timeline = client.get(f"/api/applications/{application['id']}/timeline")
+        assert timeline.status_code == 200
+        payload = timeline.json()
+        assert payload["application"]["status"] == "submitted"
+        assert payload["application"]["blocker"] is None
+        assert payload["attempts"][0]["verification_state"] == "verified"
+        assert any(event["event_type"] == "submission_verified" for event in payload["events"])
 
 def test_detects_supported_ats_families_without_trusting_company_names():
     assert detect_adapter("https://boards.greenhouse.io/acme/jobs/123").key == "greenhouse"

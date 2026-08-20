@@ -18,3 +18,14 @@ def test_small_choice_blocker_is_inline_and_yellow_in_live_tracker():
     assert ".application-live-tracker li.choice-waiting>i" in css
     assert "background:#d69232" in css
     assert ".application-live-choice" in css
+
+
+def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
+
+    assert "verificationPending=status==='verification_pending'" in js
+    assert "הטופס נשלח — ממתין לאימות" in js
+    assert "['submitted','verification_pending','failed','needs_input']" in js
+    assert "verification-waiting" in js
+    assert ".application-live-tracker li.verification-waiting>i" in css
