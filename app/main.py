@@ -14,7 +14,7 @@ import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -3456,9 +3456,17 @@ def agent_resume_file(application_id: int, request: Request, token: str = "", ag
         raise HTTPException(404, "Resume not found") from exc
     resume = db.get(ResumeProfile, application.resume_id) if application.resume_id else None
     filename = (resume.filename if resume else Path(application.resume_path).name) or "resume.pdf"
+    safe_filename = Path(filename.replace("\r", "").replace("\n", "")).name or "resume.pdf"
+    suffix = Path(safe_filename).suffix.lower()
+    ascii_fallback = f"resume{suffix if suffix and suffix.isascii() else '.pdf'}"
     content_type = "application/pdf" if filename.lower().endswith(".pdf") else "application/octet-stream"
     return Response(content=content, media_type=content_type, headers={
-        "Content-Disposition": f'attachment; filename="{Path(filename).name}"',
+        # RFC 5987 keeps Hebrew and other Unicode filenames out of Starlette's
+        # Latin-1 header encoder while preserving the original name for clients.
+        "Content-Disposition": (
+            f'attachment; filename="{ascii_fallback}"; '
+            f"filename*=UTF-8''{quote(safe_filename, safe='')}"
+        ),
         "Cache-Control": "private, no-store",
     })
 

@@ -178,20 +178,20 @@ def test_agent_can_download_selected_resume_without_web_session(monkeypatch, tmp
     monkeypatch.setattr(settings, "agent_token", "agent-test-token")
     resume_file = tmp_path / "private-cv.txt"
     resume_file.write_bytes(b"cloud-agent-resume")
-    with SessionLocal() as db:
-        source = Source(name="Cloud Agent Test", kind="demo", identifier="cloud-agent-test", enabled=False)
-        db.add(source); db.flush()
-        job = Job(source_id=source.id, external_id="agent-resume", title="Test Role", company="Test",
-                  location="Tel Aviv, Israel", apply_url="https://example.com/apply")
-        db.add(job); db.flush()
-        resume = ResumeProfile(label="Cloud CV", filename="candidate.txt", path=str(resume_file), is_default=False)
-        db.add(resume); db.flush()
-        application = Application(job_id=job.id, resume_id=resume.id, resume_path=str(resume_file), status="queued")
-        db.add(application); db.commit()
-        application_id, source_id, resume_id = application.id, source.id, resume.id
+    with TestClient(app) as client:
+        with SessionLocal() as db:
+            source = Source(name="Cloud Agent Test", kind="demo", identifier="cloud-agent-test", enabled=False)
+            db.add(source); db.flush()
+            job = Job(source_id=source.id, external_id="agent-resume", title="Test Role", company="Test",
+                      location="Tel Aviv, Israel", apply_url="https://example.com/apply")
+            db.add(job); db.flush()
+            resume = ResumeProfile(label="Cloud CV", filename="קורות חיים מועמד.txt", path=str(resume_file), is_default=False)
+            db.add(resume); db.flush()
+            application = Application(job_id=job.id, resume_id=resume.id, resume_path=str(resume_file), status="queued")
+            db.add(application); db.commit()
+            application_id, source_id, resume_id = application.id, source.id, resume.id
 
-    try:
-        with TestClient(app) as client:
+        try:
             response = client.get(
                 f"/api/agent/tasks/{application_id}/resume",
                 params={"agent_id": "pytest-agent"},
@@ -199,21 +199,23 @@ def test_agent_can_download_selected_resume_without_web_session(monkeypatch, tmp
             )
             assert response.status_code == 200
             assert response.content == b"cloud-agent-resume"
-            assert 'filename="candidate.txt"' in response.headers["content-disposition"]
-    finally:
-        with SessionLocal() as db:
-            application = db.get(Application, application_id)
-            if application:
-                db.delete(application)
-                db.flush()
-            resume = db.get(ResumeProfile, resume_id)
-            if resume:
-                db.delete(resume)
-                db.flush()
-            source = db.get(Source, source_id)
-            if source:
-                db.delete(source)
-            db.commit()
+            disposition = response.headers["content-disposition"]
+            assert 'filename="resume.txt"' in disposition
+            assert "filename*=UTF-8''%D7%A7%D7%95%D7%A8%D7%95%D7%AA%20%D7%97%D7%99%D7%99%D7%9D%20%D7%9E%D7%95%D7%A2%D7%9E%D7%93.txt" in disposition
+        finally:
+            with SessionLocal() as db:
+                application = db.get(Application, application_id)
+                if application:
+                    db.delete(application)
+                    db.flush()
+                resume = db.get(ResumeProfile, resume_id)
+                if resume:
+                    db.delete(resume)
+                    db.flush()
+                source = db.get(Source, source_id)
+                if source:
+                    db.delete(source)
+                db.commit()
 
 
 def test_cron_endpoint_rejects_missing_or_wrong_secret(monkeypatch):
