@@ -165,7 +165,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if field.get("role") == "combobox" or _is_tokenized_skill_field(field):
                 continue
             locator = page.locator(field["selector"]).first
-            label = field.get("label") or field.get("name") or field.get("placeholder") or "Unknown field"
+            label = _display_field_label(field)
             _show_agent_pointer(page, locator, f"ממלא: {label}")
             field_type = field.get("type", "text")
             lookup_label = label
@@ -226,7 +226,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         unknown = _dedupe_unknown(unknown)
         if unknown:
             field = unknown[0]
-            label = field.get("label") or field.get("name") or field.get("placeholder") or "שדה לא מוכר"
+            label = _display_field_label(field)
             missing = missing_profile_context(label)
             raise ApplicationBlocked(
                 "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
@@ -349,6 +349,21 @@ def _extract_fields(page: Page) -> list[dict]:
               const previous = el.previousElementSibling;
               if (previous && !previous.matches('input, textarea, select, button')) label = previous.innerText || '';
             }
+            if (!label) {
+              // Comeet and some white-label ATS forms use generated names such
+              // as cards[uuid][field0] and render the real question as plain
+              // text in an otherwise unmarked ancestor. Walk only a few small
+              // ancestors and ignore the control's own option text.
+              const optionText = new Set(el.tagName === 'SELECT' ? [...el.options].map(o => (o.textContent || '').replace(/\s+/g, ' ').trim()) : []);
+              const generic = new Set(['yes', 'no', 'כן', 'לא', 'select', 'choose', 'בחר', 'בחר תשובה']);
+              let ancestor = el.parentElement;
+              for (let depth = 0; ancestor && depth < 6 && !label; depth++, ancestor = ancestor.parentElement) {
+                const raw = (ancestor.innerText || '').trim();
+                if (!raw || raw.length > 800) continue;
+                const lines = raw.split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
+                label = lines.find(value => value.length >= 3 && value.length <= 300 && !optionText.has(value) && !generic.has(value.toLowerCase())) || '';
+              }
+            }
             label = (label || '').replace(/\s+/g, ' ').trim().slice(0, 300);
             let options = [];
             if (el.tagName === 'SELECT') options = [...el.options].map(o => o.text.trim()).filter(Boolean);
@@ -435,6 +450,20 @@ def _dedupe_unknown(fields: list[dict]) -> list[dict]:
         seen.add(key)
         result.append(field)
     return result
+
+
+def _display_field_label(field: dict) -> str:
+    label = str(field.get("label") or "").strip()
+    raw_name = str(field.get("name") or "").strip()
+    placeholder = str(field.get("placeholder") or "").strip()
+    technical_name = bool(re.fullmatch(r"cards\[[^]]+\]\[field\d+\]", raw_name, flags=re.IGNORECASE))
+    if label:
+        return label
+    if raw_name and not technical_name:
+        return raw_name
+    if placeholder:
+        return placeholder
+    return "שאלה מותאמת בטופס המועמדות"
 
 
 def _action_text(candidate: Locator) -> str:

@@ -2,7 +2,7 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import ApplicationBlocked, _extract_fields, _file_already_uploaded, fill_application
+from agent.browser import ApplicationBlocked, _display_field_label, _extract_fields, _file_already_uploaded, fill_application
 
 
 def _launch(playwright):
@@ -132,6 +132,29 @@ def test_unknown_required_field_reports_aria_labelled_question_and_options():
         assert field["label"] == "האם תהיה מוכן לעבוד במשמרת ירח?"
         assert field["options"] == ["בחר תשובה", "כן", "לא"]
         browser.close()
+
+
+def test_comeet_generated_field_name_uses_plain_text_ancestor_question():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div class="generated-card-wrapper">
+            <div>האם עבדת בעבר בחברה?</div>
+            <div><select required name="cards[1490ff32-e069-4889-81e9-10a2e163ac0e][field0]">
+              <option value="">בחר תשובה</option><option>כן</option><option>לא</option>
+            </select></div>
+          </div>
+        """)
+        field = next(item for item in _extract_fields(page) if item["tag"] == "select")
+        assert _display_field_label(field) == "האם עבדת בעבר בחברה?"
+        assert "cards[" not in _display_field_label(field)
+        browser.close()
+
+
+def test_generated_field_name_is_never_presented_as_the_question():
+    field = {"label": "", "name": "cards[1490ff32-e069-4889-81e9-10a2e163ac0e][field0]", "placeholder": ""}
+    assert _display_field_label(field) == "שאלה מותאמת בטופס המועמדות"
 
 
 def test_workday_anonymous_month_fields_use_employment_dates():
