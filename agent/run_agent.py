@@ -124,7 +124,13 @@ def run_task(context, task: dict):
     screenshot_path = ""
     keep_open_for_manual_submit = False
     try:
-        submit_authorized = AUTO_SUBMIT or bool(task.get("submit_approved_once"))
+        application_mode = str((task.get("application") or {}).get("mode") or "").strip().lower()
+        # Background auto applications are already authorized to perform the final
+        # submit. Do not downgrade them to review-only after an intermediate
+        # blocker/retry just because the one-time approval marker was consumed by
+        # the previous attempt. Review/manual tasks still require either the
+        # explicit one-time approval or the global emergency override.
+        submit_authorized = AUTO_SUBMIT or application_mode == "auto" or bool(task.get("submit_approved_once"))
         prepare_resume(task)
         def report_progress(stage, message, page_url):
             try:
