@@ -107,7 +107,7 @@ scheduler_task: asyncio.Task | None = None
 startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
-PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v3__"
+PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
 GRADE_SHEET_MAX_BYTES = 10 * 1024 * 1024

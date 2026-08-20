@@ -1170,7 +1170,13 @@ def _file_field_has_attachment(
     if wanted and wanted in text:
         return True
     stem = normalize(Path(str(filename or "")).stem)
-    if stem and len(stem) >= 5 and stem in text:
+    generic_document_stems = {
+        "resume", "cv", "resume cv", "curriculum vitae",
+        "grade sheet", "gradesheet", "grade report", "transcript",
+        "academic transcript", "academic record", "mark sheet", "marksheet",
+        "קורות חיים", "גיליון ציונים", "גליון ציונים",
+    }
+    if stem and len(stem) >= 5 and stem not in generic_document_stems and stem in text:
         return True
     # A visible Replace/Remove affordance belongs to this exact question and is a
     # stronger signal than the generic "Upload file" button that exists pre-upload.

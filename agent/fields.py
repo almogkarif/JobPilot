@@ -56,6 +56,18 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     else:
         language_names, language_levels = str(languages or ""), ""
 
+    # File controls must be resolved before any textual/profile mappings.
+    # A grade-sheet label contains the word "grade", which otherwise matches the
+    # education GPA mapping below and turns a value such as "85" into a bogus file
+    # path. Keep uploads in their own namespace: only persistent document paths can
+    # satisfy a file input.
+    if field_type == "file":
+        if profile.get("cv_path") and is_resume_file_label(label):
+            return CandidateValue(profile["cv_path"], "profile")
+        if profile.get("grade_sheet_path") and is_grade_sheet_file_label(label):
+            return CandidateValue(profile["grade_sheet_path"], "profile_grade_sheet")
+        return None
+
     # Workday uses very short labels for employment dates. They must be exact:
     # substring matching "to" would incorrectly match "Type to Add Skills".
     if key == "from" and extra.get("employment_start_date"):
@@ -133,11 +145,6 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         return CandidateValue(bool(profile.get("work_authorization")), "profile")
     if any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"]):
         return CandidateValue(bool(profile.get("needs_sponsorship")), "profile")
-    if field_type == "file":
-        if profile.get("cv_path") and is_resume_file_label(label):
-            return CandidateValue(profile["cv_path"], "profile")
-        if profile.get("grade_sheet_path") and is_grade_sheet_file_label(label):
-            return CandidateValue(profile["grade_sheet_path"], "profile")
     return None
 
 

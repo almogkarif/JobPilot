@@ -64,6 +64,32 @@ def test_file_labels_distinguish_resume_from_persistent_grade_sheet():
     assert unrelated is None
 
 
+
+
+def test_grade_sheet_file_resolution_never_uses_gpa_or_text_answers():
+    profile = {
+        "cv_path": "/tmp/resume.pdf",
+        "grade_sheet_path": "/tmp/technion-grades.pdf",
+        "application_profile": {"education_grade": "85"},
+    }
+
+    grade_sheet = known_value(
+        "Grade Sheet Submission Please submit your grade sheet",
+        "file",
+        profile,
+        {"Grade Sheet Submission Please submit your grade sheet": "90"},
+        [{"pattern": "grade sheet", "answer": "95", "category": ""}],
+    )
+    resume = known_value("Resume/CV", "file", profile, {}, [])
+    unrelated = known_value("Cover letter", "file", profile, {}, [])
+
+    assert grade_sheet is not None
+    assert grade_sheet.value == "/tmp/technion-grades.pdf"
+    assert grade_sheet.source == "profile_grade_sheet"
+    assert resume is not None and resume.value == "/tmp/resume.pdf"
+    assert unrelated is None
+
+
 def test_profile_grade_sheet_upload_persists_and_agent_can_download_it():
     with TestClient(app) as client:
         uploaded = client.post(

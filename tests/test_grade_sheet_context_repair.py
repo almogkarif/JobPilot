@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from playwright.sync_api import sync_playwright
 
 from agent.browser import (_attach_file_to_field, _display_field_label, _ensure_profile_documents_attached,
-                           _lever_inferred_grade_sheet_field, _lever_profile_document_fallback)
+                           _extract_fields, _lever_inferred_grade_sheet_field, _lever_profile_document_fallback)
 from app.database import SessionLocal
 from app.main import app
 from app.models import Application, Blocker
@@ -124,13 +126,77 @@ def test_saved_grade_sheet_is_attached_before_submit_without_playwright(tmp_path
     ]
     page = FakePage()
     attached = _ensure_profile_documents_attached(
-        page, fields, {"cv_path": str(resume), "grade_sheet_path": str(grades)}, {}, []
+        page, fields, {
+            "cv_path": str(resume),
+            "grade_sheet_path": str(grades),
+            "application_profile": {"education_grade": "85"},
+        }, {}, []
     )
 
     assert page.locators["#resume"].files == ["resume.pdf"]
     assert page.locators["#custom-upload"].files == ["grades.pdf"]
     assert {item["document"] for item in attached} == {"resume", "grade_sheet"}
 
+
+
+
+
+def test_real_browser_attaches_resume_and_grade_sheet_to_distinct_file_inputs(tmp_path):
+    resume = tmp_path / "resume.pdf"
+    grades = tmp_path / "grade_sheet.pdf"
+    resume.write_bytes(_pdf_bytes())
+    grades.write_bytes(_pdf_bytes())
+
+    executable = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+    with sync_playwright() as playwright:
+        kwargs = {"headless": True}
+        if executable:
+            kwargs.update(executable_path=executable, args=["--no-sandbox"])
+        browser = playwright.chromium.launch(**kwargs)
+        page = browser.new_page()
+        try:
+            page.set_content(
+                """
+                <form>
+                  <div class="application-question">
+                    <label>Resume/CV ✱</label>
+                    <input type="file" name="resume">
+                  </div>
+                  <div class="application-question">
+                    <h4>Grade Sheet Submission</h4>
+                    <p>Please submit your grade sheet: ✱</p>
+                    <input type="file" name="cards[abc][field0]">
+                    <button type="button">Upload file</button>
+                  </div>
+                </form>
+                """
+            )
+            fields = _extract_fields(page)
+            file_fields = [field for field in fields if field.get("type") == "file"]
+            assert len(file_fields) == 2
+
+            attached = _ensure_profile_documents_attached(
+                page, file_fields, {
+                    "cv_path": str(resume),
+                    "grade_sheet_path": str(grades),
+                    "application_profile": {"education_grade": "85"},
+                }, {}, []
+            )
+
+            resume_field = next(field for field in file_fields if field.get("name") == "resume")
+            grade_field = next(field for field in file_fields if field.get("name") == "cards[abc][field0]")
+            resume_files = page.locator(resume_field["selector"]).first.evaluate(
+                "el => Array.from(el.files || []).map(file => file.name)"
+            )
+            grade_files = page.locator(grade_field["selector"]).first.evaluate(
+                "el => Array.from(el.files || []).map(file => file.name)"
+            )
+
+            assert resume_files == ["resume.pdf"]
+            assert grade_files == ["grade_sheet.pdf"]
+            assert {item["document"] for item in attached} == {"resume", "grade_sheet"}
+        finally:
+            browser.close()
 
 
 def test_lever_file_upload_can_consume_native_input_without_false_blocker(tmp_path):
@@ -213,9 +279,47 @@ def test_previous_v2_grade_sheet_retry_marker_gets_one_retry_with_fixed_uploader
         with SessionLocal() as db:
             application = db.get(Application, application_id)
             assert application.status == "queued"
-            assert "__jobpilot_profile_grade_sheet_auto_retry_v3__" in application.answers_json
+            assert "__jobpilot_profile_grade_sheet_auto_retry_v4__" in application.answers_json
 
     assert dispatched == [application_id]
+
+
+
+def test_previous_v3_grade_sheet_retry_marker_gets_one_retry_after_file_resolution_fix(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            application.answers_json = '{"__jobpilot_profile_grade_sheet_auto_retry_v3__":1}'
+            db.commit()
+
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "grade_sheet_required", "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet", "explanation": "Missing", "page_url": job["apply_url"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "queued"
+            assert "__jobpilot_profile_grade_sheet_auto_retry_v4__" in application.answers_json
+
+    assert dispatched == [application_id]
+
 
 def test_generic_lever_upload_is_not_inferred_for_other_employers():
     fields = [
