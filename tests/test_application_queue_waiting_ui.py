@@ -15,3 +15,11 @@ def test_auto_apply_queue_has_persistent_visual_waiting_state():
     assert "application-live-queue" in js
     assert ".application-live-queue" in css
     assert ".application-live-tracker.has-queue" in css
+
+
+def test_profile_grade_sheet_reuse_is_automatic_not_a_user_confirmation():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    assert "grade_sheet_auto_requeued" in js
+    assert "גיליון הציונים כבר נמצא בפרופיל" in js
+    assert "מצרף אותו אוטומטית" in js
+    assert "השתמש בגיליון הציונים השמור והמשך" not in js

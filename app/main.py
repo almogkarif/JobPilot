@@ -107,6 +107,7 @@ scheduler_task: asyncio.Task | None = None
 startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
+PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry__"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
 GRADE_SHEET_MAX_BYTES = 10 * 1024 * 1024
@@ -170,9 +171,11 @@ def _effective_blocker_fields(blocker: Blocker, job: Job | None = None) -> tuple
         question = legacy_file_label or blocker.question or blocker.field_label
         if _is_generic_upload_label(question):
             question = "Please submit your grade sheet"
+        explanation = str(blocker.explanation or "").strip()
+        if "לא הצליח לצרף" not in explanation and "לולאת ניסיונות" not in explanation:
+            explanation = "Lever דורש גיליון ציונים. JobPilot ישתמש בקובץ הקבוע ששמור בפרטים האישיים וימשיך אוטומטית."
         return (
-            "grade_sheet_required", "גיליון ציונים", question,
-            "Lever דורש גיליון ציונים. JobPilot ישתמש בקובץ הקבוע ששמור בפרטים האישיים וימשיך אוטומטית.",
+            "grade_sheet_required", "גיליון ציונים", question, explanation,
         )
     return blocker.kind, blocker.field_label, blocker.question, blocker.explanation
 
@@ -2827,9 +2830,16 @@ def _reconcile_lever_confirmation_url(db: Session, application: Application) -> 
 
 
 @app.get("/api/applications/{application_id}/timeline")
-def application_timeline(application_id: int, db: Session = Depends(get_db)):
+async def application_timeline(application_id: int, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
     _reconcile_lever_confirmation_url(db, application)
+    open_blocker = db.scalar(select(Blocker).where(
+        Blocker.application_id == application.id, Blocker.status == "open"
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    if open_blocker and _auto_requeue_stored_grade_sheet(
+        db, application, open_blocker, source="timeline_read_repair"
+    ):
+        await _dispatch_resolved_auto_application(db, application)
     events = db.scalars(select(ApplicationEvent).where(
         ApplicationEvent.application_id == application.id
     ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
@@ -3024,6 +3034,78 @@ async def _dispatch_resolved_auto_application(db: Session, application: Applicat
         application.last_error = f"התשובה נשמרה, אך לא ניתן להפעיל worker ברקע: {exc}"[:2000]
         db.commit()
         raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
+
+
+def _auto_requeue_stored_grade_sheet(
+    db: Session, application: Application, blocker: Blocker, *, source: str, attempt: ApplicationAttempt | None = None,
+) -> bool:
+    """Reuse the persistent profile grade sheet without asking the user.
+
+    Only one automatic retry is allowed per application. If the next browser
+    attempt still cannot attach the same stored document, keep the blocker open
+    with a diagnostic instead of creating an infinite retry loop.
+    """
+    if application.mode != "auto" or not _blocker_requests_grade_sheet(blocker, application.job):
+        return False
+    profile = get_user_profile(db)
+    if not profile or not str(profile.grade_sheet_path or "").strip():
+        return False
+
+    answers = loads(application.answers_json, {})
+    try:
+        retry_count = int(answers.get(PROFILE_GRADE_SHEET_AUTO_RETRY_KEY, 0) or 0)
+    except (TypeError, ValueError):
+        retry_count = 0
+    if retry_count >= 1:
+        blocker.kind = "grade_sheet_required"
+        blocker.field_label = "גיליון ציונים"
+        blocker.explanation = (
+            "גיליון ציונים כבר שמור בפרופיל, אבל ה־Agent לא הצליח לצרף אותו לטופס בניסיון החוזר. "
+            "ההגשה נעצרה כדי למנוע לולאת ניסיונות אוטומטית."
+        )
+        return False
+
+    answers[PROFILE_GRADE_SHEET_AUTO_RETRY_KEY] = retry_count + 1
+    application.answers_json = dumps(answers)
+    blocker.kind = "grade_sheet_required"
+    blocker.field_label = "גיליון ציונים"
+    if _is_generic_upload_label(blocker.question or blocker.field_label):
+        blocker.question = "Please submit your grade sheet"
+    blocker.explanation = "גיליון הציונים השמור בפרופיל זוהה ויצורף אוטומטית בניסיון הבא."
+    blocker.answer = profile.grade_sheet_filename or "profile_grade_sheet"
+    blocker.remember_answer = False
+    blocker.status = "resolved"
+    blocker.resolved_at = utcnow()
+
+    previous_status = application.status
+    application.status = "queued"
+    application.job.status = "queued"
+    application.last_error = ""
+    attempt = attempt or _result_attempt(db, application.id)
+    if attempt and attempt.status in {"running", "blocked", "pending_verification"}:
+        attempt.status = "blocked"
+        attempt.verification_state = "none"
+        attempt.error = ""
+        attempt.finished_at = attempt.finished_at or utcnow()
+
+    _record_application_event(
+        db, application, "grade_sheet_auto_requeued", from_status=previous_status, to_status="queued",
+        actor="system", message="גיליון הציונים השמור נמצא בפרופיל; ההגשה הוכנסה אוטומטית לניסיון חוזר",
+        details={
+            "blocker_id": blocker.id, "source": source,
+            "grade_sheet_filename": profile.grade_sheet_filename or "",
+            "retry_count": retry_count + 1,
+        },
+    )
+    db.add(AuditLog(
+        event_type="profile_grade_sheet_auto_reused", entity_type="application", entity_id=str(application.id),
+        message=profile.grade_sheet_filename or "profile grade sheet",
+        details_json=dumps({"blocker_id": blocker.id, "source": source, "retry_count": retry_count + 1}),
+    ))
+    db.commit()
+    db.refresh(blocker)
+    db.refresh(application)
+    return True
 
 
 @app.post("/api/profile/grade-sheet")
@@ -4028,7 +4110,7 @@ def skill_suggestions(text: str = Query("", max_length=20_000), db: Session = De
 
 
 @app.post("/api/agent/tasks/{application_id}/blocked")
-def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session = Depends(get_db)):
+async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
     if not application:
@@ -4049,13 +4131,22 @@ def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session
                           options_json=dumps(payload.options), screenshot_path=payload.screenshot_path,
                           page_url=payload.page_url)
         db.add(blocker)
+    db.flush()
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if _auto_requeue_stored_grade_sheet(
+        db, application, blocker, source="agent_blocked", attempt=attempt
+    ):
+        await _dispatch_resolved_auto_application(db, application)
+        payload_out = _blocker_dict(blocker)
+        payload_out["auto_resolved"] = True
+        return payload_out
+
     previous_status = application.status
     uncertain_submission = payload.kind == "confirmation_missing"
     application.status = "verification_pending" if uncertain_submission else "needs_input"
     application.job.status = application.status
     compact_error = f"[blocked:{payload.kind}] {payload.explanation or payload.question or payload.field_label}".strip()
     application.last_error = compact_error[:2000]
-    attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "pending_verification" if uncertain_submission else "blocked"
         attempt.verification_state = "uncertain" if uncertain_submission else "none"
@@ -4536,9 +4627,13 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
     elif getattr(a, "attempts", None):
         latest_attempt = max(a.attempts, key=lambda item: (item.started_at, item.id))
 
+    public_answers = {
+        key: value for key, value in loads(a.answers_json, {}).items()
+        if not str(key).startswith("__jobpilot_")
+    }
     return {
         "id": a.id, "job_id": a.job_id, "status": a.status, "mode": a.mode,
-        "resume_path": a.resume_path, "answers": loads(a.answers_json, {}), "started_at": a.started_at,
+        "resume_path": a.resume_path, "answers": public_answers, "started_at": a.started_at,
         "submitted_at": a.submitted_at, "updated_at": a.updated_at, "last_error": a.last_error,
         "agent_id": a.agent_id, "attempt_count": a.attempt_count, "blocker": blocker_summary,
         "resume_id": a.resume_id, "notes": a.notes, "reminder_at": a.reminder_at,

@@ -707,6 +707,8 @@ def _display_field_label(field: dict) -> str:
     # "Upload file". The actual question (for example Grade Sheet Submission)
     # lives on the surrounding application-question container. Prefer that
     # context so persistent profile documents can be matched correctly.
+    if field.get("type") == "file" and file_context and is_grade_sheet_file_label(file_context):
+        return file_context[:500]
     if field.get("type") == "file" and file_context and _is_generic_file_action_label(label):
         return file_context[:500]
     if label:

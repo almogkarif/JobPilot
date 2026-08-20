@@ -53,6 +53,11 @@ def test_generic_upload_button_uses_surrounding_grade_sheet_context():
     }
     assert "grade sheet" in _display_field_label(field).casefold()
 
+    # A misleading control label must not beat an explicit grade-sheet question
+    # from the nearest file-question container.
+    field["label"] = "Resume/CV"
+    assert "grade sheet" in _display_field_label(field).casefold()
+
 
 def test_existing_mobileye_upload_file_blocker_reuses_profile_grade_sheet(monkeypatch):
     dispatched: list[int] = []
@@ -110,5 +115,162 @@ def test_existing_mobileye_upload_file_blocker_reuses_profile_grade_sheet(monkey
             assert blocker_row.answer == "technion-grades.pdf"
             assert application.status == "queued"
             assert application.last_error == ""
+
+    assert dispatched == [application_id]
+
+
+def test_stored_grade_sheet_auto_resolves_auto_application_without_user_click(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        uploaded = client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        assert uploaded.status_code == 200, uploaded.text
+
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me",
+                "kind": "grade_sheet_required",
+                "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet: ✱ UPLOAD FILE",
+                "explanation": "Missing grade sheet",
+                "page_url": job["apply_url"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["status"] == "resolved"
+        assert blocked.json()["auto_resolved"] is True
+
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            blocker = db.get(Blocker, blocked.json()["id"])
+            assert application.status == "queued"
+            assert application.last_error == ""
+            assert blocker.answer == "technion-grades.pdf"
+            assert blocker.status == "resolved"
+
+        timeline = client.get(f"/api/applications/{application_id}/timeline")
+        assert timeline.status_code == 200, timeline.text
+        event_types = [event["event_type"] for event in timeline.json()["events"]]
+        assert "grade_sheet_auto_requeued" in event_types
+        assert "worker_dispatched" in event_types
+        assert all(not key.startswith("__jobpilot_") for key in timeline.json()["application"]["answers"])
+
+    assert dispatched == [application_id]
+
+
+def test_existing_grade_sheet_blocker_is_read_repaired_without_click(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        uploaded = client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        assert uploaded.status_code == 200
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+
+        # Simulate an already-open blocker created by the previous deployment.
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me",
+                "kind": "file_required",
+                "field_label": "UPLOAD FILE",
+                "question": "UPLOAD FILE",
+                "explanation": "זהו קובץ חובה נוסף שלא הוגדר בפרופיל.",
+                "page_url": job["apply_url"],
+            },
+        )
+        blocker_id = blocked.json()["id"]
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+
+        timeline = client.get(f"/api/applications/{application_id}/timeline")
+        assert timeline.status_code == 200, timeline.text
+        assert timeline.json()["application"]["status"] == "queued"
+        assert timeline.json()["application"]["blocker"] is None
+        with SessionLocal() as db:
+            blocker = db.get(Blocker, blocker_id)
+            assert blocker.status == "resolved"
+            assert blocker.answer == "technion-grades.pdf"
+
+    assert dispatched == [application_id]
+
+
+def test_stored_grade_sheet_auto_retry_is_bounded(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+
+        first = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "grade_sheet_required", "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet", "explanation": "Missing", "page_url": job["apply_url"],
+            },
+        )
+        assert first.json()["auto_resolved"] is True
+
+        claimed = client.get(
+            "/api/agent/tasks/next",
+            params={
+                "agent_id": "grade-context-cloud", "token": "change-me", "worker_type": "cloud",
+                "application_id": application_id,
+            },
+        )
+        assert claimed.status_code == 200, claimed.text
+        assert claimed.json()["task"]["application"]["id"] == application_id
+        second = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "grade_sheet_required", "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet", "explanation": "Still missing", "page_url": job["apply_url"],
+            },
+        )
+        assert second.status_code == 200, second.text
+        assert second.json()["status"] == "open"
+        assert "לולאת ניסיונות" in second.json()["explanation"]
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "needs_input"
+            # Keep the shared test database clean for later grade-sheet upload tests.
+            blocker = db.get(Blocker, second.json()["id"])
+            blocker.status = "resolved"
+            application.status = "skipped"
+            application.job.status = "skipped"
+            db.commit()
 
     assert dispatched == [application_id]
