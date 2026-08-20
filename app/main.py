@@ -56,7 +56,7 @@ from .schemas import (
     SourceUpdate,
 )
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
-from .services.job_cleanup import delete_job_tree
+from .services.job_cleanup import application_history_visible, delete_job_tree, purge_stale_jobs
 from .services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
@@ -455,6 +455,10 @@ def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool]:
             return DEFAULT_TRACK, [], False
         ensure_track_state(profile)
         startup_track = active_track(profile)
+        # Keep the Applications list truthful even before the next source scan:
+        # inactive unsubmitted rows are removed immediately, while submitted history
+        # is retained for the configured 30-day grace period.
+        purge_stale_jobs(db, days=2, audit=False)
         pending_resume_analysis = db.scalars(select(ResumeProfile).where(
             ResumeProfile.extracted_text == "", ResumeProfile.career_track == startup_track
         )).all()
@@ -817,6 +821,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
         .options(joinedload(Application.job).joinedload(Job.source))
         .where(
             Job.career_track == career_track,
+            Job.is_active.is_(True),
             Application.mode == "auto",
             Application.status.in_(["queued", "applying"]),
         )
@@ -2463,7 +2468,7 @@ def remove_profile_skill(background_tasks: BackgroundTasks, skill: str = Query(.
 def _active_job_or_404(db: Session, job_id: int) -> Job:
     profile = get_user_profile(db)
     job = db.get(Job, job_id)
-    if not job or job.career_track != active_track(profile):
+    if not job or not job.is_active or job.career_track != active_track(profile):
         raise HTTPException(404, "Job not found")
     return job
 
@@ -2471,7 +2476,12 @@ def _active_job_or_404(db: Session, job_id: int) -> Job:
 def _active_application_or_404(db: Session, application_id: int) -> Application:
     application = db.get(Application, application_id)
     profile = get_user_profile(db)
-    if not application or not application.job or application.job.career_track != active_track(profile):
+    if (
+        not application
+        or not application.job
+        or application.job.career_track != active_track(profile)
+        or not application_history_visible(application.job, application)
+    ):
         raise HTTPException(404, "Application not found")
     return application
 
@@ -2883,7 +2893,10 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
     )
     if status:
         statement = statement.where(Application.status == status)
-    applications = db.scalars(statement).unique().all()
+    applications = [
+        application for application in db.scalars(statement).unique().all()
+        if application.job and application_history_visible(application.job, application)
+    ]
     auto_queued = sorted(
         (item for item in applications
          if item.status == "queued" and item.mode == "auto" and _application_auto_submit_supported(item)),
@@ -4189,6 +4202,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
                     Application.status == "queued",
                     Application.mode == "auto",
                     Job.career_track == anchor.job.career_track,
+                    Job.is_active.is_(True),
                 )
                 .order_by(desc(Application.updated_at), desc(Application.id))
             ).unique().all()
@@ -4200,6 +4214,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         # claim review tasks, but must never pop open for an automatic campaign.
         application = db.scalar(select(Application).join(Job, Application.job_id == Job.id).where(
             Application.status == "queued", Application.mode != "auto", Job.career_track == track,
+            Job.is_active.is_(True),
         ).order_by(Application.updated_at).limit(1))
     if not application:
         return {"task": None}

@@ -128,6 +128,7 @@ class Job(UserOwnedMixin, Base):
     alternate_links_json: Mapped[str] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(40), default="new", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

@@ -60,9 +60,9 @@ def split_name(full_name: str) -> tuple[str, str]:
 
 def select_next_queued_application(db: Session, career_track: str | None = None) -> Application | None:
     """Return the next queued application, optionally restricted to one career track."""
-    statement = select(Application)
+    statement = select(Application).join(Job, Application.job_id == Job.id).where(Job.is_active.is_(True))
     if career_track:
-        statement = statement.join(Job, Application.job_id == Job.id).where(Job.career_track == career_track)
+        statement = statement.where(Job.career_track == career_track)
     applications = db.scalars(
         statement.where(Application.status == "queued").order_by(Application.updated_at).limit(1)
     ).all()

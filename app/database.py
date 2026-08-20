@@ -152,6 +152,7 @@ def _sqlite_additive_migrations(connection) -> None:
             "career_track": "VARCHAR(40) NOT NULL DEFAULT 'computer_science'",
             "match_breakdown_json": "TEXT NOT NULL DEFAULT '{}'",
             "alternate_links_json": "TEXT NOT NULL DEFAULT '[]'",
+            "removed_at": "DATETIME",
         },
         "applications": {
             "resume_id": "INTEGER",
@@ -179,6 +180,8 @@ def _sqlite_additive_migrations(connection) -> None:
         for name, declaration in wanted.items():
             if name not in existing:
                 connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}"))
+    if "jobs" in existing_tables:
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_removed_at ON jobs(removed_at)"))
 
     # Local mode remains a single-account installation, but the same schema is used
     # so backup/migration behavior matches cloud mode.
@@ -310,6 +313,13 @@ def _postgres_multiuser_migration(connection) -> None:
         index_name = f"ix_{table}_user_id"
         if index_name not in _postgres_index_names(connection, table):
             connection.execute(text(f"CREATE INDEX {index_name} ON {table}(user_id)"))
+
+    if "jobs" in tables:
+        job_columns = {c["name"]: c for c in inspect(connection).get_columns("jobs")}
+        if "removed_at" not in job_columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN removed_at TIMESTAMPTZ"))
+        if "ix_jobs_removed_at" not in _postgres_index_names(connection, "jobs"):
+            connection.execute(text("CREATE INDEX ix_jobs_removed_at ON jobs(removed_at)"))
 
     if "profiles" in tables:
         # ``salary_expectation`` existed before v0.3.2 and was intentionally removed

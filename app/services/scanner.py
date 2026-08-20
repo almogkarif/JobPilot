@@ -12,7 +12,7 @@ from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProf
 from ..database import get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
-from .job_cleanup import delete_job_tree, purge_stale_jobs
+from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .location_filter import is_israel_location
 from .matching import build_match_context, hard_exclusion_reason, score_job, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
@@ -321,6 +321,7 @@ async def scan_all_sources(
                         job.source_url = item.source_url
                         job.published_at = item.published_at
                         job.is_active = True
+                        job.removed_at = None
                         job.updated_at = seen_at
                         total_updated += 1
                         source_updated += 1
@@ -354,31 +355,33 @@ async def scan_all_sources(
                 # no longer returned by that same source are removed immediately,
                 # together with their dependent application/blocker records.
                 for old_index, old in enumerate(source_jobs, start=1):
+                    removal_reason = ""
                     if not is_israel_location(old.location):
-                        delete_job_tree(db, old)
-                        source_removed += 1
+                        removal_reason = "outside_israel"
                     elif hard_exclusion_reason(old, profile, match_context.excluded):
-                        if old.application:
-                            old.is_active = False
-                        else:
-                            delete_job_tree(db, old)
-                            source_removed += 1
+                        removal_reason = "hard_exclusion"
                     elif not track_job_relevance(old, career_track)[0]:
                         # Reconcile jobs saved under older/broader track rules too.
-                        # Preserve application history, but never show an irrelevant
-                        # role in the active track catalogue.
-                        if old.application:
-                            old.is_active = False
-                        else:
-                            delete_job_tree(db, old)
-                            source_removed += 1
+                        removal_reason = "track_mismatch"
                     elif old.external_id not in seen_external_ids:
-                        removed_jobs.append({
-                            "id": old.id, "external_id": old.external_id,
-                            "title": old.title, "company": old.company,
-                        })
-                        delete_job_tree(db, old)
-                        source_removed += 1
+                        removal_reason = "no_longer_listed"
+
+                    if removal_reason:
+                        was_active = bool(old.is_active)
+                        # Only a real submitted application earns a 30-day history
+                        # grace period. Queued/saved/failed applications disappear as
+                        # soon as their job is no longer part of the active catalogue.
+                        deleted = deactivate_or_delete_job(db, old, removed_at=seen_at)
+                        if deleted or was_active:
+                            removed_jobs.append({
+                                "id": old.id,
+                                "external_id": old.external_id,
+                                "title": old.title,
+                                "company": old.company,
+                                "reason": removal_reason,
+                                "history_retained": not deleted,
+                            })
+                            source_removed += 1
                     if old_index % 20 == 0:
                         await asyncio.sleep(0)
                 total_removed += source_removed
