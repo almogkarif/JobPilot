@@ -726,6 +726,64 @@ def _automatic_submit_sort_order():
     return case((supported, 1), else_=0)
 
 
+def _application_auto_submit_supported(application: Application) -> bool:
+    job = application.job
+    if not job:
+        return False
+    source_kind = job.source.kind if job.source else ""
+    return detect_adapter(job.apply_url, source_kind).supports_automatic_submit
+
+
+def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
+    """Return only real cloud-auto submissions, never review/manual queue rows."""
+    rows = db.scalars(
+        select(Application)
+        .join(Job, Application.job_id == Job.id)
+        .options(joinedload(Application.job).joinedload(Job.source))
+        .where(
+            Job.career_track == career_track,
+            Application.mode == "auto",
+            Application.status.in_(["queued", "applying"]),
+        )
+        .order_by(Application.updated_at, Application.id)
+    ).unique().all()
+    eligible = [item for item in rows if _application_auto_submit_supported(item)]
+    applying = sorted(
+        (item for item in eligible if item.status == "applying"),
+        key=lambda item: (item.started_at or item.updated_at, item.id),
+    )
+    queued = sorted(
+        (item for item in eligible if item.status == "queued"),
+        key=lambda item: (item.updated_at, item.id),
+    )
+    current = applying[0] if applying else (queued[0] if queued else None)
+    waiting = queued if current is None or current.status == "applying" else queued[1:]
+
+    def item_payload(application: Application, position: int | None = None) -> dict:
+        return {
+            "id": application.id,
+            "job_id": application.job_id,
+            "status": application.status,
+            "queue_position": position,
+            "job": {
+                "id": application.job.id,
+                "title": application.job.title,
+                "company": application.job.company,
+                "apply_url": application.job.apply_url,
+            },
+        }
+
+    current_position = 1 if current and current.status == "queued" else None
+    waiting_start = 2 if current and current.status == "queued" else 1
+    return {
+        "current": item_payload(current, current_position) if current else None,
+        "waiting": [item_payload(item, waiting_start + index) for index, item in enumerate(waiting)],
+        "waiting_count": len(waiting),
+        "queued_count": len(queued),
+        "total_active_count": len(eligible),
+    }
+
+
 @app.get("/api/admin/users")
 def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
@@ -1450,6 +1508,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     if guest_catalog:
         # Never leak the admin's application pipeline through the demo dashboard.
         status_counts = {}
+        auto_apply_queue = {"current": None, "waiting": [], "waiting_count": 0, "queued_count": 0, "total_active_count": 0}
         open_blockers = 0
         due_reminders = 0
     else:
@@ -1457,6 +1516,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             select(Application.status, func.count()).join(Job, Application.job_id == Job.id)
             .where(Job.career_track == career_track).group_by(Application.status)
         ).all())
+        # "Queued for automatic submission" must mean a real cloud-auto task.
+        # Review/manual rows and ATS families without auto-submit support belong to
+        # application history, but must never inflate the automatic queue counter.
+        auto_apply_queue = _auto_apply_queue_snapshot(db, career_track)
         open_blockers = db.scalar(select(func.count()).select_from(Blocker)
             .join(Application, Blocker.application_id == Application.id).join(Job, Application.job_id == Job.id)
             .where(Blocker.status == "open", Job.career_track == career_track)) or 0
@@ -1490,7 +1553,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     return {
         "total_jobs": total_jobs,
         "strong_matches": strong_matches,
-        "queued": status_counts.get("queued", 0),
+        "queued": auto_apply_queue["queued_count"],
+        "auto_apply_queue": auto_apply_queue,
         "applying": status_counts.get("applying", 0),
         "submitted": status_counts.get("submitted", 0),
         "needs_input": status_counts.get("needs_input", 0),
@@ -2738,13 +2802,20 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
     )
     if status:
         statement = statement.where(Application.status == status)
-    applications = db.scalars(statement).all()
-    queued = sorted(
-        (item for item in applications if item.status == "queued"),
+    applications = db.scalars(statement).unique().all()
+    auto_queued = sorted(
+        (item for item in applications
+         if item.status == "queued" and item.mode == "auto" and _application_auto_submit_supported(item)),
         key=lambda item: (item.updated_at, item.id),
     )
-    queue_positions = {item.id: index for index, item in enumerate(queued, start=1)}
+    queue_positions = {item.id: index for index, item in enumerate(auto_queued, start=1)}
     return [_application_dict(a, queue_position=queue_positions.get(a.id)) for a in applications]
+
+
+@app.get("/api/applications/auto-queue")
+def automatic_application_queue(db: Session = Depends(get_db)):
+    track = active_track(get_user_profile(db))
+    return _auto_apply_queue_snapshot(db, track)
 
 
 @app.patch("/api/applications/{application_id}")
@@ -2848,6 +2919,7 @@ async def application_timeline(application_id: int, db: Session = Depends(get_db
     ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))).all()
     return {
         "application": _application_dict(application, db),
+        "auto_apply_queue": _auto_apply_queue_snapshot(db, application.job.career_track),
         "events": [{
             "id": item.id, "event_type": item.event_type, "from_status": item.from_status,
             "to_status": item.to_status, "actor": item.actor, "message": item.message,
@@ -4565,6 +4637,8 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
             blocker_summary["options"] = blocker_options
 
     status = a.status
+    automatic_submit_supported = _application_auto_submit_supported(a)
+    auto_queue_eligible = status == "queued" and a.mode == "auto" and automatic_submit_supported
     if status == "applying" and active_blocker:
         stage = "נעצר"
         waiting_for = "תשובה/המשך מהמשתמש"
@@ -4573,10 +4647,14 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         stage = "בתהליך"
         waiting_for = "שלב מסוים בטופס או דף ההגשה"
         detail = a.last_error or "ה-Agent עובד על המשרה"
-    elif status == "queued":
+    elif status == "queued" and auto_queue_eligible:
         stage = "ממתין לתור"
         waiting_for = "ה-Agent הבא שיתחיל"
-        detail = "המשימה מוכנה, אך עדיין לא נלקחה"
+        detail = "המשימה מוכנה להגשה אוטומטית, אך עדיין לא נלקחה"
+    elif status == "queued":
+        stage = "לא בתור האוטומטי"
+        waiting_for = "טיפול ידני / Agent מקומי"
+        detail = "הרשומה קיימת בהיסטוריית ההגשות, אבל אינה ממתינה ל-worker של ההגשה האוטומטית"
     elif status == "needs_input":
         stage = "נעצר"
         waiting_for = f"תשובה לשאלה: {blocker_summary.get('question')}" if blocker_summary and blocker_summary.get("question") else "תשובה/המשך מהמשתמש"
@@ -4604,20 +4682,18 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         detail = a.last_error or ""
 
     expected_start_at = None
-    if status == "queued":
+    if auto_queue_eligible:
         if queue_position is None:
             if db is not None:
-                earlier = db.scalar(
-                    select(func.count()).select_from(Application).join(Job, Application.job_id == Job.id).where(
-                        Application.status == "queued", Job.career_track == a.job.career_track,
-                        Application.updated_at <= a.updated_at,
-                    )
-                )
-                queue_position = max(1, int(earlier or 1))
+                snapshot = _auto_apply_queue_snapshot(db, a.job.career_track)
+                candidates = ([snapshot["current"]] if snapshot.get("current") else []) + list(snapshot.get("waiting") or [])
+                queue_position = next((item.get("queue_position") for item in candidates if item.get("id") == a.id), None)
             else:
                 queue_position = 1
         if queue_position is not None:
             expected_start_at = (utcnow() + timedelta(minutes=max(2, queue_position * 2))).isoformat()
+    else:
+        queue_position = None
 
     latest_attempt = None
     if db is not None:
@@ -4642,6 +4718,8 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         "agent_waiting_for": waiting_for,
         "agent_failure_detail": detail,
         "queue_position": queue_position,
+        "auto_queue_eligible": auto_queue_eligible,
+        "automatic_submit_supported": automatic_submit_supported,
         "expected_start_at": expected_start_at,
         "verification_state": latest_attempt.verification_state if latest_attempt else "none",
         "latest_receipt": _attempt_dict(latest_attempt),

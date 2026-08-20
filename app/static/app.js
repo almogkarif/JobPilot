@@ -11,6 +11,7 @@ const state = {
   answersDirty: false,
   sources: [],
   dashboard: null,
+  autoApplyQueue: { current: null, waiting: [], waiting_count: 0, queued_count: 0, total_active_count: 0 },
   activeView: 'dashboard',
   applicationSection: 'queue',
   careerTracks: [],
@@ -1219,6 +1220,7 @@ async function loadDashboard() {
   }
   state.dashboard = await api('/api/dashboard');
   const dashboard = state.dashboard;
+  state.autoApplyQueue = dashboard.auto_apply_queue || state.autoApplyQueue;
   if (dashboard.career_track_info?.tracks) {
     state.careerTracks = dashboard.career_track_info.tracks;
     state.activeCareerTrack = dashboard.career_track || dashboard.career_track_info.active_track || state.activeCareerTrack;
@@ -1246,10 +1248,13 @@ async function loadDashboard() {
     </button>
   `).join('');
   $$('#metrics [data-metric-view]').forEach((button) => {
-    button.onclick = () => switchView(button.dataset.metricView, {
-      minScore: button.dataset.minScore === '' ? undefined : Number(button.dataset.minScore),
-      status: button.dataset.status === '' ? undefined : button.dataset.status,
-    });
+    button.onclick = () => {
+      if (button.dataset.metricTone === 'queue') return showAutoApplyQueue();
+      switchView(button.dataset.metricView, {
+        minScore: button.dataset.minScore === '' ? undefined : Number(button.dataset.minScore),
+        status: button.dataset.status === '' ? undefined : button.dataset.status,
+      });
+    };
   });
   ['#blocker-count','#blocker-tab-count','#mobile-application-blocker-count'].forEach(selector=>{
     const badge=$(selector);if(!badge)return;badge.textContent=dashboard.open_blockers;badge.hidden=!Number(dashboard.open_blockers);
@@ -1775,8 +1780,8 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
         ? `ההגשה נשלחה לתור · מיקום ${queuePosition} · תופעל אוטומטית ברצף`
         : 'ההגשה נשלחה לתור ותופעל אוטומטית כשה־worker יתפנה')
       : 'המשרה נכנסה לתור לבדיקה');
-    startApplicationTracking(application.id, true);
     await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
+    await syncPrimaryApplicationTracking(application.id, true);
   } catch (error) {
     toast(error.message);
   }
@@ -2090,10 +2095,11 @@ async function openDraftComposer(jobId) {
 }
 async function saveDraft(jobId){const result=await api(`/api/jobs/${jobId}/answer-drafts`,{method:'POST',body:JSON.stringify({question:$('#draft-question').value,draft:$('#draft-text').value||null,approved:$('#draft-approved').checked})});$('#draft-text').value=result.draft;toast(result.approved?'הטיוטה נשמרה ואושרה':'הטיוטה נשמרה ומחכה לאישור');}
 
+function applicationBoardStatus(application){return application.status==='queued'&&application.auto_queue_eligible!==true?'saved':application.status}
 function renderApplicationsKanban(root) {
-  const columns = [['saved','נשמרה'],['queued','בתור'],['applying','בטיפול'],['verification_pending','אימות'],['submitted','הוגשה'],['interview','ראיון'],['offer','הצעה'],['rejected','נדחתה']];
+  const columns = [['saved','נשמרה / ידנית'],['queued','בתור אוטומטי'],['applying','בטיפול'],['verification_pending','אימות'],['submitted','הוגשה'],['interview','ראיון'],['offer','הצעה'],['rejected','נדחתה']];
   root.classList.add('kanban-wrap');
-  root.innerHTML = state.applications.length ? `<div class="kanban-board">${columns.map(([status,label]) => `<section class="kanban-column" data-status="${status}"><header><strong>${label}</strong><span>${state.applications.filter(a=>a.status===status).length}</span></header><div>${state.applications.filter(a=>a.status===status).map(a=>`<article class="kanban-card" draggable="true" data-application-id="${a.id}" onclick="showJob(${a.job_id})"><strong>${esc(a.job?.title)}</strong><span>${esc(a.job?.company)}</span>${a.reminder_at ? `<small>תזכורת: ${dateFmt(a.reminder_at)}</small>`:''}<button type="button" onclick="event.stopPropagation();editApplication(${a.id})">ניהול</button></article>`).join('')}</div></section>`).join('')}</div>` : emptyState('↗','עדיין אין הגשות','משרות שתשמור או תוסיף לתור יופיעו כאן.');
+  root.innerHTML = state.applications.length ? `<div class="kanban-board">${columns.map(([status,label]) => `<section class="kanban-column" data-status="${status}"><header><strong>${label}</strong><span>${state.applications.filter(a=>applicationBoardStatus(a)===status).length}</span></header><div>${state.applications.filter(a=>applicationBoardStatus(a)===status).map(a=>`<article class="kanban-card" draggable="true" data-application-id="${a.id}" onclick="showJob(${a.job_id})"><strong>${esc(a.job?.title)}</strong><span>${esc(a.job?.company)}</span>${a.status==='queued'&&a.auto_queue_eligible!==true?'<small>לא ממתינה ל־Auto Apply</small>':''}${a.reminder_at ? `<small>תזכורת: ${dateFmt(a.reminder_at)}</small>`:''}<button type="button" onclick="event.stopPropagation();editApplication(${a.id})">ניהול</button></article>`).join('')}</div></section>`).join('')}</div>` : emptyState('↗','עדיין אין הגשות','משרות שתשמור או תוסיף לתור יופיעו כאן.');
   $$('.kanban-card', root).forEach(card => card.ondragstart = e => e.dataTransfer.setData('text/plain', card.dataset.applicationId));
   $$('.kanban-column', root).forEach(column => { column.ondragover=e=>e.preventDefault(); column.ondrop=async e=>{ e.preventDefault(); await updateApplication(Number(e.dataTransfer.getData('text/plain')), {status:column.dataset.status}); }; });
 }
@@ -3346,7 +3352,14 @@ const NOTIFICATION_VIEWS = {
   sources: { icon: '↯', title: 'מקורות דורשים בדיקה', copy: 'מקור אחד או יותר דיווח על שגיאה' },
 };
 let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
-let applicationTrackingTimer=null,applicationTrackingData=null;
+let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null;
+function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
+function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}
+function otherAutoQueueItems(snapshot=state.autoApplyQueue,applicationId=trackedApplicationId){const queue=normalizeAutoApplyQueue(snapshot),items=[];if(queue.current&&Number(queue.current.id)!==Number(applicationId))items.push(queue.current);queue.waiting.forEach(item=>{if(Number(item.id)!==Number(applicationId))items.push(item)});return items}
+async function refreshAutoApplyQueue(){try{return setAutoApplyQueue(await api('/api/applications/auto-queue'))}catch{return setAutoApplyQueue(state.autoApplyQueue)}}
+function autoQueueCountLabel(count){return count===1?'משרה אחת ממתינה בתור להגשה':`${count} משרות ממתינות בתור להגשה`}
+async function showAutoApplyQueue(){const queue=await refreshAutoApplyQueue(),items=otherAutoQueueItems(queue);const currentTracked=applicationTrackingData?.application?.id;if(!items.length){toast(currentTracked?'אין כרגע משרות נוספות שממתינות בתור':'אין כרגע משרות שממתינות בתור להגשה אוטומטית');return}modal(`<span class="kicker">תור הגשה אוטומטית</span><h2>${esc(autoQueueCountLabel(items.length))}</h2><p class="muted">הרשימה הזו כוללת רק משרות שבאמת תומכות ב־Auto Apply. פתיחת הרשימה לא משנה את ההגשה שמוצגת במעקב.</p><div class="auto-apply-queue-list">${items.map((item,index)=>`<article><b>${index+1}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${item.status==='applying'?'בתהליך':'ממתינה בתור'}</small></span></article>`).join('')}</div><div class="modal-actions"><button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`)}
+window.showAutoApplyQueue=showAutoApplyQueue;
 const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה נשמרה בבטחה'],['worker_dispatched','ה־worker הופעל','GitHub Actions מכין סביבת עבודה זמנית'],['attempt_started','סביבת הרקע מוכנה','המשימה נלקחה לעבודה בלעדית'],['page_opened','עמוד ההגשה נפתח','נפתח ב־Chromium נסתר בענן'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים מולאו','הפרופיל וקורות החיים הוזנו'],['submit_clicked','נלחץ Submit','כפתור ה־Submit הסופי נלחץ; עדיין לא נחשב כהגשה'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
 function openNotifications(){setMobileTabMenu(false);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
 function applicationProgressMarkup(){
@@ -3365,15 +3378,21 @@ function applicationProgressMarkup(){
   const gradeSheetRetryIndex=events.findIndex(event=>event.event_type==='grade_sheet_auto_requeued');
   const gradeSheetRetryActive=gradeSheetRetryIndex>=0&&!events.slice(0,gradeSheetRetryIndex).some(event=>event.event_type==='attempt_started');
   const queuePanel=queuedWaiting?`<div class="application-live-queue"><span class="live-dot"></span><strong>${gradeSheetRetryActive?'גיליון הציונים צורף · ממתינה לניסיון חוזר':'ממתינה בתור להגשה אוטומטית'}</strong><small>${gradeSheetRetryActive?'ה־worker הקודם כבר הסתיים, לכן JobPilot פותח את הטופס מחדש אוטומטית וממלא אותו שוב עם גיליון הציונים השמור. לא נדרשת ממך פעולה.':queuePosition>1?`מיקום ${queuePosition} בתור. ההגשות מופעלות ברצף, והמשרה הזו תתחיל אוטומטית כשיגיע תורה.`:'המשימה שמורה בתור ותתחיל אוטומטית כשה־worker יתפנה.'}</small></div>`:'';
-  return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':queuedWaiting?'has-queue':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':gradeSheetWaiting?'נדרש גיליון ציונים':queuedWaiting?'ממתינה בתור להגשה אוטומטית':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:gradeSheetWaiting?gradeSheetPanel:queuedWaiting?queuePanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
+  const extraQueueItems=otherAutoQueueItems(data.auto_apply_queue||state.autoApplyQueue,data.application?.id),extraQueueCount=extraQueueItems.length;
+  const extraQueuePanel=extraQueueCount?`<button class="application-live-queue-summary" type="button" onclick="showAutoApplyQueue()"><span><strong>${esc(autoQueueCountLabel(extraQueueCount))}</strong><small>לחץ כדי לראות אילו משרות ממתינות. המעקב הנוכחי לא יתחלף.</small></span><b>←</b></button>`:'';
+  return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':queuedWaiting?'has-queue':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':gradeSheetWaiting?'נדרש גיליון ציונים':queuedWaiting?'ממתינה בתור להגשה אוטומטית':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:gradeSheetWaiting?gradeSheetPanel:queuedWaiting?queuePanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}${extraQueuePanel}</section>`;
 }
-async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);renderNotificationCenter();if(['submitted','verification_pending','failed','needs_input'].includes(applicationTrackingData.application?.status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
-function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
+async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);if(applicationTrackingData.auto_apply_queue)setAutoApplyQueue(applicationTrackingData.auto_apply_queue);renderNotificationCenter();const status=applicationTrackingData.application?.status;if(status==='submitted'){if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}clearTimeout(applicationTrackingAdvanceTimer);applicationTrackingAdvanceTimer=setTimeout(advanceTrackingToNextAutoQueue,2200)}else if(['verification_pending','failed','needs_input'].includes(status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
+function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;clearTimeout(applicationTrackingAdvanceTimer);refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
+async function syncPrimaryApplicationTracking(newApplicationId,autoOpen=false){const queue=await refreshAutoApplyQueue();let trackedStatus=applicationTrackingData?.application?.status||'';if(trackedApplicationId&&!applicationTrackingData){try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);if(applicationTrackingData.auto_apply_queue)setAutoApplyQueue(applicationTrackingData.auto_apply_queue);trackedStatus=applicationTrackingData.application?.status||''}catch{trackedStatus=''}}const preserveCurrent=Boolean(trackedApplicationId&&['queued','applying','needs_input','verification_pending'].includes(trackedStatus));if(!preserveCurrent){const primaryId=Number(queue.current?.id||newApplicationId||0);if(primaryId)startApplicationTracking(primaryId,false)}else{renderNotificationCenter()}if(autoOpen)openNotifications()}
+async function advanceTrackingToNextAutoQueue(){const queue=await refreshAutoApplyQueue(),nextId=Number(queue.current?.id||0);if(nextId&&nextId!==Number(trackedApplicationId))startApplicationTracking(nextId,false);else renderNotificationCenter()}
 function notificationItems() {
   const dashboard = state.dashboard || {};
   const items = [];
   if (Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
-  if (Number(dashboard.queued)) items.push({ view:'applications', count:Number(dashboard.queued), queue:true });
+  const autoQueue=normalizeAutoApplyQueue(state.autoApplyQueue||dashboard.auto_apply_queue||{});
+  const autoQueueCount=applicationTrackingData?otherAutoQueueItems(autoQueue,applicationTrackingData.application?.id).length:autoQueue.queued_count;
+  if (autoQueueCount) items.push({ view:'applications', count:autoQueueCount, queue:true });
   if (Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
   const fresh = Number(dashboard.scan?.last_result?.new || 0);
   if (fresh) items.push({ view:'jobs', count:fresh });
@@ -3390,10 +3409,11 @@ function renderNotificationCenter() {
   const tracker=applicationProgressMarkup();
   const notices=items.length ? items.map((item) => {
     const meta = item.queue ? {icon:'↻',title:'ממתינות להגשה אוטומטית',copy:'המשימות שמורות בתור ויופעלו ברצף'} : item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
-    return `<button class="notification-item" type="button" data-notification-view="${item.view}"><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
+    return `<button class="notification-item" type="button" ${item.queue?'data-auto-queue-list="true"':`data-notification-view="${item.view}"`}><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
   }).join('') : (!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
   root.innerHTML=tracker+notices;
   bindChoiceBlockerButtons(root);
+  $$('[data-auto-queue-list]',root).forEach(button=>{button.onclick=()=>showAutoApplyQueue()});
   $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
 }
 function closeNotifications() {

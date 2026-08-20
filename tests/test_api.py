@@ -110,16 +110,17 @@ def test_application_human_in_the_loop_flow():
         assert resolved["status"] == "resolved"
 
 
-def test_queued_applications_expose_queue_position_and_expected_start():
+def test_review_queue_is_not_misrepresented_as_automatic_submission_queue():
     with TestClient(app) as client:
         job = next(j for j in client.get("/api/jobs").json() if j["status"] not in {"submitted", "skipped"})
         response = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
         assert response.status_code == 200
         payload = response.json()
         assert payload["status"] == "queued"
-        assert isinstance(payload["queue_position"], int)
-        assert payload["queue_position"] >= 1
-        assert payload["expected_start_at"]
+        assert payload["auto_queue_eligible"] is False
+        assert payload["queue_position"] is None
+        assert payload["expected_start_at"] is None
+        assert payload["agent_stage"] == "לא בתור האוטומטי"
 
 
 def test_application_can_be_removed_from_queue_without_deleting_job():

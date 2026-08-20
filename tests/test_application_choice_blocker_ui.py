@@ -26,7 +26,8 @@ def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
 
     assert "verificationPending=status==='verification_pending'" in js
     assert "נשלחה בקשת Submit — ממתין לאימות" in js
-    assert "['submitted','verification_pending','failed','needs_input']" in js
+    assert "['verification_pending','failed','needs_input'].includes(status)" in js
+    assert "if(status==='submitted')" in js
     assert "verification-waiting" in js
     assert ".application-live-tracker li.verification-waiting>i" in css
 
