@@ -3,7 +3,7 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
-                           _file_already_uploaded, _find_submit_button, _is_lever_submission_endpoint, _lever_submission_response_result,
+                           _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button, _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
 
@@ -16,6 +16,47 @@ def _launch(playwright):
         kwargs["args"] = ["--no-sandbox"]
     return playwright.chromium.launch(**kwargs)
 
+
+
+def test_passive_invisible_captcha_iframe_is_not_a_user_blocker():
+    assert _captcha_frame_requires_user_action(
+        "https://www.recaptcha.net/recaptcha/enterprise/anchor?size=invisible&k=site-key",
+        "reCAPTCHA",
+        True,
+        256,
+        60,
+    ) is False
+    assert _captcha_frame_requires_user_action(
+        "https://www.google.com/recaptcha/api2/anchor?size=invisible&k=site-key",
+        "reCAPTCHA",
+        False,
+        0,
+        0,
+    ) is False
+
+
+def test_visible_captcha_checkbox_or_challenge_requires_handoff():
+    assert _captcha_frame_requires_user_action(
+        "https://www.google.com/recaptcha/api2/anchor?size=normal&k=site-key",
+        "reCAPTCHA",
+        True,
+        304,
+        78,
+    ) is True
+    assert _captcha_frame_requires_user_action(
+        "https://www.google.com/recaptcha/api2/bframe?hl=en&v=123",
+        "recaptcha challenge expires in two minutes",
+        True,
+        400,
+        580,
+    ) is True
+    assert _captcha_frame_requires_user_action(
+        "https://newassets.hcaptcha.com/captcha/v1/hcaptcha.html#frame=checkbox",
+        "Widget containing checkbox for hCaptcha security challenge",
+        True,
+        303,
+        78,
+    ) is True
 
 
 def test_lever_success_urls_are_strong_submission_evidence():

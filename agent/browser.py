@@ -9,7 +9,13 @@ from app.services.application_submission import lever_confirmation_from_url
 from .fields import is_grade_sheet_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
-CAPTCHA_TERMS = ["captcha", "recaptcha", "hcaptcha", "verify you are human", "אימות שאינך רובוט"]
+CAPTCHA_ACTION_TERMS = [
+    "verify you are human", "verify you're human", "verify that you are human",
+    "i'm not a robot", "i am not a robot", "select all images", "select all squares",
+    "complete the captcha", "please complete the captcha", "captcha verification failed",
+    "captcha failed", "recaptcha verification failed", "security challenge",
+    "אימות שאינך רובוט", "אני לא רובוט", "ודא שאתה אנושי", "אימות אנושי נדרש",
+]
 SUCCESS_TERMS = [
     "application submitted", "thank you for applying", "thanks for applying", "application received",
     "successfully submitted", "your application has been submitted", "your application was already submitted",
@@ -437,16 +443,65 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     )
 
 
+def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, width: float = 0, height: float = 0) -> bool:
+    """Return True only for a CAPTCHA UI that actually requires user interaction.
+
+    Greenhouse loads invisible reCAPTCHA on its hosted application pages by design.
+    The mere presence of a reCAPTCHA/hCaptcha iframe therefore cannot be treated as
+    a blocker. We only hand off when a visible checkbox/challenge frame is present.
+    """
+    if not visible or width <= 8 or height <= 8:
+        return False
+    signal = f"{src} {title}".casefold()
+    if not any(term in signal for term in ("captcha", "recaptcha", "hcaptcha", "turnstile")):
+        return False
+
+    # Invisible/background CAPTCHA integrations are normal on ATS pages (notably
+    # Greenhouse). They may expose a badge/anchor iframe while no user action is
+    # required. A real challenge normally appears as a bframe/challenge, while a
+    # visible checkbox uses an explicit normal/compact widget.
+    challenge_markers = ("bframe", "challenge", "checkbox", "size=normal", "size=compact")
+    if any(marker in signal for marker in challenge_markers):
+        return True
+    if "size=invisible" in signal or "invisible" in signal:
+        return False
+    return False
+
+
 def _detect_captcha(page: Page) -> None:
     text = ""
     try:
-        text = page.locator("body").inner_text(timeout=3000).lower()
+        text = page.locator("body").inner_text(timeout=3000).casefold()
     except Exception:
         pass
-    if any(term in text for term in CAPTCHA_TERMS) or page.locator("iframe[src*='captcha'], iframe[src*='recaptcha'], iframe[src*='hcaptcha']").count():
+
+    body_requires_action = any(term.casefold() in text for term in CAPTCHA_ACTION_TERMS)
+    frame_requires_action = False
+    try:
+        frames = page.locator("iframe")
+        for index in range(frames.count()):
+            frame = frames.nth(index)
+            src = frame.get_attribute("src") or ""
+            title = frame.get_attribute("title") or ""
+            signal = f"{src} {title}".casefold()
+            if not any(term in signal for term in ("captcha", "recaptcha", "hcaptcha", "turnstile")):
+                continue
+            visible = frame.is_visible()
+            box = frame.bounding_box() or {}
+            if _captcha_frame_requires_user_action(
+                src, title, visible, float(box.get("width") or 0), float(box.get("height") or 0)
+            ):
+                frame_requires_action = True
+                break
+    except Exception:
+        # CAPTCHA detection is a safety gate, but a DOM inspection failure should
+        # not turn every page containing a passive integration into a false blocker.
+        frame_requires_action = False
+
+    if body_requires_action or frame_requires_action:
         raise ApplicationBlocked(
             "captcha", "CAPTCHA", "נדרש אימות אנושי",
-            "האתר הציג CAPTCHA או בדיקת אנושיות. הסוכן לא ינסה לעקוף אותה.", page.url,
+            "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה.", page.url,
         )
 
 
