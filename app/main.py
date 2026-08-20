@@ -3936,6 +3936,7 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
     skills = loads(j.skills_json, [])
     owned = {skill.casefold().strip() for skill in loads(profile.skills_json, [])} if profile else set()
     skill_gaps = [skill for skill in skills if skill.casefold().strip() not in owned] if profile else []
+    adapter = detect_adapter(j.apply_url, j.source.kind if j.source else "")
     data = {
         "id": j.id, "career_track": j.career_track, "title": j.title, "company": j.company, "location": j.location,
         "official_careers_url": resolve_official_careers_url(j.company, j.apply_url),
@@ -3948,6 +3949,10 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
                                 "source_url": j.source_url}] + loads(j.alternate_links_json, [])),
         "source": {"id": j.source.id, "name": j.source.name, "kind": j.source.kind, "career_track": j.source.career_track} if j.source else None,
         "application_id": j.application.id if j.application else None,
+        "application_adapter": {
+            "key": adapter.key, "label": adapter.label, "execution": adapter.execution,
+            "supports_automatic_submit": adapter.supports_automatic_submit,
+        },
     }
     v2_row = getattr(j, "_active_v2_ranking", None)
     if v2_row:

@@ -1315,6 +1315,7 @@ function renderRecent(jobs) {
     <button class="job-row interactive-row" type="button" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
       <div class="score-ring" style="--score:${job.score}"><b>${job.score}</b></div>
       <div class="job-info"><strong dir="auto">${esc(job.title)}</strong><span>${esc(job.company)} · ${esc(job.location || 'מיקום לא צוין')}</span></div>
+      ${automaticSubmissionBadge(job)}
       <span class="status-pill">${statusLabel(job.status)}</span>
       <span class="row-arrow" aria-hidden="true">←</span>
     </button>
@@ -1588,15 +1589,23 @@ function jobCardActions(job) {
   const appliedButton = job.status === 'submitted'
     ? '<button class="btn applied-job-button small" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
     : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
+  const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
-    ${applicationAgentAllowed() ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'בדוק והחזר לתור' : 'הגש ברקע'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'בדוק והחזר לתור' : 'הגש ברקע'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
     <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
     <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
     <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
   </div>`;
+}
+
+function automaticSubmissionBadge(job) {
+  const adapter = job?.application_adapter || {};
+  return adapter.supports_automatic_submit === true
+    ? `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> תומך בהגשה אוטומטית</span>`
+    : `<span class="auto-submit-badge manual" title="מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית">הגשה ידנית בלבד</span>`;
 }
 
 function renderJobs() {
@@ -1617,6 +1626,7 @@ function renderJobs() {
   root.innerHTML = `<div class="results-summary">מציג ${first}–${last} מתוך ${state.jobsPaging.total} משרות · ${esc(sortLabel)}</div>` + state.jobs.map((job) => `
     <article class="job-card interactive-card ${job.status === 'submitted' ? 'is-applied' : ''}" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
       <div class="job-card-head"><div><h3 dir="auto">${esc(job.title)}</h3><div class="company">${esc(job.company)}</div></div><div class="score-badge">${job.score}</div></div>
+      <div class="job-capabilities">${automaticSubmissionBadge(job)}</div>
       <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${esc(job.workplace)}</span><span>${statusLabel(job.status)}</span>${job.source ? `<span>${esc(job.source.kind)}</span>` : ''}</div>
       <div class="skills">${job.skills.slice(0, 6).map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>
       ${job.skill_gaps?.length ? `<button class="skill-gap-alert" type="button" data-no-card-click onclick="event.stopPropagation();showSkillGaps(${job.id})">יש במשרה הזאת ${job.skill_gaps.length} סקילים שאין לך</button>` : ''}
@@ -1804,6 +1814,7 @@ async function showJob(id) {
   try {
     const [job, resumes] = await Promise.all([api(`/api/jobs/${id}`), api(`/api/resumes?job_id=${id}`)]);
     const alreadySubmitted = job.status === 'submitted';
+    const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
     const breakdownEntries=job.ranking_engine==='v2'
       ? Object.entries({role:'התאמת תפקיד',skills:'כישורים וטכנולוגיות',requirements:'דרישות מקצועיות',preferences:'העדפות'}).map(([key,label])=>{const part=job.match_breakdown?.[key]||{},maximum=Number(part.max)||1,points=Number(part.score)||0;return `<div><span>${label}</span><i><b style="width:${Math.max(0,Math.min(100,Math.round(points/maximum*100)))}%"></b></i><strong>${points}/${maximum}</strong></div>`})
       : Object.entries({title:'כותרת',skills:'סקילים',experience:'ניסיון',location:'מיקום',freshness:'עדכניות'}).map(([key,label]) => `<div><span>${label}</span><i><b style="width:${job.match_breakdown?.[key] ?? 50}%"></b></i><strong>${job.match_breakdown?.[key] ?? 50}</strong></div>`);
@@ -1821,12 +1832,13 @@ async function showJob(id) {
         ${formatJobDescription(job.description)}
       </section>
       <h3>אפשרויות הגשה</h3>
+      <div class="job-capabilities job-capabilities-modal">${automaticSubmissionBadge(job)}${job.application_adapter?.label ? `<span class="ats-label">${esc(job.application_adapter.label)}</span>` : ''}</div>
       ${resumes.length ? `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>JobPilot ממליץ על הגרסה עם חפיפת הסקילים הגבוהה ביותר. אפשר לשנות ידנית לפני הכנסה לתור.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.sort((a,b)=>(b.fit?.score||0)-(a.fit?.score||0)).map((resume) => `<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.fit?.recommended ? 'selected' : ''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${resume.fit?.score ?? 0}% התאמה</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit"></div>` : '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>'}
-      ${applicationAgentAllowed() ? `<div class="application-options">
+      ${applicationAgentAllowed() && automaticSupported ? `<div class="application-options">
         <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
           <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>בדיקה והגשה אוטומטית</strong><span>ירוץ ב־worker ענן נסתר. לא ייפתח אצלך אתר או חלון דפדפן.</span></span><b>←</b>
         </button>
-      </div>` : `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית. הסוכן המקומי שממלא ושולח טפסים פעיל כרגע רק בחשבון הראשי.</span></div>`}
+      </div>` : automaticSupported ? `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית.</span></div>` : `<div class="agent-restricted-note manual-only-note"><strong>הגשה אוטומטית אינה נתמכת במשרה הזו</strong><span>מערכת ${esc(job.application_adapter?.label || 'הגיוס')} מסומנת כרגע להגשה ידנית בלבד. JobPilot לא יפתח עבורך חלון נסתר ולא יציג כאילו המשרה נשלחה.</span></div>`}
       <div class="card-actions modal-actions">
         ${alreadySubmitted
           ? '<button class="btn applied-job-button" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'

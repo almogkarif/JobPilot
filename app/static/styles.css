@@ -435,6 +435,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
   background: var(--brand-soft); color: var(--brand); font-weight: 800; font-size: 12px;
 }
 .status-pill { background: #edf5fb; color: #49677f; }
+.job-capabilities { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+.auto-submit-badge, .ats-label {
+  display:inline-flex; align-items:center; gap:5px; width:max-content; max-width:100%; padding:6px 10px;
+  border-radius:999px; border:1px solid transparent; font-size:11px; font-weight:800; line-height:1.2;
+}
+.auto-submit-badge.supported { background:#e6f7ed; border-color:#a8d9bb; color:#247347; }
+.auto-submit-badge.supported b { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; background:#31945a; color:white; font-size:10px; }
+.auto-submit-badge.manual { background:#f3f5f7; border-color:#d6dce1; color:#657684; }
+.ats-label { background:var(--brand-soft); border-color:var(--line); color:var(--brand); }
+.job-capabilities-modal { margin:-2px 0 12px; }
+body.theme-dark .auto-submit-badge.supported { background:#173d2b; border-color:#3e7555; color:#9be0b5; }
+body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#385469; color:#a9bdcb; }
 .flow-list { display: grid; gap: 10px; padding: 0; margin: 8px 0 0; list-style: none; }
 .flow-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: #f8fbfe; border: 1px solid var(--line); }
 .flow-list b { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--brand); color: #fff; font-size: 12px; }

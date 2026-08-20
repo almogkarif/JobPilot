@@ -68,6 +68,14 @@ def test_application_preview_api_exposes_adapter_and_short_lived_approval():
         assert payload["preview_token"]
 
 
+def test_jobs_api_exposes_automatic_submission_capability():
+    with TestClient(app) as client:
+        jobs = client.get("/api/jobs").json()
+    assert jobs
+    assert all("application_adapter" in job for job in jobs)
+    assert all(isinstance(job["application_adapter"]["supports_automatic_submit"], bool) for job in jobs)
+
+
 def test_automatic_queue_rejects_missing_or_unapproved_preview():
     with TestClient(app) as client:
         job = next(item for item in client.get("/api/jobs").json() if item["status"] != "submitted")

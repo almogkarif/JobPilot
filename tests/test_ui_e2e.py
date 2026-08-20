@@ -244,9 +244,11 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     # Recent dashboard job opens the same rich job dialog as the Jobs tab.
     page.get_by_role("button", name="לוח בקרה").click()
     recent = page.locator("#recent-jobs .job-row").first
+    assert recent.locator(".auto-submit-badge.manual").is_visible()
     recent.click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").is_visible()
+    assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
+    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").count() == 0
     page.locator(".modal-close").click()
 
     # Metric cards navigate and apply their filter.
@@ -260,13 +262,13 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     page.locator("#score-filter").dispatch_event("change")
     card = page.locator("#jobs-list .job-card").first
     card.wait_for(state="visible")
+    assert card.locator(".auto-submit-badge").is_visible()
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    page.get_by_role("button", name="בדיקה והגשה אוטומטית").click()
-    page.get_by_text("בדיקה לפני הגשה", exact=True).wait_for(state="visible")
     # The seeded custom career page is deliberately background-ineligible. It
-    # must remain disabled instead of opening a visible local browser.
-    assert page.get_by_role("button", name="אשר הגשה אוטומטית חד־פעמית").is_disabled()
+    # must be visibly manual-only and must not offer an automatic action.
+    assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
+    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").count() == 0
     page.locator(".modal-close").click()
     first_job = page.evaluate("async()=>await (await fetch('/api/jobs')).json()")[0]
     page.evaluate("async id=>await fetch(`/api/jobs/${id}/mark-submitted`,{method:'POST'})", first_job["id"])
@@ -287,6 +289,27 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     source.click(position={"x": 220, "y": 25})
     page.get_by_text("מקור משרות", exact=True).wait_for(state="visible")
     assert page.locator(".source-detail-grid").is_visible()
+
+
+def test_supported_job_shows_automatic_submission_badge_and_action(browser_page):
+    page, _ = browser_page
+    job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        title:'Supported ATS Test', company:'Greenhouse Test', location:'Israel',
+        apply_url:'https://boards.greenhouse.io/example/jobs/987654'
+      })
+    })).json()""")
+    page.locator('button[data-view="jobs"]').click()
+    page.locator("#job-search").fill("Supported ATS Test")
+    page.locator("#job-search").dispatch_event("input")
+    card = page.locator("#jobs-list .job-card").filter(has_text="Supported ATS Test")
+    card.wait_for(state="visible")
+    badge = card.locator(".auto-submit-badge.supported")
+    badge.wait_for(state="visible")
+    assert "תומך בהגשה אוטומטית" in badge.text_content()
+    card.click(position={"x": 250, "y": 80})
+    page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
+    page.get_by_role("button", name="בדיקה והגשה אוטומטית").wait_for(state="visible")
 
 
 def test_all_main_views_load_without_javascript_errors(browser_page):
