@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from agent.browser import _display_field_label
+from agent.browser import (_display_field_label, _ensure_profile_documents_attached,
+                           _lever_inferred_grade_sheet_field, _lever_profile_document_fallback)
 from app.database import SessionLocal
 from app.main import app
 from app.models import Application, Blocker
@@ -57,6 +59,103 @@ def test_generic_upload_button_uses_surrounding_grade_sheet_context():
     # from the nearest file-question container.
     field["label"] = "Resume/CV"
     assert "grade sheet" in _display_field_label(field).casefold()
+
+
+
+
+def test_lever_single_unlabeled_custom_upload_uses_saved_grade_sheet_during_details():
+    fields = [
+        {
+            "type": "file", "selector": "#resume", "label": "Resume/CV",
+            "file_context": "Resume/CV", "name": "resume", "disabled": False,
+        },
+        {
+            "type": "file", "selector": "#custom-upload", "label": "UPLOAD FILE",
+            "file_context": "", "name": "cards[abc][field0]", "disabled": False,
+        },
+    ]
+    assert _lever_inferred_grade_sheet_field(
+        fields[1], fields, "https://jobs.eu.lever.co/mobileye/job-123/apply"
+    ) is True
+    candidate = _lever_profile_document_fallback(
+        fields[1], fields, {"grade_sheet_path": "/tmp/technion-grades.pdf"},
+        "https://jobs.eu.lever.co/mobileye/job-123/apply",
+    )
+    assert candidate is not None
+    assert candidate.value == "/tmp/technion-grades.pdf"
+    assert candidate.source == "profile_grade_sheet_inferred"
+
+
+def test_saved_grade_sheet_is_attached_before_submit_without_playwright(tmp_path):
+    resume = tmp_path / "resume.pdf"
+    grades = tmp_path / "grades.pdf"
+    resume.write_bytes(_pdf_bytes())
+    grades.write_bytes(_pdf_bytes())
+
+    class FakeLocator:
+        def __init__(self):
+            self.files = []
+            self.first = self
+
+        def evaluate(self, _script):
+            return list(self.files)
+
+        def set_input_files(self, value, timeout=0):
+            self.files = [Path(value).name]
+
+    class FakePage:
+        url = "https://jobs.eu.lever.co/mobileye/job-123/apply"
+
+        def __init__(self):
+            self.locators = {"#resume": FakeLocator(), "#custom-upload": FakeLocator()}
+
+        def locator(self, selector):
+            return self.locators[selector]
+
+    fields = [
+        {
+            "type": "file", "selector": "#resume", "label": "Resume/CV",
+            "file_context": "Resume/CV", "name": "resume", "disabled": False,
+        },
+        {
+            "type": "file", "selector": "#custom-upload", "label": "UPLOAD FILE",
+            "file_context": "", "name": "cards[abc][field0]", "disabled": False,
+        },
+    ]
+    page = FakePage()
+    attached = _ensure_profile_documents_attached(
+        page, fields, {"cv_path": str(resume), "grade_sheet_path": str(grades)}, {}, []
+    )
+
+    assert page.locators["#resume"].files == ["resume.pdf"]
+    assert page.locators["#custom-upload"].files == ["grades.pdf"]
+    assert {item["document"] for item in attached} == {"resume", "grade_sheet"}
+
+
+def test_generic_lever_upload_is_not_inferred_for_other_employers():
+    fields = [
+        {"type": "file", "selector": "#resume", "label": "Resume/CV", "name": "resume", "disabled": False},
+        {"type": "file", "selector": "#custom", "label": "UPLOAD FILE", "name": "cards[a][field0]", "disabled": False},
+    ]
+    assert _lever_profile_document_fallback(
+        fields[1], fields, {"grade_sheet_path": "/tmp/grades.pdf"},
+        "https://jobs.eu.lever.co/example-company/job-123/apply",
+    ) is None
+
+
+def test_lever_never_guesses_grade_sheet_when_multiple_unknown_uploads_exist():
+    fields = [
+        {"type": "file", "selector": "#resume", "label": "Resume/CV", "name": "resume", "disabled": False},
+        {"type": "file", "selector": "#file-a", "label": "UPLOAD FILE", "name": "cards[a][field0]", "disabled": False},
+        {"type": "file", "selector": "#file-b", "label": "UPLOAD FILE", "name": "cards[b][field0]", "disabled": False},
+    ]
+    profile = {"grade_sheet_path": "/tmp/technion-grades.pdf"}
+    assert _lever_profile_document_fallback(
+        fields[1], fields, profile, "https://jobs.eu.lever.co/mobileye/job-123/apply"
+    ) is None
+    assert _lever_profile_document_fallback(
+        fields[2], fields, profile, "https://jobs.eu.lever.co/mobileye/job-123/apply"
+    ) is None
 
 
 def test_existing_mobileye_upload_file_blocker_reuses_profile_grade_sheet(monkeypatch):
@@ -213,6 +312,44 @@ def test_existing_grade_sheet_blocker_is_read_repaired_without_click(monkeypatch
             blocker = db.get(Blocker, blocker_id)
             assert blocker.status == "resolved"
             assert blocker.answer == "technion-grades.pdf"
+
+    assert dispatched == [application_id]
+
+
+
+
+def test_legacy_grade_sheet_retry_marker_does_not_keep_fixed_uploader_stuck(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            application.answers_json = '{"__jobpilot_profile_grade_sheet_auto_retry__":1}'
+            db.commit()
+
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "grade_sheet_required", "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet", "explanation": "Missing", "page_url": job["apply_url"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["status"] == "resolved"
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "queued"
 
     assert dispatched == [application_id]
 

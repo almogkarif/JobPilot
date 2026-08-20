@@ -6,7 +6,7 @@ from typing import Callable
 from urllib.parse import urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 from app.services.application_submission import lever_confirmation_from_url
-from .fields import is_grade_sheet_file_label, known_value, missing_profile_context, normalize
+from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
 CAPTCHA_ACTION_TERMS = [
@@ -196,18 +196,22 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             candidate = known_value(lookup_label, field_type, profile, answers, memories)
 
             if field_type == "file":
+                candidate = candidate or _lever_profile_document_fallback(
+                    field, actionable_fields, profile, page.url
+                )
                 candidate_path = Path(str(candidate.value)) if candidate else None
+                document_kind = _profile_document_kind(field, candidate)
                 if candidate_path and candidate_path.exists() and _file_input_has_file(locator, candidate_path.name):
-                    filled.append({"label": label, "source": "existing_upload"})
+                    filled.append({"label": label, "source": "existing_upload", "document": document_kind})
                 elif candidate_path and candidate_path.exists():
                     try:
                         locator.set_input_files(str(candidate_path), timeout=2_000)
                         if not _file_input_has_file(locator, candidate_path.name):
                             raise RuntimeError("file input did not retain the selected file")
-                        filled.append({"label": label, "source": candidate.source})
+                        filled.append({"label": label, "source": candidate.source, "document": document_kind})
                     except Exception:
                         unknown.append(field)
-                elif field.get("required"):
+                elif field.get("required") or _lever_inferred_grade_sheet_field(field, actionable_fields, page.url):
                     unknown.append(field)
                 continue
 
@@ -245,15 +249,35 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             elif field.get("required") and not field.get("value"):
                 unknown.append(field)
 
+        # Lever can re-render custom file controls while other answers are being
+        # filled. Re-check persistent profile documents before validating the form
+        # so a retained grade sheet is part of the details phase, never a late
+        # Submit-time recovery.
+        refreshed_fields = _extract_fields(page)
+        filled.extend(_ensure_profile_documents_attached(
+            page, refreshed_fields, profile, answers, memories
+        ))
+        unresolved = []
+        for field in unknown:
+            if field.get("type") == "file":
+                try:
+                    if _file_input_has_file(page.locator(field["selector"]).first):
+                        continue
+                except Exception:
+                    pass
+            unresolved.append(field)
+        unknown = unresolved
+
         _detect_captcha(page)
         unknown = _dedupe_unknown(unknown)
         if unknown:
             field = unknown[0]
             label = _display_field_label(field)
             if field.get("type") == "file":
-                if is_grade_sheet_file_label(label):
+                if is_grade_sheet_file_label(label) or _lever_inferred_grade_sheet_field(field, actionable_fields, page.url):
+                    question = label if is_grade_sheet_file_label(label) else "Please submit your grade sheet"
                     raise ApplicationBlocked(
-                        "grade_sheet_required", "גיליון ציונים", label,
+                        "grade_sheet_required", "גיליון ציונים", question,
                         "חסר גיליון ציונים בפרופיל. העלה אותו בפרטים האישיים, וה־Agent ינסה שוב אוטומטית.",
                         page.url, _file_accept_options(field),
                     )
@@ -277,7 +301,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             )
 
         if progress:
-            progress("details_filled", f"הפרטים הידועים מולאו ({len(filled)} שדות)", page.url)
+            document_kinds = {item.get("document") for item in filled if item.get("document")}
+            if "grade_sheet" in document_kinds:
+                details_message = f"הפרטים והמסמכים מולאו ({len(filled)} שדות), כולל גיליון הציונים"
+            elif "resume" in document_kinds:
+                details_message = f"הפרטים והמסמכים מולאו ({len(filled)} שדות), כולל קורות החיים"
+            else:
+                details_message = f"הפרטים הידועים מולאו ({len(filled)} שדות)"
+            progress("details_filled", details_message, page.url)
 
         # Submit the existing-account form first. Account creation is only
         # allowed above after the site explicitly says that no account exists.
@@ -696,6 +727,113 @@ def _is_generic_file_action_label(value: str) -> bool:
     key = normalize(value)
     return not key or key in GENERIC_FILE_ACTION_LABELS
 
+
+
+
+def _file_field_identity(field: dict) -> str:
+    return " ".join(str(field.get(key) or "") for key in (
+        "label", "file_context", "name", "aria_label", "placeholder"
+    )).strip()
+
+
+def _profile_document_kind(field: dict, candidate: CandidateValue | None) -> str:
+    identity = _file_field_identity(field)
+    if candidate and candidate.source == "profile_grade_sheet_inferred":
+        return "grade_sheet"
+    if is_grade_sheet_file_label(identity):
+        return "grade_sheet"
+    if is_resume_file_label(identity):
+        return "resume"
+    return ""
+
+
+def _is_mobileye_lever_apply(page_url: str) -> bool:
+    parsed = urlparse(page_url)
+    if (parsed.hostname or "").casefold() not in LEVER_JOBS_HOSTS:
+        return False
+    path_parts = [part.casefold() for part in parsed.path.split("/") if part]
+    return bool(path_parts and path_parts[0] == "mobileye" and "apply" in path_parts)
+
+
+def _lever_inferred_grade_sheet_field(field: dict, fields: list[dict], page_url: str) -> bool:
+    """Recognize Mobileye's grade-sheet slot before Submit-time validation.
+
+    Mobileye's hosted Lever form marks the Grade Sheet question as required, but
+    the hidden ``input[type=file]`` can surface to automation only as ``Upload
+    file`` and may not carry the native ``required`` attribute. We identify the
+    single logical non-resume file slot on that known form. Other Lever tenants
+    are deliberately excluded because their custom upload could be a cover
+    letter or another document.
+    """
+    if field.get("type") != "file" or not _is_mobileye_lever_apply(page_url):
+        return False
+    identity = _file_field_identity(field)
+    if is_resume_file_label(identity):
+        return False
+    if is_grade_sheet_file_label(identity):
+        return True
+
+    unknown_custom_keys: set[str] = set()
+    explicit_grade_sheet_exists = False
+    for item in fields:
+        if item.get("type") != "file" or item.get("disabled"):
+            continue
+        item_identity = _file_field_identity(item)
+        if is_resume_file_label(item_identity):
+            continue
+        if is_grade_sheet_file_label(item_identity):
+            explicit_grade_sheet_exists = True
+            continue
+        logical_key = str(item.get("name") or item.get("selector") or "").strip()
+        if logical_key:
+            unknown_custom_keys.add(logical_key)
+
+    if explicit_grade_sheet_exists:
+        return False
+    current_key = str(field.get("name") or field.get("selector") or "").strip()
+    return len(unknown_custom_keys) == 1 and current_key in unknown_custom_keys
+
+
+def _lever_profile_document_fallback(
+    field: dict, fields: list[dict], profile: dict, page_url: str,
+) -> CandidateValue | None:
+    """Use the saved transcript for Mobileye's unlabeled Lever file control."""
+    if not str(profile.get("grade_sheet_path") or "").strip():
+        return None
+    if not _lever_inferred_grade_sheet_field(field, fields, page_url):
+        return None
+    return CandidateValue(str(profile["grade_sheet_path"]), "profile_grade_sheet_inferred")
+
+
+def _ensure_profile_documents_attached(
+    page: Page, fields: list[dict], profile: dict, answers: dict, memories: list[dict],
+) -> list[dict]:
+    """Re-attach saved profile documents before the form can reach Submit."""
+    attached: list[dict] = []
+    actionable = [field for field in fields if field.get("type") == "file" and not field.get("disabled")]
+    for field in actionable:
+        label = _display_field_label(field)
+        candidate = known_value(label, "file", profile, answers, memories)
+        candidate = candidate or _lever_profile_document_fallback(field, actionable, profile, page.url)
+        if not candidate:
+            continue
+        path = Path(str(candidate.value))
+        if not path.exists():
+            continue
+        locator = page.locator(field["selector"]).first
+        if _file_input_has_file(locator, path.name):
+            continue
+        try:
+            locator.set_input_files(str(path), timeout=2_000)
+            if not _file_input_has_file(locator, path.name):
+                continue
+            attached.append({
+                "label": label, "source": candidate.source,
+                "document": _profile_document_kind(field, candidate),
+            })
+        except Exception:
+            continue
+    return attached
 
 def _display_field_label(field: dict) -> str:
     label = str(field.get("label") or "").strip()

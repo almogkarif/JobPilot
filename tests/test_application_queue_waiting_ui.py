@@ -21,6 +21,10 @@ def test_auto_apply_queue_has_persistent_visual_waiting_state():
 def test_profile_grade_sheet_reuse_is_automatic_not_a_user_confirmation():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     assert "grade_sheet_auto_requeued" in js
-    assert "גיליון הציונים כבר נמצא בפרופיל" in js
-    assert "מצרף אותו אוטומטית" in js
+    assert "הפרטים והמסמכים מולאו" in js
+    assert "גיליון הציונים (אם נדרש)" in js
+    assert "גיליון הציונים קיים בפרופיל, אבל לא צורף לטופס" in js
+    assert "מצרף אותו אוטומטית ומחזיר את ההגשה לתור" not in js
     assert "השתמש בגיליון הציונים השמור והמשך" not in js
+    assert "latestAttemptId" in js
+    assert "attemptEvents" in js
