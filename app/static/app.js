@@ -1812,6 +1812,116 @@ async function deleteJob(id) {
   }
 }
 
+function rankingTierLabel(value) {
+  return ({top_match:'התאמה מצוינת',strong_match:'התאמה חזקה',good_match:'התאמה טובה',low_match:'התאמה נמוכה',stretch:'מתיחה',excluded:'נפסלה'})[value] || 'ללא סיווג';
+}
+
+function rankingConfidenceLabel(value) {
+  return ({high:'גבוהה',medium:'בינונית',low:'נמוכה'})[value] || 'לא ידועה';
+}
+
+function rankingStatusMeta(status) {
+  const map={
+    match:['תואם','pass'],fresh:['עדכנית','pass'],realistic:['ריאלי','pass'],
+    stretch:['גבולי','warn'],preference_mismatch:['מחוץ להעדפה','warn'],
+    mismatch:['לא תואם','fail'],old:['ישנה מדי','fail'],excluded:['נפסלה','fail'],
+    not_configured:['לא הוגדרה העדפה','neutral'],unknown:['לא ידוע','neutral'],
+  };
+  return map[status] || [String(status||'לא ידוע'),'neutral'];
+}
+
+function rankingYears(value) {
+  if (value===null || value===undefined || value==='') return null;
+  const n=Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Number.isInteger(n) ? String(n) : String(Math.round(n*10)/10);
+}
+
+function v2ExperienceDetail(e) {
+  const min=rankingYears(e.required_experience_min),max=rankingYears(e.required_experience_max),profile=rankingYears(e.profile_experience);
+  const required=min===null?'לא זוהתה דרישת ניסיון':max!==null&&max!==min?`${min}–${max} שנות ניסיון`:max===min?`${min} שנות ניסיון`:`${min}+ שנות ניסיון`;
+  return profile===null?required:`${required} · בפרופיל ${profile}`;
+}
+
+function v2RoleDetail(part) {
+  const reason=String(part?.reasons?.[0]||'');
+  if (reason.startsWith('Desired role matched:')) return `תפקיד רצוי נמצא בכותרת: ${reason.split(':').slice(1).join(':').trim()}`;
+  if (reason.startsWith('Related role family:')) return `משפחת תפקידים תואמת: ${reason.split(':').slice(1).join(':').trim()}`;
+  if (reason.startsWith('Track role family:')) return `משפחת תפקיד במסלול: ${reason.split(':').slice(1).join(':').trim()}`;
+  if (reason.includes('not a desired family')) return 'המשרה במסלול הנכון, אבל לא במשפחת תפקיד שבחרת';
+  if (reason.includes('No reliable role-family match')) return 'לא זוהתה התאמת תפקיד אמינה';
+  return reason || 'אין פירוט נוסף';
+}
+
+function v2SkillsDetail(part) {
+  const chunks=[];
+  if (part?.matched_required?.length) chunks.push(`חובה שנמצאו: ${part.matched_required.join(', ')}`);
+  if (part?.missing_required?.length) chunks.push(`חובה שחסרים: ${part.missing_required.join(', ')}`);
+  if (part?.matched_preferred?.length) chunks.push(`תומכים שנמצאו: ${part.matched_preferred.join(', ')}`);
+  if (!chunks.length && (part?.required?.length || part?.preferred?.length || part?.supporting?.length)) chunks.push('לא נמצאה חפיפה בין הטכנולוגיות שזוהו לפרופיל');
+  if (!chunks.length) chunks.push('לא זוהו מספיק טכנולוגיות במודעה');
+  return chunks.join(' · ');
+}
+
+function v2RequirementsDetail(part) {
+  const chunks=[part?.degree_detected?'זוהתה דרישת תואר מקצועי':'לא זוהתה דרישת תואר ברורה'];
+  if (part?.mandatory_prerequisites?.length) chunks.push(`דרישות חובה לבדיקה: ${part.mandatory_prerequisites.join(', ')}`);
+  return chunks.join(' · ');
+}
+
+function v2PreferencesDetail(job,part) {
+  const e=job.eligibility||{},chunks=[];
+  const loc=rankingStatusMeta(e.location_status)[0],mode=rankingStatusMeta(e.work_mode_status)[0];
+  chunks.push(`מיקום: ${loc}`);
+  chunks.push(`מודל עבודה: ${mode}`);
+  if (part?.keyword_hits?.length) chunks.push(`מילות העדפה: ${part.keyword_hits.join(', ')}`);
+  return chunks.join(' · ');
+}
+
+function v2WarningHebrew(value) {
+  const text=String(value||'');
+  let match=text.match(/^Experience gap of ([0-9.]+) years$/i); if(match) return `פער ניסיון של ${match[1]} שנים`;
+  match=text.match(/^Role seniority is (.+)$/i); if(match) return `רמת התפקיד שזוהתה: ${match[1]}`;
+  if(text==='Location is outside preferred locations') return 'המיקום מחוץ להעדפות שלך';
+  if(text==='Work mode is outside preferences') return 'מודל העבודה מחוץ להעדפות שלך';
+  if(text==='Employment type is outside preferences') return 'סוג ההעסקה מחוץ להעדפות שלך';
+  if(text==='Job description is incomplete; recommendation is capped') return 'תיאור המשרה חלקי ולכן הציון הוגבל';
+  return text;
+}
+
+function renderV2RankingExplanation(job) {
+  const e=job.eligibility||{},b=job.match_breakdown||{};
+  const state=rankingStatusMeta(e.state||'unknown');
+  const filterRows=[
+    ['מסלול מקצועי',e.career_track_status,e.career_track_status==='match'?'המשרה שייכת למסלול הפעיל':'המשרה אינה שייכת למסלול הפעיל'],
+    ['ניסיון',e.experience_status,v2ExperienceDetail(e)],
+    ['עדכניות',e.recency_status,e.age_days===null||e.age_days===undefined?'תאריך הפרסום לא ידוע':`פורסמה לפני ${e.age_days} ימים`],
+    ['מיקום',e.location_status,e.job_location||job.location||'לא צוין'],
+    ['מודל עבודה',e.work_mode_status,job.workplace&&job.workplace!=='unknown'?job.workplace:'לא צוין'],
+    ['סוג העסקה',e.employment_type_status,e.employment_type||'לא זוהה'],
+  ];
+  const filters=filterRows.map(([label,status,detail])=>{const [statusLabel,tone]=rankingStatusMeta(status);return `<article class="ranking-filter ${tone}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small>${esc(detail)}</small></article>`}).join('');
+  const cards=[
+    ['התאמת תפקיד','role',v2RoleDetail(b.role)],
+    ['כישורים וטכנולוגיות','skills',v2SkillsDetail(b.skills)],
+    ['דרישות מקצועיות','requirements',v2RequirementsDetail(b.requirements)],
+    ['העדפות','preferences',v2PreferencesDetail(job,b.preferences)],
+  ].map(([label,key,detail])=>{const part=b[key]||{},score=Number(part.score)||0,max=Number(part.max)||0,pct=max?Math.max(0,Math.min(100,Math.round(score/max*100))):0;return `<article class="ranking-score-card"><header><span>${esc(label)}</span><strong>${score}/${max}</strong></header><i><b style="width:${pct}%"></b></i><small>${esc(detail)}</small></article>`}).join('');
+  const adjustments=[];
+  if (Number(b.skills?.penalty)>0) adjustments.push(`חסרים סקילי חובה: הופחתו ${Number(b.skills.penalty)} נקודות והציון הוגבל לכל היותר ל־69`);
+  for (const warning of (job.ranking_warnings||[])) { const label=v2WarningHebrew(warning); if(label&&!adjustments.includes(label)) adjustments.push(label); }
+  const unknown=(e.unknown_fields||[]).map(value=>({experience:'ניסיון נדרש',seniority:'רמת תפקיד',location:'מיקום',publication_date:'תאריך פרסום',work_mode:'מודל עבודה',employment_type:'סוג העסקה'})[value]||value);
+  return `<section class="ranking-v2-explanation">
+    <header class="ranking-v2-header"><span><strong>${rankingTierLabel(job.ranking_tier)}</strong><small>ודאות ${rankingConfidenceLabel(job.ranking_confidence)} · הסינון הראשוני נפרד מהניקוד</small></span><b>${Number(job.score)||0}<small>/100</small></b></header>
+    <div class="ranking-filter-summary ${state[1]}"><strong>סינון ראשוני: ${esc(state[0])}</strong><span>${e.state==='excluded'?'לפחות תנאי סף אחד פסל את המשרה':e.state==='stretch'?'המשרה עברה עם הסתייגות שחשוב לבדוק':'המשרה עברה את תנאי הסף שניתן היה לבדוק'}</span></div>
+    <div class="ranking-eligibility-grid">${filters}</div>
+    ${unknown.length?`<p class="ranking-unknown"><strong>מידע שלא ניתן היה לקבוע:</strong> ${unknown.map(esc).join(', ')}</p>`:''}
+    <div class="ranking-section-title"><strong>ניקוד התאמה</strong><small>רק ארבעת המרכיבים האלה נכנסים לציון</small></div>
+    <div class="ranking-score-grid">${cards}</div>
+    ${adjustments.length?`<div class="ranking-adjustments"><strong>התאמות לציון הסופי</strong>${adjustments.map(item=>`<span>${esc(item)}</span>`).join('')}</div>`:''}
+  </section>`;
+}
+
 async function showJob(id) {
   try {
     const [job, resumes] = await Promise.all([api(`/api/jobs/${id}`), api(`/api/resumes?job_id=${id}`)]);
@@ -1825,9 +1935,9 @@ async function showJob(id) {
       <h2 dir="auto">${esc(job.title)}</h2>
       <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>ציון ${job.score}</span><span>${statusLabel(job.status)}</span></div>
       <h3>למה היא מתאימה</h3>
-      ${job.ranking_engine==='v2'?`<p class="preference-help">Ranking V2 · ${esc(job.ranking_tier||'')} · ודאות ${esc(job.ranking_confidence||'לא ידועה')}${job.eligibility?.state?` · כשירות ${esc(job.eligibility.state)}`:''}</p>`:''}
-      <div class="score-breakdown">${breakdownEntries.join('')}</div>
-      <div class="reason-list">${job.score_reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)} (${reason.points > 0 ? '+' : ''}${reason.points})</div>`).join('')}</div>
+      ${job.ranking_engine==='v2'
+        ? renderV2RankingExplanation(job)
+        : `<div class="score-breakdown">${breakdownEntries.join('')}</div><div class="reason-list">${job.score_reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)} (${reason.points > 0 ? '+' : ''}${reason.points})</div>`).join('')}</div>`}
       ${job.skill_gaps?.length ? `<h3>סקילים שזוהו ואינם בפרופיל שלך</h3><div class="skill-gap-list">${job.skill_gaps.map((skill) => `<button type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(skill)}'), ${job.id})">+ ${esc(skill)}</button>`).join('')}</div><p class="skill-honesty-note">הוסף רק סקיל שיש לך בפועל; המערכת לא מניחה ניסיון שלא אישרת.</p>` : ''}
       <section class="job-description-section">
         <div class="job-description-heading"><span class="kicker">פרטי התפקיד</span><h3>תיאור המשרה</h3></div>
