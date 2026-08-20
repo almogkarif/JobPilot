@@ -54,6 +54,7 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
             const url=String(input); const method=String(options.method||'GET').toUpperCase(); let data={};
             if(url==='/api/auth/config') data={mode:'local'};
             else if(url==='/api/security/status') data={configured:false,locked:false,cloud_auth:false};
+            else if(url==='/api/onboarding') data={current_version:2,completed:true,step:'done',skipped:false};
             else if(url==='/api/career-tracks') data=tracks;
             else if(url==='/api/profile' && method==='GET') data=profile;
             else if(url==='/api/profile' && method==='PATCH') {

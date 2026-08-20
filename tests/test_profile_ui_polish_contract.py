@@ -58,7 +58,7 @@ def test_negative_experience_preferences_are_semantically_clear_not_red_selected
 def test_readiness_agent_token_is_admin_only_and_missing_contact_fields_are_named():
     assert "missing_profile_fields" in JS
     assert "Boolean(readiness.agent_required)" in JS
-    assert "authState.user?.role === 'admin'" in JS
+    assert "authState.capabilities?.developer_tools === true" in JS
     assert "פרטי קשר — חסר" in JS
 
 

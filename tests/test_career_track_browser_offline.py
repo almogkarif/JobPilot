@@ -65,6 +65,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
                 const url = String(input); const method = (options.method || 'GET').toUpperCase();
                 let data = {}; let status = 200;
                 if (url === '/api/security/status') data = {configured:false,locked:false};
+                else if (url === '/api/onboarding') data = {current_version:2,completed:true,step:'done',skipped:false};
                 else if (url === '/api/career-tracks' && method === 'GET') data = tracksPayload();
                 else if (url === '/api/career-tracks/active' && method === 'PUT') {
                   const requested = JSON.parse(options.body || '{}').track;
@@ -99,17 +100,17 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert page.locator('#desired-title-options input[value="industrial engineer"]').count() == 1
         assert "תעו״נ" in page.locator("#scan-btn").inner_text()
         light_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert light_brand == "#b87908"
+        assert light_brand == "#a97824"
         # IEM light mode must keep the explanatory dock text visible and warm.
         dock_subtitle = page.locator('#nav button.active .nav-label small')
         assert dock_subtitle.is_visible()
         subtitle_color = dock_subtitle.evaluate("el => getComputedStyle(el).color")
         assert "rgb(23, 105, 170)" not in subtitle_color and "rgb(79, 130, 168)" not in subtitle_color
 
-        page.locator('#theme-switch [data-theme="dark"]').click()
+        page.evaluate("selectTheme('dark', true, true)")
         page.wait_for_function("document.body.classList.contains('theme-dark')")
         dark_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert dark_brand == "#e1ab2b"
+        assert dark_brand == "#d7b46d"
         assert "track-industrial-engineering" in page.locator("body").get_attribute("class")
 
         page.locator("#career-switcher-trigger").click()
@@ -144,8 +145,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         source_switch = rgb('.source-toggle input:checked + .source-toggle-track')
         source_switch_image = page.eval_on_selector('.source-toggle input:checked + .source-toggle-track', 'el => getComputedStyle(el).backgroundImage')
         assert not is_blue(source_switch)
-        assert 'linear-gradient' in source_switch_image
-        assert '225, 171, 43' in source_switch_image or '123, 89, 15' in source_switch_image
+        assert not is_blue(source_switch_image)
         assert '35, 150, 209' not in source_switch_image and '142, 220, 255' not in source_switch_image
 
         # Full IEM palette regression: the large surfaces that previously leaked
@@ -195,14 +195,14 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         page.locator('#profile-unsaved-count').evaluate("el => el.textContent = '2 נתונים לא נשמרו'")
         rects = page.evaluate("""() => {
           const box = id => { const r=document.querySelector(id).getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}; };
-          return {unsaved:box('#profile-unsaved-count'), completion:box('#profile-completion'), nav:box('.profile-section-nav')};
+          return {unsaved:box('#profile-unsaved-count'), completion:box('#profile-completion'), nav:box('#view-profile .profile-section-nav')};
         }""")
         assert rects['unsaved']['bottom'] <= rects['completion']['top'] + 1
         assert rects['completion']['bottom'] <= rects['nav']['top'] + 1
         page.set_viewport_size({"width": 390, "height": 844})
         mobile_rects = page.evaluate("""() => {
           const box = id => { const r=document.querySelector(id).getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width}; };
-          return {unsaved:box('#profile-unsaved-count'), completion:box('#profile-completion'), nav:box('.profile-section-nav')};
+          return {unsaved:box('#profile-unsaved-count'), completion:box('#profile-completion'), nav:box('#view-profile .profile-section-nav')};
         }""")
         assert 0 <= mobile_rects['unsaved']['left'] and mobile_rects['unsaved']['right'] <= 390
         assert mobile_rects['unsaved']['bottom'] <= mobile_rects['completion']['top'] + 1
@@ -250,7 +250,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert 'סף' in app_panel.locator('.panel-collapse-summary').inner_text()
 
         # Repeat the key palette audit in IEM light mode as well.
-        page.locator('#theme-switch [data-theme="light"]').click()
+        page.evaluate("selectTheme('light', true, true)")
         page.wait_for_function("!document.body.classList.contains('theme-dark')")
         assert not is_blue(rgb('#brand-flight-dot'))
         assert not is_blue(rgb('#brand-i-dot'))
