@@ -167,7 +167,7 @@ def run_task(context, task: dict):
     except ApplicationBlocked as blocker:
         keep_open_for_manual_submit = blocker.kind in {
             "review_before_submit", "unknown_field", "application_form_missing",
-            "submit_button_missing", "captcha", "confirmation_missing",
+            "submit_button_missing", "captcha", "confirmation_missing", "submit_not_sent",
         }
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"application_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")

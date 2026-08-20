@@ -4124,7 +4124,7 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
     elif status == "verification_pending":
         stage = "ממתין לאימות"
         waiting_for = "אישור מהאתר או ממייל"
-        detail = a.last_error or "השליחה בוצעה, אך עדיין אין ראיה חד־משמעית שהמועמדות נקלטה"
+        detail = a.last_error or "נלחץ Submit, אך עדיין אין ראיה חד־משמעית שהמועמדות נקלטה"
     elif status == "failed":
         stage = "נכשל"
         waiting_for = "בדיקה חוזרת או נסיון חדש"

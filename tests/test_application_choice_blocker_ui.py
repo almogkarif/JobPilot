@@ -25,7 +25,15 @@ def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 
     assert "verificationPending=status==='verification_pending'" in js
-    assert "הטופס נשלח — ממתין לאימות" in js
+    assert "נשלחה בקשת Submit — ממתין לאימות" in js
     assert "['submitted','verification_pending','failed','needs_input']" in js
     assert "verification-waiting" in js
     assert ".application-live-tracker li.verification-waiting>i" in css
+
+
+def test_lever_no_post_is_not_presented_as_verification_pending():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    assert "submit_not_sent" in js
+    assert "לא נשלח" in js
+    assert "נלחץ Submit" in js
+    assert "עדיין לא נחשב כהגשה" in js

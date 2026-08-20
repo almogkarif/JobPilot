@@ -273,29 +273,57 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     f"כל השדות הידועים מולאו ({len(filled)} שדות). הטופס נשאר פתוח לפני השליחה הסופית.",
                     page.url, ["אשר ושלח", "דלג"],
                 )
+            lever_submit_requests = []
             lever_submit_responses = []
             lever_submit_failures = []
-            def capture_lever_response(response):
+
+            def capture_lever_request(request):
                 try:
-                    if response.request.method.upper() == "POST" and _is_lever_submission_endpoint(response.url):
-                        lever_submit_responses.append(response)
+                    if request.method.upper() == "POST" and _is_lever_submission_endpoint(request.url):
+                        lever_submit_requests.append(request.url)
                 except Exception:
                     pass
+
+            def capture_lever_response(response):
+                try:
+                    if response.request.method.upper() != "POST" or not _is_lever_submission_endpoint(response.url):
+                        return
+                    payload = {}
+                    try:
+                        payload = response.json()
+                    except Exception:
+                        payload = {}
+                    location = ""
+                    try:
+                        location = response.header_value("location") or ""
+                    except Exception:
+                        pass
+                    lever_submit_responses.append({
+                        "url": response.url,
+                        "status": response.status,
+                        "payload": payload,
+                        "location": location,
+                    })
+                except Exception:
+                    pass
+
             def capture_lever_failure(request):
                 try:
                     if request.method.upper() == "POST" and _is_lever_submission_endpoint(request.url):
                         lever_submit_failures.append(str(request.failure or "network request failed"))
                 except Exception:
                     pass
+
+            page.on("request", capture_lever_request)
             page.on("response", capture_lever_response)
             page.on("requestfailed", capture_lever_failure)
             submit_button.click()
             if progress:
-                progress("submit_clicked", "כפתור השליחה הסופי נלחץ", page.url)
-            # Lever's own application endpoint returns structured acceptance evidence
-            # ({ok:true, applicationId:...}). Capture that response directly instead
-            # of depending only on a thank-you redirect or translated page text.
-            # Other ATSs still use the URL/body confirmation fallback below.
+                progress("submit_clicked", "כפתור ה־Submit הסופי נלחץ", page.url)
+            # Lever's hosted form first runs its own client-side submit gate and only
+            # then emits the real application POST. Track the request separately from
+            # the final confirmation so a mere button click is never mistaken for a
+            # submitted application.
             try:
                 page.wait_for_load_state("domcontentloaded", timeout=5_000)
             except PlaywrightTimeoutError:
@@ -304,9 +332,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             network_evidence = ""
             network_application_id = ""
             network_error = ""
+            post_reported = False
             for _ in range(40):
                 _detect_captcha(page)
                 network_evidence, network_application_id, network_error = _lever_submission_responses_result(responses=lever_submit_responses)
+                if lever_submit_requests and progress and not post_reported:
+                    progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Lever", lever_submit_requests[-1])
+                    post_reported = True
                 if not network_error and lever_submit_failures:
                     network_error = f"Lever submission request failed: {lever_submit_failures[-1]}"
                 if network_evidence or network_error:
@@ -335,9 +367,27 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "evidence": [{"type": "confirmation_page", "value": confirmation_text, "url": page.url}],
                     "external_application_id": external_application_id,
                 }
+            # This is materially different from an uncertain POST. If the real Lever
+            # application request never left the browser, there is no duplicate risk
+            # and no basis for the verification_pending state. Surface the validation
+            # or client-side gate instead of claiming that the form was sent.
+            if _is_lever_apply_url(page.url) and not lever_submit_requests:
+                submit_error = _lever_visible_submission_error(page)
+                if submit_error:
+                    raise ApplicationBlocked(
+                        "submit_not_sent", "שליחת המועמדות", "הטופס לא יצא מ־Lever",
+                        f"Lever עצר את השליחה לפני שנשלחה בקשת POST. {submit_error}", page.url,
+                    )
+                raise ApplicationBlocked(
+                    "submit_not_sent", "שליחת המועמדות", "הטופס לא נשלח ל־Lever",
+                    "כפתור ה־Submit האמיתי נלחץ, אבל הדפדפן לא שלח בכלל בקשת מועמדות ל־Lever. "
+                    "זה בדרך כלל אומר ש־Lever עצר את השליחה בצד הדפדפן (למשל אימות/ולידציה). "
+                    "המועמדות לא תסומן כמוגשת ולא תיכנס למצב ‘ממתין לאימות’.", page.url,
+                )
             raise ApplicationBlocked(
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
-                "כפתור ההגשה נלחץ, אך לא התקבלה מ־Lever תשובת קבלה ולא זוהה מסך אישור. כדי למנוע הגשה כפולה JobPilot לא ישלח שוב אוטומטית ללא ראיה חדשה.", page.url,
+                "נצפתה בקשת Submit, אך לא התקבלה תשובת קבלה חד־משמעית ולא זוהה מסך אישור. "
+                "כדי למנוע הגשה כפולה JobPilot לא ישלח שוב אוטומטית ללא ראיה חדשה.", page.url,
             )
 
         next_button = _find_action(page, NAVIGATION_TERMS)
@@ -777,7 +827,27 @@ def _agent_countdown(page: Page, target: Locator, action: str, seconds: int) -> 
         page.wait_for_timeout(780)
 
 
+def _is_lever_apply_url(url: str) -> bool:
+    try:
+        parsed = urlparse(str(url or ""))
+    except Exception:
+        return False
+    return (parsed.hostname or "").casefold() in LEVER_JOBS_HOSTS and (parsed.path or "").casefold().rstrip("/").endswith("/apply")
+
+
 def _find_submit_button(page: Page) -> Locator | None:
+    # Lever renders a hidden native submit element and a separate visible button
+    # whose click handler performs the real client-side submit flow. Prefer the
+    # visible Lever control explicitly so a generic selector can never choose the
+    # wrong element when both are present.
+    if _is_lever_apply_url(page.url):
+        for selector in ("button.template-btn-submit", ".template-btn-submit[role='button']"):
+            candidate = page.locator(selector).first
+            try:
+                if candidate.count() and candidate.is_visible(timeout=1_000) and candidate.is_enabled(timeout=1_000):
+                    return candidate
+            except Exception:
+                continue
     return _find_action(page, SUBMIT_TERMS)
 
 
@@ -1175,22 +1245,29 @@ def _is_lever_submission_endpoint(url: str) -> bool:
     return False
 
 
-def _lever_submission_response_result(url: str, status: int, payload) -> tuple[str, str, str]:
+def _lever_submission_response_result(url: str, status: int, payload, location: str = "") -> tuple[str, str, str]:
     """Classify one trusted Lever application POST as success, rejection, or unknown."""
     if not _is_lever_submission_endpoint(url):
         return "", "", ""
+    code = int(status or 0)
     body = payload if isinstance(payload, dict) else {}
     ok = body.get("ok")
     application_id = str(body.get("applicationId") or body.get("application_id") or "").strip()
-    if 200 <= int(status or 0) < 300 and ok is True:
+    if 300 <= code < 400 and location:
+        redirect_url = urljoin(url, location)
+        redirect_evidence, redirect_application_id = lever_confirmation_from_url(redirect_url)
+        if redirect_evidence:
+            return redirect_evidence, redirect_application_id, ""
+    if 200 <= code < 300 and ok is True:
         evidence = "Lever accepted the application"
         if application_id:
             evidence += f" (application id: {application_id})"
         return evidence, application_id, ""
-    if int(status or 0) >= 400 or ok is False:
-        reason = str(body.get("error") or body.get("message") or "").strip()
+    if code >= 400 or ok is False:
+        raw_reason = body.get("error") or body.get("message") or ""
+        reason = str(raw_reason).strip() if not isinstance(raw_reason, (dict, list)) else str(raw_reason)[:500]
         suffix = f": {reason}" if reason else ""
-        return "", "", f"Lever rejected the application (HTTP {int(status or 0)}){suffix}"
+        return "", "", f"Lever rejected the application (HTTP {code}){suffix}"
     return "", "", ""
 
 
@@ -1198,16 +1275,59 @@ def _lever_submission_responses_result(*, responses: list) -> tuple[str, str, st
     """Inspect captured POST responses; any explicit success wins over errors."""
     last_error = ""
     for response in list(responses):
-        try:
-            payload = response.json()
-        except Exception:
-            payload = {}
-        evidence, application_id, error = _lever_submission_response_result(response.url, response.status, payload)
+        if isinstance(response, dict):
+            url = str(response.get("url") or "")
+            status = int(response.get("status") or 0)
+            payload = response.get("payload") if isinstance(response.get("payload"), dict) else {}
+            location = str(response.get("location") or "")
+        else:
+            url = response.url
+            status = response.status
+            try:
+                payload = response.json()
+            except Exception:
+                payload = {}
+            try:
+                location = response.header_value("location") or ""
+            except Exception:
+                location = ""
+        evidence, application_id, error = _lever_submission_response_result(url, status, payload, location)
         if evidence:
             return evidence, application_id, ""
         if error:
             last_error = error
     return "", "", last_error
+
+
+def _lever_visible_submission_error(page: Page) -> str:
+    """Return a visible Lever validation/error message after Submit, excluding hidden template text."""
+    if not _is_lever_apply_url(page.url):
+        return ""
+    try:
+        return str(page.evaluate(
+            r"""() => {
+              const visible = (el) => {
+                const style = getComputedStyle(el), rect = el.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+              };
+              const clean = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+              const invalid = [...document.querySelectorAll('input:invalid, select:invalid, textarea:invalid, [aria-invalid="true"]')]
+                .filter(el => visible(el) && !el.disabled)
+                .map(el => {
+                  const id = el.id || '';
+                  const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
+                  const group = el.closest('label, .application-question, [role="group"], fieldset');
+                  return clean(label?.innerText || group?.innerText || el.getAttribute('aria-label') || el.name || el.placeholder);
+                }).filter(Boolean);
+              if (invalid.length) return `שדה שלא עבר ולידציה: ${invalid[0]}`;
+              const messages = [...document.querySelectorAll('p.error-message, .error-message, [role="alert"], .field-error')]
+                .filter(visible).map(el => clean(el.innerText || el.textContent)).filter(Boolean)
+                .filter(text => !/100\s*mb|resume.*too large|résumé.*too large/i.test(text));
+              return messages[0] || '';
+            }"""
+        ) or "").strip()
+    except Exception:
+        return ""
 
 
 def _is_success(page: Page) -> bool:

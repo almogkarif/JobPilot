@@ -3,8 +3,8 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
-                           _file_already_uploaded, _is_lever_submission_endpoint, _lever_submission_response_result,
-                           _small_choice_options, fill_application)
+                           _file_already_uploaded, _find_submit_button, _is_lever_submission_endpoint, _lever_submission_response_result,
+                           _lever_visible_submission_error, _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
 
 
@@ -71,6 +71,52 @@ def test_lever_submission_post_response_is_definitive_evidence():
     assert application_id == ""
     assert "HTTP 400" in error
     assert "custom question is required" in error
+
+    evidence, application_id, error = _lever_submission_response_result(
+        "https://jobs.eu.lever.co/mobileye/job-123/apply",
+        303,
+        {},
+        "/mobileye/job-123/thanks",
+    )
+    assert "Lever confirmation" in evidence
+    assert application_id == ""
+    assert error == ""
+
+
+def test_lever_submit_prefers_visible_template_button_over_hidden_native_submit():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.eu.lever.co/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form>
+            <button class="hidden" type="submit" style="display:none">Submit application</button>
+            <button class="template-btn-submit" type="button">Submit application</button>
+          </form>
+        """))
+        page.goto("https://jobs.eu.lever.co/mobileye/job-123/apply")
+        button = _find_submit_button(page)
+        assert button is not None
+        assert "template-btn-submit" in (button.get_attribute("class") or "")
+        browser.close()
+
+
+def test_lever_visible_submission_error_ignores_hidden_resume_size_template():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.eu.lever.co/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form>
+            <p class="error-message" style="display:none">Resume exceeds 100 MB</p>
+            <label for="location">Current location</label>
+            <input id="location" name="location" required aria-invalid="true">
+            <p class="error-message">Please select a valid location</p>
+          </form>
+        """))
+        page.goto("https://jobs.eu.lever.co/mobileye/job-123/apply")
+        error = _lever_visible_submission_error(page)
+        assert "Current location" in error or "valid location" in error
+        assert "100 MB" not in error
+        browser.close()
 
 
 def test_agent_enters_application_form_fills_steps_and_stops_before_submit():
