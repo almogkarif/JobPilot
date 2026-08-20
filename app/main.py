@@ -673,6 +673,22 @@ def _v2_tier_order():
     )
 
 
+def _automatic_submit_sort_order():
+    """SQL equivalent of the supported ATS families used by detect_adapter()."""
+    apply_url = func.lower(func.coalesce(Job.apply_url, ""))
+    source_kind = func.lower(func.coalesce(
+        select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
+    ))
+    supported = (
+        apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
+        | apply_url.like("%comeet%") | source_kind.like("%comeet%")
+        | apply_url.like("%lever.co%") | (source_kind == "lever")
+        | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
+        | apply_url.like("%smartrecruiters.com%") | source_kind.like("%smartrecruiters%")
+    )
+    return case((supported, 1), else_=0)
+
+
 @app.get("/api/admin/users")
 def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
@@ -2084,8 +2100,11 @@ def list_jobs(
             count_statement = count_statement.where(query_filter)
 
         active_score = JobRanking.score if v2_active else Job.score
+        score_desc_order = ((desc(_v2_tier_order()), desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))
+                            if v2_active else (desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)))
         sort_map = {
-            "score_desc": ((desc(_v2_tier_order()), desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)) if v2_active else (desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))),
+            "score_desc": score_desc_order,
+            "auto_apply_first": (desc(_automatic_submit_sort_order()), *score_desc_order),
             "score_asc": (asc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)),
             "newest": (desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id)),
             "oldest": (asc(func.coalesce(Job.published_at, Job.discovered_at)), asc(Job.id)),
