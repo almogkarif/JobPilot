@@ -56,6 +56,8 @@ class Profile(UserOwnedMixin, Base):
     portfolio_url: Mapped[str] = mapped_column(String(500), default="")
     application_password: Mapped[str] = mapped_column(Text, default="")
     cv_path: Mapped[str] = mapped_column(String(500), default="")
+    grade_sheet_path: Mapped[str] = mapped_column(String(500), default="")
+    grade_sheet_filename: Mapped[str] = mapped_column(String(300), default="")
     years_experience: Mapped[float] = mapped_column(Float, default=0.0)
     years_experience_options_json: Mapped[str] = mapped_column(Text, default='["0"]')
     work_authorization: Mapped[bool] = mapped_column(Boolean, default=True)

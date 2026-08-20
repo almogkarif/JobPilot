@@ -780,6 +780,8 @@ const blockerMeta = (kind) => ({
   captcha: { icon: '🧩', label: 'CAPTCHA', short: 'נדרש אימות אנושי', tone: 'danger' },
   review_before_submit: { icon: '✓', label: 'ממתין לאישור', short: 'הטופס מוכן לשליחה', tone: 'warning' },
   choice_required: { icon: '?', label: 'נדרשת בחירה', short: 'בחר אחת מהאפשרויות כדי להמשיך', tone: 'warning' },
+  grade_sheet_required: { icon: '↑', label: 'נדרש גיליון ציונים', short: 'העלה גיליון ציונים בפרופיל כדי להמשיך', tone: 'warning' },
+  file_required: { icon: '↑', label: 'נדרש מסמך', short: 'נדרש קובץ נוסף לפני השליחה', tone: 'warning' },
   unknown_field: { icon: '?', label: 'חסר פרט', short: 'נדרשת תשובה שלך', tone: 'warning' },
   missing_profile_detail: { icon: '◌', label: 'חסר בפרופיל', short: 'נדרש להשלים פרטים אישיים', tone: 'warning' },
   linkedin_manual: { icon: 'in', label: 'LinkedIn ידני', short: 'נדרשת השלמה ידנית', tone: 'warning' },
@@ -2196,6 +2198,10 @@ function renderBlockerCard(blocker) {
       <button class="btn primary" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש לאחר שליחה ידנית</button>
       <button class="btn secondary" type="button" onclick="resolveBlockerAction(${blocker.id},'skip')">דלג על המשרה</button>
     </div>`;
+  } else if (blocker.kind === 'grade_sheet_required') {
+    interaction = `<div class="blocker-manual-note">גיליון הציונים נשמר בפרופיל ומשמש אוטומטית בכל הגשה שתבקש אותו.</div><div class="blocker-decision"><button class="btn primary" type="button" onclick="openGradeSheetProfile()">העלה גיליון ציונים בפרופיל</button></div>`;
+  } else if (blocker.kind === 'file_required') {
+    interaction = `<div class="blocker-manual-note">הטופס דורש מסמך נוסף שאינו קורות חיים או גיליון ציונים. כרגע יש להשלים את המסמך הזה ידנית.</div>`;
   } else if (blocker.kind === 'submit_not_sent') {
     interaction = `<div class="blocker-manual-note">לא זוהתה בקשת הגשה שיצאה מהדפדפן. אפשר לפתוח את הטופס כדי לראות את החסימה, או לנסות שוב אחרי תיקון הפרט שמוצג.</div><div class="blocker-decision"><button class="btn secondary" type="button" onclick="retryApp(${blocker.application_id})">נסה שוב</button></div>`;
   } else if (blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') {
@@ -2210,7 +2216,7 @@ function renderBlockerCard(blocker) {
   return `<article class="blocker-card blocker-${meta.tone}">
     <div><div class="blocker-title-line"><span class="blocker-kind-badge"><b>${esc(meta.icon)}</b>${esc(meta.label)}</span><h3>${esc(blocker.job?.company)} — ${esc(blocker.job?.title)}</h3></div>
       <p><strong>${esc(blocker.question || blocker.field_label || meta.short)}</strong></p><p>${esc(blocker.explanation)}</p>
-      ${blocker.options.length && blocker.kind !== 'review_before_submit' ? `<div class="skills">${blocker.options.map((option) => `<span>${esc(option)}</span>`).join('')}</div>` : ''}
+      ${blocker.options.length && !['review_before_submit','grade_sheet_required','file_required'].includes(blocker.kind) ? `<div class="skills">${blocker.options.map((option) => `<span>${esc(option)}</span>`).join('')}</div>` : ''}
       ${interaction}
     </div>
     <div class="blocker-actions"><button class="btn secondary small" type="button" onclick="showJob(${blocker.job?.id})">פרטי משרה</button>
@@ -2218,6 +2224,16 @@ function renderBlockerCard(blocker) {
       ${(blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') ? `<button class="btn secondary small" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש ידנית</button>` : ''}
       ${blocker.screenshot_url ? `<a class="btn secondary small" target="_blank" href="${esc(blocker.screenshot_url)}">צילום מסך</a>` : ''}</div>
   </article>`;
+}
+
+function openGradeSheetProfile() {
+  switchView('profile', { profileSection: 'personal' });
+  window.setTimeout(() => {
+    const card = document.querySelector('[data-profile-document="grade-sheet"]');
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card?.classList.add('document-attention');
+    window.setTimeout(() => card?.classList.remove('document-attention'), 1800);
+  }, 80);
 }
 
 async function loadBlockers() {
@@ -2834,6 +2850,10 @@ function applyProfileToForm(profile) {
   renderLanguages(profile.application_profile?.languages);
   $('#threshold-value').textContent = profile.auto_apply_threshold ?? 82;
   $('#resume-name').textContent = profile.cv_filename || 'לא הועלה קובץ';
+  const gradeSheetName = $('#grade-sheet-name');
+  if (gradeSheetName) gradeSheetName.textContent = profile.grade_sheet_filename || 'לא הועלה קובץ';
+  const gradeSheetCard = document.querySelector('[data-profile-document="grade-sheet"]');
+  if (gradeSheetCard) gradeSheetCard.classList.toggle('resume-uploaded', !!profile.grade_sheet_uploaded);
   if (typeof updateProfileSectionSummaries === 'function') updateProfileSectionSummaries();
   updateProfileCompletion();
 }
@@ -3315,10 +3335,12 @@ function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
   const data=applicationTrackingData,events=data.events||[],types=new Set(events.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
   const choiceOptions=blocker?.kind==='choice_required'&&Array.isArray(blocker.options)?blocker.options.filter(Boolean):[],choiceWaiting=status==='needs_input'&&choiceOptions.length>=2&&choiceOptions.length<=6;
-  const verificationPending=status==='verification_pending',failed=['failed','needs_input'].includes(status)&&!choiceWaiting,verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
-  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(choiceWaiting?'choice-waiting':verificationPending&&key==='submission_verified'?'verification-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&verificationPending&&key==='submission_verified'?'…':current&&failed?'!':index+1;const rowCopy=current&&verificationPending&&key==='submission_verified'?'נצפתה בקשת Submit; ממתינים לראיית אישור חד־משמעית מהאתר או ממייל':done?(event?.message||copy):copy;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(rowCopy)}</small></span></li>`}).join('');
+  const gradeSheetWaiting=status==='needs_input'&&blocker?.kind==='grade_sheet_required',attentionWaiting=choiceWaiting||gradeSheetWaiting;
+  const verificationPending=status==='verification_pending',failed=['failed','needs_input'].includes(status)&&!attentionWaiting,verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
+  const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=events.find(item=>item.event_type===key),done=types.has(key)||(key==='submission_verified'&&verified),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(attentionWaiting?'choice-waiting':verificationPending&&key==='submission_verified'?'verification-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&gradeSheetWaiting?'↑':current&&verificationPending&&key==='submission_verified'?'…':current&&failed?'!':index+1;const rowCopy=current&&gradeSheetWaiting?'חסר גיליון ציונים בפרופיל':current&&verificationPending&&key==='submission_verified'?'נצפתה בקשת Submit; ממתינים לראיית אישור חד־משמעית מהאתר או ממייל':done?(event?.message||copy):copy;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(rowCopy)}</small></span></li>`}).join('');
   const choicePanel=choiceWaiting?`<div class="application-live-choice"><strong>${esc(blocker.question||'נדרשת בחירה כדי להמשיך')}</strong><div>${choiceOptions.map((option)=>`<button type="button" data-choice-blocker="${blocker.id}" data-choice-application="${data.application.id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div><small>בחר תשובה וה־Agent יחזור אוטומטית להגשה עם הבחירה הזו.</small></div>`:'';
-  return `<section class="application-live-tracker ${verified?'verified':choiceWaiting?'has-choice':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
+  const gradeSheetPanel=gradeSheetWaiting?`<div class="application-live-choice application-live-document"><strong>${esc(blocker.question||'נדרש גיליון ציונים')}</strong><div><button type="button" onclick="openGradeSheetProfile()">העלה גיליון ציונים בפרופיל</button></div><small>מעלים פעם אחת בפרטים האישיים; הקובץ ישמש אוטומטית גם בהגשות הבאות.</small></div>`:'';
+  return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':choiceWaiting?'מחכה לבחירה שלך':gradeSheetWaiting?'חסר גיליון ציונים בפרופיל':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span><button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':choiceWaiting?choicePanel:gradeSheetWaiting?gradeSheetPanel:verificationPending?'<div class="application-live-verification">נשלחה בקשת Submit, אבל עדיין אין ראיה חד־משמעית ש־Lever קלט את המועמדות. המשרה לא מסומנת כהוגשה עד שמתקבל אישור.</div>':failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
 }
 async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{applicationTrackingData=await api(`/api/applications/${trackedApplicationId}/timeline`);renderNotificationCenter();if(['submitted','verification_pending','failed','needs_input'].includes(applicationTrackingData.application?.status)&&applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}catch{if(applicationTrackingTimer){clearInterval(applicationTrackingTimer);applicationTrackingTimer=null}}}
 function startApplicationTracking(id,autoOpen=false){trackedApplicationId=Number(id);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;refreshApplicationTracking();if(applicationTrackingTimer)clearInterval(applicationTrackingTimer);applicationTrackingTimer=setInterval(refreshApplicationTracking,2000);if(autoOpen)openNotifications()}
@@ -3530,6 +3552,7 @@ document.addEventListener('click', (event) => {
 });
 
 $('#upload-resume').onclick = () => $('#resume-file').click();
+$('#upload-grade-sheet').onclick = () => $('#grade-sheet-file').click();
 $('#manage-resumes').onclick = () => $('#privacy-center').click();
 const RESUME_AUTOFILL_LABELS = Object.freeze({
   full_name:'שם מלא', email:'אימייל', phone:'טלפון', location:'מיקום',
@@ -3558,6 +3581,39 @@ $('#resume-file').onchange = async (event) => {
     toast(parts.join(' · '));
   } catch (error) {
     toast(error.message);
+  }
+};
+
+$('#grade-sheet-file').onchange = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    event.target.value = '';
+    return toast('גיליון הציונים גדול מ־10MB');
+  }
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const result = await api('/api/profile/grade-sheet', { method: 'POST', body: formData });
+    state.profile = result.profile || state.profile;
+    if (state.profile) {
+      state.profile.grade_sheet_filename = result.filename;
+      state.profile.grade_sheet_uploaded = true;
+    }
+    $('#grade-sheet-name').textContent = `✓ ${result.filename}`;
+    document.querySelector('[data-profile-document="grade-sheet"]')?.classList.add('resume-uploaded');
+    const resumed = Array.isArray(result.resumed_application_ids) ? result.resumed_application_ids.length : 0;
+    toast(resumed
+      ? `גיליון הציונים נשמר בפרופיל · ${resumed} הגשות חזרו אוטומטית לתור`
+      : 'גיליון הציונים נשמר בפרופיל וישמש אוטומטית בהגשות');
+    await Promise.all([loadProfile(), loadApplications(), loadBlockers(), loadDashboard()]);
+    if (trackedApplicationId && result.resumed_application_ids?.includes(Number(trackedApplicationId))) {
+      startApplicationTracking(trackedApplicationId, false);
+    }
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    event.target.value = '';
   }
 };
 

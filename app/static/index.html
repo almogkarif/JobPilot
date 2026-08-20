@@ -346,8 +346,11 @@
                 </div>
               </section>
               <section class="profile-detail-section documents-card">
-                <div class="profile-detail-head"><div><span class="profile-section-index">03</span><h3>מסמכים</h3></div><div class="card-head-actions"><button type="button" id="manage-resumes" class="btn secondary small">ניהול גרסאות</button><button type="button" id="upload-resume" class="btn primary small">העלה קורות חיים</button></div></div>
-                <div class="resume-box resume-compact resume-profile-card" aria-label="קורות חיים"><span class="resume-file-icon" aria-hidden="true">CV</span><div><strong>קורות חיים</strong><span id="resume-name">לא הועלה קובץ</span></div><input id="resume-file" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" /><span class="resume-safe-note">PDF, DOCX או TXT</span></div>
+                <div class="profile-detail-head"><div><span class="profile-section-index">03</span><h3>מסמכים</h3></div><div class="card-head-actions"><button type="button" id="manage-resumes" class="btn secondary small">ניהול גרסאות קו״ח</button></div></div>
+                <div class="profile-documents-grid">
+                  <div class="resume-box resume-compact resume-profile-card" data-profile-document="resume" aria-label="קורות חיים"><span class="resume-file-icon" aria-hidden="true">CV</span><div><strong>קורות חיים</strong><span id="resume-name">לא הועלה קובץ</span></div><input id="resume-file" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" /><button type="button" id="upload-resume" class="btn secondary small">העלה / החלף</button><span class="resume-safe-note">PDF, DOCX או TXT</span></div>
+                  <div class="resume-box resume-compact resume-profile-card" data-profile-document="grade-sheet" aria-label="גיליון ציונים"><span class="resume-file-icon document-grade-icon" aria-hidden="true">GR</span><div><strong>גיליון ציונים</strong><span id="grade-sheet-name">לא הועלה קובץ</span></div><input id="grade-sheet-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.rtf,.png,.jpg,.jpeg" /><button type="button" id="upload-grade-sheet" class="btn secondary small">העלה / החלף</button><span class="resume-safe-note">נשמר בפרופיל ומשמש בכל הגשה · עד 10MB</span></div>
+                </div>
                 <div id="resume-insights" class="resume-insights"></div>
               </section>
               <section class="profile-detail-section">

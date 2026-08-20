@@ -117,6 +117,14 @@ def _sqlite_additive_migrations(connection) -> None:
         connection.execute(text(
             "ALTER TABLE profiles ADD COLUMN application_profile_json TEXT NOT NULL DEFAULT '{}'"
         ))
+    if "grade_sheet_path" not in columns:
+        connection.execute(text(
+            "ALTER TABLE profiles ADD COLUMN grade_sheet_path VARCHAR(500) NOT NULL DEFAULT ''"
+        ))
+    if "grade_sheet_filename" not in columns:
+        connection.execute(text(
+            "ALTER TABLE profiles ADD COLUMN grade_sheet_filename VARCHAR(300) NOT NULL DEFAULT ''"
+        ))
     if "active_career_track" not in columns:
         connection.execute(text(
             "ALTER TABLE profiles ADD COLUMN active_career_track VARCHAR(40) NOT NULL DEFAULT 'computer_science'"
@@ -316,6 +324,10 @@ def _postgres_multiuser_migration(connection) -> None:
             connection.execute(text("ALTER TABLE profiles ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0"))
         if "onboarding_state_json" not in profile_columns:
             connection.execute(text("ALTER TABLE profiles ADD COLUMN onboarding_state_json TEXT NOT NULL DEFAULT '{}'"))
+        if "grade_sheet_path" not in profile_columns:
+            connection.execute(text("ALTER TABLE profiles ADD COLUMN grade_sheet_path VARCHAR(500) NOT NULL DEFAULT ''"))
+        if "grade_sheet_filename" not in profile_columns:
+            connection.execute(text("ALTER TABLE profiles ADD COLUMN grade_sheet_filename VARCHAR(300) NOT NULL DEFAULT ''"))
         profile_columns = {c["name"]: c for c in inspect(connection).get_columns("profiles")}
         password_column = profile_columns.get("application_password")
         if password_column is not None and not isinstance(password_column.get("type"), Text):

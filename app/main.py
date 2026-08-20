@@ -7,6 +7,8 @@ import hashlib
 import hmac
 import io
 import json
+import mimetypes
+import re
 import secrets
 import shutil
 import threading
@@ -107,7 +109,38 @@ startup_retry_tasks: set[asyncio.Task] = set()
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
+GRADE_SHEET_MAX_BYTES = 10 * 1024 * 1024
+GRADE_SHEET_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".rtf", ".png", ".jpg", ".jpeg"}
 
+
+def _is_grade_sheet_label(label: str) -> bool:
+    raw = str(label or "").casefold()
+    normalized = re.sub(r"\s+", " ", raw).strip()
+    return any(term in normalized for term in (
+        "grade sheet", "gradesheet", "grade report", "academic transcript",
+        "transcript", "academic record", "mark sheet", "marksheet",
+        "גיליון ציונים", "גליון ציונים",
+    ))
+
+
+def _legacy_required_file_label(blocker: Blocker | None) -> str:
+    if not blocker or blocker.kind != "submit_not_sent":
+        return ""
+    explanation = str(blocker.explanation or "")
+    marker = "שדה שלא עבר ולידציה:"
+    if marker not in explanation or "UPLOAD FILE" not in explanation.upper():
+        return ""
+    return explanation.split(marker, 1)[1].strip()[:500]
+
+
+def _effective_blocker_fields(blocker: Blocker) -> tuple[str, str, str, str]:
+    legacy_file_label = _legacy_required_file_label(blocker)
+    if legacy_file_label and _is_grade_sheet_label(legacy_file_label):
+        return (
+            "grade_sheet_required", "גיליון ציונים", legacy_file_label,
+            "Lever דורש גיליון ציונים. העלה אותו פעם אחת בפרטים האישיים וה־Agent ימשיך אוטומטית.",
+        )
+    return blocker.kind, blocker.field_label, blocker.question, blocker.explanation
 
 def _user_scan_states(user_id: str) -> dict[str, dict]:
     return scan_states_by_user.setdefault(user_id, {track.key: _new_scan_state() for track in CAREER_TRACKS})
@@ -1644,6 +1677,61 @@ def _validate_resume_bytes(content: bytes, suffix: str) -> None:
         raise HTTPException(400, "Resume content does not match its file type")
 
 
+def _document_content_type(filename: str, supplied: str | None) -> str:
+    suffix = Path(filename).suffix.casefold()
+    known = {
+        ".pdf": "application/pdf", ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xls": "application/vnd.ms-excel",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".csv": "text/csv", ".txt": "text/plain", ".rtf": "application/rtf",
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    }
+    return known.get(suffix) or supplied or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+
+def _validate_document_bytes(content: bytes, suffix: str) -> None:
+    suffix = suffix.casefold()
+    if suffix in {".pdf", ".doc", ".docx", ".txt", ".rtf"}:
+        _validate_resume_bytes(content, suffix)
+        return
+    if suffix in {".png", ".jpg", ".jpeg"}:
+        detected_suffix, _ = _detect_image_type(content)
+        if suffix == ".png" and detected_suffix != ".png":
+            raise HTTPException(400, "File content does not match its extension")
+        if suffix in {".jpg", ".jpeg"} and detected_suffix != ".jpg":
+            raise HTTPException(400, "File content does not match its extension")
+        return
+    if suffix == ".xlsx":
+        valid = False
+        if content.startswith(b"PK\x03\x04"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                    names = set(archive.namelist())
+                    valid = "[Content_Types].xml" in names and "xl/workbook.xml" in names
+            except (zipfile.BadZipFile, OSError):
+                valid = False
+        if not valid:
+            raise HTTPException(400, "File content does not match its extension")
+        return
+    if suffix == ".xls":
+        if not content.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
+            raise HTTPException(400, "File content does not match its extension")
+        return
+    if suffix == ".csv":
+        if b"\x00" in content:
+            raise HTTPException(400, "CSV file is not valid text")
+        try:
+            content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            try:
+                content.decode("cp1252")
+            except UnicodeDecodeError as exc:
+                raise HTTPException(400, "CSV file is not valid text") from exc
+        return
+    raise HTTPException(400, "Unsupported application document format")
+
+
 def _detect_image_type(content: bytes) -> tuple[str, str]:
     if (len(content) >= 24 and content.startswith(b"\x89PNG\r\n\x1a\n")
             and content[12:16] == b"IHDR" and b"IEND" in content[-32:]):
@@ -2885,6 +2973,80 @@ async def _dispatch_resolved_auto_application(db: Session, application: Applicat
         raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
 
 
+@app.post("/api/profile/grade-sheet")
+async def upload_grade_sheet(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    profile = get_user_profile(db)
+    original_name = Path((file.filename or "grade-sheet").replace("\r", "").replace("\n", "")).name
+    suffix = Path(original_name).suffix.casefold()
+    if suffix not in GRADE_SHEET_SUFFIXES:
+        raise HTTPException(400, "Unsupported grade sheet format. Use PDF, Office, CSV, text or image files.")
+    content = await file.read(GRADE_SHEET_MAX_BYTES + 1)
+    if not content or len(content) > GRADE_SHEET_MAX_BYTES:
+        raise HTTPException(400 if not content else 413, "Grade sheet must be 1 byte–10 MB")
+    _validate_document_bytes(content, suffix)
+
+    safe_name = f"grade_sheet_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}{suffix}"
+    stored_ref = save_bytes(
+        "documents", safe_name, content, _document_content_type(original_name, file.content_type),
+        owner_key=current_user_id(db),
+    )
+    previous_ref = str(profile.grade_sheet_path or "")
+    profile.grade_sheet_path = stored_ref
+    profile.grade_sheet_filename = original_name
+
+    resumed_by_id: dict[int, Application] = {}
+    blockers = db.scalars(
+        select(Blocker)
+        .options(joinedload(Blocker.application).joinedload(Application.job))
+        .where(Blocker.status == "open")
+        .order_by(Blocker.created_at)
+    ).all()
+    for blocker in blockers:
+        legacy_label = _legacy_required_file_label(blocker)
+        effective_label = legacy_label or blocker.field_label or blocker.question
+        if not _is_grade_sheet_label(effective_label):
+            continue
+        if blocker.kind not in {"grade_sheet_required", "file_required"} and not legacy_label:
+            continue
+        application = blocker.application
+        blocker.kind = "grade_sheet_required"
+        blocker.field_label = "גיליון ציונים"
+        blocker.question = effective_label or "גיליון ציונים"
+        blocker.explanation = "גיליון הציונים נשמר בפרופיל וההגשה יכולה להמשיך."
+        blocker.answer = original_name
+        blocker.remember_answer = False
+        blocker.status = "resolved"
+        blocker.resolved_at = utcnow()
+        application.status = "queued"
+        application.job.status = "queued"
+        application.last_error = ""
+        resumed_by_id[application.id] = application
+
+    resumed = list(resumed_by_id.values())
+    db.add(AuditLog(
+        event_type="grade_sheet_uploaded", entity_type="profile", entity_id=str(profile.id),
+        message=original_name,
+        details_json=dumps({"resumed_application_ids": list(resumed_by_id)}),
+    ))
+    db.commit()
+    db.refresh(profile)
+
+    if previous_ref and previous_ref != stored_ref:
+        try:
+            delete_ref(previous_ref)
+        except Exception:
+            pass
+
+    for application in resumed:
+        await _dispatch_resolved_auto_application(db, application)
+
+    return {
+        "filename": original_name,
+        "profile": _profile_dict(profile),
+        "resumed_application_ids": [application.id for application in resumed],
+    }
+
+
 @app.post("/api/blockers/{blocker_id}/resolve")
 async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session = Depends(get_db)):
     blocker = _active_blocker_or_404(db, blocker_id)
@@ -3641,6 +3803,30 @@ def agent_resume_file(application_id: int, request: Request, token: str = "", ag
     })
 
 
+@app.get("/api/agent/tasks/{application_id}/grade-sheet")
+def agent_grade_sheet_file(
+    application_id: int, request: Request, token: str = "", agent_id: str = "",
+    db: Session = Depends(get_db),
+):
+    agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
+    _check_agent_token(db, agent_token, agent_id=agent_id, application_id=application_id)
+    application = db.get(Application, application_id)
+    profile = get_user_profile(db)
+    if not application or not profile or not profile.grade_sheet_path:
+        raise HTTPException(404, "Grade sheet not found")
+    try:
+        content = read_bytes(profile.grade_sheet_path)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(404, "Grade sheet not found") from exc
+    filename = Path((profile.grade_sheet_filename or "grade-sheet.pdf").replace("\r", "").replace("\n", "")).name or "grade-sheet.pdf"
+    suffix = Path(filename).suffix.casefold()
+    ascii_fallback = f"grade-sheet{suffix if suffix and suffix.isascii() else '.pdf'}"
+    return Response(content=content, media_type=_document_content_type(filename, None), headers={
+        "Content-Disposition": f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{quote(filename, safe="")}',
+        "Cache-Control": "private, no-store",
+    })
+
+
 @app.post("/api/agent/tasks/{application_id}/screenshot")
 async def agent_upload_screenshot(application_id: int, token: str = Form(...), agent_id: str = Form(""),
                                   file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -4114,6 +4300,7 @@ def _profile_dict(p: Profile) -> dict:
         "linkedin_url": p.linkedin_url, "github_url": p.github_url, "portfolio_url": p.portfolio_url,
         "application_password_configured": bool(p.application_password),
         "cv_path": p.cv_path, "cv_filename": Path(p.cv_path).name if p.cv_path else "",
+        "grade_sheet_filename": p.grade_sheet_filename or "", "grade_sheet_uploaded": bool(p.grade_sheet_path),
         "years_experience": p.years_experience, "work_authorization": p.work_authorization,
         "years_experience_options": loads(p.years_experience_options_json, [str(int(p.years_experience or 0))]),
         "needs_sponsorship": p.needs_sponsorship,
@@ -4132,6 +4319,7 @@ def _profile_dict(p: Profile) -> dict:
 def _agent_profile_dict(p: Profile) -> dict:
     data = _profile_dict(p)
     data["application_password"] = decrypt_credential(p.application_password)
+    data["grade_sheet_path"] = p.grade_sheet_path or ""
     return data
 
 
@@ -4193,11 +4381,12 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
     active_blocker = max(open_blockers, key=lambda blocker: blocker.created_at) if open_blockers else None
     blocker_summary = None
     if active_blocker:
+        blocker_kind, blocker_label, blocker_question, blocker_explanation = _effective_blocker_fields(active_blocker)
         blocker_summary = {
             "id": active_blocker.id,
-            "kind": active_blocker.kind,
-            "question": active_blocker.question,
-            "explanation": active_blocker.explanation,
+            "kind": blocker_kind,
+            "question": blocker_question,
+            "explanation": blocker_explanation,
             "page_url": active_blocker.page_url,
             "screenshot_url": f"/api/blockers/{active_blocker.id}/screenshot" if active_blocker.screenshot_path else "",
         }
@@ -4220,11 +4409,11 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         detail = "המשימה מוכנה, אך עדיין לא נלקחה"
     elif status == "needs_input":
         stage = "נעצר"
-        waiting_for = f"תשובה לשאלה: {active_blocker.question}" if active_blocker and active_blocker.question else "תשובה/המשך מהמשתמש"
+        waiting_for = f"תשובה לשאלה: {blocker_summary.get('question')}" if blocker_summary and blocker_summary.get("question") else "תשובה/המשך מהמשתמש"
         detail = (
-            f"{active_blocker.question} — {active_blocker.explanation}"
-            if active_blocker and active_blocker.question and active_blocker.explanation
-            else active_blocker.question if active_blocker and active_blocker.question
+            f"{blocker_summary.get('question')} — {blocker_summary.get('explanation')}"
+            if blocker_summary and blocker_summary.get("question") and blocker_summary.get("explanation")
+            else blocker_summary.get("question") if blocker_summary and blocker_summary.get("question")
             else a.last_error or "ה-Agent נתקע וצריך פעולה מצדך"
         )
     elif status == "verification_pending":
@@ -4368,9 +4557,10 @@ def _draft_dict(draft: OpenAnswerDraft) -> dict:
 
 
 def _blocker_dict(b: Blocker) -> dict:
+    kind, field_label, question, explanation = _effective_blocker_fields(b)
     return {
-        "id": b.id, "application_id": b.application_id, "kind": b.kind, "field_label": b.field_label,
-        "question": b.question, "explanation": b.explanation, "options": loads(b.options_json, []),
+        "id": b.id, "application_id": b.application_id, "kind": kind, "field_label": field_label,
+        "question": question, "explanation": explanation, "options": loads(b.options_json, []),
         "screenshot_path": b.screenshot_path, "screenshot_url": f"/api/blockers/{b.id}/screenshot" if b.screenshot_path else "",
         "page_url": b.page_url, "status": b.status,
         "answer": b.answer, "remember_answer": b.remember_answer, "created_at": b.created_at,

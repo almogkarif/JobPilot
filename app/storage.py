@@ -13,6 +13,7 @@ from .config import BASE_DIR, settings
 
 DATA_DIR = BASE_DIR / "data"
 LOCAL_RESUMES = DATA_DIR / "resumes"
+LOCAL_DOCUMENTS = DATA_DIR / "documents"
 LOCAL_SCREENSHOTS = DATA_DIR / "screenshots"
 
 
@@ -62,7 +63,7 @@ def ensure_cloud_bucket() -> None:
 
 
 def save_bytes(category: str, filename: str, content: bytes, content_type: str | None = None, *, owner_key: str = "") -> str:
-    safe_category = "resumes" if category == "resumes" else "screenshots"
+    safe_category = category if category in {"resumes", "documents"} else "screenshots"
     safe_name = Path(filename).name
     if cloud_storage_enabled():
         ensure_cloud_bucket()
@@ -80,7 +81,7 @@ def save_bytes(category: str, filename: str, content: bytes, content_type: str |
         )
         response.raise_for_status()
         return f"supabase://{settings.supabase_storage_bucket}/{object_path}"
-    folder = LOCAL_RESUMES if safe_category == "resumes" else LOCAL_SCREENSHOTS
+    folder = LOCAL_RESUMES if safe_category == "resumes" else LOCAL_DOCUMENTS if safe_category == "documents" else LOCAL_SCREENSHOTS
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / safe_name
     path.write_bytes(content)

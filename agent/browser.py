@@ -6,7 +6,7 @@ from typing import Callable
 from urllib.parse import urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 from app.services.application_submission import lever_confirmation_from_url
-from .fields import known_value, missing_profile_context, normalize
+from .fields import is_grade_sheet_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
 CAPTCHA_TERMS = ["captcha", "recaptcha", "hcaptcha", "verify you are human", "אימות שאינך רובוט"]
@@ -186,11 +186,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
             if field_type == "file":
                 candidate_path = Path(str(candidate.value)) if candidate else None
-                if candidate_path and candidate_path.exists() and _file_already_uploaded(page, candidate_path.name):
+                if candidate_path and candidate_path.exists() and _file_input_has_file(locator, candidate_path.name):
                     filled.append({"label": label, "source": "existing_upload"})
                 elif candidate_path and candidate_path.exists():
                     try:
                         locator.set_input_files(str(candidate_path), timeout=2_000)
+                        if not _file_input_has_file(locator, candidate_path.name):
+                            raise RuntimeError("file input did not retain the selected file")
                         filled.append({"label": label, "source": candidate.source})
                     except Exception:
                         unknown.append(field)
@@ -237,6 +239,18 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         if unknown:
             field = unknown[0]
             label = _display_field_label(field)
+            if field.get("type") == "file":
+                if is_grade_sheet_file_label(label):
+                    raise ApplicationBlocked(
+                        "grade_sheet_required", "גיליון ציונים", label,
+                        "חסר גיליון ציונים בפרופיל. העלה אותו בפרטים האישיים, וה־Agent ינסה שוב אוטומטית.",
+                        page.url, _file_accept_options(field),
+                    )
+                raise ApplicationBlocked(
+                    "file_required", label, label,
+                    "זהו קובץ חובה נוסף שלא הוגדר בפרופיל. השלם אותו ידנית או הוסף תמיכה ייעודית במסמך הזה.",
+                    page.url, _file_accept_options(field),
+                )
             choice_options = _small_choice_options(field)
             if choice_options:
                 raise ApplicationBlocked(
@@ -372,6 +386,20 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # and no basis for the verification_pending state. Surface the validation
             # or client-side gate instead of claiming that the form was sent.
             if _is_lever_apply_url(page.url) and not lever_submit_requests:
+                missing_file = _lever_required_file_issue(page)
+                if missing_file:
+                    label = missing_file["label"]
+                    if is_grade_sheet_file_label(label):
+                        raise ApplicationBlocked(
+                            "grade_sheet_required", "גיליון ציונים", label,
+                            "Lever דורש גיליון ציונים. העלה אותו פעם אחת בפרטים האישיים וה־Agent ימשיך אוטומטית.",
+                            page.url, missing_file["options"],
+                        )
+                    raise ApplicationBlocked(
+                        "file_required", label, label,
+                        "Lever עצר את השליחה כי חסר קובץ חובה נוסף שלא הוגדר בפרופיל.",
+                        page.url, missing_file["options"],
+                    )
                 submit_error = _lever_visible_submission_error(page)
                 if submit_error:
                     raise ApplicationBlocked(
@@ -499,6 +527,8 @@ def _extract_fields(page: Page) -> list[dict]:
               aria_label: el.getAttribute('aria-label') || '',
               label,
               placeholder: el.placeholder || '',
+              accept: el.getAttribute('accept') || '',
+              multiple: !!el.multiple,
               required: !!el.required || el.getAttribute('aria-required') === 'true',
               disabled: !!el.disabled,
               checked: !!el.checked,
@@ -868,10 +898,41 @@ def _find_job_link(page: Page, title: str) -> Locator | None:
 
 
 def _file_already_uploaded(page: Page, filename: str) -> bool:
+    """Legacy helper kept for callers/tests; upload filling no longer relies on it."""
     try:
         return normalize(filename) in normalize(page.locator("body").inner_text(timeout=2_000))
     except Exception:
         return False
+
+
+def _file_input_has_file(locator: Locator, filename: str = "") -> bool:
+    """Check the specific file input, never the whole page.
+
+    Lever can show the resume filename next to one input while another required
+    upload is still empty. Page-wide filename matching made the second input look
+    filled and allowed the Agent to reach Submit with a missing grade sheet.
+    """
+    try:
+        selected = locator.evaluate(
+            "el => Array.from(el.files || []).map(file => file.name)"
+        )
+    except Exception:
+        return False
+    if not selected:
+        return False
+    wanted = normalize(filename)
+    return True if not wanted else any(normalize(str(name)) == wanted for name in selected)
+
+
+def _file_accept_options(field: dict) -> list[str]:
+    raw = str(field.get("accept") or "")
+    allowed = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".rtf", ".png", ".jpg", ".jpeg"}
+    result = []
+    for item in raw.split(","):
+        value = item.strip().casefold()
+        if value in allowed and value not in result:
+            result.append(value)
+    return result or [".pdf", ".docx", ".xlsx", ".csv", ".png", ".jpg"]
 
 
 def _expand_workday_profile_sections(page: Page, profile: dict) -> None:
@@ -1297,6 +1358,33 @@ def _lever_submission_responses_result(*, responses: list) -> tuple[str, str, st
         if error:
             last_error = error
     return "", "", last_error
+
+
+def _lever_required_file_issue(page: Page) -> dict | None:
+    """Return the first visible required Lever upload that is still empty."""
+    if not _is_lever_apply_url(page.url):
+        return None
+    try:
+        issue = page.evaluate(
+            r"""() => {
+              const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
+              const inputs = [...document.querySelectorAll('input[type="file"]')];
+              for (const el of inputs) {
+                if (el.disabled || !(el.required || el.getAttribute('aria-required') === 'true') || (el.files && el.files.length)) continue;
+                const id = el.id || '';
+                const direct = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
+                const group = el.closest('label, .application-question, [role="group"], fieldset, li');
+                const label = clean(direct?.innerText || group?.innerText || el.getAttribute('aria-label') || el.name || 'Required file');
+                return {label: label.slice(0, 300), accept: el.getAttribute('accept') || ''};
+              }
+              return null;
+            }"""
+        )
+    except Exception:
+        return None
+    if not isinstance(issue, dict) or not str(issue.get("label") or "").strip():
+        return None
+    return {"label": str(issue["label"]).strip(), "options": _file_accept_options({"accept": issue.get("accept", "")})}
 
 
 def _lever_visible_submission_error(page: Page) -> str:

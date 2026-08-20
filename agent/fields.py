@@ -17,6 +17,29 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9א-ת+/# ]", " ", (text or "").lower())).strip()
 
 
+def is_resume_file_label(label: str) -> bool:
+    raw = str(label or "").casefold()
+    key = normalize(label)
+    if not key:
+        return False
+    if "résumé" in raw or "קורות חיים" in key or "curriculum vitae" in key or "resume" in key:
+        return True
+    # CV is too short for naive substring matching (for example, an opaque id).
+    return bool(re.search(r"(?:^|\s)cv(?:$|\s)", key))
+
+def is_grade_sheet_file_label(label: str) -> bool:
+    raw = str(label or "").casefold()
+    key = normalize(label)
+    if not key:
+        return False
+    phrases = (
+        "grade sheet", "gradesheet", "grade report", "academic transcript",
+        "transcript", "academic record", "mark sheet", "marksheet",
+        "גיליון ציונים", "גליון ציונים",
+    )
+    return any(phrase in raw or normalize(phrase) in key for phrase in phrases)
+
+
 def month_for_form(value: str) -> str:
     match = re.fullmatch(r"(\d{4})-(\d{2})", str(value or "").strip())
     return f"{match.group(2)}/{match.group(1)}" if match else str(value or "")
@@ -110,8 +133,11 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         return CandidateValue(bool(profile.get("work_authorization")), "profile")
     if any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"]):
         return CandidateValue(bool(profile.get("needs_sponsorship")), "profile")
-    if field_type == "file" and profile.get("cv_path"):
-        return CandidateValue(profile["cv_path"], "profile")
+    if field_type == "file":
+        if profile.get("cv_path") and is_resume_file_label(label):
+            return CandidateValue(profile["cv_path"], "profile")
+        if profile.get("grade_sheet_path") and is_grade_sheet_file_label(label):
+            return CandidateValue(profile["grade_sheet_path"], "profile")
     return None
 
 

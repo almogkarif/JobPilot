@@ -73,6 +73,31 @@ def prepare_resume(task: dict) -> str:
     return str(destination)
 
 
+def prepare_grade_sheet(task: dict) -> str:
+    application = task.get("application") or {}
+    application_id = application.get("id")
+    profile = task.get("profile") or {}
+    if not application_id or not profile.get("grade_sheet_path"):
+        return ""
+    AGENT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    response = httpx.get(
+        f"{BASE_URL}/api/agent/tasks/{application_id}/grade-sheet",
+        params={"agent_id": AGENT_ID},
+        headers={"X-JobPilot-Agent-Token": TOKEN},
+        timeout=60.0,
+    )
+    response.raise_for_status()
+    disposition = response.headers.get("content-disposition", "")
+    filename = "grade-sheet.pdf"
+    if 'filename="' in disposition:
+        filename = disposition.split('filename="', 1)[1].split('"', 1)[0]
+    safe_name = Path(filename).name or "grade-sheet.pdf"
+    destination = AGENT_CACHE_DIR / f"{application_id}_grade_sheet_{safe_name}"
+    destination.write_bytes(response.content)
+    profile["grade_sheet_path"] = str(destination)
+    return str(destination)
+
+
 def upload_screenshot(application_id: int, screenshot_path: str) -> str:
     path = Path(screenshot_path)
     if not path.is_file():
@@ -132,6 +157,7 @@ def run_task(context, task: dict):
         # explicit one-time approval or the global emergency override.
         submit_authorized = AUTO_SUBMIT or application_mode == "auto" or bool(task.get("submit_approved_once"))
         prepare_resume(task)
+        prepare_grade_sheet(task)
         def report_progress(stage, message, page_url):
             try:
                 api("POST", f"/api/agent/tasks/{application_id}/progress", json={
@@ -166,7 +192,7 @@ def run_task(context, task: dict):
         print(f"[submitted] {task['job']['company']} — {task['job']['title']}")
     except ApplicationBlocked as blocker:
         keep_open_for_manual_submit = blocker.kind in {
-            "review_before_submit", "unknown_field", "application_form_missing",
+            "review_before_submit", "unknown_field", "file_required", "grade_sheet_required", "application_form_missing",
             "submit_button_missing", "captcha", "confirmation_missing", "submit_not_sent",
         }
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
