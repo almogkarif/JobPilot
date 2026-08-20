@@ -2,7 +2,7 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import ApplicationBlocked, _file_already_uploaded, fill_application
+from agent.browser import ApplicationBlocked, _extract_fields, _file_already_uploaded, fill_application
 
 
 def _launch(playwright):
@@ -110,6 +110,27 @@ def test_existing_resume_filename_is_detected_before_upload():
         page.set_content('<div>resume_20260809_132247.pdf <span>Successfully Uploaded!</span></div><input type="file">')
         assert _file_already_uploaded(page, "resume_20260809_132247.pdf") is True
         assert _file_already_uploaded(page, "different.pdf") is False
+        browser.close()
+
+
+def test_unknown_required_field_reports_aria_labelled_question_and_options():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <form>
+            <div role="group">
+              <div id="eligibility-question">האם תהיה מוכן לעבוד במשמרת ירח?</div>
+              <select name="eligibility" aria-labelledby="eligibility-question" required>
+                <option value="">בחר תשובה</option><option>כן</option><option>לא</option>
+              </select>
+            </div>
+            <button type="button">Submit Application</button>
+          </form>
+        """)
+        field = next(item for item in _extract_fields(page) if item["name"] == "eligibility")
+        assert field["label"] == "האם תהיה מוכן לעבוד במשמרת ירח?"
+        assert field["options"] == ["בחר תשובה", "כן", "לא"]
         browser.close()
 
 

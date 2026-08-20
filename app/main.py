@@ -4012,8 +4012,13 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         detail = "המשימה מוכנה, אך עדיין לא נלקחה"
     elif status == "needs_input":
         stage = "נעצר"
-        waiting_for = "תשובה/המשך מהמשתמש"
-        detail = a.last_error or "ה-Agent נתקע וצריך פעולה מצדך"
+        waiting_for = f"תשובה לשאלה: {active_blocker.question}" if active_blocker and active_blocker.question else "תשובה/המשך מהמשתמש"
+        detail = (
+            f"{active_blocker.question} — {active_blocker.explanation}"
+            if active_blocker and active_blocker.question and active_blocker.explanation
+            else active_blocker.question if active_blocker and active_blocker.question
+            else a.last_error or "ה-Agent נתקע וצריך פעולה מצדך"
+        )
     elif status == "verification_pending":
         stage = "ממתין לאימות"
         waiting_for = "אישור מהאתר או ממייל"

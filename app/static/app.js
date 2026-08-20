@@ -807,7 +807,7 @@ function renderApplicationStatus(application) {
     return `${stageBadge}
       <div class="queue-blocker queue-blocker-${meta.tone}" title="${esc(blocker.explanation || meta.short)}">
         <span class="queue-blocker-icon">${esc(meta.icon)}</span>
-        <span><strong>${esc(meta.label)}</strong><small>${esc(meta.short)}</small></span>
+        <span><strong>${esc(meta.label)}</strong><small>${esc(blocker.question || blocker.field_label || meta.short)}</small></span>
       </div>
       <div class="queue-progress-meta" title="${esc(failureDetail)}">
         <strong>שלב: ${esc(stageLabel)}</strong>

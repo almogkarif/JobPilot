@@ -334,11 +334,29 @@ def _extract_fields(page: Page) -> list[dict]:
               if (parentLabel) label = parentLabel.innerText;
             }
             if (!label) {
-              const container = el.closest('[role="group"], .field, .form-field, .application-question, .ashby-application-form-question');
+              const labelledBy = (el.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+              label = labelledBy.map(ref => document.getElementById(ref)?.innerText || '').filter(Boolean).join(' ');
+            }
+            if (!label) label = el.getAttribute('aria-label') || el.getAttribute('title') || '';
+            if (!label) {
+              const container = el.closest('[role="group"], fieldset, .field, .form-field, .application-question, .ashby-application-form-question, [class*="field"], [class*="question"]');
               if (container) {
-                const candidate = container.querySelector('label, legend, .label, [class*="label"], [class*="question"]');
+                const candidate = container.querySelector('label, legend, .label, [class*="label"], [class*="question"], [data-automation-id*="label"]');
                 if (candidate) label = candidate.innerText;
               }
+            }
+            if (!label) {
+              const previous = el.previousElementSibling;
+              if (previous && !previous.matches('input, textarea, select, button')) label = previous.innerText || '';
+            }
+            label = (label || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+            let options = [];
+            if (el.tagName === 'SELECT') options = [...el.options].map(o => o.text.trim()).filter(Boolean);
+            if ((el.type === 'radio' || el.type === 'checkbox') && el.name) {
+              options = [...document.querySelectorAll(`input[name="${CSS.escape(el.name)}"]`)].map(option => {
+                const optionLabel = option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : option.closest('label');
+                return (optionLabel?.innerText || option.value || '').replace(/\s+/g, ' ').trim();
+              }).filter(Boolean);
             }
             const style = window.getComputedStyle(el);
             const rect = el.getBoundingClientRect();
@@ -351,14 +369,14 @@ def _extract_fields(page: Page) -> list[dict]:
               automation: el.getAttribute('data-automation-id') || '',
               role: el.getAttribute('role') || '',
               aria_label: el.getAttribute('aria-label') || '',
-              label: (label || '').replace(/\s+/g, ' ').trim(),
+              label,
               placeholder: el.placeholder || '',
               required: !!el.required || el.getAttribute('aria-required') === 'true',
               disabled: !!el.disabled,
               checked: !!el.checked,
               value: el.value || '',
               visible,
-              options: el.tagName === 'SELECT' ? [...el.options].map(o => o.text.trim()).filter(Boolean) : []
+              options
             };
           });
         }
