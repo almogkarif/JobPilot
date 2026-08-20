@@ -11,3 +11,4 @@ def test_dashboard_displays_and_polls_professional_reranking_status():
     assert "מתבצע דירוג מחדש של המשרות" in JS
     assert "dashboard.ranking_refresh" in JS
     assert "dashboardRankingRefreshTimer" in JS
+    assert "}, 8000);" in JS

@@ -63,9 +63,18 @@ def rank_job(job, profile, engine="v2", config=None, *, context=None):
     return get_ranking_engine(engine).rank_job(job, profile, config, context=context)
 
 
-def persist_v2_result(db: Session, job, profile, settings: RankingSettings, *, context=None) -> JobRanking:
+def persist_v2_result(
+    db: Session, job, profile, settings: RankingSettings, *, context=None, existing_row: JobRanking | None = None,
+) -> JobRanking:
+    """Persist one V2 result.
+
+    Bulk refresh callers may pass an already-loaded row so a profile/engine refresh
+    does not issue one SELECT per job against the remote PostgreSQL database.
+    """
     started = time.perf_counter()
-    row = db.scalar(select(JobRanking).where(JobRanking.job_id == job.id, JobRanking.engine == "v2"))
+    row = existing_row
+    if row is None:
+        row = db.scalar(select(JobRanking).where(JobRanking.job_id == job.id, JobRanking.engine == "v2"))
     if not row:
         row = JobRanking(job_id=job.id, engine="v2")
         db.add(row)
@@ -83,9 +92,20 @@ def persist_v2_result(db: Session, job, profile, settings: RankingSettings, *, c
         row.profile_fingerprint = profile_fingerprint(profile, job.career_track)
         row.job_fingerprint = job_fingerprint(job)
         row.evaluated_at = datetime.now(timezone.utc)
+        # V2 owns the canonical extracted experience fields when it is refreshed.
+        # This avoids a second full V1 scoring pass merely to update these columns.
+        job.experience_min = result.experience_min
+        job.experience_max = result.experience_max
     except Exception as exc:
         row.error = str(exc)[:2000]
         row.stale = True
+        # Record that the current engine attempted this row. Otherwise one malformed
+        # posting can make every Render restart retry the entire engine upgrade.
+        row.engine_version = ENGINES["v2"].version
+        row.config_version = settings.config_version
+        row.profile_fingerprint = profile_fingerprint(profile, job.career_track)
+        row.job_fingerprint = job_fingerprint(job)
+        row.evaluated_at = datetime.now(timezone.utc)
         raise
     finally:
         row.duration_ms = round((time.perf_counter() - started) * 1000, 3)

@@ -1257,7 +1257,7 @@ async function loadDashboard() {
   if (rankingRefresh.running) {
     dashboardRankingRefreshTimer = setTimeout(() => {
       if (state.activeView === 'dashboard') loadDashboard().catch((error) => toast(error.message));
-    }, 2500);
+    }, 8000);
   }
   renderRecent(dashboard.recent_jobs);
   renderScan(dashboard.scan);

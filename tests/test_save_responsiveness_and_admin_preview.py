@@ -14,8 +14,12 @@ def test_career_switch_explains_exact_unsaved_fields():
 def test_cloud_derived_refresh_is_detached_coalesced_and_incremental():
     assert hasattr(main, "_queue_profile_derived_refresh")
     assert "_profile_refresh_pending" in Path(main.__file__).read_text()
-    assert "commit_every=25" in Path(main.__file__).read_text()
-    assert "yield_per(50)" in Path(main.__file__).read_text()
+    source = Path(main.__file__).read_text()
+    assert "commit_every=25" in source
+    assert "commit_every=10" in source
+    assert "yield_per(50)" in source
+    assert "_global_profile_refresh_semaphore" in source
+    assert "stale_only=not rescore_jobs" in source
 
 def test_admin_preview_uses_regular_user_permissions_with_only_return_control_extra():
     assert 'id="developer-preview-non-admin"' in HTML

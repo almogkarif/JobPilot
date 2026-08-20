@@ -10,6 +10,7 @@ import json
 import secrets
 import shutil
 import threading
+import time
 import zipfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timedelta, timezone
@@ -268,6 +269,12 @@ async def _daily_scheduler() -> None:
             await asyncio.gather(*tasks, return_exceptions=True)
 
 
+async def _delayed_v2_engine_refresh(user_id: str, career_track: str) -> None:
+    """Let the web process become responsive before low-priority migration work."""
+    await asyncio.sleep(3)
+    _queue_profile_derived_refresh(user_id, career_track, False, False, True)
+
+
 def _v2_engine_refresh_required(db: Session, career_track: str) -> bool:
     """Return whether persisted V2 rows predate the current ranking semantics.
 
@@ -375,11 +382,12 @@ async def lifespan(_: FastAPI):
         try:
             startup_track, repaired, refresh_v2 = _prepare_user_workspace(user_id)
             if refresh_v2:
-                # Ranking-engine upgrades must take effect immediately even when the
-                # user has not edited the profile. Recompute in the existing daemon
-                # queue so Render startup remains fast. V1 is refreshed too because
-                # Job.experience_min/max are shared display fields.
-                _queue_profile_derived_refresh(user_id, startup_track, True, False, True)
+                # Do not start CPU-heavy migration work before Render can serve the
+                # first page. The delayed task then enters the globally-serialized
+                # low-priority V2 queue.
+                task = asyncio.create_task(_delayed_v2_engine_refresh(user_id, startup_track))
+                startup_retry_tasks.add(task)
+                task.add_done_callback(startup_retry_tasks.discard)
             if repaired and settings.scheduler_enabled:
                 task = asyncio.create_task(_run_targeted_scan(user_id, set(repaired), startup_track))
                 startup_retry_tasks.add(task)
@@ -3928,6 +3936,9 @@ _profile_refresh_pending: dict[tuple[str, str], dict[str, bool]] = {}
 _profile_refresh_workers: dict[tuple[str, str], threading.Thread] = {}
 _profile_refresh_active: dict[tuple[str, str], dict[str, bool]] = {}
 _profile_refresh_queue_lock = threading.Lock()
+# Render is intentionally small. Never let several users run CPU-heavy ranking
+# refreshes at the same time and starve normal API requests.
+_global_profile_refresh_semaphore = threading.Semaphore(1)
 
 
 def _ranking_refresh_status(user_id: str, career_track: str) -> dict:
@@ -4008,18 +4019,25 @@ def _refresh_profile_derived_background(
         # the second refresh waits and then reloads the newest profile state, so an
         # older scoring pass can never be the last writer.
         lock = _profile_refresh_locks.setdefault((user_id, career_track), threading.Lock())
-        with lock:
-            with user_session(user_id) as db:
-                profile = get_user_profile(db)
-                if not profile:
-                    return
-                if rescore_jobs:
-                    _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
-                if refresh_resumes:
-                    _refresh_resume_analyses(db, profile, career_track=career_track)
-                if rank_v2:
-                    _rescore_v2_jobs(db, profile, career_track=career_track, commit_every=25)
-                db.commit()
+        # Per-track ordering prevents stale writes; the global semaphore keeps a
+        # multi-user cloud deployment from launching several ranking loops at once.
+        with _global_profile_refresh_semaphore:
+            with lock:
+                with user_session(user_id) as db:
+                    profile = get_user_profile(db)
+                    if not profile:
+                        return
+                    if rescore_jobs:
+                        _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
+                    if refresh_resumes:
+                        _refresh_resume_analyses(db, profile, career_track=career_track)
+                    if rank_v2:
+                        _rescore_v2_jobs(
+                            db, profile, career_track=career_track, commit_every=10,
+                            yield_seconds=0.15 if settings.auth_mode == "supabase" else 0.0,
+                            stale_only=not rescore_jobs,
+                        )
+                    db.commit()
     except Exception as exc:
         # A failed derived refresh must never roll back the already-confirmed user edit.
         print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
@@ -4044,7 +4062,10 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = 
             db.commit()
 
 
-def _rescore_v2_jobs(db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0) -> None:
+def _rescore_v2_jobs(
+    db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0,
+    yield_seconds: float = 0.0, stale_only: bool = False,
+) -> None:
     track = normalize_track(career_track or active_track(profile))
     default_resume = db.scalar(select(ResumeProfile).where(
         ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
@@ -4052,9 +4073,27 @@ def _rescore_v2_jobs(db: Session, profile: Profile, career_track: str | None = N
     resume_skills = loads(default_resume.skills_json, []) if default_resume else []
     context = build_match_context(profile, resume_skills, career_track=track)
     ranking_settings = get_ranking_settings(db)
-    for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
+
+    # Ranking is relevant only for jobs a user can actually see. Load persisted V2
+    # rows once instead of doing a remote SELECT for every job (hundreds of round
+    # trips on Supabase in the previous implementation).
+    jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
+    job_ids = [job.id for job in jobs]
+    existing = {
+        row.job_id: row for row in db.scalars(select(JobRanking).where(
+            JobRanking.engine == "v2", JobRanking.job_id.in_(job_ids or [-1]),
+        )).all()
+    }
+    if stale_only:
+        jobs = [
+            job for job in jobs
+            if result_is_stale(existing.get(job.id), job, profile, ranking_settings)
+        ]
+    for index, job in enumerate(jobs, start=1):
         try:
-            persist_v2_result(db, job, profile, ranking_settings, context=context)
+            persist_v2_result(
+                db, job, profile, ranking_settings, context=context, existing_row=existing.get(job.id),
+            )
         except Exception as exc:
             db.add(AuditLog(
                 event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
@@ -4063,6 +4102,10 @@ def _rescore_v2_jobs(db: Session, profile: Profile, career_track: str | None = N
             ))
         if commit_every and index % commit_every == 0:
             db.commit()
+            if yield_seconds > 0:
+                # Give request-handler threads CPU time on a single-core Render
+                # instance while a large ranking migration is in progress.
+                time.sleep(yield_seconds)
 
 
 def _profile_dict(p: Profile) -> dict:
