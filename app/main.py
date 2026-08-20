@@ -3319,7 +3319,12 @@ def list_agent_devices(db: Session = Depends(get_db)):
             return {"devices": [], "cloud_mode": settings.auth_mode == "supabase", "available": False,
                     "centrally_managed": True, "reason": "ה־worker המרכזי מנוהל על ידי מנהל המערכת"}
         raise
-    devices = db.scalars(select(AgentDevice).order_by(desc(AgentDevice.last_seen_at), desc(AgentDevice.created_at))).all()
+    # PostgreSQL sorts NULL values first for DESC by default. Keep devices that
+    # actually completed a heartbeat ahead of newly-created, unused tokens so
+    # the setup screen reflects the worker GitHub really connected with.
+    devices = db.scalars(select(AgentDevice).order_by(
+        desc(AgentDevice.last_seen_at).nullslast(), desc(AgentDevice.created_at)
+    )).all()
     return {"devices": [device_dict(device) for device in devices], "cloud_mode": settings.auth_mode == "supabase", "available": True}
 
 

@@ -9,7 +9,7 @@ from app.auth import AuthIdentity
 from app.config import settings
 from app.database import SessionLocal
 from app.main import app
-from app.models import AgentDevice, AppIdentity, Application, Job, ResumeProfile, Source
+from app.models import AgentDevice, AppIdentity, Application, Job, ResumeProfile, Source, utcnow
 
 
 def test_auth_config_never_exposes_server_keys(monkeypatch):
@@ -80,6 +80,28 @@ def test_agent_device_tokens_are_one_time_hashed_and_revocable(monkeypatch):
         assert client.get("/api/agent/tasks/next", params={"agent_id": "pytest"}, headers={"X-JobPilot-Agent-Token": raw}).status_code == 200
         assert client.delete(f"/api/agent-devices/{device_id}", headers=headers).status_code == 200
         assert client.get("/api/agent/tasks/next", params={"agent_id": "pytest"}, headers={"X-JobPilot-Agent-Token": raw}).status_code == 401
+
+
+def test_agent_devices_list_connected_worker_before_unused_duplicate(monkeypatch):
+    monkeypatch.setattr(settings, "auth_mode", "supabase")
+    monkeypatch.setattr(settings, "owner_email", "owner@example.com")
+    monkeypatch.setattr(settings, "application_agent_owner_email", "owner@example.com")
+    monkeypatch.setattr(auth_module, "verify_supabase_token", lambda token: AuthIdentity("user-123", "owner@example.com", "google"))
+    with SessionLocal() as db:
+        db.execute(delete(AgentDevice)); db.execute(delete(AppIdentity)); db.commit()
+    headers = {"Authorization": "Bearer valid"}
+    with TestClient(app) as client:
+        connected = client.post("/api/agent-devices", headers=headers, json={"name": "GitHub Actions Worker"}).json()
+        client.get("/api/agent/tasks/next", params={"agent_id": "github-actions-test", "worker_type": "cloud", "application_id": 0},
+                   headers={"X-JobPilot-Agent-Token": connected["token"]})
+        unused = client.post("/api/agent-devices", headers=headers, json={"name": "GitHub Actions Worker"}).json()
+
+        devices = client.get("/api/agent-devices", headers=headers).json()["devices"]
+
+    assert devices[0]["id"] == connected["device"]["id"]
+    assert devices[0]["last_seen_at"] is not None
+    assert devices[1]["id"] == unused["device"]["id"]
+    assert devices[1]["last_seen_at"] is None
 
 
 def test_local_storage_adapter_round_trip(monkeypatch, tmp_path):
