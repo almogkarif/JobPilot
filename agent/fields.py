@@ -88,6 +88,13 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         # Short labels such as "Company" or "Location" must never inherit an
         # answer from a longer, unrelated remembered question (for example a
         # previous-employment or relocation question).
+        if memory.get("scope") == "company":
+            # Company-scoped answers are automatic, so keep them deliberately strict:
+            # normalized punctuation/whitespace may differ, but a merely similar
+            # question must not inherit an answer without the user seeing it.
+            if pattern and pattern == key:
+                return CandidateValue(str(memory.get("answer", "")), "company_answer_memory")
+            continue
         fuzzy_safe = len(pattern) >= 12 and len(key) >= 12
         if pattern and (pattern == key or (fuzzy_safe and (pattern in key or key in pattern))):
             return CandidateValue(str(memory.get("answer", "")), "answer_memory")

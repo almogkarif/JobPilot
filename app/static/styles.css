@@ -3485,3 +3485,5 @@ body.theme-dark .ranking-filter-summary.pass{background:color-mix(in srgb,#1f604
 .auto-apply-queue-list article.auto-queue-current.is-running em{background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent-heading)}
 body.theme-dark .application-running-badge,body.theme-dark .auto-apply-queue-list article.auto-queue-current{background:color-mix(in srgb,var(--accent) 14%,#102638)}
 @media(max-width:720px){.application-live-head{flex-wrap:wrap}.application-running-badge{order:3;margin-inline-start:0}.auto-apply-queue-list article{grid-template-columns:28px 1fr}.auto-apply-queue-list article em{grid-column:2;justify-self:start}}
+
+.blocker-memory-note { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.45; }

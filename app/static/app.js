@@ -2228,10 +2228,12 @@ function renderBlockerCard(blocker) {
   } else if (blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') {
     interaction = `<div class="blocker-manual-note">הטופס זמין בקישור הישיר. לאחר שסיימת בו ידנית, אפשר לסמן את ההגשה כהושלמה.</div>`;
   } else if (blocker.kind === 'choice_required' && Array.isArray(blocker.options) && blocker.options.length) {
-    interaction = `<div class="blocker-choice-options" aria-label="אפשרויות תשובה">${blocker.options.map((option) => `<button class="btn secondary small" type="button" data-choice-blocker="${blocker.id}" data-choice-application="${blocker.application_id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div>`;
+    interaction = `<div class="blocker-choice-options" aria-label="אפשרויות תשובה">${blocker.options.map((option) => `<button class="btn secondary small" type="button" data-choice-blocker="${blocker.id}" data-choice-application="${blocker.application_id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div>
+      <div class="blocker-memory-note">התשובה תיזכר אוטומטית למשרות הבאות ב־${esc(blocker.job?.company || 'אותה חברה')}.</div>`;
   } else {
     interaction = `<div class="blocker-answer"><input id="answer-${blocker.id}" placeholder="כתוב תשובה מאושרת" />
-      <label class="remember-label"><input id="remember-${blocker.id}" type="checkbox" /> זכור לפעם הבאה</label>
+      <div class="blocker-memory-note">התשובה תיזכר אוטומטית למשרות הבאות ב־${esc(blocker.job?.company || 'אותה חברה')}.</div>
+      <label class="remember-label"><input id="remember-${blocker.id}" type="checkbox" /> השתמש בתשובה גם בחברות אחרות כשהשאלה זהה</label>
       <button class="btn primary" type="button" onclick="resolveBlocker(${blocker.id})">שמור והמשך</button></div>`;
   }
   return `<article class="blocker-card blocker-${meta.tone}">
@@ -2277,7 +2279,7 @@ async function resolveBlocker(id) {
     await api(`/api/blockers/${id}/resolve`, {
       method: 'POST', body: JSON.stringify({ answer, remember: $(`#remember-${id}`)?.checked || false }),
     });
-    toast('התשובה נשמרה וההגשה חזרה לתור');
+    toast('התשובה נשמרה לחברה הזו וההגשה חזרה לתור');
     await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
   } catch (error) {
     toast(error.message);
@@ -2292,7 +2294,7 @@ async function resolveChoiceBlocker(blockerId, applicationId, answer, button = n
     await api(`/api/blockers/${blockerId}/resolve`, {
       method: 'POST', body: JSON.stringify({ answer, remember: false }),
     });
-    toast('התשובה נשמרה — ההגשה ממשיכה אוטומטית');
+    toast('התשובה נשמרה לחברה הזו — ההגשה ממשיכה אוטומטית');
     await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
     if (Number(applicationId) === Number(trackedApplicationId)) startApplicationTracking(applicationId, false);
   } catch (error) {

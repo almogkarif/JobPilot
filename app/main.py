@@ -108,11 +108,86 @@ startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
+COMPANY_ANSWER_PREFIX = "company:"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
 GRADE_SHEET_MAX_BYTES = 10 * 1024 * 1024
 GRADE_SHEET_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".rtf", ".png", ".jpg", ".jpeg"}
 
+
+
+def _normalize_company_memory_text(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9א-ת+/# ]", " ", str(value or "").casefold())).strip()
+
+
+def _company_answer_prefix(job: Job | None) -> str:
+    if not job:
+        return ""
+    company = _normalize_company_memory_text(getattr(job, "company", ""))
+    if not company and getattr(job, "source", None):
+        company = _normalize_company_memory_text(getattr(job.source, "company_name", ""))
+    if not company:
+        return ""
+    digest = hashlib.sha256(company.encode("utf-8")).hexdigest()[:24]
+    return f"{COMPANY_ANSWER_PREFIX}{digest}:"
+
+
+def _company_answer_pattern(job: Job | None, question: str) -> str:
+    prefix = _company_answer_prefix(job)
+    normalized_question = _normalize_company_memory_text(question)
+    if not prefix or not normalized_question:
+        return ""
+    # AnswerMemory.question_pattern is capped at 500 chars. Keep the company identity
+    # stable and trim only the normalized question tail when an ATS emits a very long label.
+    return prefix + normalized_question[: max(1, 500 - len(prefix))]
+
+
+def _upsert_answer_memory(db: Session, pattern: str, answer: str, *, auto_use: bool = True) -> AnswerMemory | None:
+    pattern = str(pattern or "").strip()[:500]
+    answer = str(answer or "").strip()
+    if not pattern or not answer:
+        return None
+    memory = db.scalar(select(AnswerMemory).where(AnswerMemory.question_pattern == pattern))
+    if not memory:
+        memory = AnswerMemory(question_pattern=pattern, answer=answer, auto_use=auto_use)
+        db.add(memory)
+    else:
+        memory.answer = answer
+        memory.auto_use = auto_use
+    return memory
+
+
+def _agent_answer_memory_payload(memories: list[AnswerMemory], job: Job | None) -> list[dict]:
+    """Return only memories that are safe for this job, with company answers first.
+
+    Company memories are stored in the shared AnswerMemory table so they automatically
+    participate in backup/restore and user isolation, but their opaque company prefix is
+    never sent to the browser agent. A memory from another company is never exposed.
+    """
+    company_prefix = _company_answer_prefix(job)
+    company_items: list[dict] = []
+    global_items: list[dict] = []
+    for memory in memories:
+        pattern = str(memory.question_pattern or "")
+        if pattern.startswith(COMPANY_ANSWER_PREFIX):
+            if company_prefix and pattern.startswith(company_prefix):
+                question_pattern = pattern[len(company_prefix):]
+                if question_pattern:
+                    company_items.append({
+                        "pattern": question_pattern,
+                        "answer": memory.answer,
+                        "category": "",
+                        "scope": "company",
+                    })
+            continue
+        global_items.append({
+            "pattern": pattern,
+            "answer": memory.answer,
+            "category": pattern.removeprefix(ANSWER_CATEGORY_PREFIX)
+            if pattern.startswith(ANSWER_CATEGORY_PREFIX) else "",
+            "scope": "global",
+        })
+    return company_items + global_items
 
 def _is_grade_sheet_label(label: str) -> bool:
     raw = str(label or "").casefold()
@@ -3362,14 +3437,16 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     application.status = "queued"
     application.job.status = "queued"
     application.last_error = ""
+    # Every user-approved answer is remembered automatically for this exact company.
+    # This makes repeated ATS questions disappear on later applications to the same
+    # employer without leaking answers to another company. The existing checkbox still
+    # opts into a global exact-question memory for users who explicitly want that.
+    company_question = blocker.question or blocker.field_label or answer_key
+    company_pattern = _company_answer_pattern(application.job, company_question)
+    if company_pattern:
+        _upsert_answer_memory(db, company_pattern, answer, auto_use=True)
     if payload.remember and answer_key:
-        memory = db.scalar(select(AnswerMemory).where(AnswerMemory.question_pattern == answer_key.lower().strip()))
-        if not memory:
-            memory = AnswerMemory(question_pattern=answer_key.lower().strip(), answer=answer, auto_use=True)
-            db.add(memory)
-        else:
-            memory.answer = answer
-            memory.auto_use = True
+        _upsert_answer_memory(db, answer_key.lower().strip(), answer, auto_use=True)
     db.add(AuditLog(event_type="blocker_resolved", entity_type="blocker", entity_id=str(blocker.id), message=answer_key))
     db.commit()
     db.refresh(blocker)
@@ -4189,12 +4266,11 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             "profile": _agent_profile_dict(profile),
             "answers": answers,
             "submit_approved_once": submit_approved_once,
-            "answer_memories": [{"pattern": m.question_pattern, "answer": m.answer,
-                                  "category": m.question_pattern.removeprefix(ANSWER_CATEGORY_PREFIX)
-                                  if m.question_pattern.startswith(ANSWER_CATEGORY_PREFIX) else ""}
-                                 for m in memories] + [{"pattern": draft.question, "answer": draft.draft,
-                                                       "category": "approved_open_draft"}
-                                                      for draft in approved_drafts],
+            "answer_memories": _agent_answer_memory_payload(memories, application.job) + [
+                {"pattern": draft.question, "answer": draft.draft,
+                 "category": "approved_open_draft", "scope": "job"}
+                for draft in approved_drafts
+            ],
         }
     }
 
