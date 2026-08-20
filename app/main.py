@@ -107,7 +107,7 @@ scheduler_task: asyncio.Task | None = None
 startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
-PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v2__"
+PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v3__"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
 GRADE_SHEET_MAX_BYTES = 10 * 1024 * 1024
@@ -755,6 +755,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     queued = sorted(
         (item for item in eligible if item.status == "queued"),
         key=lambda item: (item.updated_at, item.id),
+        reverse=True,
     )
     current = applying[0] if applying else (queued[0] if queued else None)
     waiting = queued if current is None or current.status == "applying" else queued[1:]
@@ -2499,6 +2500,11 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         answers = loads(application.answers_json, {})
         answers[ONE_TIME_SUBMIT_KEY] = True
         application.answers_json = dumps(answers)
+        # User-approved Auto Apply jobs are LIFO within the waiting queue: the
+        # newest explicit approval becomes the next job after the one already
+        # running. ``updated_at`` is the persisted priority timestamp used by
+        # both the UI snapshot and the cloud worker claim path.
+        application.updated_at = utcnow()
     job.status = "queued"
     db.flush()
     _record_application_event(
@@ -2807,6 +2813,7 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
         (item for item in applications
          if item.status == "queued" and item.mode == "auto" and _application_auto_submit_supported(item)),
         key=lambda item: (item.updated_at, item.id),
+        reverse=True,
     )
     queue_positions = {item.id: index for index, item in enumerate(auto_queued, start=1)}
     return [_application_dict(a, queue_position=queue_positions.get(a.id)) for a in applications]
@@ -4088,11 +4095,29 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     track = active_track(get_user_profile(db))
     if worker_type == "cloud":
         cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
-        application = db.get(Application, application_id)
-        if (not application or application.status != "queued" or application.mode != "auto"
-                or detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "").key
-                not in cloud_adapters):
-            application = None
+        # ``application_id`` identifies/scopes the user that dispatched this GitHub
+        # run, but queued runs are deliberately allowed to claim a newer approved
+        # application from the same user+career track. GitHub concurrency is FIFO;
+        # resolving the real head here is what lets a newly approved Auto Apply job
+        # jump to the front of the waiting queue without interrupting the job that
+        # is already running.
+        anchor = db.get(Application, application_id)
+        application = None
+        if anchor and anchor.job:
+            candidates = db.scalars(
+                select(Application)
+                .join(Job, Application.job_id == Job.id)
+                .options(joinedload(Application.job).joinedload(Job.source))
+                .where(
+                    Application.status == "queued",
+                    Application.mode == "auto",
+                    Job.career_track == anchor.job.career_track,
+                )
+                .order_by(desc(Application.updated_at), desc(Application.id))
+            ).unique().all()
+            application = next((item for item in candidates if
+                detect_adapter(item.job.apply_url, item.job.source.kind if item.job.source else "").key
+                in cloud_adapters), None)
     else:
         # Automatic submissions are background-only. A visible local browser may
         # claim review tasks, but must never pop open for an automatic campaign.

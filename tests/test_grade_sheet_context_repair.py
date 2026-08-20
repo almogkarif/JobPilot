@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from agent.browser import (_display_field_label, _ensure_profile_documents_attached,
+from agent.browser import (_attach_file_to_field, _display_field_label, _ensure_profile_documents_attached,
                            _lever_inferred_grade_sheet_field, _lever_profile_document_fallback)
 from app.database import SessionLocal
 from app.main import app
@@ -131,6 +131,91 @@ def test_saved_grade_sheet_is_attached_before_submit_without_playwright(tmp_path
     assert page.locators["#custom-upload"].files == ["grades.pdf"]
     assert {item["document"] for item in attached} == {"resume", "grade_sheet"}
 
+
+
+def test_lever_file_upload_can_consume_native_input_without_false_blocker(tmp_path):
+    grades = tmp_path / "grades.pdf"
+    grades.write_bytes(_pdf_bytes())
+
+    class ConsumedLocator:
+        def __init__(self):
+            self.first = self
+            self.calls = 0
+
+        def evaluate(self, _script):
+            # Lever may reset/replace the hidden input after consuming the File.
+            return []
+
+        def set_input_files(self, _value, timeout=0):
+            self.calls += 1
+
+    class MissingContainer:
+        first = None
+
+        def __init__(self):
+            self.first = self
+
+        def count(self):
+            return 0
+
+    class FakePage:
+        url = "https://jobs.eu.lever.co/mobileye/job-123/apply"
+
+        def __init__(self):
+            self.input = ConsumedLocator()
+
+        def locator(self, selector):
+            if selector == "#grade":
+                return self.input
+            return MissingContainer()
+
+        def wait_for_timeout(self, _ms):
+            return None
+
+    field = {
+        "type": "file", "selector": "#grade", "label": "Please submit your grade sheet",
+        "file_context": "Grade Sheet Submission Please submit your grade sheet",
+        "file_container_selector": "#grade-question",
+    }
+    page = FakePage()
+    assert _attach_file_to_field(page, field, grades) is True
+    assert page.input.calls == 1
+
+
+def test_previous_v2_grade_sheet_retry_marker_gets_one_retry_with_fixed_uploader(monkeypatch):
+    dispatched: list[int] = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+
+    with TestClient(app) as client:
+        client.post(
+            "/api/profile/grade-sheet",
+            files={"file": ("technion-grades.pdf", _pdf_bytes(), "application/pdf")},
+        )
+        job = _mobileye_job(client)
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"})
+        application_id = queued.json()["id"]
+        _claim_application(client, application_id)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            application.answers_json = '{"__jobpilot_profile_grade_sheet_auto_retry_v2__":1}'
+            db.commit()
+
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "grade_sheet_required", "field_label": "גיליון ציונים",
+                "question": "Please submit your grade sheet", "explanation": "Missing", "page_url": job["apply_url"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "queued"
+            assert "__jobpilot_profile_grade_sheet_auto_retry_v3__" in application.answers_json
+
+    assert dispatched == [application_id]
 
 def test_generic_lever_upload_is_not_inferred_for_other_employers():
     fields = [

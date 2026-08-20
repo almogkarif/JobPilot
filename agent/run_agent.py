@@ -4,6 +4,8 @@ import sys
 import time
 import signal
 import inspect
+import re
+from urllib.parse import unquote
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -89,10 +91,15 @@ def prepare_grade_sheet(task: dict) -> str:
     response.raise_for_status()
     disposition = response.headers.get("content-disposition", "")
     filename = "grade-sheet.pdf"
-    if 'filename="' in disposition:
+    encoded_match = re.search(r"filename\*=UTF-8''([^;]+)", disposition, flags=re.IGNORECASE)
+    if encoded_match:
+        filename = unquote(encoded_match.group(1).strip())
+    elif 'filename="' in disposition:
         filename = disposition.split('filename="', 1)[1].split('"', 1)[0]
     safe_name = Path(filename).name or "grade-sheet.pdf"
-    destination = AGENT_CACHE_DIR / f"{application_id}_grade_sheet_{safe_name}"
+    destination_dir = AGENT_CACHE_DIR / f"application_{application_id}" / "grade-sheet"
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    destination = destination_dir / safe_name
     destination.write_bytes(response.content)
     profile["grade_sheet_path"] = str(destination)
     return str(destination)

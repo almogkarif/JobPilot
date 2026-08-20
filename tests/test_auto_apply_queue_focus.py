@@ -57,7 +57,7 @@ def test_auto_queue_contains_only_supported_auto_submissions_and_dashboard_uses_
         assert snapshot.status_code == 200, snapshot.text
         payload = snapshot.json()
         returned_ids = [payload['current']['id']] + [item['id'] for item in payload['waiting']]
-        assert returned_ids == supported_ids
+        assert returned_ids == list(reversed(supported_ids))
         assert payload['queued_count'] == 2
         assert payload['waiting_count'] == 1
 
@@ -67,9 +67,9 @@ def test_auto_queue_contains_only_supported_auto_submissions_and_dashboard_uses_
 
         applications = {item['id']: item for item in client.get('/api/applications').json()}
         assert applications[supported_ids[0]]['auto_queue_eligible'] is True
-        assert applications[supported_ids[0]]['queue_position'] == 1
+        assert applications[supported_ids[0]]['queue_position'] == 2
         assert applications[supported_ids[1]]['auto_queue_eligible'] is True
-        assert applications[supported_ids[1]]['queue_position'] == 2
+        assert applications[supported_ids[1]]['queue_position'] == 1
         assert applications[manual_id]['auto_queue_eligible'] is False
         assert applications[manual_id]['queue_position'] is None
         assert applications[unsupported_id]['auto_queue_eligible'] is False
@@ -96,8 +96,8 @@ def test_timeline_returns_queue_snapshot_without_promoting_manual_rows():
         timeline = client.get(f'/api/applications/{ids[0]}/timeline')
         assert timeline.status_code == 200, timeline.text
         queue = timeline.json()['auto_apply_queue']
-        assert queue['current']['id'] == ids[0]
-        assert [item['id'] for item in queue['waiting']] == [ids[1]]
+        assert queue['current']['id'] == ids[1]
+        assert [item['id'] for item in queue['waiting']] == [ids[0]]
         assert ids[2] not in [queue['current']['id'], *[item['id'] for item in queue['waiting']]]
 
 
@@ -113,8 +113,14 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     assert 'otherAutoQueueItems' in js
     assert 'showAutoApplyQueue' in js
     assert 'המשרות שממתינות בתור להגשה' in js or 'משרות ממתינות בתור להגשה' in js
-    assert 'המעקב הנוכחי לא יתחלף' in js
+    assert 'בלי להחליף את המשרה שרצה עכשיו' in js
     assert 'בתור אוטומטי' in js
     assert 'לא ממתינה ל־Auto Apply' in js
     assert '.application-live-queue-summary' in css
     assert '.auto-apply-queue-list' in css
+    assert 'autoQueueWaitingCount' in js
+    assert 'רץ עכשיו' in js
+    assert 'הבאה בתור' in js
+    assert 'הגשה אוטומטית חדשה נכנסת לראש רשימת ההמתנה' in js
+    assert '.application-running-badge' in css
+    assert '.auto-queue-current' in css

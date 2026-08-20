@@ -204,12 +204,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 if candidate_path and candidate_path.exists() and _file_input_has_file(locator, candidate_path.name):
                     filled.append({"label": label, "source": "existing_upload", "document": document_kind})
                 elif candidate_path and candidate_path.exists():
-                    try:
-                        locator.set_input_files(str(candidate_path), timeout=2_000)
-                        if not _file_input_has_file(locator, candidate_path.name):
-                            raise RuntimeError("file input did not retain the selected file")
+                    if _attach_file_to_field(page, field, candidate_path):
                         filled.append({"label": label, "source": candidate.source, "document": document_kind})
-                    except Exception:
+                    else:
                         unknown.append(field)
                 elif field.get("required") or _lever_inferred_grade_sheet_field(field, actionable_fields, page.url):
                     unknown.append(field)
@@ -261,7 +258,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         for field in unknown:
             if field.get("type") == "file":
                 try:
-                    if _file_input_has_file(page.locator(field["selector"]).first):
+                    if _file_field_has_attachment(page, field, locator=page.locator(field["selector"]).first):
                         continue
                 except Exception:
                     pass
@@ -597,6 +594,8 @@ def _extract_fields(page: Page) -> list[dict]:
               }
             }
             let fileContext = '';
+            let fileContainerSelector = '';
+            let fileContainerVisible = false;
             if ((el.type || '').toLowerCase() === 'file') {
               const fileNoise = /^(upload(?: file)?|attach(?: file| resume\/?cv)?|choose file|select file|browse(?: file)?|add file|dropbox|google drive|העלה קובץ|צרף קובץ|בחר קובץ)$/i;
               let ancestor = el.parentElement;
@@ -608,6 +607,11 @@ def _extract_fields(page: Page) -> list[dict]:
                 if (!meaningful.length) continue;
                 const candidate = meaningful.slice(0, 3).join(' ').slice(0, 500);
                 fileContext = candidate;
+                if (!ancestor.dataset.jobpilotFileContainerId) ancestor.dataset.jobpilotFileContainerId = `jpf-${index}-${depth}-${Math.random().toString(36).slice(2)}`;
+                fileContainerSelector = `[data-jobpilot-file-container-id="${ancestor.dataset.jobpilotFileContainerId}"]`;
+                const containerStyle = window.getComputedStyle(ancestor);
+                const containerRect = ancestor.getBoundingClientRect();
+                fileContainerVisible = containerStyle.display !== 'none' && containerStyle.visibility !== 'hidden' && containerRect.width > 0 && containerRect.height > 0;
                 if (/grade sheet|gradesheet|transcript|academic record|resume|curriculum vitae|קורות חיים|גיליון ציונים|גליון ציונים/i.test(candidate)) break;
               }
             }
@@ -633,6 +637,8 @@ def _extract_fields(page: Page) -> list[dict]:
               aria_label: el.getAttribute('aria-label') || '',
               label,
               file_context: fileContext,
+              file_container_selector: fileContainerSelector,
+              file_container_visible: fileContainerVisible,
               placeholder: el.placeholder || '',
               accept: el.getAttribute('accept') || '',
               multiple: !!el.multiple,
@@ -821,18 +827,13 @@ def _ensure_profile_documents_attached(
         if not path.exists():
             continue
         locator = page.locator(field["selector"]).first
-        if _file_input_has_file(locator, path.name):
+        if _file_field_has_attachment(page, field, path.name, locator=locator):
             continue
-        try:
-            locator.set_input_files(str(path), timeout=2_000)
-            if not _file_input_has_file(locator, path.name):
-                continue
+        if _attach_file_to_field(page, field, path):
             attached.append({
                 "label": label, "source": candidate.source,
                 "document": _profile_document_kind(field, candidate),
             })
-        except Exception:
-            continue
     return attached
 
 def _display_field_label(field: dict) -> str:
@@ -1133,6 +1134,95 @@ def _file_already_uploaded(page: Page, filename: str) -> bool:
         return normalize(filename) in normalize(page.locator("body").inner_text(timeout=2_000))
     except Exception:
         return False
+
+
+def _file_container_text(page: Page, field: dict) -> str:
+    selector = str(field.get("file_container_selector") or "").strip()
+    if not selector:
+        return ""
+    try:
+        container = page.locator(selector).first
+        if not container.count():
+            return ""
+        return str(container.inner_text(timeout=1_000) or "")
+    except Exception:
+        return ""
+
+
+def _file_field_has_attachment(
+    page: Page, field: dict, filename: str = "", *, locator: Locator | None = None,
+) -> bool:
+    """Verify one logical upload field without confusing it with another file slot.
+
+    Lever replaces/reset some hidden ``input[type=file]`` elements after its upload
+    handler consumes the File object. In that case ``input.files`` can be empty even
+    though the surrounding question already shows the uploaded filename. Verify the
+    native input first, then the *same question container*; never scan the whole page.
+    """
+    try:
+        locator = locator or page.locator(field["selector"]).first
+        if _file_input_has_file(locator, filename):
+            return True
+    except Exception:
+        pass
+    text = normalize(_file_container_text(page, field))
+    wanted = normalize(Path(str(filename or "")).name)
+    if wanted and wanted in text:
+        return True
+    stem = normalize(Path(str(filename or "")).stem)
+    if stem and len(stem) >= 5 and stem in text:
+        return True
+    # A visible Replace/Remove affordance belongs to this exact question and is a
+    # stronger signal than the generic "Upload file" button that exists pre-upload.
+    return any(term in text for term in (
+        "remove file", "replace file", "change file", "file uploaded", "upload complete",
+        "הסר קובץ", "החלף קובץ", "הקובץ הועלה",
+    ))
+
+
+def _file_field_visible_upload_error(page: Page, field: dict) -> str:
+    text = normalize(_file_container_text(page, field))
+    for term in (
+        "file exceeds", "file is too large", "unsupported file", "invalid file",
+        "upload failed", "couldn't upload", "could not upload", "failed to upload",
+        "הקובץ גדול מדי", "סוג קובץ לא נתמך", "העלאת הקובץ נכשלה",
+    ):
+        if term in text:
+            return term
+    return ""
+
+
+def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
+    """Attach a file and account for ATS controls that consume/reset the native input.
+
+    ``set_input_files`` itself dispatches the browser's input/change events. Lever then
+    uploads the file asynchronously and can replace the hidden input. For Lever we
+    therefore accept a successful hand-off unless the *same question container* shows
+    a visible upload error. Final form validation remains the authoritative fallback.
+    """
+    try:
+        locator = page.locator(field["selector"]).first
+        locator.set_input_files(str(path), timeout=5_000)
+    except Exception:
+        return False
+    for _ in range(8):
+        if _file_field_has_attachment(page, field, path.name, locator=locator):
+            return True
+        if _file_field_visible_upload_error(page, field):
+            return False
+        try:
+            page.wait_for_timeout(250)
+        except Exception:
+            break
+    host = (urlparse(str(getattr(page, "url", "") or "")).hostname or "").casefold()
+    if host in LEVER_JOBS_HOSTS:
+        # Lever's upload component may reset/replace the hidden input after consuming
+        # it, so ``input.files`` is not a stable post-upload contract. Reaching here
+        # means Playwright successfully handed the file to the correct question and
+        # no local upload error appeared; allow Lever's own pre-submit validation to
+        # make the final decision instead of producing a false blocker ourselves.
+        return not bool(_file_field_visible_upload_error(page, field))
+    return False
 
 
 def _file_input_has_file(locator: Locator, filename: str = "") -> bool:
