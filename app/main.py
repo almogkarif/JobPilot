@@ -2728,8 +2728,25 @@ def application_attempt_screenshot(attempt_id: int, db: Session = Depends(get_db
     return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 
+async def _dispatch_resolved_auto_application(db: Session, application: Application) -> None:
+    if application.mode != "auto" or application.status != "queued":
+        return
+    try:
+        await run_in_threadpool(dispatch_application_workflow, application.id)
+        _record_application_event(
+            db, application, "worker_dispatched", from_status="queued", to_status="queued",
+            actor="system", message="GitHub Actions worker הופעל לאחר טיפול בשאלה",
+            details={"application_id": application.id, "trigger": "blocker_resolved"},
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        application.last_error = f"התשובה נשמרה, אך לא ניתן להפעיל worker ברקע: {exc}"[:2000]
+        db.commit()
+        raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
+
+
 @app.post("/api/blockers/{blocker_id}/resolve")
-def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session = Depends(get_db)):
+async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session = Depends(get_db)):
     blocker = _active_blocker_or_404(db, blocker_id)
     if blocker.status != "open":
         raise HTTPException(409, "Blocker is already resolved")
@@ -2777,6 +2794,7 @@ def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session
         ))
         db.commit()
         db.refresh(blocker)
+        await _dispatch_resolved_auto_application(db, application)
         return _blocker_dict(blocker)
 
     answer = payload.answer.strip()
@@ -2803,6 +2821,7 @@ def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session
     db.add(AuditLog(event_type="blocker_resolved", entity_type="blocker", entity_id=str(blocker.id), message=answer_key))
     db.commit()
     db.refresh(blocker)
+    await _dispatch_resolved_auto_application(db, application)
     return _blocker_dict(blocker)
 
 

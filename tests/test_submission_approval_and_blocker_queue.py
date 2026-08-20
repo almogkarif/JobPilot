@@ -112,6 +112,33 @@ def test_final_review_approval_is_consumed_once_and_really_authorizes_next_attem
         assert third_task["submit_approved_once"] is False
 
 
+def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Auto blocker dispatch engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Family at Mobileye",
+                "question": "Is a family member employed by Mobileye?", "explanation": "Answer required",
+                "options": ["Yes", "No"],
+            },
+        ).json()
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+
+        resolved = client.post(
+            f"/api/blockers/{blocked['id']}/resolve", json={"answer": "No", "remember": True},
+        )
+
+    assert resolved.status_code == 200, resolved.text
+    assert dispatched == [application_id]
+
+
 def test_captcha_is_exposed_compactly_with_exact_handoff_url_and_can_be_marked_submitted():
     with TestClient(app) as client:
         job = _make_job(client, "Junior CAPTCHA Queue Engineer")
