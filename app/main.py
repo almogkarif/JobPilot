@@ -57,7 +57,7 @@ from .schemas import (
 )
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
 from .services.job_cleanup import application_history_visible, delete_job_tree, purge_stale_jobs
-from .services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
+from .services.application_submission import (automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
@@ -108,6 +108,7 @@ startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
+GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 COMPANY_ANSWER_PREFIX = "company:"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
@@ -3002,6 +3003,11 @@ async def application_timeline(application_id: int, db: Session = Depends(get_db
     open_blocker = db.scalar(select(Blocker).where(
         Blocker.application_id == application.id, Blocker.status == "open"
     ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    if open_blocker and _auto_requeue_greenhouse_native_url(
+        db, application, open_blocker, source="timeline_read_repair"
+    ):
+        await _dispatch_resolved_auto_application(db, application)
+        open_blocker = None
     if open_blocker and _auto_requeue_stored_grade_sheet(
         db, application, open_blocker, source="timeline_read_repair"
     ):
@@ -3201,6 +3207,64 @@ async def _dispatch_resolved_auto_application(db: Session, application: Applicat
         application.last_error = f"התשובה נשמרה, אך לא ניתן להפעיל worker ברקע: {exc}"[:2000]
         db.commit()
         raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
+
+
+def _auto_requeue_greenhouse_native_url(
+    db: Session, application: Application, blocker: Blocker, *, source: str, attempt: ApplicationAttempt | None = None,
+) -> bool:
+    """Retry old branded-Greenhouse failures on the ATS-native hosted form once."""
+    if application.mode != "auto" or blocker.kind not in {"submit_button_missing", "application_form_missing"}:
+        return False
+    if detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "").key != "greenhouse":
+        return False
+    native_url = automation_apply_url(application.job)
+    if not native_url or native_url == str(application.job.apply_url or "").strip():
+        return False
+    # A blocker produced while the Agent is already on the native Greenhouse form
+    # is a real form-detection problem, not the old branded-page bug. Do not loop.
+    blocked_url = str(blocker.page_url or "").strip().rstrip("/")
+    if blocked_url and blocked_url == native_url.rstrip("/"):
+        return False
+
+    answers = loads(application.answers_json, {})
+    try:
+        retry_count = int(answers.get(GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY, 0) or 0)
+    except (TypeError, ValueError):
+        retry_count = 0
+    if retry_count >= 1:
+        return False
+
+    answers[GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY] = retry_count + 1
+    application.answers_json = dumps(answers)
+    blocker.status = "resolved"
+    blocker.answer = "auto_retry_greenhouse_native_url"
+    blocker.remember_answer = False
+    blocker.resolved_at = utcnow()
+
+    previous_status = application.status
+    application.status = "queued"
+    application.job.status = "queued"
+    application.last_error = ""
+    attempt = attempt or _result_attempt(db, application.id)
+    if attempt and attempt.status in {"running", "blocked", "pending_verification"}:
+        attempt.status = "blocked"
+        attempt.verification_state = "none"
+        attempt.error = ""
+        attempt.finished_at = attempt.finished_at or utcnow()
+
+    _record_application_event(
+        db, application, "greenhouse_native_url_requeued", from_status=previous_status, to_status="queued",
+        actor="system", message="ההגשה הועברה אוטומטית מטופס הקריירה הממותג לטופס Greenhouse הישיר",
+        details={"blocker_id": blocker.id, "source": source, "automation_apply_url": native_url},
+    )
+    db.add(AuditLog(
+        event_type="greenhouse_native_url_retry", entity_type="application", entity_id=str(application.id),
+        message=native_url, details_json=dumps({"blocker_id": blocker.id, "source": source}),
+    ))
+    db.commit()
+    db.refresh(blocker)
+    db.refresh(application)
+    return True
 
 
 def _auto_requeue_stored_grade_sheet(
@@ -4272,10 +4336,13 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     approved_drafts = db.scalars(select(OpenAnswerDraft).where(
         OpenAnswerDraft.job_id == application.job_id, OpenAnswerDraft.approved.is_(True)
     )).all()
+    agent_job = _job_dict(application.job, full=True)
+    agent_job["official_apply_url"] = agent_job.get("apply_url", "")
+    agent_job["apply_url"] = automation_apply_url(application.job)
     return {
         "task": {
             "application": _application_dict(application, db),
-            "job": _job_dict(application.job, full=True),
+            "job": agent_job,
             "submission_adapter": {"key": adapter.key, "label": adapter.label},
             "attempt": _attempt_dict(attempt),
             "profile": _agent_profile_dict(profile),
@@ -4321,6 +4388,13 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         db.add(blocker)
     db.flush()
     attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if _auto_requeue_greenhouse_native_url(
+        db, application, blocker, source="agent_blocked", attempt=attempt
+    ):
+        await _dispatch_resolved_auto_application(db, application)
+        payload_out = _blocker_dict(blocker)
+        payload_out["auto_resolved"] = True
+        return payload_out
     if _auto_requeue_stored_grade_sheet(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):

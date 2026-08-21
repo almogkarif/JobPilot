@@ -7,7 +7,7 @@ import json
 import secrets
 import time
 from dataclasses import asdict, dataclass
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 
 PREVIEW_TTL_SECONDS = 10 * 60
@@ -53,6 +53,33 @@ def lever_confirmation_from_url(url: str) -> tuple[str, str]:
         if application_id:
             return f"Lever accepted the application (application id: {application_id})", application_id
     return "", ""
+
+
+def automation_apply_url(job) -> str:
+    """Return the ATS-native URL the browser Agent should automate.
+
+    Greenhouse Job Board API rows may deliberately expose a company-branded
+    ``absolute_url`` (for example Taboola's careers site) even though the actual
+    application is still hosted by Greenhouse. Those branded pages can contain
+    unrelated inputs/search controls and are not a reliable automation surface.
+    Use the board token + Greenhouse job id for the browser while preserving the
+    original URL on the Job row for users.
+    """
+    original = str(getattr(job, "apply_url", "") or "").strip()
+    source = getattr(job, "source", None)
+    kind = str(getattr(source, "kind", "") or "").strip().casefold()
+    if kind != "greenhouse":
+        return original
+
+    raw_identifier = str(getattr(source, "identifier", "") or "").strip()
+    token = raw_identifier.split(":", 1)[1] if raw_identifier.casefold().startswith("eu:") else raw_identifier
+    external_id = str(getattr(job, "external_id", "") or "").strip()
+    if not token or not external_id:
+        return original
+
+    # Greenhouse ids are normally numeric, but quoting keeps this safe for any
+    # future opaque ids without changing the persistent source URL.
+    return f"https://job-boards.greenhouse.io/{quote(token, safe='-._~')}/jobs/{quote(external_id, safe='-._~')}"
 
 
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
