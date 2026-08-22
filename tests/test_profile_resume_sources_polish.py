@@ -95,7 +95,12 @@ def test_source_reconciliation_hides_old_catalog_kind_when_collector_was_upgrade
         assert metadata.get("duplicate_of") == canonical.id
 
         visible = client.get("/api/sources").json()
-        visible_taboola = [row for row in visible if row["company_name"] == "Taboola"]
+        # Custom Taboola boards are valid sources too; this reconciliation only owns
+        # the catalog board identified by ``taboola`` and its legacy collector kind.
+        visible_taboola = [
+            row for row in visible
+            if row["company_name"] == "Taboola" and row["identifier"] == "taboola"
+        ]
         assert len(visible_taboola) == 1
         assert visible_taboola[0]["kind"] == "greenhouse"
 

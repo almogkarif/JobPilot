@@ -4,8 +4,10 @@ import importlib
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from app.database import SessionLocal
 from app.main import app
@@ -14,6 +16,37 @@ from app.services.application_submission import automation_apply_url
 from app.utils import loads
 
 main_module = importlib.import_module("app.main")
+
+
+_TEST_SOURCE_PREFIXES = ("taboola-test-", "taboola-retry-", "native-no-loop-")
+
+
+def _cleanup_native_greenhouse_test_rows() -> None:
+    """Remove persistent rows created by this module so later API tests stay isolated."""
+    with SessionLocal() as db:
+        try:
+            sources = db.scalars(select(Source).order_by(Source.id)).all()
+        except OperationalError:
+            # Pure URL unit tests can run before TestClient has initialized the schema.
+            return
+        for source in sources:
+            if not any(str(source.identifier or "").startswith(prefix) for prefix in _TEST_SOURCE_PREFIXES):
+                continue
+            for job in list(source.jobs):
+                if job.application is not None:
+                    db.delete(job.application)
+                    db.flush()
+            db.delete(source)
+        db.commit()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_native_greenhouse_rows():
+    # The application test DB is intentionally shared across modules, so clean both
+    # stale rows from a previous interrupted run and rows created by the current test.
+    _cleanup_native_greenhouse_test_rows()
+    yield
+    _cleanup_native_greenhouse_test_rows()
 
 
 def _clear_active_queue() -> None:
