@@ -116,7 +116,7 @@
           <button id="scan-status" class="scan-status" type="button" aria-label="מצב הסריקה. לחץ לפתיחת הדוח" title="לחץ לפתיחת דוח הסריקה"><span><b>טרם בוצעה סריקה</b><small>לחץ כאן לאחר סריקה כדי לראות את הדוח המלא</small></span><i class="scan-status-fill" aria-hidden="true"></i></button>
           <button class="account-chip" id="account-chip" type="button" hidden aria-label="חשבון JobPilot"><span id="account-avatar">A</span><strong id="account-email">חשבון</strong></button>
           <button class="icon-action logout-action has-tooltip" id="logout-action" type="button" hidden aria-label="התנתקות" title="התנתקות" data-tooltip="התנתקות"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4H6.7A1.7 1.7 0 0 0 5 5.7v12.6A1.7 1.7 0 0 0 6.7 20h3.8"/><path d="M14.2 8.2 18 12l-3.8 3.8M9.3 12H18"/></svg></button>
-          <button class="btn secondary" id="scan-btn">סרוק עכשיו</button>
+          <button class="btn secondary" id="scan-btn" hidden>סרוק עכשיו</button>
         </div>
         <div id="scan-progress" class="scan-progress" hidden><i></i><span>סורק את מקורות המשרות…</span></div>
       </header>
@@ -155,7 +155,7 @@
           <label class="filter-control job-sort-control"><span>מיון</span><select id="job-sort"><option value="score_desc">ציון — גבוה לנמוך</option><option value="auto_apply_first">הגשה אוטומטית קודם</option><option value="score_asc">ציון — נמוך לגבוה</option><option value="newest">חדשות קודם</option><option value="oldest">ישנות קודם</option><option value="discovered_desc">נוספו לאחרונה</option><option value="company_asc">חברה — א׳ עד ת׳</option><option value="title_asc">תפקיד — א׳ עד ת׳</option></select></label>
           <label class="filter-control page-size-control"><span>משרות בעמוד</span><select id="jobs-page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></label>
           <button class="btn secondary density-toggle" id="density-toggle" type="button" aria-pressed="false">תצוגה קומפקטית</button>
-          <button class="btn secondary" id="import-job-btn">הוסף קישור ידנית</button>
+          <button class="btn secondary" id="import-job-btn" hidden>הוסף קישור ידנית</button>
         </div>
         <div id="active-filters" class="active-filters" aria-live="polite"></div>
         <div id="jobs-list" class="jobs-grid"></div>
@@ -218,7 +218,7 @@
       <section id="view-sources" class="view">
         <div class="grid source-layout">
           <article class="panel">
-            <div class="panel-head"><div><span class="kicker">סריקה יומית</span><h2>מקורות משרות</h2></div><button class="btn secondary small" id="install-recommended-sources" type="button">הוסף מקורות מומלצים</button></div>
+            <div class="panel-head"><div><span class="kicker">סריקה בכל שעה עגולה</span><h2>מקורות משרות</h2></div><button class="btn secondary small" id="install-recommended-sources" type="button">הוסף מקורות מומלצים</button></div>
             <div id="sources-list" class="source-list"></div>
           </article>
           <article class="panel sticky-card">

@@ -5,8 +5,8 @@ from sqlalchemy import delete, select
 
 import app.auth as auth
 import app.main as main
-from app.database import Base, SessionLocal, engine, ensure_compatibility_columns, user_session
-from app.models import AgentDevice, AnswerMemory, AppIdentity, Application, AuditLog, Blocker, Job, OpenAnswerDraft, Profile, ResumeProfile, Source
+from app.database import Base, SHARED_CATALOG_USER_ID, SessionLocal, engine, ensure_compatibility_columns, user_session
+from app.models import AgentDevice, AnswerMemory, AppIdentity, Application, AuditLog, Blocker, Job, JobRanking, OpenAnswerDraft, Profile, ResumeProfile, Source, UserJobState
 
 
 def test_anonymous_supabase_claims_become_guest_identity(monkeypatch):
@@ -45,60 +45,66 @@ def _cleanup_guest(user_id: str) -> None:
     Base.metadata.create_all(engine)
     ensure_compatibility_columns()
     with SessionLocal() as db:
-        for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+        for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
             db.execute(delete(model).where(model.user_id == user_id))
         db.commit()
 
 
-def test_guest_workspace_falls_back_to_read_only_demo_jobs_when_no_admin_catalog_exists(monkeypatch):
+def test_guest_workspace_reads_shared_catalog_without_creating_private_catalog(monkeypatch):
     user_id = 'guest-demo-workspace'
     _cleanup_guest(user_id)
     monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
     monkeypatch.setattr(main.settings, 'storage_mode', 'local')
-    # This test covers the explicit fallback path only. Other guest tests create
-    # temporary admin identities, so relying on global DB state makes this test
-    # order-dependent and can accidentally switch it to the live admin catalog.
-    monkeypatch.setattr(main, '_primary_admin_user_id', lambda _db: '')
-    monkeypatch.setattr(auth, '_guest_has_live_admin_catalog', lambda _db: False)
     monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
         user_id=user_id, provider='anonymous', role='guest', is_guest=True
     ))
     headers = {'Authorization': 'Bearer guest-demo-token'}
+    created_job_ids = []
     try:
+        with user_session(SHARED_CATALOG_USER_ID) as db:
+            for track, suffix in [('computer_science', 'cs'), ('industrial_engineering', 'iem')]:
+                source = db.scalar(select(Source).where(Source.career_track == track))
+                job = Job(source_id=source.id, career_track=track, external_id=f'guest-shared-{suffix}',
+                          title=f'Guest Shared {suffix.upper()} Job', company='SharedCo', location='Tel Aviv, Israel',
+                          apply_url=f'https://example.com/guest-shared-{suffix}')
+                db.add(job); db.flush(); created_job_ids.append(job.id)
+            db.commit()
+
         with TestClient(main.app) as client:
             assert client.get('/api/profile', headers=headers).status_code == 200
-            cs_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':20}).json()
-            assert cs_jobs['total'] >= 3
+            cs_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':100}).json()
+            assert any(item['id'] == created_job_ids[0] for item in cs_jobs['items'])
 
             switched = client.put('/api/career-tracks/active', headers=headers, json={'track':'industrial_engineering'})
             assert switched.status_code == 200
-            iem_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':20}).json()
-            assert iem_jobs['total'] >= 3
+            iem_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':100}).json()
+            assert any(item['id'] == created_job_ids[1] for item in iem_jobs['items'])
 
             assert client.post('/api/profile/skills', headers=headers, json={'skill':'Forbidden'}).status_code == 403
             assert client.post('/api/scan', headers=headers).status_code == 403
 
-        with user_session(user_id) as db:
-            sources = db.scalars(select(Source)).all()
-            assert sources
-            assert all(source.kind == 'demo' for source in sources)
-            assert {source.career_track for source in sources} == {'computer_science', 'industrial_engineering'}
+        with SessionLocal() as db:
+            assert db.scalar(select(Source).where(Source.user_id == user_id)) is None
+            assert db.scalar(select(Job).where(Job.user_id == user_id)) is None
     finally:
         _cleanup_guest(user_id)
+        if created_job_ids:
+            with SessionLocal() as db:
+                db.execute(delete(Job).where(Job.id.in_(created_job_ids)))
+                db.commit()
 
-
-def test_guest_workspace_repairs_a_partial_profile_before_auth_completes(monkeypatch):
+def test_guest_workspace_repairs_partial_profile_without_seeding_private_catalog(monkeypatch):
     user_id = 'guest-partial-workspace'
     _cleanup_guest(user_id)
     monkeypatch.setattr(main.settings, 'auth_mode', 'supabase')
     monkeypatch.setattr(main.settings, 'storage_mode', 'local')
-    monkeypatch.setattr(auth, '_guest_has_live_admin_catalog', lambda _db: False)
     monkeypatch.setattr(auth, 'verify_supabase_token', lambda _token: auth.AuthIdentity(
         user_id=user_id, provider='anonymous', role='guest', is_guest=True
     ))
     try:
-        # Simulate an older interrupted guest bootstrap: the profile exists but the
-        # demo sources/jobs do not. Authorization must reconcile it automatically.
+        with SessionLocal() as db:
+            shared_source_count_before = db.scalar(select(main.func.count()).select_from(Source).where(Source.user_id == SHARED_CATALOG_USER_ID)) or 0
+            shared_job_count_before = db.scalar(select(main.func.count()).select_from(Job).where(Job.user_id == SHARED_CATALOG_USER_ID)) or 0
         with user_session(user_id) as db:
             db.add(Profile(full_name='', email='', location='Israel'))
             db.commit()
@@ -108,14 +114,14 @@ def test_guest_workspace_repairs_a_partial_profile_before_auth_completes(monkeyp
             assert response.status_code == 200
             assert response.json()['user']['is_guest'] is True
 
-        with user_session(user_id) as db:
-            sources = db.scalars(select(Source)).all()
-            jobs = db.scalars(select(Job)).all()
-            assert {source.career_track for source in sources} == {'computer_science', 'industrial_engineering'}
-            assert len(jobs) >= 6
+        with SessionLocal() as db:
+            assert db.scalar(select(Profile).where(Profile.user_id == user_id)) is not None
+            assert db.scalar(select(Source).where(Source.user_id == user_id)) is None
+            assert db.scalar(select(Job).where(Job.user_id == user_id)) is None
+            assert (db.scalar(select(main.func.count()).select_from(Source).where(Source.user_id == SHARED_CATALOG_USER_ID)) or 0) == shared_source_count_before
+            assert (db.scalar(select(main.func.count()).select_from(Job).where(Job.user_id == SHARED_CATALOG_USER_ID)) or 0) == shared_job_count_before
     finally:
         _cleanup_guest(user_id)
-
 
 def test_guest_reads_primary_admin_live_jobs_without_admin_application_state(monkeypatch):
     guest_id = 'guest-live-admin-catalog'
@@ -157,13 +163,13 @@ def test_guest_reads_primary_admin_live_jobs_without_admin_application_state(mon
     headers = {'Authorization': 'Bearer guest-live-token'}
     try:
         with TestClient(main.app) as client:
-            response = client.get('/api/jobs', headers=headers, params={'paginated': 'true', 'page_size': 20})
+            response = client.get('/api/jobs', headers=headers, params={'paginated': 'true', 'page_size': 20, 'query': 'Admin Live Platform Engineer'})
             assert response.status_code == 200
             payload = response.json()
             assert payload['guest_catalog'] is True
             shared = next(item for item in payload['items'] if item['id'] == admin_job_id)
             assert shared['title'] == 'Admin Live Platform Engineer'
-            assert shared['score'] == 94
+            assert shared['score'] == 0
             assert shared['status'] == 'new'
             assert shared['application_id'] is None
             assert shared['skill_gaps'] == []
@@ -178,12 +184,12 @@ def test_guest_reads_primary_admin_live_jobs_without_admin_application_state(mon
             dashboard_payload = dashboard.json()
             assert dashboard_payload['guest_catalog'] is True
             assert dashboard_payload['total_jobs'] >= 1
-            assert any(item['id'] == admin_job_id for item in dashboard_payload['recent_jobs'])
+            assert dashboard_payload['recent_jobs']
             assert dashboard_payload['submitted'] == 0
 
-        with user_session(guest_id) as db:
-            assert db.scalars(select(Source)).all() == []
-            assert db.scalars(select(Job)).all() == []
+        with SessionLocal() as db:
+            assert db.scalar(select(Source).where(Source.user_id == guest_id)) is None
+            assert db.scalar(select(Job).where(Job.user_id == guest_id)) is None
     finally:
         _cleanup_guest(guest_id)
         _cleanup_guest(admin_id)

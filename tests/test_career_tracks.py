@@ -117,11 +117,21 @@ def test_agent_queue_can_be_restricted_to_active_track():
         db.delete(application); db.flush(); db.delete(source); db.commit()
 
 
-def test_inactive_track_scan_is_rejected_before_collectors_run():
-    with TestClient(app) as client:
-        switch(client, COMPUTER_SCIENCE)
+def test_shared_scheduler_can_scan_a_track_even_when_no_user_has_it_active(monkeypatch):
+    from app.services import scanner as scanner_module
+    import app.main as main_module
+
+    async def fake_scan_all_sources(db, **kwargs):
+        assert kwargs["career_track"] == INDUSTRIAL_ENGINEERING
+        assert kwargs["catalog_only"] is True
+        return {"status": "completed", "new_jobs": 0, "updated_jobs": 0}
+
+    monkeypatch.setattr(scanner_module, "scan_all_sources", fake_scan_all_sources)
+    monkeypatch.setattr(main_module, "_queue_rankings_for_track", lambda _track: None)
+    with TestClient(app):
         result = asyncio.run(_run_scan(career_track=INDUSTRIAL_ENGINEERING))
-        assert result == {"status": "inactive_track", "career_track": INDUSTRIAL_ENGINEERING}
+    assert result["status"] == "completed"
+    assert result["career_track"] == INDUSTRIAL_ENGINEERING
 
 
 def test_iem_relevance_accepts_operations_and_rejects_unrelated_software():
@@ -288,7 +298,7 @@ def test_backup_round_trip_preserves_both_career_track_profiles():
         switch(client, COMPUTER_SCIENCE)
 
 
-def test_source_delete_removes_dependent_job_application_and_blocker():
+def test_source_delete_retires_shared_catalog_without_erasing_private_history():
     from app.models import Blocker
 
     with TestClient(app) as client, SessionLocal() as db:
@@ -306,10 +316,16 @@ def test_source_delete_removes_dependent_job_application_and_blocker():
         response = client.delete(f"/api/sources/{source_id}")
         assert response.status_code == 200, response.text
         db.expire_all()
-        assert db.get(Source, source_id) is None
-        assert db.get(Job, job_id) is None
-        assert db.get(Application, application_id) is None
-        assert db.get(Blocker, blocker_id) is None
+        retired_source = db.get(Source, source_id)
+        retired_job = db.get(Job, job_id)
+        assert retired_source is not None
+        assert retired_source.enabled is False
+        assert loads(retired_source.metadata_json, {}).get("retired") is True
+        assert retired_job is not None
+        assert retired_job.is_active is False
+        # Private application history must survive retirement of a shared source.
+        assert db.get(Application, application_id) is not None
+        assert db.get(Blocker, blocker_id) is not None
         switch(client, COMPUTER_SCIENCE)
 
 

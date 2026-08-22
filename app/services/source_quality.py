@@ -91,11 +91,45 @@ def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None
             f"Unreliable source data: {source_name} returned generic titles for {generic_titles}/{count} jobs"
         )
 
-    missing_descriptions = sum(1 for job in jobs if job_text_quality(job.description) == "missing")
+    description_quality = [job_text_quality(job.description) for job in jobs]
+    missing_descriptions = sum(1 for quality in description_quality if quality == "missing")
     if count >= 5 and missing_descriptions >= max(3, math.ceil(count * .50)):
         raise SourceDataQualityError(
             f"Unreliable source data: {source_name} returned no usable job description for {missing_descriptions}/{count} jobs"
         )
+
+    # Some rendered careers pages expose only a search-result card even though the
+    # collector found a valid role URL.  Card text often ends with a CTA such as
+    # "Apply Now" / "Save for Later" and is too short to contain qualifications.
+    # Reject a payload dominated by those summaries so it cannot silently overwrite
+    # previously hydrated descriptions and erase experience requirements.
+    summary_cards = sum(
+        1 for job in jobs
+        if len(_norm(job.description)) < 800
+        and re.search(r"\b(?:apply now|save for later|see full role description)\b", _norm(job.description))
+    )
+    if count >= 4 and summary_cards >= max(3, math.ceil(count * .75)):
+        raise SourceDataQualityError(
+            f"Unreliable source data: {source_name} returned search-result summaries instead of full descriptions "
+            f"for {summary_cards}/{count} jobs"
+        )
+    if count >= 5:
+        # Page-wide wrapper bugs produce the same long description for many distinct
+        # jobs. Ignore tiny test/boilerplate snippets here; long repeated bodies are
+        # the high-confidence corruption signature we want to block.
+        normalized_descriptions = [
+            _norm(job.description) for job in jobs
+            if job_text_quality(job.description) != "missing" and len(_norm(job.description)) >= 200
+        ]
+        description_counts = Counter(value for value in normalized_descriptions if value)
+        dominant_description, dominant_description_count = (
+            description_counts.most_common(1)[0] if description_counts else ("", 0)
+        )
+        if dominant_description and dominant_description_count >= max(4, math.ceil(count * .60)):
+            raise SourceDataQualityError(
+                f"Unreliable source data: {source_name} repeated the same job description for "
+                f"{dominant_description_count}/{count} jobs"
+            )
 
     if count >= 8:
         title_counts = Counter(title for title in titles if title)

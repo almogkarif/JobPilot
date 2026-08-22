@@ -299,12 +299,20 @@ def test_delete_job_api_deletes_job_application_and_blocker():
         deleted = client.delete(f"/api/jobs/{job_id}")
         assert deleted.status_code == 200
         assert deleted.json()["deleted"] is True
-        assert client.get(f"/api/jobs/{job_id}").status_code == 404
+        assert deleted.json()["hidden"] is True
 
+        # Jobs are shared. Deleting from one workspace only hides/skips it for that
+        # user and must preserve the shared listing plus application history.
         with SessionLocal() as db:
-            assert db.get(Job, job_id) is None
-            assert db.get(Application, application_id) is None
-            assert db.get(Blocker, blocker_id) is None
+            job = db.get(Job, job_id)
+            assert job is not None
+            assert db.get(Application, application_id) is not None
+            assert db.get(Blocker, blocker_id) is not None
+            from app.services.user_job_state import get_user_job_state
+            state = get_user_job_state(db, job_id, create=False)
+            assert state is not None
+            assert state.status == "skipped"
+
 
 
 def test_delete_missing_job_returns_404():

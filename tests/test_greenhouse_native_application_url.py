@@ -164,7 +164,10 @@ def test_old_submit_button_missing_blocker_is_requeued_once_on_native_greenhouse
             application = db.get(Application, application_id)
             blocker = db.get(Blocker, blocker_id)
             assert application.status == "queued"
-            assert application.job.status == "queued"
+            from app.services.user_job_state import effective_status
+            assert effective_status(application.job, db) == "queued"
+            # The shared Job row itself must not carry one user's private workflow state.
+            assert application.job.status == "needs_input"
             assert blocker.status == "resolved"
             assert loads(application.answers_json, {}).get(main_module.GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY) == 1
 

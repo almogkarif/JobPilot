@@ -141,7 +141,7 @@ def verify_supabase_token(token: str) -> AuthIdentity:
 def _claim_legacy_rows(db: Session, user_id: str) -> None:
     """Attach a pre-v0.3.1 single-owner cloud migration to the first real account."""
     table_names = (
-        "profiles", "sources", "jobs", "applications", "blockers", "answer_memories",
+        "profiles", "applications", "blockers", "answer_memories",
         "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
     )
     for table in table_names:
@@ -163,19 +163,17 @@ def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool)
     # data instead of treating the mere presence of a profile as "ready".
     if identity.is_guest:
         from .services.seed import initialize_database
-        admin_exists = _guest_has_live_admin_catalog(db)
         try:
-            initialize_database(
-                db, full_name="", email="", demo_only=not admin_exists, profile_only=admin_exists
-            )
+            # Jobs/sources are one shared catalog now. A guest needs only a tiny
+            # private profile for track selection; never seed demo rows into the
+            # global catalog from an anonymous session.
+            initialize_database(db, full_name="", email="", demo_only=False, profile_only=True)
         except IntegrityError:
             # Two first requests for the same freshly-issued anonymous Supabase user
             # can race on the unique profile row. The winner commits a valid tenant;
             # the loser rolls back and then idempotently reconciles that workspace.
             db.rollback()
-            initialize_database(
-                db, full_name="", email="", demo_only=not admin_exists, profile_only=admin_exists
-            )
+            initialize_database(db, full_name="", email="", demo_only=False, profile_only=True)
         return
 
     profile = db.scalar(select(Profile).limit(1))

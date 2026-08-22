@@ -16,11 +16,14 @@ def test_preferences_are_choice_boxes_not_raw_primary_text_fields():
     assert "onboarding-choice-grid" in CSS
     assert "ob-titles-extra" in JS
 
-def test_review_and_scan_reuse_the_real_site_scan_component():
+def test_review_hands_off_to_personal_ranking_without_starting_a_scan():
     assert "onboarding-launchpad" in JS
-    assert 'id="onboarding-scan-status" class="scan-status onboarding-scan-status"' in JS
-    assert "syncOnboardingScanStatus" in JS
-    assert "renderScan(scan)" in JS
+    assert 'id="onboarding-ranking-status" class="scan-status onboarding-scan-status is-running"' in JS
+    assert "renderOnboardingRankingStatus" in JS
+    assert "onboardingWatchRanking" in JS
+    assert "/api/ranking/refresh" in JS
+    assert "/api/ranking/status" in JS
+    assert "אין כאן סריקה חדשה" in JS
     assert "onboarding-source-scan" not in JS
 
 def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():

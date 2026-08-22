@@ -20,11 +20,12 @@ def test_all_steps_receive_shared_visual_step_class():
     assert "onboarding-step-${step}" in JS
     assert ".onboarding-step{" in CSS
 
-def test_scan_waits_for_real_site_scan_before_declaring_completion():
-    assert "scanObservedRunning" in JS
-    assert "phase:'queued'" in JS
-    assert "Date.now()-onboardingState.scanStartedAt<30000" in JS
-    assert "syncOnboardingScanStatus" in JS
+def test_ranking_waits_for_personal_catalog_ranking_before_declaring_completion():
+    assert "onboardingWatchRanking" in JS
+    assert "status.ready" in JS
+    assert "ranked/total" in JS
+    assert "renderOnboardingRankingStatus" in JS
+    assert "למשרות שנבחרו עבורך" in JS
 
 def test_assets_bumped():
     assert "app.js?v=0.29.9" in HTML

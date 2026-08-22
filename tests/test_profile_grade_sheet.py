@@ -176,7 +176,8 @@ def test_uploading_grade_sheet_resolves_existing_lever_grade_sheet_blocker_and_r
             assert blocker.status == "resolved"
             assert blocker.answer == "grades.pdf"
             assert application.status == "queued"
-            assert application.job.status == "queued"
+            from app.services.user_job_state import effective_status
+            assert effective_status(application.job, db) == "queued"
             assert profile.grade_sheet_filename == "grades.pdf"
             assert profile.grade_sheet_path
 

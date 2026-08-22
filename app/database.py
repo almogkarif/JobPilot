@@ -10,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker, with_loader_c
 from .config import settings
 
 LOCAL_USER_ID = "local-owner"
+SHARED_CATALOG_USER_ID = "jobpilot-shared-catalog"
 
 database_url = settings.database_url
 if database_url.startswith("postgresql://"):
@@ -67,24 +68,35 @@ def _apply_user_scope(execute_state):
         return
     if not (execute_state.is_select or execute_state.is_update or execute_state.is_delete):
         return
-    from .models import UserOwnedMixin
+    from .models import SharedCatalogMixin, UserOwnedMixin
     execute_state.statement = execute_state.statement.options(
         with_loader_criteria(
             UserOwnedMixin,
             lambda cls: cls.user_id == user_id,
             include_aliases=True,
-        )
+        ),
+        with_loader_criteria(
+            SharedCatalogMixin,
+            lambda cls: cls.user_id == SHARED_CATALOG_USER_ID,
+            include_aliases=True,
+        ),
     )
 
 
 @event.listens_for(Session, "before_flush")
 def _stamp_user_scope(session: Session, _flush_context, _instances):
-    from .models import UserOwnedMixin
+    from .models import SharedCatalogMixin, UserOwnedMixin
     user_id = str(session.info.get("user_id") or "").strip()
     if not user_id and settings.auth_mode != "supabase":
         user_id = LOCAL_USER_ID
         session.info["user_id"] = user_id
     for obj in session.new:
+        if isinstance(obj, SharedCatalogMixin):
+            existing = str(getattr(obj, "user_id", "") or "").strip()
+            if existing and existing != SHARED_CATALOG_USER_ID:
+                raise RuntimeError("Shared catalog rows must use the shared catalog owner")
+            obj.user_id = SHARED_CATALOG_USER_ID
+            continue
         if not isinstance(obj, UserOwnedMixin):
             continue
         existing = str(getattr(obj, "user_id", "") or "").strip()
@@ -188,7 +200,7 @@ def _sqlite_additive_migrations(connection) -> None:
     user_owned_tables = [
         "profiles", "sources", "jobs", "applications", "blockers", "answer_memories",
         "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-        "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
+        "job_rankings", "user_job_states", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
     ]
     existing_tables = {row[0] for row in connection.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
     for table in user_owned_tables:
@@ -201,6 +213,195 @@ def _sqlite_additive_migrations(connection) -> None:
             ))
         connection.execute(text(f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL OR user_id = ''"), {"uid": LOCAL_USER_ID})
         connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_user_id ON {table}(user_id)"))
+
+    # Collapse any legacy local catalog copies before SharedCatalogMixin starts
+    # hiding non-canonical rows. This also preserves per-user status/ranking data.
+    _migrate_existing_catalog_to_shared(connection, LOCAL_USER_ID)
+
+
+def _catalog_owner_alias(user_id: str, preferred_owner: str) -> str:
+    value = str(user_id or "").strip()
+    if value in {"legacy-owner", LOCAL_USER_ID}:
+        return str(preferred_owner or value)
+    return value
+
+
+def _migrate_existing_catalog_to_shared(connection, preferred_owner: str) -> None:
+    """Collapse legacy per-user catalog copies into one shared Source/Job catalog.
+
+    Older cloud releases copied every source and job into each user's workspace.  A
+    simple owner rewrite would hide the non-admin copies but would also strand that
+    user's Application/JobRanking history on now-invisible Job ids.  This migration
+    chooses one canonical source/job per logical listing, promotes it to the shared
+    owner, and remaps private references to that canonical Job while preserving
+    per-user V1 status/score in UserJobState.
+
+    The migration is intentionally idempotent: rerunning it only sees already-shared
+    canonicals and no longer needs to move private references.
+    """
+    inspector = inspect(connection)
+    tables = set(inspector.get_table_names())
+    if not {"sources", "jobs"}.issubset(tables):
+        return
+
+    def _rows(sql: str):
+        return list(connection.execute(text(sql)).mappings().all())
+
+    sources = _rows(
+        "SELECT id,user_id,kind,identifier,company_name,career_track,enabled FROM sources ORDER BY id"
+    )
+    if not sources:
+        return
+
+    def _source_key(row):
+        track = str(row.get("career_track") or "computer_science").strip().casefold()
+        identifier = str(row.get("identifier") or "").strip().casefold()
+        company = str(row.get("company_name") or "").strip().casefold()
+        kind = str(row.get("kind") or "").strip().casefold()
+        # Identifier + track is the stable collector identity.  Omitting kind here
+        # also reconciles catalog upgrades such as official_careers -> greenhouse.
+        return (track, identifier or f"{company}|{kind}")
+
+    grouped_sources: dict[tuple[str, str], list[dict]] = {}
+    for row in sources:
+        grouped_sources.setdefault(_source_key(row), []).append(row)
+
+    source_map: dict[int, int] = {}
+    for group in grouped_sources.values():
+        group.sort(key=lambda row: (
+            0 if str(row.get("user_id") or "") == SHARED_CATALOG_USER_ID else
+            1 if str(row.get("user_id") or "") == str(preferred_owner or "") else
+            2 if str(row.get("user_id") or "") in {"legacy-owner", LOCAL_USER_ID} else 3,
+            0 if bool(row.get("enabled")) else 1,
+            int(row["id"]),
+        ))
+        canonical = group[0]
+        canonical_id = int(canonical["id"])
+        connection.execute(
+            text("UPDATE sources SET user_id=:shared WHERE id=:id AND user_id<>:shared"),
+            {"shared": SHARED_CATALOG_USER_ID, "id": canonical_id},
+        )
+        for row in group:
+            source_map[int(row["id"])] = canonical_id
+
+    jobs = _rows(
+        "SELECT id,user_id,source_id,external_id,apply_url,status,score,score_reasons_json,match_breakdown_json "
+        "FROM jobs ORDER BY id"
+    )
+    grouped_jobs: dict[tuple[int, str], list[dict]] = {}
+    for row in jobs:
+        canonical_source = source_map.get(int(row["source_id"]), int(row["source_id"]))
+        external_id = str(row.get("external_id") or "").strip().casefold()
+        apply_url = str(row.get("apply_url") or "").strip().rstrip("/").casefold()
+        identity = external_id or apply_url or f"legacy-job-{int(row['id'])}"
+        grouped_jobs.setdefault((canonical_source, identity), []).append(row)
+
+    job_map: dict[int, int] = {}
+    for (canonical_source, _identity), group in grouped_jobs.items():
+        group.sort(key=lambda row: (
+            0 if str(row.get("user_id") or "") == SHARED_CATALOG_USER_ID else
+            1 if str(row.get("user_id") or "") == str(preferred_owner or "") else
+            2 if str(row.get("user_id") or "") in {"legacy-owner", LOCAL_USER_ID} else 3,
+            0 if int(row.get("source_id") or 0) == canonical_source else 1,
+            int(row["id"]),
+        ))
+        canonical = group[0]
+        canonical_id = int(canonical["id"])
+        connection.execute(text(
+            "UPDATE jobs SET user_id=:shared, source_id=:source_id "
+            "WHERE id=:id AND (user_id<>:shared OR source_id<>:source_id)"
+        ), {"shared": SHARED_CATALOG_USER_ID, "source_id": canonical_source, "id": canonical_id})
+        for row in group:
+            job_map[int(row["id"])] = canonical_id
+
+    # Preserve each legacy owner's personal V1 status/score before its Job row is
+    # hidden by SharedCatalogMixin.  V2 rankings are remapped separately below.
+    if "user_job_states" in tables:
+        for row in jobs:
+            raw_user = str(row.get("user_id") or "").strip()
+            if not raw_user or raw_user == SHARED_CATALOG_USER_ID:
+                continue
+            user_id = _catalog_owner_alias(raw_user, preferred_owner)
+            canonical_job_id = job_map.get(int(row["id"]), int(row["id"]))
+            existing = connection.execute(text(
+                "SELECT id FROM user_job_states WHERE user_id=:uid AND job_id=:job_id LIMIT 1"
+            ), {"uid": user_id, "job_id": canonical_job_id}).scalar()
+            payload = {
+                "uid": user_id,
+                "job_id": canonical_job_id,
+                "status": str(row.get("status") or "new"),
+                "score": int(row.get("score") or 0),
+                "reasons": str(row.get("score_reasons_json") or "[]"),
+                "breakdown": str(row.get("match_breakdown_json") or "{}"),
+            }
+            if existing:
+                # Keep a newer explicit state if one already exists; startup can be
+                # retried safely without overwriting subsequent user actions.
+                continue
+            connection.execute(text(
+                "INSERT INTO user_job_states "
+                "(user_id,job_id,status,score,score_reasons_json,match_breakdown_json,updated_at) "
+                "VALUES (:uid,:job_id,:status,:score,:reasons,:breakdown,CURRENT_TIMESTAMP)"
+            ), payload)
+
+    if "job_rankings" in tables:
+        rankings = _rows("SELECT id,user_id,job_id,engine FROM job_rankings ORDER BY id")
+        for ranking in rankings:
+            old_job = int(ranking["job_id"])
+            canonical_job = job_map.get(old_job, old_job)
+            raw_user = str(ranking.get("user_id") or "").strip()
+            user_id = _catalog_owner_alias(raw_user, preferred_owner)
+            if canonical_job == old_job and user_id == raw_user:
+                continue
+            existing = connection.execute(text(
+                "SELECT id FROM job_rankings WHERE user_id=:uid AND job_id=:job_id AND engine=:engine "
+                "AND id<>:id LIMIT 1"
+            ), {
+                "uid": user_id, "job_id": canonical_job,
+                "engine": str(ranking.get("engine") or "v2"), "id": int(ranking["id"]),
+            }).scalar()
+            if existing:
+                connection.execute(text("DELETE FROM job_rankings WHERE id=:id"), {"id": int(ranking["id"])})
+            else:
+                connection.execute(text(
+                    "UPDATE job_rankings SET user_id=:uid, job_id=:job_id WHERE id=:id"
+                ), {"uid": user_id, "job_id": canonical_job, "id": int(ranking["id"])})
+
+    if "applications" in tables:
+        applications = _rows("SELECT id,user_id,job_id,status,submitted_at,updated_at FROM applications ORDER BY id")
+        child_tables = [table for table in ("blockers", "application_attempts", "application_events") if table in tables]
+        for application in applications:
+            old_job = int(application["job_id"])
+            canonical_job = job_map.get(old_job, old_job)
+            raw_user = str(application.get("user_id") or "").strip()
+            user_id = _catalog_owner_alias(raw_user, preferred_owner)
+            app_id = int(application["id"])
+            # Legacy/local aliases belong to the configured administrator.  Child
+            # application rows carry their own user_id too, so claim them together
+            # even when this application already points at the canonical Job.
+            if user_id != raw_user:
+                connection.execute(text("UPDATE applications SET user_id=:uid WHERE id=:id"), {"uid": user_id, "id": app_id})
+                for child_table in child_tables:
+                    connection.execute(text(
+                        f"UPDATE {child_table} SET user_id=:uid WHERE application_id=:app_id"
+                    ), {"uid": user_id, "app_id": app_id})
+            if canonical_job == old_job:
+                continue
+            existing = connection.execute(text(
+                "SELECT id FROM applications WHERE user_id=:uid AND job_id=:job_id AND id<>:id LIMIT 1"
+            ), {"uid": user_id, "job_id": canonical_job, "id": app_id}).scalar()
+            if existing:
+                keep_id = int(existing)
+                for child_table in child_tables:
+                    connection.execute(text(
+                        f"UPDATE {child_table} SET application_id=:keep, user_id=:uid WHERE application_id=:old"
+                    ), {"keep": keep_id, "uid": user_id, "old": app_id})
+                connection.execute(text("DELETE FROM applications WHERE id=:id"), {"id": app_id})
+            else:
+                connection.execute(text("UPDATE applications SET job_id=:job_id WHERE id=:id"), {
+                    "job_id": canonical_job, "id": app_id,
+                })
+
 
 
 def _postgres_table_rls_enabled(connection, table: str) -> bool:
@@ -285,10 +486,18 @@ def _postgres_multiuser_migration(connection) -> None:
         else:
             connection.execute(text("UPDATE app_identity SET role='admin' WHERE id=(SELECT MIN(id) FROM app_identity) AND role='user'"))
 
+    catalog_owner = owner
+    if "app_identity" in tables:
+        admin_owner = connection.execute(text(
+            "SELECT auth_user_id FROM app_identity WHERE role='admin' ORDER BY id LIMIT 1"
+        )).scalar()
+        if admin_owner:
+            catalog_owner = str(admin_owner)
+
     user_owned_tables = [
         "profiles", "sources", "jobs", "applications", "blockers", "answer_memories",
         "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-        "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
+        "job_rankings", "user_job_states", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
     ]
     for table in user_owned_tables:
         if table not in tables:
@@ -313,6 +522,32 @@ def _postgres_multiuser_migration(connection) -> None:
         index_name = f"ix_{table}_user_id"
         if index_name not in _postgres_index_names(connection, table):
             connection.execute(text(f"CREATE INDEX {index_name} ON {table}(user_id)"))
+
+    if "applications" in tables:
+        # Pre-multiuser releases used UNIQUE(job_id). Drop it before remapping
+        # different users' historical applications to the same shared Job id.
+        constraints = connection.execute(text("""
+            SELECT c.conname
+            FROM pg_constraint c
+            JOIN pg_class t ON c.conrelid=t.oid
+            JOIN pg_namespace n ON t.relnamespace=n.oid
+            WHERE n.nspname=current_schema()
+              AND t.relname='applications' AND c.contype='u'
+              AND pg_get_constraintdef(c.oid) = 'UNIQUE (job_id)'
+        """)).scalars().all()
+        for name in constraints:
+            safe = str(name).replace('"', '""')
+            connection.execute(text(f'ALTER TABLE applications DROP CONSTRAINT IF EXISTS "{safe}"'))
+        # The per-user unique index is created after catalog remapping so existing
+        # duplicate tenant copies can be reconciled first.
+
+    _migrate_existing_catalog_to_shared(connection, catalog_owner)
+
+    if "applications" in tables:
+        if "uq_application_user_job_idx" not in _postgres_index_names(connection, "applications"):
+            connection.execute(text(
+                "CREATE UNIQUE INDEX uq_application_user_job_idx ON applications(user_id, job_id)"
+            ))
 
     if "jobs" in tables:
         job_columns = {c["name"]: c for c in inspect(connection).get_columns("jobs")}
@@ -381,7 +616,7 @@ def _postgres_multiuser_migration(connection) -> None:
         private_tables = [
             "app_identity", "profiles", "sources", "jobs", "applications", "blockers",
             "answer_memories", "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
-            "job_rankings", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
+            "job_rankings", "user_job_states", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
             "ranking_settings",
         ]
         for table in private_tables:

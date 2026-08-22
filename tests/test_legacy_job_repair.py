@@ -39,3 +39,26 @@ def test_repair_removes_corrupted_mobileye_and_taboola_rows():
     assert db.get(Source, mobileye.id).last_scanned_at is None
     assert db.get(Source, taboola.id).last_scanned_at is None
     db.close()
+
+
+def test_repair_marks_generic_bad_description_source_for_clean_refresh_without_deleting_rows():
+    db = _session()
+    db.add(Profile(id=1, full_name="Test", location="Israel"))
+    apple = Source(name="Apple", kind="official_careers", identifier="apple", company_name="Apple", enabled=True)
+    db.add(apple)
+    db.flush()
+    for i in range(5):
+        db.add(Job(
+            source_id=apple.id, external_id=f"a-{i}", title=f"Engineer {i}", company="Apple",
+            location="Israel", description="See full role description",
+            apply_url=f"https://jobs.apple.com/details/{i}/role", source_url="",
+        ))
+    db.commit()
+
+    result = repair_corrupted_official_jobs(db)
+
+    assert apple.id in result["source_ids"]
+    assert result["removed"] == 0
+    assert db.scalar(select(func.count()).select_from(Job)) == 5
+    assert db.get(Source, apple.id).last_scanned_at is None
+    db.close()

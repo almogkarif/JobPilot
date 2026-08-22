@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 GENERIC_DESCRIPTIONS = {
     "apply", "apply now", "view job", "job details", "read more", "learn more",
+    "see full role description", "full role description", "save for later", "view role",
     "הגש מועמדות", "לפרטי המשרה", "פרטים נוספים",
 }
 

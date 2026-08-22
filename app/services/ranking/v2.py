@@ -19,7 +19,7 @@ MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certifica
 
 class EligibilityRankingEngine(RankingEngine):
     key = "v2"
-    version = 2
+    version = 3
 
     def rank_job(self, job, profile, config=None, *, context=None) -> RankingResult:
         config = config if isinstance(config, RankingV2Config) else RankingV2Config.from_dict(config) if config else DEFAULT_V2_CONFIG

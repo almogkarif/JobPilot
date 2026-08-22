@@ -6,7 +6,7 @@ JS=(ROOT/'app/static/app.js').read_text()
 CSS=(ROOT/'app/static/styles.css').read_text()
 
 def test_onboarding_starts_with_extensible_career_track_choice():
-    assert "onboardingSteps = ['track','resume','skills','preferences','review','scan']" in JS
+    assert "onboardingSteps = ['track','resume','skills','preferences','review','ranking']" in JS
     assert 'state.careerTracks' in JS
     assert 'onboardingTrackConfig' in JS
     assert 'onboardingChooseTrack' in JS
@@ -27,10 +27,11 @@ def test_real_animated_logo_is_used_in_onboarding():
     assert 'brand-flight-dot' in HTML
     assert '<strong>JP</strong><span>JobPilot</span>' not in HTML
 
-def test_scan_has_animation_and_post_scan_jobs_cta():
-    assert 'onboarding-scan-status' in JS
-    assert 'startSiteScan' in JS
-    assert 'onboardingWatchScan' in JS
+def test_ranking_has_progress_and_post_ranking_jobs_cta():
+    assert 'onboarding-ranking-status' in JS
+    assert 'onboardingStartRanking' in JS
+    assert 'onboardingWatchRanking' in JS
+    assert "api('/api/ranking/refresh'" in JS
     assert 'למשרות שנבחרו עבורך' in JS
 
 def test_developer_users_panel_is_scroll_limited():

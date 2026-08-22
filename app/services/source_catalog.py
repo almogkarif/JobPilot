@@ -53,6 +53,36 @@ CS_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name": "Chainalysis Careers", "kind": "ashby", "identifier": "chainalysis-careers", "company_name": "Chainalysis"},
     {"name": "Reindeer AI Careers", "kind": "ashby", "identifier": "reindeer-ai", "company_name": "Reindeer AI"},
     {"name": "TRAILD Careers", "kind": "lever", "identifier": "traildsoftware", "company_name": "TRAILD"},
+    {"name": "NICE Careers Israel", "kind": "greenhouse", "identifier": "nice", "company_name": "NICE"},
+    {"name": "Riskified Careers Israel", "kind": "greenhouse", "identifier": "riskified", "company_name": "Riskified"},
+    {"name": "Sunflower Careers Israel", "kind": "official_careers", "identifier": "sunflower", "company_name": "Sunflower"},
+    {"name": "Moon Active Careers Israel", "kind": "official_careers", "identifier": "moonactive", "company_name": "Moon Active"},
+    {"name": "Connecteam Careers Israel", "kind": "official_careers", "identifier": "connecteam", "company_name": "Connecteam"},
+    {"name": "Via Careers Israel", "kind": "greenhouse", "identifier": "via", "company_name": "Via"},
+    {"name": "Apiiro Careers Israel", "kind": "greenhouse", "identifier": "apiiro", "company_name": "Apiiro"},
+    {"name": "SafeBreach Careers Israel", "kind": "greenhouse", "identifier": "safebreach", "company_name": "SafeBreach"},
+    {"name": "Guidde Careers Israel", "kind": "greenhouse", "identifier": "guidde", "company_name": "Guidde"},
+    {"name": "ScaleOps Careers Israel", "kind": "greenhouse", "identifier": "scaleops", "company_name": "ScaleOps"},
+    {"name": "Sweet Security Careers Israel", "kind": "greenhouse", "identifier": "sweetsecurity", "company_name": "Sweet Security"},
+    {"name": "accessiBe Careers Israel", "kind": "greenhouse", "identifier": "accessibe", "company_name": "accessiBe"},
+    {"name": "Unframe Careers Israel", "kind": "greenhouse", "identifier": "unframe", "company_name": "Unframe"},
+    {"name": "Descope Careers Israel", "kind": "greenhouse", "identifier": "descope", "company_name": "Descope"},
+    {"name": "Guardz Careers Israel", "kind": "greenhouse", "identifier": "guardz", "company_name": "Guardz"},
+    {"name": "Bluevine Israel Careers", "kind": "greenhouse", "identifier": "bluevineisrael", "company_name": "Bluevine"},
+    {"name": "Pendo Careers Israel", "kind": "greenhouse", "identifier": "pendo", "company_name": "Pendo"},
+    {"name": "BeamUP Careers Israel", "kind": "greenhouse", "identifier": "beamup", "company_name": "BeamUP"},
+    {"name": "Daylight Security Careers Israel", "kind": "greenhouse", "identifier": "daylightsecurity", "company_name": "Daylight Security"},
+    {"name": "Aidoc Engineering Israel", "kind": "greenhouse", "identifier": "aidocmedical", "company_name": "Aidoc"},
+    {"name": "Armis Engineering Israel", "kind": "greenhouse", "identifier": "armissecurity", "company_name": "Armis"},
+    {"name": "Forter Engineering Israel", "kind": "greenhouse", "identifier": "forter", "company_name": "Forter"},
+    {"name": "Gong Engineering Israel", "kind": "greenhouse", "identifier": "gongio", "company_name": "Gong"},
+    {"name": "Torq Engineering Israel", "kind": "greenhouse", "identifier": "torq", "company_name": "Torq"},
+    {"name": "Datarails Careers Israel", "kind": "greenhouse", "identifier": "datarails", "company_name": "Datarails"},
+    {"name": "Cymulate Careers Israel", "kind": "greenhouse", "identifier": "cymulate", "company_name": "Cymulate"},
+    {"name": "QuantHealth Engineering Israel", "kind": "greenhouse", "identifier": "quanthealth", "company_name": "QuantHealth"},
+    {"name": "Eleos Health Engineering Israel", "kind": "greenhouse", "identifier": "eleoshealth", "company_name": "Eleos Health"},
+    {"name": "Melio Engineering Israel", "kind": "greenhouse", "identifier": "melio", "company_name": "Melio"},
+    {"name": "Neo Security Engineering Israel", "kind": "greenhouse", "identifier": "neosecurityinc", "company_name": "Neo Security"},
 )
 
 # Industrial Engineering & Management focuses on employers with manufacturing,
@@ -91,6 +121,13 @@ IEM_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name": "Wolt — Supply Chain & Operations Israel", "kind": "greenhouse", "identifier": "wolt", "company_name": "Wolt"},
     {"name": "Eleos Health — Operations & Process Improvement", "kind": "greenhouse", "identifier": "eleoshealth", "company_name": "Eleos Health"},
     {"name": "Ashley Digital — BI & Data Solutions Israel", "kind": "greenhouse", "identifier": "residenthome", "company_name": "Ashley Digital"},
+    {"name": "NICE — Analytics & Operations Israel", "kind": "greenhouse", "identifier": "nice", "company_name": "NICE"},
+    {"name": "Riskified — Data & Operations Israel", "kind": "greenhouse", "identifier": "riskified", "company_name": "Riskified"},
+    {"name": "Sunflower — Business & Operations Israel", "kind": "official_careers", "identifier": "sunflower", "company_name": "Sunflower"},
+    {"name": "Moon Active — Product & Operations Israel", "kind": "official_careers", "identifier": "moonactive", "company_name": "Moon Active"},
+    {"name": "Connecteam — Product & Operations Israel", "kind": "official_careers", "identifier": "connecteam", "company_name": "Connecteam"},
+    {"name": "Datarails — Finance & Operations Israel", "kind": "greenhouse", "identifier": "datarails", "company_name": "Datarails"},
+    {"name": "Cymulate — Operations Israel", "kind": "greenhouse", "identifier": "cymulate", "company_name": "Cymulate"},
 )
 
 
@@ -260,7 +297,17 @@ def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) 
         pair = _source_key(item)
         existing = existing_by_pair.get(pair)
         if existing is not None:
-            # Keep current enable/error state but refresh catalog display metadata.
+            # Keep ordinary enable/error state, but an explicit "install recommended"
+            # action revives a previously retired recommended source.
+            metadata = loads(existing.metadata_json, {})
+            if not isinstance(metadata, dict):
+                metadata = {}
+            if metadata.pop("retired", None) is not None:
+                metadata.pop("retired_at", None)
+                metadata.setdefault("preset", "recommended")
+                existing.metadata_json = dumps(metadata)
+                existing.enabled = True
+                reconciled += 1
             if existing.name != item["name"] or existing.company_name != item["company_name"]:
                 existing.name = item["name"]
                 existing.company_name = item["company_name"]
@@ -298,7 +345,7 @@ def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) ->
         Source.identifier.in_(identifiers),
     ).order_by(Source.id)).all():
         meta = loads(source.metadata_json, {})
-        if isinstance(meta, dict) and meta.get("duplicate_of"):
+        if isinstance(meta, dict) and (meta.get("duplicate_of") or meta.get("retired")):
             continue
         existing_by_pair.setdefault((source.kind, source.identifier), source)
     rows: list[dict] = []

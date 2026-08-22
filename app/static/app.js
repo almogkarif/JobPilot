@@ -94,6 +94,8 @@ const parseJwt = (token = '') => {
 
 const authHeaders = () => authState.session?.access_token ? { Authorization: `Bearer ${authState.session.access_token}` } : {};
 const applicationAgentAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.application_agent !== false;
+const manualScanAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.manual_scan === true;
+const sourceManagementAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.developer_tools === true;
 
 const saveAuthSession = (session) => {
   authState.session = session?.access_token ? session : null;
@@ -245,6 +247,10 @@ async function verifyCloudSession({ throwOnError = false } = {}) {
     const result = await api('/api/auth/me');
     authState.user = result.user || null;
     authState.capabilities = result.capabilities || { application_agent: true };
+    const scanButton = $('#scan-btn');
+    if (scanButton) scanButton.hidden = !manualScanAllowed();
+    const importButton = $('#import-job-btn');
+    if (importButton) importButton.hidden = !manualScanAllowed();
     return Boolean(authState.user);
   } catch (error) {
     if (throwOnError) throw error;
@@ -723,6 +729,36 @@ const SOURCE_LOGO_DOMAINS = Object.freeze({
   'reindeer ai': 'reindeer.ai',
   'reindeer': 'reindeer.ai',
   'traild': 'traildsoftware.com',
+  'nice': 'nice.com',
+  'riskified': 'riskified.com',
+  'sunflower': 'sunfltd.com',
+  'moon active': 'moonactive.com',
+  'connecteam': 'connecteam.com',
+  'via': 'ridewithvia.com',
+  'apiiro': 'apiiro.com',
+  'safebreach': 'safebreach.com',
+  'guidde': 'guidde.com',
+  'scaleops': 'scaleops.com',
+  'sweet security': 'sweet.security',
+  'accessibe': 'accessibe.com',
+  'unframe': 'unframe.ai',
+  'descope': 'descope.com',
+  'guardz': 'guardz.com',
+  'bluevine': 'bluevine.com',
+  'pendo': 'pendo.io',
+  'beamup': 'beamup.ai',
+  'daylight security': 'daylight.ai',
+  'aidoc': 'aidoc.com',
+  'armis': 'armis.com',
+  'forter': 'forter.com',
+  'gong': 'gong.io',
+  'torq': 'torq.io',
+  'datarails': 'datarails.com',
+  'cymulate': 'cymulate.com',
+  'quanthealth': 'quanthealth.ai',
+  'eleos health': 'eleos.health',
+  'melio': 'melio.com',
+  'neo security': 'neo.ai',
 });
 
 function normalizeSourceBrand(value = '') {
@@ -1370,6 +1406,7 @@ function renderScan(scan) {
   const element = $('#scan-status');
   const progress = $('#scan-progress');
   const button = $('#scan-btn');
+  if (button) button.hidden = !manualScanAllowed();
   progress.hidden = true;
   progress.classList.remove('running');
 
@@ -1400,17 +1437,21 @@ function renderScan(scan) {
     element.title = 'הדוח המלא יהיה זמין כשהסריקה תסתיים';
 
     // The real scan action stays visually unchanged; it is only disabled to avoid duplicate scans.
-    button.disabled = true;
-    button.classList.remove('scan-btn-running');
-    button.textContent = 'סרוק עכשיו';
-    button.setAttribute('aria-label', 'סריקה כבר מתבצעת');
+    if (button) {
+      button.disabled = true;
+      button.classList.remove('scan-btn-running');
+      button.textContent = 'סרוק עכשיו';
+      button.setAttribute('aria-label', 'סריקה כבר מתבצעת');
+    }
   } else {
     element.classList.remove('is-running');
     element.style.removeProperty('--scan-progress');
-    button.disabled = false;
-    button.classList.remove('scan-btn-running');
-    button.removeAttribute('aria-label');
-    button.textContent = 'סרוק עכשיו';
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('scan-btn-running');
+      button.removeAttribute('aria-label');
+      button.textContent = 'סרוק עכשיו';
+    }
 
     if (scan.last_result) lastScanReport = scan.last_result;
     const summary = scanResultSummary(scan.last_result);
@@ -1522,7 +1563,7 @@ async function startSiteScan() {
   return started;
 }
 
-$('#scan-btn').onclick = async () => {
+if ($('#scan-btn')) $('#scan-btn').onclick = async () => {
   try { await startSiteScan(); } catch (error) { toast(error.message); }
 };
 
@@ -2346,20 +2387,25 @@ async function loadSources() {
   renderSourceErrorBadge(state.sources.filter((source) => source.enabled && source.last_error).length);
   const root = $('#sources-list');
   setPageContext('sources', state.sources.length);
+  const canManageSources = sourceManagementAllowed();
+  const installButton = $('#install-recommended-sources');
+  const sourceForm = $('#source-form');
+  if (installButton) installButton.hidden = !canManageSources;
+  if (sourceForm) sourceForm.closest('.sticky-card').hidden = !canManageSources;
   root.innerHTML = state.sources.length ? state.sources.map((source) => `
     <div class="source-item interactive-row ${source.enabled ? '' : 'source-disabled'}" role="button" tabindex="0" data-source-id="${source.id}">
       ${sourceLogoMarkup(source)}
       <div><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · נסרק ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${source.health_score}% בריאות מקור</strong></div></div>
-      <div class="source-actions" data-no-source-click>
+      ${canManageSources ? `<div class="source-actions" data-no-source-click>
         <label class="source-toggle" title="${source.enabled ? 'המקור נסרק במסלול הזה' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
           <input type="checkbox" ${source.enabled ? 'checked' : ''} aria-label="${source.enabled ? 'כבה' : 'הפעל'} את ${esc(source.name)}" onchange="event.stopPropagation();toggleSource(${source.id},this.checked,this)" />
           <span class="source-toggle-track" aria-hidden="true"><i></i></span>
           <span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה' : 'לא ייסרק'}</small></span>
         </label>
         <button class="btn danger small" type="button" onclick="event.stopPropagation();deleteSource(${source.id})">מחק</button>
-      </div>
+      </div>` : '<span class="source-readonly-note">מנוהל אוטומטית</span>'}
     </div>
-  `).join('') : emptyState('⌁', 'לא הוגדרו מקורות משרות', 'אפשר להוסיף מקור ידנית או להתקין את רשימת המקורות המומלצים.', '<button class="btn primary small" type="button" onclick="installRecommendedSources()">הוסף מקורות מומלצים</button>');
+  `).join('') : emptyState('⌁', 'לא הוגדרו מקורות משרות', canManageSources ? 'אפשר להוסיף מקור ידנית או להתקין את רשימת המקורות המומלצים.' : 'המקורות מנוהלים על ידי מנהל המערכת.', canManageSources ? '<button class="btn primary small" type="button" onclick="installRecommendedSources()">הוסף מקורות מומלצים</button>' : '');
   $$('.source-item', root).forEach((item) => {
     const open = () => showSource(Number(item.dataset.sourceId));
     item.onclick = (event) => { if (!event.target.closest('[data-no-source-click]')) open(); };
@@ -2374,7 +2420,7 @@ function showSource(id) {
     <div class="source-modal-heading">${sourceLogoMarkup(source, 'source-logo-modal')}<div><span class="kicker">מקור משרות</span><h2>${esc(source.name)}</h2></div></div>
     <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>סריקה אחרונה</span><strong>${dateFmt(source.last_scanned_at)}</strong></div>
     ${source.last_error ? `<div class="warning">${esc(source.last_error)}</div>` : ''}
-    <div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>
+    ${sourceManagementAllowed() ? `<div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>` : '<div class="automation-note">המקורות מנוהלים על ידי מנהל המערכת והסריקה מתבצעת אוטומטית בכל שעה עגולה.</div>'}
   `);
 }
 
@@ -3665,7 +3711,7 @@ $('#grade-sheet-file').onchange = async (event) => {
   }
 };
 
-$('#import-job-btn').onclick = () => {
+if ($('#import-job-btn')) $('#import-job-btn').onclick = () => {
   modal(`
     <span class="kicker">הוספה ידנית</span><h2>הוסף משרה מקישור</h2>
     <form id="import-form" class="form-stack">
@@ -3936,7 +3982,7 @@ async function onboardingFlushSave(){
   if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;await onboardingPersistProfile(onboardingCollectPreferences());}
   await onboardingState.saveChain;
 }
-const onboardingSteps = ['track','resume','skills','preferences','review','scan'];
+const onboardingSteps = ['track','resume','skills','preferences','review','ranking'];
 
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
 function onboardingTrackConfig(key=state.activeCareerTrack){ return CAREER_TRACK_UI[key] || CAREER_TRACK_UI.computer_science; }
@@ -3963,9 +4009,9 @@ function onboardingSetStep(index){
   const step=onboardingSteps[onboardingState.step], profile=state.profile||{}, track=onboardingTrackConfig();
   $('#onboarding-progress-label').textContent=`${onboardingState.step+1} מתוך ${onboardingSteps.length}`;
   $('#onboarding-progress-bar').style.width=`${((onboardingState.step+1)/onboardingSteps.length)*100}%`;
-  $('#onboarding-back').hidden=onboardingState.step===0 || step==='scan';
-  $('#onboarding-skip').hidden=onboardingState.preview || step==='scan';
-  $('#onboarding-next').hidden=step==='track' || step==='scan';
+  $('#onboarding-back').hidden=onboardingState.step===0 || step==='ranking';
+  $('#onboarding-skip').hidden=onboardingState.preview || step==='ranking';
+  $('#onboarding-next').hidden=step==='track' || step==='ranking';
   const content=$('#onboarding-content');
   content.className=`onboarding-content onboarding-step onboarding-step-${step}`;
   if(step==='track'){
@@ -4006,13 +4052,13 @@ function onboardingSetStep(index){
     const d=onboardingState.draft;
     const modeLabels=(d.preferred_work_modes||[]).map(v=>({hybrid:'היברידי',remote:'מרחוק',onsite:'מהמשרד'}[v]||v));
     const topTitles=(d.desired_titles||[]).slice(0,3);
-    content.innerHTML=`<div class="onboarding-ready onboarding-launchpad"><div class="ready-eyebrow"><span class="ready-check">✓</span><span><b>הפרופיל הראשוני הושלם</b><small>${esc(track.label)}</small></span></div><h1 id="onboarding-title">הכול מוכן לחיפוש הראשון שלך</h1><p class="ready-lead">JobPilot כבר יודע מה לחפש, איפה לחפש ומה חשוב לך. נשאר רק להפעיל את הסריקה הראשונה.</p>
+    content.innerHTML=`<div class="onboarding-ready onboarding-launchpad"><div class="ready-eyebrow"><span class="ready-check">✓</span><span><b>הפרופיל הראשוני הושלם</b><small>${esc(track.label)}</small></span></div><h1 id="onboarding-title">הכול מוכן להתאמות האישיות שלך</h1><p class="ready-lead">JobPilot כבר יודע מה חשוב לך. מאגר המשרות משותף ומתעדכן אוטומטית בכל שעה; עכשיו נשאר רק לדרג אותו עבורך.</p>
       <div class="ready-spotlight"><div class="ready-spotlight-main"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><small>מחפשים עבורך</small><strong>${esc(topTitles.join(' · ')||'משרות שמתאימות לפרופיל שלך')}</strong><p>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')} · ${esc(modeLabels.join(' · ')||'כל צורות העבודה')}</p></div></div><div class="ready-pulse"><i></i><span>מוכן</span></div></div>
       <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
-      <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נסרוק את המקורות הפעילים, נחשב התאמה לכל משרה ונציג קודם את התוצאות החזקות ביותר.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
+      <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נדרג עבורך את המשרות שכבר נמצאות במאגר המשותף ונציג קודם את ההתאמות החזקות ביותר. אין צורך להפעיל סריקה.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
   }else{
-    content.innerHTML=`<div class="onboarding-scan-stage"><span class="kicker">הכול מוכן</span><h1 id="onboarding-title">נמצא את ההזדמנויות שמתאימות לך</h1><p>התהליך יכול להימשך מספר דקות.</p><div id="onboarding-scan-status" class="scan-status onboarding-scan-status" aria-live="polite"><span><b>מוכן לסריקה הראשונה</b><small>לחץ על הכפתור כדי להתחיל</small></span><i class="scan-status-fill" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-start-scan" type="button">התחל סריקה ראשונה</button><button class="btn secondary onboarding-enter" id="onboarding-enter-site" type="button">אכנס לאתר ואסרוק אחר כך</button></div>`;
-    $('#onboarding-start-scan').onclick=onboardingStartScan; $('#onboarding-enter-site').onclick=()=>onboardingFinish();
+    content.innerHTML=`<div class="onboarding-scan-stage scanning"><span class="kicker">ההתאמות שלך</span><h1 id="onboarding-title">מדרגים את מאגר המשרות עבורך</h1><p>אין כאן סריקה חדשה — המאגר כבר משותף לכולם ומתעדכן אוטומטית בכל שעה. אנחנו מחשבים עכשיו את ההתאמה האישית שלך.</p><div id="onboarding-ranking-status" class="scan-status onboarding-scan-status is-running" aria-live="polite"><span><b>מחשב התאמות…</b><small>טוען את המשרות הקיימות ומדרג לפי הפרופיל שלך</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-enter-ranked" type="button" disabled>מכין את המשרות שלך…</button></div>`;
+    onboardingStartRanking();
   }
 }
 async function onboardingResume(event){
@@ -4059,48 +4105,37 @@ async function onboardingFinish(skipped=false){
   if(!onboardingState.preview)await api('/api/onboarding',{method:'PUT',body:JSON.stringify({completed:!skipped,skipped,step:'done'})});
   $('#onboarding-gate').hidden=true;$('#onboarding-gate').setAttribute('aria-hidden','true');document.body.classList.remove('onboarding-open');onboardingState.preview=false;
 }
-function syncOnboardingScanStatus(scan){
-  // Reuse the exact dashboard renderer, then mirror that same component inside onboarding.
-  // This deliberately keeps one visual/status implementation for both surfaces.
-  renderScan(scan);
-  const source=$('#scan-status'), target=$('#onboarding-scan-status');
-  if(!source||!target)return;
-  target.innerHTML=source.innerHTML;
-  target.className=`scan-status onboarding-scan-status${source.classList.contains('is-running')?' is-running':''}`;
-  const progress=source.style.getPropertyValue('--scan-progress');
-  if(progress)target.style.setProperty('--scan-progress',progress); else target.style.removeProperty('--scan-progress');
-  target.setAttribute('aria-label',source.getAttribute('aria-label')||'מצב הסריקה');
+function renderOnboardingRankingStatus(status){
+  const target=$('#onboarding-ranking-status'); if(!target)return;
+  const total=Math.max(0,Number(status.total||0)), ranked=Math.max(0,Number(status.ranked||0));
+  const percent=total?Math.min(100,Math.round((ranked/total)*100)):100;
+  const ready=Boolean(status.ready);
+  target.classList.toggle('is-running',!ready);
+  target.style.setProperty('--scan-progress',`${percent}%`);
+  target.innerHTML=ready
+    ? `<span><b>ההתאמות מוכנות</b><small>${total?`${ranked} משרות דורגו עבורך`:'הפרופיל מוכן; משרות חדשות ידורגו אוטומטית כשהמאגר יתעדכן'}</small></span><i class="scan-status-fill" aria-hidden="true"></i>`
+    : `<span><b>מחשב התאמות · ${ranked}${total?` מתוך ${total}`:''}</b><small>המאגר המשותף נשאר זמין בזמן שהדירוג האישי מתעדכן</small></span><i class="scan-status-fill ${total?'':'is-indeterminate'}" aria-hidden="true"></i>`;
 }
-async function onboardingWatchScan(){
+async function onboardingWatchRanking(){
   try{
-    const scan=await api('/api/scan/status');
-    if(scan.running)onboardingState.scanObservedRunning=true;
-    // A queued worker can take a few seconds before /status flips to running. Do not
-    // mistake that hand-off window for a completed scan.
-    if(!scan.running&&!onboardingState.scanObservedRunning&&Date.now()-onboardingState.scanStartedAt<30000){
-      syncOnboardingScanStatus({running:true,progress:{phase:'queued',completed:0,total:0,current_source:null}});
-      onboardingState.scanTimer=setTimeout(onboardingWatchScan,1200);return;
-    }
-    syncOnboardingScanStatus(scan);
-    if(scan.running){onboardingState.scanTimer=setTimeout(onboardingWatchScan,1800);return}
-    const stage=$('.onboarding-scan-stage');stage?.classList.add('complete');
-    const button=$('#onboarding-start-scan');if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
-    const enter=$('#onboarding-enter-site');if(enter)enter.hidden=true;
-  }catch(e){
-    const target=$('#onboarding-scan-status');if(target)target.innerHTML='<span><b>הסריקה ממשיכה באתר</b><small>אפשר להיכנס ללוח הבקרה ולעקוב מאותו פס התקדמות</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>';
-    const b=$('#onboarding-start-scan');if(b){b.disabled=false;b.textContent='כניסה ללוח הבקרה';b.onclick=async()=>{await onboardingFinish();switchView('dashboard')}}
+    const status=await api('/api/ranking/status');
+    renderOnboardingRankingStatus(status);
+    if(!status.ready){onboardingState.scanTimer=setTimeout(onboardingWatchRanking,700);return}
+    $('.onboarding-scan-stage')?.classList.add('complete');
+    const button=$('#onboarding-enter-ranked');
+    if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
+  }catch(error){
+    const target=$('#onboarding-ranking-status');
+    if(target)target.innerHTML=`<span><b>לא הצלחנו לקרוא את מצב הדירוג</b><small>${esc(error.message||'נסה שוב')}</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>`;
+    onboardingState.scanTimer=setTimeout(onboardingWatchRanking,1500);
   }
 }
-async function onboardingStartScan(){
-  const b=$('#onboarding-start-scan');b.disabled=true;b.textContent='מתחיל סריקה…';$('.onboarding-scan-stage')?.classList.add('scanning');
-  onboardingState.scanStartedAt=Date.now();onboardingState.scanObservedRunning=false;
-  syncOnboardingScanStatus({running:true,progress:{phase:'starting',completed:0,total:0,current_source:null}});
-  try{
-    // Start the very same site scan path used by the persistent "סרוק עכשיו" control.
-    await startSiteScan();
-    onboardingWatchScan();
-  }catch(e){toast(e.message);b.disabled=false;b.textContent='נסה להתחיל שוב'}
+async function onboardingStartRanking(){
+  if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
+  try{await onboardingFlushSave();await api('/api/ranking/refresh',{method:'POST'});}catch(error){toast(error.message)}
+  onboardingWatchRanking();
 }
+
 async function openOnboarding(preview=false){
   if(authState.user?.is_guest)return;
   // Always hydrate onboarding from the server so reopening it reflects what was actually saved.
@@ -4214,6 +4249,7 @@ async function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW
 
 function configureDeveloperTools(){
   const allowed=!adminPreviewActive()&&(authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true);$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  const importButton=$('#import-job-btn'); if(importButton) importButton.hidden=!allowed;
   const workerSetting=$('#admin-worker-setting');if(workerSetting)workerSetting.hidden=!allowed;
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }

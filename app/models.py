@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .database import Base
+from .database import Base, SHARED_CATALOG_USER_ID
 
 
 def utcnow() -> datetime:
@@ -14,6 +14,14 @@ class UserOwnedMixin:
     """Marker for rows that must never be visible across JobPilot accounts."""
 
     user_id: Mapped[str] = mapped_column(String(160), index=True, nullable=False, default="")
+
+
+class SharedCatalogMixin:
+    """Marker for the single job/source catalog shared by every JobPilot account."""
+
+    user_id: Mapped[str] = mapped_column(
+        String(160), index=True, nullable=False, default=SHARED_CATALOG_USER_ID
+    )
 
 
 class AppIdentity(Base):
@@ -78,7 +86,7 @@ class Profile(UserOwnedMixin, Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
-class Source(UserOwnedMixin, Base):
+class Source(SharedCatalogMixin, Base):
     __tablename__ = "sources"
     __table_args__ = (Index("ix_sources_user_track", "user_id", "career_track"),)
 
@@ -100,7 +108,7 @@ class Source(UserOwnedMixin, Base):
     jobs: Mapped[list[Job]] = relationship(back_populates="source", cascade="all, delete-orphan")
 
 
-class Job(UserOwnedMixin, Base):
+class Job(SharedCatalogMixin, Base):
     __tablename__ = "jobs"
     __table_args__ = (
         UniqueConstraint("source_id", "external_id", name="uq_job_source_external"),
@@ -134,6 +142,29 @@ class Job(UserOwnedMixin, Base):
 
     source: Mapped[Source] = relationship(back_populates="jobs")
     application: Mapped[Application | None] = relationship(back_populates="job", uselist=False)
+
+
+class UserJobState(UserOwnedMixin, Base):
+    """Per-user state for a row in the shared job catalog.
+
+    The source/job payload is global, while saved/skipped/application state and V1
+    fallback scoring remain private to each account. V2 scores continue to live in
+    JobRanking.
+    """
+
+    __tablename__ = "user_job_states"
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_id", name="uq_user_job_state_user_job"),
+        Index("ix_user_job_states_user_status", "user_id", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    status: Mapped[str] = mapped_column(String(40), default="new", index=True)
+    score: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    score_reasons_json: Mapped[str] = mapped_column(Text, default="[]")
+    match_breakdown_json: Mapped[str] = mapped_column(Text, default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class RankingSettings(Base):
@@ -175,9 +206,10 @@ class JobRanking(UserOwnedMixin, Base):
 
 class Application(UserOwnedMixin, Base):
     __tablename__ = "applications"
+    __table_args__ = (UniqueConstraint("user_id", "job_id", name="uq_application_user_job"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), unique=True, index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
     status: Mapped[str] = mapped_column(String(40), default="queued", index=True)
     mode: Mapped[str] = mapped_column(String(40), default="review")
     resume_path: Mapped[str] = mapped_column(String(500), default="")

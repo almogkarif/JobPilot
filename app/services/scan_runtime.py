@@ -174,27 +174,29 @@ def queued_scan_runs(db: Session) -> list[AuditLog]:
     return [row for row in rows if _details(row).get("status") == "queued" and _is_fresh_active(_details(row))]
 
 
+def _current_hour_boundary(now_local: datetime) -> datetime:
+    return now_local.replace(minute=0, second=0, microsecond=0)
+
+
 def next_scheduled_at(now_local: datetime | None = None) -> datetime:
+    """Return the next exact top-of-hour scan boundary."""
     tz = ZoneInfo(settings.timezone)
     now_local = now_local or datetime.now(tz)
     if now_local.tzinfo is None:
         now_local = now_local.replace(tzinfo=tz)
-    next_run = now_local.replace(hour=settings.scan_hour, minute=settings.scan_minute, second=0, microsecond=0)
-    if next_run <= now_local:
-        next_run += timedelta(days=1)
-    return next_run
+    current = _current_hour_boundary(now_local)
+    return current + timedelta(hours=1)
 
 
 def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | None = None) -> tuple[bool, datetime, datetime | None]:
+    """Return whether the shared catalog needs its scan for the current hour."""
     career_track = normalize_track(career_track)
     tz = ZoneInfo(settings.timezone)
     now_local = now_local or datetime.now(tz)
     if now_local.tzinfo is None:
         now_local = now_local.replace(tzinfo=tz)
-    scheduled = now_local.replace(hour=settings.scan_hour, minute=settings.scan_minute, second=0, microsecond=0)
-    # Prefer the durable scan-run record. A worker that crashes after updating only
-    # one source must remain due on the next hourly Actions run; using MAX(source.last_scanned_at)
-    # alone would incorrectly mark that failed scan as complete for the whole day.
+    scheduled = _current_hour_boundary(now_local)
+
     latest_run = latest_scan_log(db, career_track)
     run_details = _details(latest_run)
     finished = _parse_dt(run_details.get("finished_at"))
@@ -213,7 +215,6 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
         if latest.tzinfo is None:
             latest = latest.replace(tzinfo=timezone.utc)
         latest_local = latest.astimezone(tz)
-    # Source timestamps are only a legacy fallback when no durable run exists.
     already_completed = not latest_run and latest_local and latest_local >= scheduled
     due = now_local >= scheduled and not already_completed
     return due, scheduled, finished_local or latest_local

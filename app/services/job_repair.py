@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from ..models import AuditLog, Job, Source
 from ..utils import dumps
 from .job_cleanup import delete_job_tree
+from .job_text import job_text_quality
 
 _UUIDISH_TITLE = re.compile(
     r"^[0-9a-f]{8}[\s-]+[0-9a-f]{4}[\s-]+[0-9a-f]{4}[\s-]+[0-9a-f]{4}[\s-]+[0-9a-f]{12}$",
@@ -113,11 +114,54 @@ def repair_corrupted_official_jobs(db: Session) -> dict:
                 "dominant_location_count": dominant_location_count,
             }
 
+    # Generic description-quality recovery for already-persisted rows.  Future
+    # corrupt payloads are blocked by validate_source_payload(); this pass handles
+    # installations that saved bad card/CTA/page-wrapper text before those guards
+    # existed.  We do not delete these rows here: marking the source for a targeted
+    # refresh lets a successful scan replace them atomically.
+    quality_refreshes: dict[str, dict] = {}
+    for source in db.scalars(select(Source).where(Source.enabled.is_(True))).all():
+        source_jobs = db.scalars(select(Job).where(Job.source_id == source.id, Job.is_active.is_(True))).all()
+        count = len(source_jobs)
+        if count < 3:
+            continue
+        missing = sum(1 for job in source_jobs if job_text_quality(job.description) == "missing")
+        normalized_long = [
+            " ".join((job.description or "").casefold().split())
+            for job in source_jobs
+            if job_text_quality(job.description) != "missing"
+            and len(" ".join((job.description or "").split())) >= 200
+        ]
+        desc_counts = Counter(value for value in normalized_long if value)
+        dominant_description_count = desc_counts.most_common(1)[0][1] if desc_counts else 0
+        summary_cards = sum(
+            1 for job in source_jobs
+            if len(" ".join((job.description or "").split())) < 800
+            and re.search(r"\b(?:apply now|save for later|see full role description)\b", (job.description or ""), re.I)
+        )
+        reasons: list[str] = []
+        if missing >= max(3, int(count * .60 + .999)):
+            reasons.append(f"missing_descriptions={missing}/{count}")
+        if dominant_description_count >= max(3, int(count * .60 + .999)):
+            reasons.append(f"repeated_description={dominant_description_count}/{count}")
+        if summary_cards >= max(3, int(count * .75 + .999)):
+            reasons.append(f"summary_cards={summary_cards}/{count}")
+        if not reasons:
+            continue
+        source.last_scanned_at = None
+        source.disabled_until = None
+        affected_source_ids.append(source.id)
+        quality_refreshes[str(source.id)] = {"name": source.name, "reasons": reasons}
+
+    affected_source_ids = list(dict.fromkeys(affected_source_ids))
+    if quality_refreshes:
+        details["description_quality"] = quality_refreshes
+
     if affected_source_ids:
         db.add(AuditLog(
             event_type="legacy_job_rows_repaired",
             entity_type="source",
-            message=f"Removed {removed} corrupted legacy Mobileye/Taboola rows before fresh collection",
+            message=f"Prepared {len(affected_source_ids)} sources for clean recollection; removed {removed} legacy corrupt rows",
             details_json=dumps({"sources": affected_source_ids, "removed": removed, "preserved": preserved, "repaired_titles": repaired_titles, **details}),
         ))
         db.commit()

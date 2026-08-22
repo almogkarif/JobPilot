@@ -315,68 +315,272 @@ def _score_breakdown(reasons: list[dict]) -> dict[str, int]:
     return groups
 
 
-def extract_experience(text: str) -> tuple[float | None, float | None]:
-    """Extract the stated experience requirement.
+def _experience_clause_span(text: str, start: int, end: int, radius: int = 220) -> tuple[int, int]:
+    """Return stable bounds for the requirement-sized clause around a match."""
+    left = max(0, start - radius)
+    right = min(len(text), end + radius)
+    for separator in ("\n", ".", ";", "•", "|", "!"):
+        pos = text.rfind(separator, left, start)
+        if pos >= 0:
+            left = max(left, pos + 1)
+    candidates = [text.find(separator, end, right) for separator in ("\n", ".", ";", "•", "|", "!")]
+    candidates = [pos for pos in candidates if pos >= 0]
+    if candidates:
+        right = min(candidates)
+    return left, right
 
-    Numeric ranges keep both ends. A single number is treated as a minimum (``3+``),
-    which matches how job requirements are normally written. When a posting clearly
-    requires hands-on/work experience but gives no duration, JobPilot intentionally
-    maps it to a conservative one-year minimum instead of leaving it unknown.
+
+def _experience_clause(text: str, start: int, end: int, radius: int = 220) -> str:
+    """Return a nearby requirement-sized clause without swallowing the whole posting."""
+    left, right = _experience_clause_span(text, start, end, radius)
+    return text[left:right]
+
+
+_EXPERIENCE_OPTIONAL_CUES = (
+    "preferred", "preference", "advantage", "a plus", "plus", "nice to have", "nice-to-have",
+    "bonus", "desirable", "desired", "optional", "would be a plus", "ways to stand out",
+    "יתרון", "רצוי", "עדיפות", "מועדף", "מועדפת", "מהווה יתרון",
+)
+
+_EXPERIENCE_NEGATIVE_TERMS = (
+    "no experience", "no prior experience", "no previous experience", "experience not required",
+    "no professional experience required", "without prior experience", "ללא ניסיון", "ללא נסיון",
+    "אין צורך בניסיון", "אין צורך בנסיון", "לא נדרש ניסיון", "לא נדרש נסיון",
+    "לא נדרשת ניסיון", "לא נדרשת נסיון",
+)
+
+_EXPERIENCE_DOMAIN_FALSE_POSITIVES = (
+    "user experience", "customer experience", "candidate experience", "employee experience",
+    "developer experience", "learning experience", "shopping experience", "consumer experience",
+)
+
+
+def _optional_experience_context(text: str, start: int, end: int) -> bool:
+    clause = _experience_clause(text, start, end, radius=150)
+    return any(cue in clause for cue in _EXPERIENCE_OPTIONAL_CUES)
+
+
+def _requirement_section_context(text: str, start: int) -> bool:
+    """Return whether a bare phrase appears under the nearest requirements heading."""
+    before = text[max(0, start - 500):start]
+    requirement_terms = (
+        "requirements", "minimum qualifications", "qualifications", "what we need", "what you bring",
+        "דרישות", "דרישות התפקיד", "כישורים נדרשים", "תנאי סף",
+    )
+    responsibility_terms = (
+        "responsibilities", "what you'll do", "what you will do", "the role", "your role",
+        "אחריות", "תחומי אחריות", "תיאור התפקיד", "במסגרת התפקיד",
+    )
+    last_requirement = max((before.rfind(term) for term in requirement_terms), default=-1)
+    last_responsibility = max((before.rfind(term) for term in responsibility_terms), default=-1)
+    return last_requirement >= 0 and last_requirement > last_responsibility
+
+
+def _numeric_years_are_experience(text: str, start: int, end: int) -> bool:
+    """Require a real experience signal around an ``N years`` phrase.
+
+    This deliberately rejects unrelated durations (contracts, degree lengths, product
+    history, etc.) while still accepting common shorthand such as ``3+ years in C++``.
     """
-    lowered = str(text or "").casefold()
-    no_experience_terms = (
-        "no experience", "no prior experience", "no previous experience",
-        "experience not required", "no professional experience required",
-        "ללא ניסיון", "ללא נסיון", "אין צורך בניסיון", "אין צורך בנסיון",
-        "לא נדרש ניסיון", "לא נדרש נסיון", "new grad", "new graduate",
+    clause = _experience_clause(text, start, end)
+    if _optional_experience_context(text, start, end):
+        return False
+    local = text[max(0, start - 80):min(len(text), end + 150)]
+    if any(term in local for term in _EXPERIENCE_DOMAIN_FALSE_POSITIVES):
+        return False
+    if re.search(r"\b(?:years?|yrs?\.?)\s+(?:old|contract|temporary|program|programme|degree|warranty)\b", local):
+        return False
+    # Student postings frequently express time *remaining in education* using the
+    # exact same numeric shape as work experience (for example "1.5 years till
+    # graduation" or "studies expected to continue for at least 2 years").  Reject
+    # those durations before looking at a nearby, unrelated "experience with X".
+    study_duration_patterns = (
+        r"\b(?:years?|yrs?\.?)\s+(?:till|until|to)\s+(?:graduate|graduation)\b",
+        r"\b(?:years?|yrs?\.?)\s+(?:remaining|left)\b",
+        r"\b(?:stud(?:y|ies)|school|college|university)\b.{0,100}\b(?:at least\s+|minimum(?: of)?\s+)?\d+(?:\.\d+)?\s*(?:years?|yrs?\.?)\b",
+        r"\b\d+(?:\.\d+)?\s*(?:years?|yrs?\.?)\b.{0,80}\b(?:of study|of studies|until graduation|till graduation|to graduation)\b",
     )
-    if any(term in lowered for term in no_experience_terms):
-        return 0.0, 1.0
+    if any(re.search(pattern, local) for pattern in study_duration_patterns):
+        return False
+    if re.search(r"\b(?:experience|experienced|tenure)\b|(?:ניסיון|נסיון|ותק)", clause):
+        return True
+    after = text[end:min(len(text), end + 120)]
+    before = text[max(0, start - 80):start]
+    if re.match(r"\s*(?:of|in|with|as)\s+[a-z0-9+#./-]", after):
+        return True
+    if re.match(r"\s*(?:ב|עם|בתחום|בפיתוח|בעבודה)\S*", after):
+        return True
+    if re.search(r"(?:at least|minimum(?: of)?|required|requires?|must have)\s*$", before):
+        return True
+    if re.search(r"(?:לפחות|מינימום|נדרש(?:ת|ים|ות)?|חובה)\s*$", before):
+        return True
+    return False
 
-    ranges = re.findall(
-        r"(\d+(?:\.\d+)?)\s*(?:-|–|—|to)\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?\.?|שנות|שנים)",
-        lowered,
-    )
-    if ranges:
-        mins = [float(a) for a, _ in ranges]
-        maxs = [float(b) for _, b in ranges]
-        return min(mins), max(maxs)
 
-    singles = re.findall(
-        r"(?:at least|min(?:imum)?(?:\s+of)?|לפחות)?\s*"
-        r"(\d+(?:\.\d+)?)\s*(?:\+|or more|plus)?\s*"
-        r"(?:years?|yrs?\.?|שנות|שנים)(?:\s*(?:of\s+experience|experience|at least|minimum|לפחות))?",
-        lowered,
-    )
-    if singles:
-        value = min(float(x) for x in singles)
-        return value, None
-
+def _implicit_experience_match(text: str) -> bool:
     implicit_patterns = (
         r"\bhands[- ]on experience\b",
-        r"\bprofessional experience\b",
-        r"\bcommercial experience\b",
-        r"\bindustry experience\b",
-        r"\bwork experience\b",
-        r"\bexperience\s+(?:working|developing|building|designing|implementing|using)\b",
-        r"\bexperience\s+(?:with|in)\b",
-        r"ני?סיון\s+(?:עבודה|בעבודה)\s+עם",
-        r"ני?סיון\s+מעשי",
-        r"ני?סיון\s+מוכח",
-    )
-    optional_cues = (
-        "preferred", "advantage", "a plus", "nice to have", "nice-to-have", "bonus",
-        "יתרון", "רצוי", "עדיפות",
+        r"\b(?:professional|commercial|industry|relevant|prior|previous|proven|demonstrated|practical|technical) experience\b",
+        r"\bexperience\s+(?:working|developing|building|designing|implementing|using|managing|leading|supporting|testing|creating|verifying|validating|delivering)\b",
+        r"\bexperience\s+(?:with|in|as|on)\b",
+        r"\b(?:have|has|having)\s+worked\s+(?:with|in|on|as)\b",
+        r"\b(?:proven|demonstrated) track record\b",
+        r"ני?סיון\s+(?:עבודה|בעבודה|מעשי|מוכח|מקצועי|תעסוקתי|קודם|רלוונטי)",
+        r"ני?סיון\s+(?:ב|עם)\S*",
+        r"(?:בעל|בעלת|בעלי)\s+ני?סיון",
+        r"(?:נדרש(?:ת|ים|ות)?|דרוש(?:ה|ים|ות)?|חובה).{0,35}ני?סיון",
+        r"ני?סיון.{0,25}(?:חובה|נדרש(?:ת|ים|ות)?)",
     )
     for pattern in implicit_patterns:
-        for match in re.finditer(pattern, lowered):
-            # Keep optional/preferred experience from becoming a hard one-year
-            # requirement. The local window is deliberate so an unrelated
-            # “preferred” elsewhere in a long description does not suppress it.
-            window = lowered[max(0, match.start() - 90):min(len(lowered), match.end() + 120)]
-            if any(cue in window for cue in optional_cues):
+        for match in re.finditer(pattern, text):
+            clause = _experience_clause(text, match.start(), match.end(), radius=170)
+            if any(term in clause for term in _EXPERIENCE_DOMAIN_FALSE_POSITIVES):
                 continue
-            return 1.0, None
+            # A degree can substitute for "equivalent practical/work experience";
+            # that phrase is not itself a mandatory work-experience requirement.
+            if re.search(r"\b(?:degree|bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?)\b.{0,80}\bor equivalent (?:practical|work) experience\b", clause):
+                continue
+            if _optional_experience_context(text, match.start(), match.end()):
+                continue
+            return True
+
+    # "Experienced engineer" is meaningful only when it describes the candidate,
+    # not phrases such as "join an experienced team".
+    candidate_experienced = re.compile(
+        r"(?:\b(?:seeking|looking for|ideal for|hiring|need|want)\b.{0,90}\bexperienced\b.{0,45}"
+        r"(?:engineer|developer|scientist|architect|professional|candidate|manager|researcher))"
+        r"|(?:^|\n)\s*experienced\s+(?:[a-z0-9+#./-]+\s+){0,4}(?:engineer|developer|scientist|architect|manager|researcher)\b"
+    )
+    for match in candidate_experienced.finditer(text):
+        if not _optional_experience_context(text, match.start(), match.end()):
+            return True
+
+    # Bare "work with" / "עבודה עם" wording is ambiguous in responsibilities.
+    # Count it as one year only when the local sentence marks it mandatory or the
+    # nearest section heading is Qualifications/Requirements.  Ability-to-work-with
+    # teamwork language is explicitly excluded because it is not prior experience.
+    for match in re.finditer(r"עבודה\s+עם\s+\S+", text):
+        clause = _experience_clause(text, match.start(), match.end(), radius=120)
+        if any(cue in clause for cue in _EXPERIENCE_OPTIONAL_CUES):
+            continue
+        if re.search(r"(?:דרישות?|חובה|נדרש(?:ת|ים|ות)?|דרוש(?:ה|ים|ות)?)", clause) or _requirement_section_context(text, match.start()):
+            return True
+
+    for match in re.finditer(r"\b(?:work(?:ed|ing)?|working)\s+with\s+[a-z0-9+#./-]+", text):
+        clause = _experience_clause(text, match.start(), match.end(), radius=140)
+        lead_in = text[max(0, match.start() - 35):match.start()]
+        if re.search(r"(?:ability|able|capacity|willing)\s+to\s*$", lead_in):
+            continue
+        if any(cue in clause for cue in _EXPERIENCE_OPTIONAL_CUES):
+            continue
+        if re.search(r"\b(?:required|must|mandatory|requirements?)\b", clause) or _requirement_section_context(text, match.start()):
+            return True
+    return False
+
+
+def extract_experience(text: str) -> tuple[float | None, float | None]:
+    """Extract a conservative mandatory work-experience requirement.
+
+    Rules:
+    * Explicit numeric work-experience requirements win.
+    * Independent numeric requirements use the highest mandatory minimum, while
+      degree-dependent alternatives preserve their real conditional range (for
+      example ``BSc + 3 / MSc + 2 / PhD + 0`` becomes 0–3 rather than plain 0).
+    * A clear mandatory experience statement without a duration maps to one year.
+    * Optional/preferred experience and unrelated ``N years`` durations are ignored.
+    * Explicit no-experience roles remain zero-experience roles.
+    """
+    lowered = str(text or "").casefold().replace("’", "'").replace("–", "-").replace("—", "-")
+    if not lowered.strip():
+        return None, None
+
+    number = r"\d+(?:\.\d+)?"
+    year_word = r"(?:years?|yrs?\.?|שנים|שנות)"
+    ranges: list[tuple[float, float, int, int]] = []
+    occupied: list[tuple[int, int]] = []
+    range_pattern = re.compile(rf"(?P<low>{number})\s*(?:-|to|עד)\s*(?P<high>{number})\s*{year_word}")
+    for match in range_pattern.finditer(lowered):
+        if not _numeric_years_are_experience(lowered, match.start(), match.end()):
+            continue
+        low, high = float(match.group("low")), float(match.group("high"))
+        if high < low:
+            low, high = high, low
+        ranges.append((low, high, match.start(), match.end()))
+        occupied.append((match.start(), match.end()))
+
+    singles: list[tuple[float, int, int]] = []
+    single_pattern = re.compile(
+        rf"(?P<value>{number})\s*(?:\+|or more|plus)?\s*{year_word}(?:\s*['’])?"
+    )
+    for match in single_pattern.finditer(lowered):
+        if any(start <= match.start() < end for start, end in occupied):
+            continue
+        if not _numeric_years_are_experience(lowered, match.start(), match.end()):
+            continue
+        singles.append((float(match.group("value")), match.start(), match.end()))
+
+    # Also accept the less common "experience: 3 years" / "ניסיון של 3 שנים" form.
+    reverse_pattern = re.compile(
+        rf"(?:\bexperience\b|ני?סיון)(?:\s+(?:of|for|של))?\s*[:=-]?\s*(?P<value>{number})\s*{year_word}"
+    )
+    for match in reverse_pattern.finditer(lowered):
+        if _optional_experience_context(lowered, match.start(), match.end()):
+            continue
+        span = (match.start(), match.end())
+        if any(not (span[1] <= start or span[0] >= end) for start, end in occupied):
+            continue
+        value = float(match.group("value"))
+        singles.append((value, match.start(), match.end()))
+
+    numeric_candidates = [
+        {"minimum": low, "maximum": high, "start": start, "end": end}
+        for low, high, start, end in ranges
+    ] + [
+        {"minimum": value, "maximum": None, "start": start, "end": end}
+        for value, start, end in singles
+    ]
+    if numeric_candidates:
+        # Solve each sentence/bullet as one requirement first, then combine
+        # independent mandatory requirements with max().  Degree-dependent OR paths
+        # are special: "BSc + 3 years OR MSc + 2 OR PhD + 0" is truthfully a
+        # conditional 0–3 requirement, not plain 0 and not plain 3.
+        groups: dict[tuple[int, int], list[dict]] = {}
+        for candidate in numeric_candidates:
+            span = _experience_clause_span(lowered, candidate["start"], candidate["end"], radius=320)
+            groups.setdefault(span, []).append(candidate)
+
+        clause_requirements: list[tuple[float, float | None, bool]] = []
+        for (left, right), candidates in groups.items():
+            clause = lowered[left:right]
+            values = [float(item["minimum"]) for item in candidates]
+            has_degree = bool(re.search(
+                r"\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|advanced degree|degree)\b|(?:תואר|דוקטורט)",
+                clause,
+            ))
+            degree_alternative = len(values) > 1 and has_degree and bool(re.search(r"\bor\b|(?:^|\s)או(?:\s|$)", clause))
+            if degree_alternative:
+                clause_requirements.append((min(values), max(values), True))
+                continue
+            minimum = max(values)
+            explicit_ranges = [item for item in candidates if item["maximum"] is not None and item["minimum"] == minimum]
+            maximum = float(explicit_ranges[0]["maximum"]) if len(candidates) == 1 and explicit_ranges else None
+            clause_requirements.append((minimum, maximum, False))
+
+        overall_minimum = max(item[0] for item in clause_requirements)
+        governing = [item for item in clause_requirements if item[0] == overall_minimum]
+        # Only expose an upper bound when it is a real explicit range or a degree
+        # alternative that actually governs the overall requirement.  Subsidiary
+        # requirements such as "15+ years total, including 5+ years ..." stay 15+.
+        overall_maximum = None
+        if len(governing) == 1 and governing[0][1] is not None:
+            overall_maximum = governing[0][1]
+        return overall_minimum, overall_maximum
+
+    if any(term in lowered for term in _EXPERIENCE_NEGATIVE_TERMS):
+        return 0.0, 1.0
+
+    if _implicit_experience_match(lowered):
+        return 1.0, None
     return None, None
 
 

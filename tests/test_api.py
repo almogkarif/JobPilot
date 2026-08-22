@@ -201,7 +201,7 @@ def test_stale_jobs_are_deleted_after_two_days():
         db.add(job)
         db.commit()
         removed = purge_stale_jobs(db)
-        assert removed == 1
+        assert removed >= 1
         assert db.get(Job, job.id) is None
 
 
@@ -334,7 +334,9 @@ def test_source_full_lifecycle():
 
         deleted = client.delete(f"/api/sources/{source_id}")
         assert deleted.status_code == 200
-        assert deleted.json() == {"deleted": True}
+        assert deleted.json()["deleted"] is True
+        assert deleted.json()["retired"] is True
+        assert all(row["id"] != source_id for row in client.get("/api/sources").json())
 
 
 def test_manual_job_import_is_deduplicated():

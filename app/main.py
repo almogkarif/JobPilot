@@ -26,18 +26,18 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.responses import RedirectResponse
 import httpx
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import asc, case, desc, func, select, update
+from sqlalchemy import asc, case, desc, func, literal, select, update
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
 from app.utils import select_next_queued_application
 
 from .config import BASE_DIR, settings
-from .database import (Base, LOCAL_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
+from .database import (Base, LOCAL_USER_ID, SHARED_CATALOG_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
                        get_db, get_user_profile, set_user_scope, user_session)
 from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationCampaign, ApplicationEvent,
                      AppIdentity, AgentDevice, AuditLog, Blocker, CampaignRun, EmailConnection, Job, JobRanking,
-                     OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, utcnow)
+                     OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, UserJobState, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
@@ -61,7 +61,7 @@ from .services.application_submission import (automation_apply_url, build_submis
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
-from .services.matching import build_match_context, score_job
+from .services.matching import build_match_context, extract_experience, extract_skills, score_job
 from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
 from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result,
                                        rank_job as run_ranking, result_is_stale, v2_config)
@@ -77,6 +77,8 @@ from .services.github_actions import dispatch_application_workflow, dispatch_sca
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
+from .services.user_job_state import (attach_user_job_states, effective_status, effective_v1_payload,
+                                      persist_v1_state, set_job_status)
 from .utils import dumps, loads
 from .auth import (AuthIdentity, application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
                    create_agent_device, device_dict, require_application_agent_owner)
@@ -271,7 +273,7 @@ def _known_user_ids() -> list[str]:
     if settings.auth_mode != "supabase":
         return [LOCAL_USER_ID]
     with SessionLocal() as db:
-        return list(db.scalars(select(AppIdentity.auth_user_id).order_by(AppIdentity.id)).all())
+        return list(db.scalars(select(AppIdentity.auth_user_id).where(AppIdentity.role != "guest").order_by(AppIdentity.id)).all())
 
 
 def _active_track_key(user_id: str | None = None) -> str:
@@ -298,9 +300,7 @@ def _scan_status_payload(
     if settings.scheduler_enabled and payload["search_agent_active"]:
         tz = ZoneInfo(settings.timezone)
         now = datetime.now(tz)
-        next_run = now.replace(hour=settings.scan_hour, minute=settings.scan_minute, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
+        next_run = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         payload["next_scheduled_at"] = next_run.isoformat()
     else:
         payload["next_scheduled_at"] = None
@@ -310,8 +310,9 @@ def _scan_status_payload(
 
 def _effective_scan_status(db: Session, user_id: str, career_track: str) -> dict:
     if settings.scan_execution_mode.strip().lower() == "external":
-        return persistent_scan_status(db, career_track)
-    return _scan_status_payload(user_id, career_track, active_career_track=career_track)
+        with user_session(SHARED_CATALOG_USER_ID) as scan_db:
+            return persistent_scan_status(scan_db, career_track)
+    return _scan_status_payload(SHARED_CATALOG_USER_ID, career_track, active_career_track=career_track)
 
 def _ensure_dirs() -> None:
     RESUME_DIR.mkdir(parents=True, exist_ok=True)
@@ -338,42 +339,47 @@ def _update_scan_progress(user_id: str, career_track: str, progress: dict) -> No
     }
 
 
+def _queue_rankings_for_track(career_track: str) -> None:
+    """Refresh personal ranking/state after the one shared catalogue changes."""
+    track = normalize_track(career_track)
+    for user_id in _known_user_ids():
+        try:
+            if _active_track_key(user_id) == track:
+                _queue_profile_derived_refresh(user_id, track, True, False, True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[ranking queue warning:{user_id[:12]}:{track}] {exc}")
+
+
 async def _run_scan(
     source_ids: set[int] | None = None,
     career_track: str | None = None,
     user_id: str | None = None,
 ) -> dict:
-    user_id = user_id or (LOCAL_USER_ID if settings.auth_mode != "supabase" else "")
-    if not user_id:
-        raise RuntimeError("Cloud scan requires a user id")
-    career_track = normalize_track(career_track or _active_track_key(user_id))
-    user_lock = _user_scan_lock(user_id)
-    if user_lock.locked():
+    """Scan a track once into the global catalogue, never once per account."""
+    career_track = normalize_track(career_track or (DEFAULT_TRACK if user_id is None else _active_track_key(user_id)))
+    catalog_user = SHARED_CATALOG_USER_ID
+    lock = _user_scan_lock(catalog_user)
+    if lock.locked():
         return {"status": "already_running", "career_track": career_track}
-    async with user_lock:
-        if career_track != _active_track_key(user_id):
-            return {"status": "inactive_track", "career_track": career_track}
-        state = _user_scan_states(user_id)[career_track]
+    async with lock:
+        state = _user_scan_states(catalog_user)[career_track]
         state.update(
             running=True,
             last_started_at=utcnow().isoformat(),
             progress={"phase": "starting", "current": 0, "completed": 0, "total": 0, "current_source": None, "active_sources": []},
         )
         try:
-            # At ~10 accounts we allow a small number of whole-user scans at once.
-            # Each scan already has its own source-level concurrency, so this keeps a
-            # free/small server from launching dozens of Chromium/network collectors.
             async with global_user_scan_semaphore:
-                # Import collectors lazily. In cloud/external mode the Render web process
-                # never loads Playwright collectors at all; GitHub Actions owns scanning.
                 from .services.scanner import scan_all_sources
-                with user_session(user_id) as db:
+                with user_session(catalog_user) as db:
+                    install_recommended_sources(db, career_track)
                     result = await scan_all_sources(
-                        db, source_ids=source_ids, career_track=career_track,
-                        progress_callback=lambda progress: _update_scan_progress(user_id, career_track, progress),
+                        db, source_ids=source_ids, career_track=career_track, catalog_only=True,
+                        progress_callback=lambda progress: _update_scan_progress(catalog_user, career_track, progress),
                     )
             result["career_track"] = career_track
             state["last_result"] = result
+            _queue_rankings_for_track(career_track)
             return result
         finally:
             progress = dict(state.get("progress") or {})
@@ -387,38 +393,77 @@ async def _run_scan(
 async def _run_targeted_scan(user_id: str, source_ids: set[int], career_track: str) -> None:
     career_track = normalize_track(career_track)
     try:
-        await _run_scan(source_ids, career_track=career_track, user_id=user_id)
+        await _run_scan(source_ids, career_track=career_track)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001
-        _user_scan_states(user_id)[career_track]["last_result"] = {
+        _user_scan_states(SHARED_CATALOG_USER_ID)[career_track]["last_result"] = {
             "status": "failed", "error": str(exc), "source_ids": sorted(source_ids), "career_track": career_track
         }
 
 
-async def _daily_scheduler() -> None:
+async def _run_shared_hourly_cycle() -> list[dict]:
+    """Refresh every career-track partition of the one shared catalog once.
+
+    `_run_scan` intentionally uses one catalog-wide lock so an admin-triggered scan
+    and the scheduled cycle can never mutate the same shared tables concurrently.
+    Run track partitions sequentially rather than racing them against that lock.
+    """
+    results: list[dict] = []
+    for track in CAREER_TRACKS:
+        try:
+            results.append(await _run_scan(career_track=track.key))
+        except Exception as exc:  # noqa: BLE001
+            results.append({"status": "failed", "career_track": track.key, "error": str(exc)})
+    return results
+
+
+async def _hourly_scheduler() -> None:
     tz = ZoneInfo(settings.timezone)
     while True:
         now = datetime.now(tz)
-        next_run = now.replace(hour=settings.scan_hour, minute=settings.scan_minute, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
+        next_run = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
         await asyncio.sleep(max(1, (next_run - now).total_seconds()))
-        tasks = []
-        for user_id in _known_user_ids():
-            try:
-                track = _active_track_key(user_id)
-                tasks.append(asyncio.create_task(_run_scan(career_track=track, user_id=user_id)))
-            except Exception as exc:  # noqa: BLE001
-                _user_scan_states(user_id)[DEFAULT_TRACK]["last_result"] = {"error": str(exc)}
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        await _run_shared_hourly_cycle()
 
 
-async def _delayed_v2_engine_refresh(user_id: str, career_track: str) -> None:
+async def _delayed_v2_engine_refresh(
+    user_id: str, career_track: str, *, rescore_jobs: bool = False,
+) -> None:
     """Let the web process become responsive before low-priority migration work."""
     await asyncio.sleep(3)
-    _queue_profile_derived_refresh(user_id, career_track, False, False, True)
+    if rescore_jobs:
+        _queue_profile_derived_refresh(user_id, career_track, True, False, True)
+    else:
+        _queue_profile_derived_refresh(user_id, career_track, False, False, True)
+
+
+def _refresh_persisted_experience_fields(db: Session, career_track: str) -> int:
+    """Backfill experience fields from the current extractor without waiting for a rescan.
+
+    Collector/ranking semantics can improve while saved jobs remain unchanged for days.
+    Re-evaluating these two lightweight derived columns at startup makes existing jobs
+    reflect the current rules immediately and lets the caller schedule score refreshes
+    only when a persisted requirement actually changed.
+    """
+    track = normalize_track(career_track)
+    changed = 0
+    jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
+    for job in jobs:
+        minimum, maximum = extract_experience(f"{job.title or ''} {job.description or ''}")
+        if job.experience_min == minimum and job.experience_max == maximum:
+            continue
+        job.experience_min = minimum
+        job.experience_max = maximum
+        changed += 1
+    if changed:
+        db.add(AuditLog(
+            event_type="experience_requirements_refreshed", entity_type="job",
+            message=f"Refreshed experience requirements for {changed} saved jobs",
+            details_json=dumps({"career_track": track, "changed": changed}),
+        ))
+        db.commit()
+    return changed
 
 
 def _v2_engine_refresh_required(db: Session, career_track: str) -> bool:
@@ -447,19 +492,15 @@ def _v2_engine_refresh_required(db: Session, career_track: str) -> bool:
     return outdated is not None
 
 
-def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool]:
+def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool, bool]:
     repaired_source_ids: list[int] = []
     with user_session(user_id) as db:
         initialize_database(db)
         profile = get_user_profile(db)
         if not profile:
-            return DEFAULT_TRACK, [], False
+            return DEFAULT_TRACK, [], False, False
         ensure_track_state(profile)
         startup_track = active_track(profile)
-        # Keep the Applications list truthful even before the next source scan:
-        # inactive unsubmitted rows are removed immediately, while submitted history
-        # is retained for the configured 30-day grace period.
-        purge_stale_jobs(db, days=2, audit=False)
         pending_resume_analysis = db.scalars(select(ResumeProfile).where(
             ResumeProfile.extracted_text == "", ResumeProfile.career_track == startup_track
         )).all()
@@ -467,32 +508,19 @@ def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool]:
             _analyze_resume_record(resume, profile)
         if pending_resume_analysis:
             db.commit()
-        # Keep service startup bounded. Full ranking refreshes happen when profile
-        # inputs change, and stale/foreign cleanup happens during source scans.
-        # Re-running both across every saved job on each Render restart only burns
-        # CPU/DB round-trips without changing already-valid persisted results.
-        repair_result = repair_corrupted_official_jobs(db)
-        repaired_source_ids.extend(repair_result.get("source_ids") or [])
-        source_error_repair = repair_error_sources(db)
-        repaired_source_ids.extend(source_error_repair.get("source_ids") or [])
-        repaired_source_ids = list(dict.fromkeys(repaired_source_ids))
-        if repaired_source_ids:
-            repaired_source_ids = [
-                source_id for source_id in repaired_source_ids
-                if (db.get(Source, source_id) and db.get(Source, source_id).career_track == startup_track)
-            ]
         stale_claim = utcnow() - timedelta(minutes=30)
         stuck = db.scalars(select(Application).where(
             Application.status == "applying", Application.updated_at < stale_claim,
         )).all()
         for application in stuck:
             application.status = "queued"
-            application.job.status = "queued"
+            set_job_status(db, application.job, "queued")
             application.agent_id = ""
             application.last_error = "Recovered automatically after the Agent stopped responding"
         if stuck:
             db.add(AuditLog(event_type="stuck_tasks_recovered", message=f"Recovered {len(stuck)} stale Agent tasks"))
             db.commit()
+        experience_changed = False
         refresh_v2 = _v2_engine_refresh_required(db, startup_track)
         if refresh_v2:
             current_version = get_ranking_engine("v2").version
@@ -506,7 +534,24 @@ def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool]:
                 .values(stale=True)
             )
             db.commit()
-        return startup_track, repaired_source_ids, refresh_v2
+        return startup_track, [], refresh_v2, experience_changed
+
+
+def _prepare_shared_catalog() -> dict[str, list[int]]:
+    """Run source/job maintenance once for the global catalog, never per account."""
+    repaired_by_track: dict[str, list[int]] = {track.key: [] for track in CAREER_TRACKS}
+    with user_session(SHARED_CATALOG_USER_ID) as db:
+        for definition in CAREER_TRACKS:
+            install_recommended_sources(db, definition.key)
+        repaired = list(repair_corrupted_official_jobs(db).get("source_ids") or [])
+        repaired.extend(repair_error_sources(db).get("source_ids") or [])
+        for definition in CAREER_TRACKS:
+            _refresh_persisted_experience_fields(db, definition.key)
+        for source_id in dict.fromkeys(repaired):
+            source = db.get(Source, source_id)
+            if source:
+                repaired_by_track.setdefault(source.career_track, []).append(source.id)
+    return repaired_by_track
 
 
 @asynccontextmanager
@@ -526,27 +571,36 @@ async def lifespan(_: FastAPI):
         except Exception as exc:  # noqa: BLE001
             print(f"[storage warning] {exc}")
 
+    repaired_catalog = _prepare_shared_catalog()
+    if settings.scheduler_enabled:
+        for track, source_ids in repaired_catalog.items():
+            if source_ids:
+                task = asyncio.create_task(_run_targeted_scan(SHARED_CATALOG_USER_ID, set(source_ids), track))
+                startup_retry_tasks.add(task)
+                task.add_done_callback(startup_retry_tasks.discard)
+
     # Local mode has one implicit account. Cloud workspaces are provisioned on first
     # authenticated login; existing cloud accounts are maintained independently here.
     for user_id in _known_user_ids():
         try:
-            startup_track, repaired, refresh_v2 = _prepare_user_workspace(user_id)
+            startup_track, repaired, refresh_v2, experience_changed = _prepare_user_workspace(user_id)
             if refresh_v2:
                 # Do not start CPU-heavy migration work before Render can serve the
                 # first page. The delayed task then enters the globally-serialized
-                # low-priority V2 queue.
-                task = asyncio.create_task(_delayed_v2_engine_refresh(user_id, startup_track))
+                # low-priority V2 queue. If experience semantics changed too, refresh
+                # V1 scores as well so every active ranking mode uses the same rule.
+                task = asyncio.create_task(_delayed_v2_engine_refresh(
+                    user_id, startup_track, rescore_jobs=experience_changed,
+                ))
                 startup_retry_tasks.add(task)
                 task.add_done_callback(startup_retry_tasks.discard)
-            if repaired and settings.scheduler_enabled:
-                task = asyncio.create_task(_run_targeted_scan(user_id, set(repaired), startup_track))
-                startup_retry_tasks.add(task)
-                task.add_done_callback(startup_retry_tasks.discard)
+            elif experience_changed:
+                _queue_profile_derived_refresh(user_id, startup_track, True, False, False)
         except Exception as exc:  # noqa: BLE001 - one account must not block the service
             print(f"[workspace warning:{user_id[:12]}] {exc}")
 
     if settings.scheduler_enabled:
-        scheduler_task = asyncio.create_task(_daily_scheduler())
+        scheduler_task = asyncio.create_task(_hourly_scheduler())
     yield
     if scheduler_task:
         scheduler_task.cancel()
@@ -666,7 +720,7 @@ def auth_config():
 def auth_me(request: Request):
     identity = getattr(request.state, "identity", None)
     if settings.auth_mode != "supabase":
-        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True}}
+        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True, "developer_tools": True, "manual_scan": True, "write": True}}
     if not identity:
         raise HTTPException(401, "Authentication required")
     is_guest = bool(getattr(identity, "is_guest", False) or identity.role == "guest")
@@ -683,6 +737,7 @@ def auth_me(request: Request):
         "capabilities": {
             "application_agent": not is_guest,
             "developer_tools": False if is_guest else _developer_tools_allowed(identity),
+            "manual_scan": False if is_guest else _developer_tools_allowed(identity),
             "write": not is_guest,
         },
     }
@@ -734,27 +789,12 @@ def _primary_admin_user_id(db: Session) -> str:
 
 @contextmanager
 def _job_catalog_session(request: Request, request_db: Session):
-    """Yield the normal tenant DB, or the primary admin's catalog for a guest GET.
+    """Yield the request session; Source/Job are globally scoped shared rows.
 
-    Only endpoints that explicitly opt into this helper can see the shared catalog.
-    Guest write protection remains enforced by middleware and all other tenant data
-    continues to use the anonymous user's isolated scope.
+    Per-user rankings, application state and UserJobState remain scoped by the same
+    request session, so a shared catalog never exposes another account's private data.
     """
-    if not _request_is_guest(request):
-        yield request_db
-        return
-    admin_user_id = _primary_admin_user_id(request_db)
-    if not admin_user_id:
-        # A brand-new cloud instance may not have an admin yet. Preserve the guest's
-        # isolated demo catalog rather than failing the entire read-only experience.
-        yield request_db
-        return
-    catalog_db = SessionLocal()
-    set_user_scope(catalog_db, admin_user_id)
-    try:
-        yield catalog_db
-    finally:
-        catalog_db.close()
+    yield request_db
 
 
 def _job_payload_for_request(job: Job, request: Request, *, full: bool = False, profile: Profile | None = None) -> dict:
@@ -920,7 +960,7 @@ def developer_overview(request: Request, db: Session = Depends(get_db)):
     return {
         "app": {"version": app.version, "auth_mode": settings.auth_mode, "storage_mode": settings.storage_mode,
                 "scan_execution_mode": settings.scan_execution_mode, "scheduler_enabled": settings.scheduler_enabled,
-                "timezone": settings.timezone, "scan_time": f"{settings.scan_hour:02d}:{settings.scan_minute:02d}",
+                "timezone": settings.timezone, "scan_time": "כל שעה עגולה (:00)",
                 "max_users": settings.max_users, "max_concurrent_user_scans": settings.max_concurrent_user_scans},
         "identity": {"email": getattr(identity, "email", ""), "role": getattr(identity, "role", "admin"), "user_id": user_id},
         "track": track,
@@ -929,7 +969,9 @@ def developer_overview(request: Request, db: Session = Depends(get_db)):
                     "errors": sum(1 for enabled, error, _ in source_rows if enabled and error),
                     "average_health": round(sum(int(health or 0) for _, _, health in source_rows) / len(source_rows)) if source_rows else 0},
         "jobs": {"active": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True))) or 0,
-                 "strong": db.scalar(select(func.count()).select_from(Job).where(Job.career_track == track, Job.is_active.is_(True), Job.score >= 80)) or 0},
+                 "strong": db.scalar(select(func.count()).select_from(Job).join(UserJobState, UserJobState.job_id == Job.id).where(
+                     Job.career_track == track, Job.is_active.is_(True), UserJobState.score >= 80
+                 )) or 0},
         "agent": {"devices": len(devices), "enabled": sum(1 for device in devices if device.enabled),
                   "online": sum(1 for device in devices if device.enabled and device.last_seen_at and (utcnow() - device.last_seen_at).total_seconds() < 120),
                   "last_seen_at": devices[0].last_seen_at if devices else None},
@@ -975,8 +1017,11 @@ def developer_user_section(user_id: str, section: str, request: Request, db: Ses
             rows = tenant.scalars(select(Source).order_by(Source.career_track, Source.name)).all()
             return {"title": "Sources", "items": [{"primary": row.name, "secondary": f"{row.career_track} · {'פעיל' if row.enabled else 'כבוי'} · health {row.health_score}%"} for row in rows]}
         if section == "jobs":
-            rows = tenant.scalars(select(Job).order_by(desc(Job.score), desc(Job.discovered_at)).limit(100)).all()
-            return {"title": "Jobs", "items": [{"primary": row.title, "secondary": f"{row.company} · {row.location} · score {row.score}"} for row in rows]}
+            rows = tenant.scalars(select(Job).outerjoin(UserJobState, UserJobState.job_id == Job.id).order_by(
+                desc(func.coalesce(UserJobState.score, 0)), desc(Job.discovered_at)
+            ).limit(100)).all()
+            attach_user_job_states(tenant, rows)
+            return {"title": "Jobs", "items": [{"primary": row.title, "secondary": f"{row.company} · {row.location} · score {effective_v1_payload(row)[0]}"} for row in rows]}
         if section == "applications":
             rows = tenant.scalars(select(Application).options(joinedload(Application.job)).order_by(desc(Application.updated_at)).limit(100)).all()
             return {"title": "Applications", "items": [{"primary": row.job.title if row.job else f"Application #{row.id}", "secondary": f"{row.status} · {row.job.company if row.job else ''}"} for row in rows]}
@@ -1178,7 +1223,10 @@ def _ranking_comparison(user_id: str, *, config: RankingV2Config | None = None, 
         if not profile:
             raise HTTPException(404, "Profile not found")
         track = active_track(profile)
-        jobs = tenant.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True)).order_by(desc(Job.score)).limit(sample_size)).all()
+        jobs = tenant.scalars(select(Job).outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
+            Job.career_track == track, Job.is_active.is_(True)
+        ).order_by(desc(func.coalesce(UserJobState.score, 0)), desc(Job.discovered_at)).limit(sample_size)).all()
+        attach_user_job_states(tenant, jobs)
         existing = {row.job_id: row for row in tenant.scalars(select(JobRanking).where(JobRanking.engine == "v2", JobRanking.job_id.in_([job.id for job in jobs] or [-1]))).all()}
         context = build_match_context(profile, career_track=track)
         production_settings = get_ranking_settings(tenant)
@@ -1196,7 +1244,8 @@ def _ranking_comparison(user_id: str, *, config: RankingV2Config | None = None, 
                 v2_score, tier, eligibility, confidence = result.score, result.tier, result.eligibility, result.confidence
                 if persist:
                     persist_v2_result(tenant, job, profile, production_settings, context=context)
-            output.append({"job_id": job.id, "job": job.title, "company": job.company, "v1_score": job.score, "v2_score": v2_score, "delta": v2_score - job.score, "tier": tier, "eligibility": eligibility.get("state", "unknown"), "confidence": confidence})
+            v1_score, _, _ = effective_v1_payload(job)
+            output.append({"job_id": job.id, "job": job.title, "company": job.company, "v1_score": v1_score, "v2_score": v2_score, "delta": v2_score - v1_score, "tier": tier, "eligibility": eligibility.get("state", "unknown"), "confidence": confidence})
         if persist:
             tenant.commit()
         tier_rank = {"top_match": 5, "strong_match": 4, "good_match": 3, "low_match": 2, "stretch": 1, "excluded": 0}
@@ -1224,7 +1273,8 @@ def ranking_lab_inspect(user_id: str, job_id: int, request: Request, db: Session
         if not profile or not job:
             raise HTTPException(404, "Job or profile not found")
         result = run_ranking(job, profile, "v2", v2_config(get_ranking_settings(tenant)), context=build_match_context(profile, career_track=job.career_track))
-        return {"user_id": user_id, "job": {"id": job.id, "title": job.title, "company": job.company}, "v1": {"score": job.score, "reasons": loads(job.score_reasons_json, []), "breakdown": loads(job.match_breakdown_json, {})}, "v2": result.to_dict()}
+        v1_score, v1_reasons, v1_breakdown = effective_v1_payload(job, tenant)
+        return {"user_id": user_id, "job": {"id": job.id, "title": job.title, "company": job.company}, "v1": {"score": v1_score, "reasons": v1_reasons, "breakdown": v1_breakdown}, "v2": result.to_dict()}
 
 
 @app.post("/api/admin/developer/ranking/preview")
@@ -1423,8 +1473,8 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
             select(
                 Job.career_track,
                 func.sum(case((Job.is_active.is_(True), 1), else_=0)),
-                func.sum(case((Job.is_active.is_(True) & (Job.score >= 80), 1), else_=0)),
-            ).group_by(Job.career_track)
+                func.sum(case((Job.is_active.is_(True) & (func.coalesce(UserJobState.score, 0) >= 80), 1), else_=0)),
+            ).outerjoin(UserJobState, UserJobState.job_id == Job.id).group_by(Job.career_track)
         ).all()
     for track_key, jobs, strong_matches in job_rows:
         key = normalize_track(track_key)
@@ -1449,7 +1499,7 @@ def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats
             source_errors=track_stats.get("source_errors", 0),
             jobs=track_stats.get("jobs", 0),
         ))
-    return {"active_track": current, "tracks": rows, "scanning": _user_scan_lock(current_user_id(db)).locked()}
+    return {"active_track": current, "tracks": rows, "scanning": _user_scan_lock(SHARED_CATALOG_USER_ID).locked()}
 
 
 ONBOARDING_VERSION = 2
@@ -1567,19 +1617,26 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         top_jobs_statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
             Job.is_active.is_(True), Job.career_track == career_track,
         )
-        if not guest_catalog:
-            top_jobs_statement = top_jobs_statement.where(Job.status != "submitted")
         ranking_settings = get_ranking_settings(catalog_db)
-        if ranking_settings.active_engine == "v2":
+        v2_active = ranking_settings.active_engine == "v2" and not guest_catalog
+        if not guest_catalog:
+            top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
+                func.coalesce(UserJobState.status, "new") != "submitted"
+            )
+        if v2_active:
             top_jobs_statement = top_jobs_statement.join(JobRanking, JobRanking.job_id == Job.id).where(
                 JobRanking.engine == "v2",
                 JobRanking.engine_version == get_ranking_engine("v2").version,
                 JobRanking.stale.is_(False), JobRanking.error == "", JobRanking.eligibility_state != "excluded",
             ).order_by(desc(_v2_tier_order()), desc(JobRanking.score), desc(Job.published_at), desc(Job.discovered_at))
+        elif not guest_catalog:
+            top_jobs_statement = top_jobs_statement.order_by(desc(func.coalesce(UserJobState.score, 0)), desc(Job.published_at), desc(Job.discovered_at))
         else:
-            top_jobs_statement = top_jobs_statement.order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at))
+            top_jobs_statement = top_jobs_statement.order_by(desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id))
         top_jobs = catalog_db.scalars(top_jobs_statement.limit(5)).all()
-        if ranking_settings.active_engine == "v2":
+        if not guest_catalog:
+            attach_user_job_states(catalog_db, top_jobs)
+        if v2_active:
             _attach_v2_rankings(catalog_db, top_jobs)
         recent_jobs = [
             _job_payload_for_request(job, request, profile=profile)
@@ -2130,7 +2187,7 @@ def list_sources(db: Session = Depends(get_db)):
     visible = []
     for source in sources:
         metadata = loads(source.metadata_json, {})
-        if isinstance(metadata, dict) and metadata.get("duplicate_of"):
+        if isinstance(metadata, dict) and (metadata.get("duplicate_of") or metadata.get("retired")):
             continue
         visible.append(source)
     return [_source_dict(source) for source in visible]
@@ -2143,14 +2200,18 @@ def list_recommended_sources(db: Session = Depends(get_db)):
 
 
 @app.post("/api/sources/recommended/install")
-def add_recommended_sources(db: Session = Depends(get_db)):
+def add_recommended_sources(request: Request, db: Session = Depends(get_db)):
+    if not _developer_tools_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "Source management is available to administrators only")
     track = active_track(get_user_profile(db))
     installed = install_recommended_sources(db, track)
     return {"installed": installed, "sources": recommended_source_status(db, track), "career_track": track}
 
 
 @app.post("/api/sources")
-def add_source(payload: SourceCreate, db: Session = Depends(get_db)):
+def add_source(payload: SourceCreate, request: Request, db: Session = Depends(get_db)):
+    if not _developer_tools_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "Source management is available to administrators only")
     if payload.kind not in {"greenhouse", "ashby", "lever", "google_careers", "workday", "official_careers", "smartrecruiters"}:
         raise HTTPException(400, "Supported source kind")
     track = active_track(get_user_profile(db))
@@ -2175,7 +2236,9 @@ def _active_source_or_404(db: Session, source_id: int) -> Source:
 
 
 @app.patch("/api/sources/{source_id}")
-def edit_source(source_id: int, payload: SourceUpdate, db: Session = Depends(get_db)):
+def edit_source(source_id: int, payload: SourceUpdate, request: Request, db: Session = Depends(get_db)):
+    if not _developer_tools_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "Source management is available to administrators only")
     source = _active_source_or_404(db, source_id)
     for key, value in payload.model_dump(exclude_none=True).items():
         setattr(source, key, value)
@@ -2187,50 +2250,105 @@ def edit_source(source_id: int, payload: SourceUpdate, db: Session = Depends(get
 
 
 @app.delete("/api/sources/{source_id}")
-def delete_source(source_id: int, db: Session = Depends(get_db)):
+def delete_source(source_id: int, request: Request, db: Session = Depends(get_db)):
+    if not _developer_tools_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "Source management is available to administrators only")
     source = _active_source_or_404(db, source_id)
-    # A source owns its jobs, but Job.application is intentionally not configured
-    # with delete-orphan. Remove the complete job tree explicitly so a source can
-    # always be deleted without leaving applications/blockers behind.
+    # Sources/jobs are shared across every account. Physical deletion could orphan
+    # another user's saved/submitted application history, so an administrator
+    # "delete" retires the source and deactivates its current catalog rows instead.
+    metadata = loads(source.metadata_json, {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata["retired"] = True
+    metadata["retired_at"] = utcnow().isoformat()
+    source.metadata_json = dumps(metadata)
+    source.enabled = False
+    removed_at = utcnow()
     for job in list(source.jobs):
-        delete_job_tree(db, job)
-        # Remove the already-deleted child from the in-memory collection so the
-        # Source delete-orphan cascade does not issue a duplicate DELETE.
-        if job in source.jobs:
-            source.jobs.remove(job)
-    db.flush()
-    db.delete(source); db.commit()
-    return {"deleted": True}
+        if job.is_active:
+            job.is_active = False
+            job.removed_at = job.removed_at or removed_at
+    db.add(AuditLog(event_type="source_retired", entity_type="source", entity_id=str(source.id),
+                    message=f"Retired shared source {source.name}"))
+    db.commit()
+    return {"deleted": True, "retired": True}
 
 
 @app.post("/api/scan", status_code=202)
-async def trigger_scan(db: Session = Depends(get_db)):
-    user_id = current_user_id(db)
+async def trigger_scan(request: Request, db: Session = Depends(get_db)):
+    identity = getattr(request.state, "identity", None)
+    if not _developer_tools_allowed(identity):
+        raise HTTPException(403, "Manual job scans are available to administrators only")
     track = active_track(get_user_profile(db))
     if settings.scan_execution_mode.strip().lower() == "external":
-        log, created = create_scan_run(db, track, trigger="manual")
+        with user_session(SHARED_CATALOG_USER_ID) as scan_db:
+            log, created = create_scan_run(scan_db, track, trigger="manual")
+            run_id = log.entity_id
         if not created:
-            return {"status": "already_running", "career_track": track, "run_id": log.entity_id, "worker": "github_actions"}
+            return {"status": "already_running", "career_track": track, "run_id": run_id, "worker": "github_actions"}
         try:
             await run_in_threadpool(dispatch_scan_workflow, "queued")
         except Exception as exc:  # noqa: BLE001
-            update_scan_run(
-                db, log.entity_id, track, status="failed", error=str(exc), finished=True,
-                result={"status": "failed", "error": "Could not start the external scan worker", "career_track": track},
-            )
+            with user_session(SHARED_CATALOG_USER_ID) as scan_db:
+                update_scan_run(
+                    scan_db, run_id, track, status="failed", error=str(exc), finished=True,
+                    result={"status": "failed", "error": "Could not start the external scan worker", "career_track": track},
+                )
             raise HTTPException(503, f"לא ניתן להפעיל את סורק GitHub Actions: {exc}") from exc
-        return {"status": "queued", "career_track": track, "run_id": log.entity_id, "worker": "github_actions"}
-    if _user_scan_lock(user_id).locked():
+        return {"status": "queued", "career_track": track, "run_id": run_id, "worker": "github_actions"}
+    if _user_scan_lock(SHARED_CATALOG_USER_ID).locked():
         return {"status": "already_running", "career_track": track}
-    asyncio.create_task(_run_scan(career_track=track, user_id=user_id))
+    asyncio.create_task(_run_scan(career_track=track))
     return {"status": "started", "career_track": track}
 
 
 @app.get("/api/scan/status")
 def get_scan_status(db: Session = Depends(get_db)):
-    user_id = current_user_id(db)
     track = active_track(get_user_profile(db))
-    return _effective_scan_status(db, user_id, track)
+    if settings.scan_execution_mode.strip().lower() == "external":
+        with user_session(SHARED_CATALOG_USER_ID) as scan_db:
+            return persistent_scan_status(scan_db, track)
+    return _scan_status_payload(SHARED_CATALOG_USER_ID, track, active_career_track=track)
+
+
+@app.post("/api/ranking/refresh", status_code=202)
+def refresh_personal_ranking(db: Session = Depends(get_db)):
+    user_id = current_user_id(db)
+    profile = get_user_profile(db)
+    track = active_track(profile)
+    _queue_profile_derived_refresh(user_id, track, True, False, True)
+    return {"status": "queued", "career_track": track}
+
+
+@app.get("/api/ranking/status")
+def personal_ranking_status(db: Session = Depends(get_db)):
+    user_id = current_user_id(db)
+    profile = get_user_profile(db)
+    track = active_track(profile)
+    refresh = _ranking_refresh_status(user_id, track)
+    total = int(db.scalar(select(func.count()).select_from(Job).where(
+        Job.career_track == track, Job.is_active.is_(True)
+    )) or 0)
+    ranking_settings = get_ranking_settings(db)
+    if ranking_settings.active_engine == "v2":
+        ranked = int(db.scalar(select(func.count()).select_from(JobRanking).join(Job, JobRanking.job_id == Job.id).where(
+            Job.career_track == track, Job.is_active.is_(True), JobRanking.engine == "v2",
+            JobRanking.engine_version == get_ranking_engine("v2").version,
+            JobRanking.stale.is_(False), JobRanking.error == "",
+        )) or 0)
+    else:
+        ranked = int(db.scalar(select(func.count()).select_from(UserJobState).join(Job, UserJobState.job_id == Job.id).where(
+            Job.career_track == track, Job.is_active.is_(True)
+        )) or 0)
+    return {
+        "career_track": track,
+        "running": bool(refresh.get("running")),
+        "total": total,
+        "ranked": min(ranked, total),
+        "ready": total == 0 or (not refresh.get("running") and ranked >= total),
+        "message": refresh.get("message", ""),
+    }
 
 
 @app.get("/api/jobs")
@@ -2253,9 +2371,17 @@ def list_jobs(
 
     with _job_catalog_session(request, db) as catalog_db:
         ranking_settings = get_ranking_settings(catalog_db)
-        v2_active = ranking_settings.active_engine == "v2"
+        v2_active = ranking_settings.active_engine == "v2" and not guest_catalog
         statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(Job.career_track == career_track)
         count_statement = select(func.count()).select_from(Job).where(Job.career_track == career_track)
+        if not guest_catalog:
+            # Fetch the current user's state in the same query that fetches the
+            # shared Job rows. This keeps the shared-catalog split from adding an
+            # extra round-trip to the hottest listing endpoint.
+            statement = select(Job, UserJobState).options(
+                joinedload(Job.source), joinedload(Job.application)
+            ).outerjoin(UserJobState, UserJobState.job_id == Job.id).where(Job.career_track == career_track)
+            count_statement = count_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id)
         if v2_active:
             ranking_filter = (
                 JobRanking.engine == "v2",
@@ -2265,24 +2391,24 @@ def list_jobs(
             )
             statement = statement.join(JobRanking, JobRanking.job_id == Job.id).where(*ranking_filter)
             count_statement = count_statement.join(JobRanking, JobRanking.job_id == Job.id).where(*ranking_filter)
-        else:
-            statement = statement.where(Job.score >= min_score)
-            count_statement = count_statement.where(Job.score >= min_score)
+        elif not guest_catalog:
+            statement = statement.where(func.coalesce(UserJobState.score, 0) >= min_score)
+            count_statement = count_statement.where(func.coalesce(UserJobState.score, 0) >= min_score)
         if active_only:
             statement = statement.where(Job.is_active.is_(True))
             count_statement = count_statement.where(Job.is_active.is_(True))
         # A guest sees neutral read-only opportunities, not the admin's private
         # saved/submitted state. Ignore the status filter in shared-catalog mode.
         if status and not guest_catalog:
-            statement = statement.where(Job.status == status)
-            count_statement = count_statement.where(Job.status == status)
+            statement = statement.where(func.coalesce(UserJobState.status, "new") == status)
+            count_statement = count_statement.where(func.coalesce(UserJobState.status, "new") == status)
         if query:
             pattern = f"%{query}%"
             query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
             statement = statement.where(query_filter)
             count_statement = count_statement.where(query_filter)
 
-        active_score = JobRanking.score if v2_active else Job.score
+        active_score = JobRanking.score if v2_active else (func.coalesce(UserJobState.score, 0) if not guest_catalog else literal(0))
         score_desc_order = ((desc(_v2_tier_order()), desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))
                             if v2_active else (desc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id)))
         sort_map = {
@@ -2303,9 +2429,17 @@ def list_jobs(
             total = int(catalog_db.scalar(count_statement) or 0)
             pages = max(1, (total + page_size - 1) // page_size)
             effective_page = min(page, pages)
-            jobs = catalog_db.scalars(statement.offset((effective_page - 1) * page_size).limit(page_size)).all()
+            limited_statement = statement.offset((effective_page - 1) * page_size).limit(page_size)
         else:
-            jobs = catalog_db.scalars(statement.limit(limit)).all()
+            limited_statement = statement.limit(limit)
+        if guest_catalog:
+            jobs = catalog_db.scalars(limited_statement).all()
+        else:
+            rows = catalog_db.execute(limited_statement).unique().all()
+            jobs = []
+            for job, user_state in rows:
+                setattr(job, "_user_job_state", user_state)
+                jobs.append(job)
         if v2_active:
             _attach_v2_rankings(catalog_db, jobs)
         items = [_job_payload_for_request(job, request, profile=profile) for job in jobs]
@@ -2333,13 +2467,16 @@ def get_job(job_id: int, request: Request, db: Session = Depends(get_db)):
         job = catalog_db.get(Job, job_id, options=(joinedload(Job.source), joinedload(Job.application)))
         if not job or job.career_track != career_track:
             raise HTTPException(404, "Job not found")
-        if get_ranking_settings(catalog_db).active_engine == "v2":
-            _attach_v2_rankings(catalog_db, [job])
+        if not _request_is_guest(request):
+            attach_user_job_states(catalog_db, [job])
+            if get_ranking_settings(catalog_db).active_engine == "v2":
+                _attach_v2_rankings(catalog_db, [job])
         return _job_payload_for_request(job, request, full=True, profile=profile)
 
 
 @app.post("/api/jobs/import")
-def import_job(payload: ImportJobRequest, db: Session = Depends(get_db)):
+def import_job(payload: ImportJobRequest, request: Request, db: Session = Depends(get_db)):
+    _require_developer(request)
     if not is_israel_location(payload.location):
         raise HTTPException(400, "JobPilot שומר רק משרות שמיקומן בישראל. יש להזין מיקום ישראלי מפורש.")
     profile = get_user_profile(db)
@@ -2358,15 +2495,14 @@ def import_job(payload: ImportJobRequest, db: Session = Depends(get_db)):
               source_url=payload.apply_url, workplace="unknown", published_at=utcnow())
     default_resume = db.scalar(select(ResumeProfile).where(ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track))
     result = score_job(job, profile, loads(default_resume.skills_json, []) if default_resume else [])
-    job.score = result.score
-    job.score_reasons_json = dumps(result.reasons)
-    job.match_breakdown_json = dumps(result.breakdown)
-    job.skills_json = dumps(result.skills)
-    job.experience_min = result.experience_min
-    job.experience_max = result.experience_max
+    job.skills_json = dumps(extract_skills(f"{job.title} {job.description} {job.location}"))
+    job.experience_min, job.experience_max = extract_experience(f"{job.title} {job.description} {job.location}")
     db.add(job)
+    db.flush()
+    persist_v1_state(db, job, result)
     db.commit()
     db.refresh(job)
+    attach_user_job_states(db, [job])
     return _job_dict(job, profile=profile)
 
 
@@ -2544,9 +2680,11 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
         message=f"Deleted {company} — {title}",
         details_json=dumps({"title": title, "company": company, "location": location}),
     ))
-    delete_job_tree(db, job)
+    # The Job row belongs to the shared catalog. A user's delete action therefore
+    # means "hide/skip for me" and must never remove the listing for other users.
+    set_job_status(db, job, "skipped")
     db.commit()
-    return {"deleted": True, "id": job_id, "title": title, "company": company}
+    return {"deleted": True, "hidden": True, "id": job_id, "title": title, "company": company}
 
 
 @app.post("/api/jobs/{job_id}/queue")
@@ -2591,7 +2729,7 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         # running. ``updated_at`` is the persisted priority timestamp used by
         # both the UI snapshot and the cloud worker claim path.
         application.updated_at = utcnow()
-    job.status = "queued"
+    set_job_status(db, job, "queued")
     db.flush()
     _record_application_event(
         db, application, "auto_submit_approved" if payload.approve_submit else "queued",
@@ -2690,10 +2828,25 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
     blocked = {name.casefold() for name in loads(campaign.blocked_companies_json, [])}
     remaining_budget = campaign.budget_cap - campaign.spent if campaign.budget_cap is not None else campaign.daily_cap
     limit = max(0, min(campaign.daily_cap, remaining_budget))
-    jobs = db.scalars(select(Job).where(
-        Job.career_track == campaign.career_track, Job.is_active.is_(True), Job.score >= campaign.min_score,
-        Job.status.in_(["new", "saved", "failed"]),
-    ).order_by(desc(Job.score), desc(Job.published_at), desc(Job.discovered_at))).all()
+    ranking_engine = get_ranking_settings(db).active_engine
+    if ranking_engine == "v2":
+        jobs = db.scalars(select(Job).join(
+            JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2") & JobRanking.stale.is_(False)
+        ).outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
+            Job.career_track == campaign.career_track, Job.is_active.is_(True),
+            JobRanking.eligibility_state != "excluded", JobRanking.score >= campaign.min_score,
+            func.coalesce(UserJobState.status, "new").in_(["new", "saved", "failed"]),
+        ).order_by(desc(JobRanking.score), desc(Job.published_at), desc(Job.discovered_at))).all()
+        v2_rows = {row.job_id: row for row in db.scalars(select(JobRanking).where(
+            JobRanking.engine == "v2", JobRanking.stale.is_(False), JobRanking.job_id.in_([job.id for job in jobs] or [-1])
+        )).all()}
+    else:
+        jobs = db.scalars(select(Job).join(UserJobState, UserJobState.job_id == Job.id).where(
+            Job.career_track == campaign.career_track, Job.is_active.is_(True), UserJobState.score >= campaign.min_score,
+            UserJobState.status.in_(["new", "saved", "failed"]),
+        ).order_by(desc(UserJobState.score), desc(Job.published_at), desc(Job.discovered_at))).all()
+        v2_rows = {}
+    attach_user_job_states(db, jobs)
     selected, skipped = [], []
     for job in jobs:
         if job.company.casefold() in blocked:
@@ -2710,8 +2863,9 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
         if len(selected) >= limit:
             skipped.append({"job_id": job.id, "reason": "daily_or_budget_cap"})
             continue
+        score = int(v2_rows[job.id].score) if ranking_engine == "v2" and job.id in v2_rows else effective_v1_payload(job)[0]
         selected.append({
-            "job_id": job.id, "title": job.title, "company": job.company, "score": job.score,
+            "job_id": job.id, "title": job.title, "company": job.company, "score": score,
             "adapter": preview["adapter"]["key"], "resume_id": resume.id if resume else None,
         })
     raw_token = secrets.token_urlsafe(32)
@@ -2729,7 +2883,6 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
         "selected": selected, "skipped": skipped,
         "will_queue_count": len(selected), "campaign": _campaign_dict(campaign),
     }
-
 
 @app.post("/api/application-campaign/runs/{run_id}/activate")
 async def activate_application_campaign(run_id: int, request: Request, db: Session = Depends(get_db)):
@@ -2750,7 +2903,7 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
     profile = get_user_profile(db)
     for item in loads(run.selected_jobs_json, []):
         job = db.get(Job, int(item["job_id"]))
-        if not job or not job.is_active or job.status not in {"new", "saved", "failed"}:
+        if not job or not job.is_active or effective_status(job, db) not in {"new", "saved", "failed"}:
             continue
         resume = db.get(ResumeProfile, item.get("resume_id")) if item.get("resume_id") else _best_resume_for_job(db, job)
         if not build_submission_preview(job, profile, resume)["ready"]:
@@ -2768,7 +2921,7 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
         answers = loads(application.answers_json, {})
         answers[ONE_TIME_SUBMIT_KEY] = True
         application.answers_json = dumps(answers)
-        job.status = "queued"
+        set_job_status(db, job, "queued")
         db.flush()
         _record_application_event(db, application, "campaign_queued", to_status="queued", actor="campaign",
                                   message=job.title, details={"campaign_run_id": run.id, "adapter": item.get("adapter")})
@@ -2823,14 +2976,14 @@ def save_job(job_id: int, db: Session = Depends(get_db)):
         application = Application(job_id=job.id, status="saved", mode="review", resume_path=profile.cv_path)
         db.add(application)
     elif application.status != "submitted": application.status = "saved"
-    job.status = "saved"; db.commit(); db.refresh(application)
+    set_job_status(db, job, "saved"); db.commit(); db.refresh(application)
     return _application_dict(application, db)
 
 
 @app.post("/api/jobs/{job_id}/skip")
 def skip_job(job_id: int, db: Session = Depends(get_db)):
     job = _active_job_or_404(db, job_id)
-    job.status = "skipped"
+    set_job_status(db, job, "skipped")
     if job.application and job.application.status != "submitted":
         job.application.status = "skipped"
     db.commit()
@@ -2865,7 +3018,7 @@ def mark_job_submitted(job_id: int, db: Session = Depends(get_db)):
                 blocker.status = "resolved"
                 blocker.answer = "הושלם ידנית"
                 blocker.resolved_at = utcnow()
-    job.status = "submitted"
+    set_job_status(db, job, "submitted")
     db.add(AuditLog(
         event_type="application_marked_submitted",
         entity_type="job",
@@ -2924,7 +3077,7 @@ def update_application(application_id: int, payload: ApplicationUpdate, db: Sess
         if payload.status not in allowed:
             raise HTTPException(400, "Invalid application status")
         application.status = payload.status
-        application.job.status = payload.status
+        set_job_status(db, application.job, payload.status)
         if payload.status == "submitted" and not application.submitted_at:
             application.submitted_at = utcnow()
     if payload.notes is not None: application.notes = payload.notes.strip()
@@ -2963,7 +3116,7 @@ def _reconcile_lever_confirmation_url(db: Session, application: Application) -> 
 
     previous_status = application.status
     application.status = "submitted"
-    application.job.status = "submitted"
+    set_job_status(db, application.job, "submitted")
     application.submitted_at = application.submitted_at or utcnow()
     application.last_error = ""
     blocker.status = "resolved"
@@ -3069,7 +3222,7 @@ def retry_application(application_id: int, db: Session = Depends(get_db)):
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
     application.status = "queued"
-    application.job.status = "queued"
+    set_job_status(db, application.job, "queued")
     application.last_error = ""
     answers = loads(application.answers_json, {})
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
@@ -3091,7 +3244,7 @@ def remove_application_from_queue(application_id: int, db: Session = Depends(get
         message=f"Removed {job.company} — {job.title} from application queue",
     ))
     db.delete(application)
-    job.status = "new"
+    set_job_status(db, job, "new")
     db.commit()
     return {"removed": True, "job_id": job.id}
 
@@ -3243,7 +3396,7 @@ def _auto_requeue_greenhouse_native_url(
 
     previous_status = application.status
     application.status = "queued"
-    application.job.status = "queued"
+    set_job_status(db, application.job, "queued")
     application.last_error = ""
     attempt = attempt or _result_attempt(db, application.id)
     if attempt and attempt.status in {"running", "blocked", "pending_verification"}:
@@ -3310,7 +3463,7 @@ def _auto_requeue_stored_grade_sheet(
 
     previous_status = application.status
     application.status = "queued"
-    application.job.status = "queued"
+    set_job_status(db, application.job, "queued")
     application.last_error = ""
     attempt = attempt or _result_attempt(db, application.id)
     if attempt and attempt.status in {"running", "blocked", "pending_verification"}:
@@ -3384,7 +3537,7 @@ async def upload_grade_sheet(file: UploadFile = File(...), db: Session = Depends
         blocker.status = "resolved"
         blocker.resolved_at = utcnow()
         application.status = "queued"
-        application.job.status = "queued"
+        set_job_status(db, application.job, "queued")
         application.last_error = ""
         resumed_by_id[application.id] = application
 
@@ -3439,7 +3592,7 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         blocker.status = "resolved"
         blocker.resolved_at = utcnow()
         application.status = "queued"
-        application.job.status = "queued"
+        set_job_status(db, application.job, "queued")
         application.last_error = ""
         db.add(AuditLog(
             event_type="profile_grade_sheet_reused", entity_type="blocker", entity_id=str(blocker.id),
@@ -3469,14 +3622,14 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
             answers[ONE_TIME_SUBMIT_KEY] = True
             application.answers_json = dumps(answers)
             application.status = "queued"
-            application.job.status = "queued"
+            set_job_status(db, application.job, "queued")
             audit_event = "one_time_submit_approved"
             audit_message = "User approved one submission attempt"
         else:
             answers.pop(ONE_TIME_SUBMIT_KEY, None)
             application.answers_json = dumps(answers)
             application.status = "skipped"
-            application.job.status = "skipped"
+            set_job_status(db, application.job, "skipped")
             audit_event = "application_skipped_at_review"
             audit_message = "User skipped application at final review"
 
@@ -3512,7 +3665,7 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     answers[answer_key] = answer
     application.answers_json = dumps(answers)
     application.status = "queued"
-    application.job.status = "queued"
+    set_job_status(db, application.job, "queued")
     application.last_error = ""
     # Every user-approved answer is remembered automatically for this exact company.
     # This makes repeated ATS questions disappear on later applications to the same
@@ -3540,7 +3693,7 @@ def mark_application_submitted(application_id: int, db: Session = Depends(get_db
     application.status = "submitted"
     application.submitted_at = utcnow()
     application.last_error = ""
-    application.job.status = "submitted"
+    set_job_status(db, application.job, "submitted")
     answers = loads(application.answers_json, {})
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
     application.answers_json = dumps(answers)
@@ -3570,7 +3723,7 @@ def audit(limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
 def export_data(format: str = Query("json", pattern="^(json|csv)$"), db: Session = Depends(get_db)):
     jobs = db.scalars(select(Job).order_by(desc(Job.discovered_at))).all()
     rows = [{"id": job.id, "title": job.title, "company": job.company, "location": job.location,
-             "score": job.score, "status": job.status, "apply_url": job.apply_url,
+             "score": effective_v1_payload(job, db)[0], "status": effective_status(job, db), "apply_url": job.apply_url,
              "notes": job.application.notes if job.application else "",
              "application_status": job.application.status if job.application else ""} for job in jobs]
     if format == "json":
@@ -3777,7 +3930,7 @@ async def restore_backup(file: UploadFile = File(...), db: Session = Depends(get
         selected = restored_resumes.get(item.get("resume_id"))
         if selected:
             application.resume_id, application.resume_path = selected.id, selected.path
-        job.status = application.status
+        set_job_status(db, job, application.status)
         restored_applications += 1
 
     persist_active_track(profile)
@@ -4023,7 +4176,7 @@ async def verify_applications_from_gmail(db: Session = Depends(get_db)):
             attempt.verification_state = "verified"
             attempt.status = "verified"
         previous = application.status
-        application.status = application.job.status = "submitted"
+        application.status = set_job_status(db, application.job, "submitted")
         application.submitted_at = application.submitted_at or utcnow()
         _record_application_event(db, application, "submission_verified_by_email", from_status=previous,
                                   to_status="submitted", actor="gmail", message="ההגשה אומתה באמצעות מייל אישור")
@@ -4116,42 +4269,32 @@ async def cron_scan(request: Request):
         # never launch a heavy collector inside the Render web service.
         return {"status": "external_worker", "worker": "github_actions"}
 
-    tz = ZoneInfo(settings.timezone)
-    now_local = datetime.now(tz)
-    scheduled = now_local.replace(hour=settings.scan_hour, minute=settings.scan_minute, second=0, microsecond=0)
-    results = []
-    for user_id in _known_user_ids():
-        with user_session(user_id) as user_db:
-            profile = get_user_profile(user_db)
-            if not profile:
-                results.append({"account": hashlib.sha256(user_id.encode()).hexdigest()[:10], "status": "no_profile"})
-                continue
-            track = active_track(profile)
-            latest = user_db.scalar(select(func.max(Source.last_scanned_at)).where(
-                Source.career_track == track, Source.enabled.is_(True)
-            ))
-            if latest:
-                if latest.tzinfo is None:
-                    latest = latest.replace(tzinfo=timezone.utc)
-                latest_local = latest.astimezone(tz)
-            else:
-                latest_local = None
-
-        if now_local < scheduled or (latest_local and latest_local >= scheduled):
-            results.append({
-                "account": hashlib.sha256(user_id.encode()).hexdigest()[:10], "status": "not_due", "career_track": track,
+    # Legacy/internal deployments still use this endpoint. They now follow the same
+    # shared top-of-hour contract as GitHub Actions: one catalogue scan per track,
+    # never one scan per account.
+    due_tracks: list[str] = []
+    schedule_rows: list[dict] = []
+    with user_session(SHARED_CATALOG_USER_ID) as scan_db:
+        for definition in CAREER_TRACKS:
+            due, scheduled, latest = scheduled_scan_due(scan_db, definition.key)
+            schedule_rows.append({
+                "career_track": definition.key,
+                "status": "due" if due else "not_due",
                 "scheduled_at": scheduled.isoformat(),
-                "last_scanned_at": latest_local.isoformat() if latest_local else None,
+                "last_scanned_at": latest.isoformat() if latest else None,
             })
-            continue
-        if _user_scan_lock(user_id).locked():
-            results.append({"account": hashlib.sha256(user_id.encode()).hexdigest()[:10], "status": "already_running", "career_track": track})
-            continue
-        asyncio.create_task(_run_scan(career_track=track, user_id=user_id))
-        results.append({"account": hashlib.sha256(user_id.encode()).hexdigest()[:10], "status": "started", "career_track": track, "scheduled_at": scheduled.isoformat()})
+            if due:
+                due_tracks.append(definition.key)
 
-    started = sum(1 for item in results if item["status"] == "started")
-    return {"status": "started" if started else "not_due", "started_users": started, "users": results}
+    if not due_tracks:
+        return {"status": "not_due", "tracks": schedule_rows}
+
+    async def run_due_tracks() -> None:
+        for track in due_tracks:
+            await _run_scan(career_track=track)
+
+    asyncio.create_task(run_due_tracks())
+    return {"status": "started", "started_tracks": due_tracks, "tracks": schedule_rows}
 
 
 def _check_agent_token(db: Session, token: str, *, agent_id: str = "", application_id: int | None = None):
@@ -4314,7 +4457,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
 
     application.started_at = application.started_at or utcnow()
     application.attempt_count += 1
-    application.job.status = "applying"
+    set_job_status(db, application.job, "applying")
     application.last_error = ""
     adapter = detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "")
     attempt = ApplicationAttempt(
@@ -4406,7 +4549,7 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     previous_status = application.status
     uncertain_submission = payload.kind == "confirmation_missing"
     application.status = "verification_pending" if uncertain_submission else "needs_input"
-    application.job.status = application.status
+    set_job_status(db, application.job, application.status)
     compact_error = f"[blocked:{payload.kind}] {payload.explanation or payload.question or payload.field_label}".strip()
     application.last_error = compact_error[:2000]
     if attempt:
@@ -4466,7 +4609,7 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
     application.status = "submitted" if verified else "verification_pending"
     application.submitted_at = utcnow() if verified else None
     application.last_error = ""
-    application.job.status = application.status
+    set_job_status(db, application.job, application.status)
     attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "verified" if verified else "pending_verification"
@@ -4499,7 +4642,7 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
     previous_status = application.status
     application.status = "failed"
     application.last_error = payload.message[:2000]
-    application.job.status = "failed"
+    set_job_status(db, application.job, "failed")
     attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "failed"
@@ -4526,10 +4669,12 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     previous_status = application.status
     application.last_error = ("ה־Agent זיהה חלון שלא הגיב, שמר צילום מצב והחזיר את המשרה לתור. " + payload.message)[:2000]
     if application.attempt_count < 3:
-        application.status = application.job.status = "queued"
+        application.status = "queued"
+        set_job_status(db, application.job, "queued")
         application.agent_id = ""
     else:
-        application.status = application.job.status = "needs_input"
+        application.status = "needs_input"
+        set_job_status(db, application.job, "needs_input")
     if payload.page_url:
         db.add(Blocker(application_id=application.id, kind="agent_recovery", question="ה־Agent התאושש מחלון תקוע",
                        explanation=application.last_error, page_url=payload.page_url,
@@ -4670,12 +4815,9 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = 
     context = build_match_context(profile, resume_skills, career_track=track)
     for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
         result = score_job(job, profile, context=context)
-        job.score = result.score
-        job.score_reasons_json = dumps(result.reasons)
-        job.match_breakdown_json = dumps(result.breakdown)
-        job.skills_json = dumps(result.skills)
-        job.experience_min = result.experience_min
-        job.experience_max = result.experience_max
+        persist_v1_state(db, job, result)
+        # Source-derived fields belong to the shared catalog. Ranking must never
+        # rewrite them from a particular user's profile/context.
         if commit_every and index % commit_every == 0:
             db.commit()
 
@@ -4770,14 +4912,15 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
     owned = {skill.casefold().strip() for skill in loads(profile.skills_json, [])} if profile else set()
     skill_gaps = [skill for skill in skills if skill.casefold().strip() not in owned] if profile else []
     adapter = detect_adapter(j.apply_url, j.source.kind if j.source else "")
+    v1_score, v1_reasons, v1_breakdown = effective_v1_payload(j)
     data = {
         "id": j.id, "career_track": j.career_track, "title": j.title, "company": j.company, "location": j.location,
         "official_careers_url": resolve_official_careers_url(j.company, j.apply_url),
         "workplace": j.workplace, "apply_url": j.apply_url, "source_url": j.source_url,
         "published_at": j.published_at, "discovered_at": j.discovered_at, "experience_min": j.experience_min,
-        "experience_max": j.experience_max, "skills": skills, "skill_gaps": skill_gaps, "score": j.score,
-        "score_reasons": loads(j.score_reasons_json, []), "status": j.status, "is_active": j.is_active,
-        "match_breakdown": loads(j.match_breakdown_json, {}),
+        "experience_max": j.experience_max, "skills": skills, "skill_gaps": skill_gaps, "score": v1_score,
+        "score_reasons": v1_reasons, "status": effective_status(j), "is_active": j.is_active,
+        "match_breakdown": v1_breakdown,
         "application_links": ([{"source": j.source.name if j.source else "", "apply_url": j.apply_url,
                                 "source_url": j.source_url}] + loads(j.alternate_links_json, [])),
         "source": {"id": j.source.id, "name": j.source.name, "kind": j.source.kind, "career_track": j.source.career_track} if j.source else None,

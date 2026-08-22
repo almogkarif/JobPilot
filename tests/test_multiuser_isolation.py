@@ -6,9 +6,9 @@ from sqlalchemy import delete, select, update
 import app.auth as auth_module
 from app.auth import AuthIdentity
 from app.config import settings
-from app.database import Base, SessionLocal, engine, ensure_compatibility_columns, user_session
+from app.database import Base, SHARED_CATALOG_USER_ID, SessionLocal, engine, ensure_compatibility_columns, user_session
 from app.main import app
-from app.models import AgentDevice, AppIdentity, Application, AuditLog, Blocker, Job, OpenAnswerDraft, Profile, ResumeProfile, Source, AnswerMemory
+from app.models import AgentDevice, AppIdentity, Application, AuditLog, Blocker, Job, JobRanking, OpenAnswerDraft, Profile, ResumeProfile, Source, UserJobState, AnswerMemory
 
 USERS = {
     "token-a": AuthIdentity("multi-user-a", "a@example.com", "google"),
@@ -21,13 +21,13 @@ def _cleanup_user(user_id: str) -> None:
     ensure_compatibility_columns()
     # Use Core/ORM unscoped cleanup in FK-safe order.
     with SessionLocal() as db:
-        for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+        for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
             db.execute(delete(model).where(model.user_id == user_id))
         db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id == user_id))
         db.commit()
 
 
-def test_two_cloud_users_have_isolated_profiles_sources_and_jobs(monkeypatch):
+def test_two_cloud_users_share_catalog_but_keep_personal_state_isolated(monkeypatch):
     for identity in USERS.values():
         _cleanup_user(identity.user_id)
     monkeypatch.setattr(settings, "auth_mode", "supabase")
@@ -36,6 +36,8 @@ def test_two_cloud_users_have_isolated_profiles_sources_and_jobs(monkeypatch):
     monkeypatch.setattr(settings, "allowed_emails", "a@example.com,b@example.com")
     monkeypatch.setattr(settings, "max_users", 10)
     monkeypatch.setattr(auth_module, "verify_supabase_token", lambda token: USERS[token])
+    test_external_id = "shared-catalog-multiuser-test"
+    shared_job_id = None
 
     try:
         with TestClient(app) as client:
@@ -48,32 +50,32 @@ def test_two_cloud_users_have_isolated_profiles_sources_and_jobs(monkeypatch):
             assert "Tenant-A-Only" in client.get("/api/profile", headers=ha).json()["skills"]
             assert "Tenant-A-Only" not in client.get("/api/profile", headers=hb).json()["skills"]
 
-            # Career-track activation is also per-user: A can move to IEM while B
-            # remains on Computer Science, so only A's search agent changes tracks.
             switched = client.put("/api/career-tracks/active", headers=ha, json={"track": "industrial_engineering"})
             assert switched.status_code == 200
             assert client.get("/api/career-tracks", headers=ha).json()["active_track"] == "industrial_engineering"
             assert client.get("/api/career-tracks", headers=hb).json()["active_track"] == "computer_science"
             assert client.put("/api/career-tracks/active", headers=ha, json={"track": "computer_science"}).status_code == 200
 
-            # Recommended sources are duplicated as independent tenant-owned rows.
+            # Sources are one shared catalog. Both users see the exact same rows.
             sources_a = client.get("/api/sources", headers=ha).json()
             sources_b = client.get("/api/sources", headers=hb).json()
             assert sources_a and sources_b
-            assert {item["id"] for item in sources_a}.isdisjoint({item["id"] for item in sources_b})
+            assert {item["id"] for item in sources_a} == {item["id"] for item in sources_b}
 
-            # Source enable/disable is tenant-owned: turning off A's copy must not
-            # affect B's independently seeded copy of the same catalog source.
-            source_a_row = sources_a[0]
-            source_b_row = next((item for item in sources_b if item["identifier"] == source_a_row["identifier"]), sources_b[0])
-            toggled = client.patch(f'/api/sources/{source_a_row["id"]}', headers=ha, json={"enabled": False})
-            assert toggled.status_code == 200 and toggled.json()["enabled"] is False
-            refreshed_a = {item["id"]: item for item in client.get("/api/sources", headers=ha).json()}
-            refreshed_b = {item["id"]: item for item in client.get("/api/sources", headers=hb).json()}
-            assert refreshed_a[source_a_row["id"]]["enabled"] is False
-            assert refreshed_b[source_b_row["id"]]["enabled"] is True
+            # A is the owner/admin and may manage the shared catalog; B may not.
+            source_row = sources_a[0]
+            original_enabled = source_row["enabled"]
+            denied = client.patch(f'/api/sources/{source_row["id"]}', headers=hb, json={"enabled": not original_enabled})
+            assert denied.status_code == 403
+            toggled = client.patch(f'/api/sources/{source_row["id"]}', headers=ha, json={"enabled": not original_enabled})
+            assert toggled.status_code == 200
+            visible_b = {item["id"]: item for item in client.get("/api/sources", headers=hb).json()}
+            assert visible_b[source_row["id"]]["enabled"] is (not original_enabled)
+            assert client.patch(f'/api/sources/{source_row["id"]}', headers=ha, json={"enabled": original_enabled}).status_code == 200
 
-            # Only the admin can inspect the small deployment's account roster.
+            # Manual scanning is also admin-only.
+            assert client.post("/api/scan", headers=hb).status_code == 403
+
             roster = client.get("/api/admin/users", headers=ha)
             assert roster.status_code == 200
             assert roster.json()["max_users"] == 10
@@ -81,40 +83,29 @@ def test_two_cloud_users_have_isolated_profiles_sources_and_jobs(monkeypatch):
             assert {"multi-user-a", "multi-user-b"}.issubset(roster_ids)
             assert client.get("/api/admin/users", headers=hb).status_code == 403
 
-        # Put one job in each workspace and prove SELECT/GET/UPDATE are all scoped.
-        with user_session("multi-user-a") as db:
-            source_a = db.scalar(select(Source).where(Source.career_track == "computer_science"))
-            job_a = Job(source_id=source_a.id, career_track="computer_science", external_id="tenant-a-job",
-                        title="Tenant A Private Job", company="A", location="Tel Aviv, Israel",
-                        apply_url="https://example.com/a")
-            db.add(job_a); db.commit(); aid = job_a.id
-        with user_session("multi-user-b") as db:
-            source_b = db.scalar(select(Source).where(Source.career_track == "computer_science"))
-            job_b = Job(source_id=source_b.id, career_track="computer_science", external_id="tenant-b-job",
-                        title="Tenant B Private Job", company="B", location="Haifa, Israel",
-                        apply_url="https://example.com/b")
-            db.add(job_b); db.commit(); bid = job_b.id
-
-        with user_session("multi-user-a") as db:
-            assert db.get(Job, aid) is not None
-            assert db.get(Job, bid) is None
-            changed = db.execute(update(Job).where(Job.id == bid).values(title="cross-tenant-write"))
-            assert changed.rowcount == 0
-            db.commit()
-        with user_session("multi-user-b") as db:
-            assert db.get(Job, bid).title == "Tenant B Private Job"
+        with user_session(SHARED_CATALOG_USER_ID) as db:
+            source = db.scalar(select(Source).where(Source.career_track == "computer_science"))
+            job = Job(source_id=source.id, career_track="computer_science", external_id=test_external_id,
+                      title="Shared Catalog Job", company="SharedCo", location="Tel Aviv, Israel",
+                      apply_url="https://example.com/shared")
+            db.add(job); db.commit(); shared_job_id = job.id
 
         with TestClient(app) as client:
             ha = {"Authorization": "Bearer token-a"}
             hb = {"Authorization": "Bearer token-b"}
-            assert client.get(f"/api/jobs/{aid}", headers=ha).status_code == 200
-            assert client.get(f"/api/jobs/{aid}", headers=hb).status_code == 404
-            assert client.get(f"/api/jobs/{bid}", headers=ha).status_code == 404
-            assert client.get(f"/api/jobs/{bid}", headers=hb).status_code == 200
+            assert client.get(f"/api/jobs/{shared_job_id}", headers=ha).status_code == 200
+            assert client.get(f"/api/jobs/{shared_job_id}", headers=hb).status_code == 200
+            assert client.post(f"/api/jobs/{shared_job_id}/save", headers=ha).status_code == 200
+            assert client.post(f"/api/jobs/{shared_job_id}/skip", headers=hb).status_code == 200
+            assert client.get(f"/api/jobs/{shared_job_id}", headers=ha).json()["status"] == "saved"
+            assert client.get(f"/api/jobs/{shared_job_id}", headers=hb).json()["status"] == "skipped"
     finally:
         for identity in USERS.values():
             _cleanup_user(identity.user_id)
-
+        if shared_job_id is not None:
+            with SessionLocal() as db:
+                db.execute(delete(Job).where(Job.id == shared_job_id))
+                db.commit()
 
 def test_agent_token_is_bound_to_its_user(monkeypatch):
     for identity in USERS.values():
@@ -246,7 +237,7 @@ def test_first_cloud_user_claims_legacy_migrated_workspace(monkeypatch):
     _cleanup_user(new_user)
     # Ensure the synthetic legacy workspace is clean without touching local-owner data.
     with SessionLocal() as db:
-        for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+        for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
             db.execute(delete(model).where(model.user_id == legacy_user))
         db.execute(delete(AppIdentity))
         db.commit()
@@ -274,7 +265,7 @@ def test_first_cloud_user_claims_legacy_migrated_workspace(monkeypatch):
     finally:
         _cleanup_user(new_user)
         with SessionLocal() as db:
-            for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+            for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
                 db.execute(delete(model).where(model.user_id == legacy_user))
             db.commit()
 
@@ -286,7 +277,7 @@ def test_configured_owner_keeps_admin_and_legacy_data_even_if_friend_logs_in_fir
     for uid in (friend_id, owner_id):
         _cleanup_user(uid)
     with SessionLocal() as db:
-        for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+        for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
             db.execute(delete(model).where(model.user_id == legacy_user))
         db.execute(delete(AppIdentity))
         db.commit()
@@ -323,6 +314,6 @@ def test_configured_owner_keeps_admin_and_legacy_data_even_if_friend_logs_in_fir
         for uid in (friend_id, owner_id):
             _cleanup_user(uid)
         with SessionLocal() as db:
-            for model in (Blocker, OpenAnswerDraft, Application, Job, ResumeProfile, AnswerMemory, AuditLog, Source, AgentDevice, Profile):
+            for model in (Blocker, OpenAnswerDraft, Application, JobRanking, UserJobState, ResumeProfile, AnswerMemory, AuditLog, AgentDevice, Profile):
                 db.execute(delete(model).where(model.user_id == legacy_user))
             db.commit()

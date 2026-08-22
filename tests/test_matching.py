@@ -169,3 +169,55 @@ def test_old_explicit_publish_date_is_still_penalized():
     )
     assert result.breakdown["freshness"] < 50
     assert any(reason["label"] == "משרה ישנה יחסית" for reason in result.reasons)
+
+
+def test_experience_extraction_rejects_study_durations_but_keeps_real_unnumbered_experience():
+    assert extract_experience(
+        "Student currently pursuing a Bachelor degree with at least 2 years till graduate."
+    ) == (None, None)
+    assert extract_experience(
+        "Studies expected to continue for at least 1.5 years. Substantial experience in programming in Python."
+    ) == (1.0, None)
+    assert extract_experience(
+        "Practical Engineering student with at least 1.5 years till graduation. High level and experience with EXCEL."
+    ) == (1.0, None)
+
+
+def test_experience_extraction_understands_conditional_degree_paths_and_subrequirements():
+    assert extract_experience(
+        "Bachelor's degree and 3+ years of experience, or a Master's degree with 2+ years of experience, "
+        "or a PhD with 0 years of experience."
+    ) == (0.0, 3.0)
+    assert extract_experience(
+        "2 years of experience with software development, or 1 year of experience with an advanced degree."
+    ) == (1.0, 2.0)
+    assert extract_experience(
+        "2 years of experience with distributed systems. "
+        "2 years of experience with software development or 1 year of experience with an advanced degree."
+    ) == (2.0, None)
+    assert extract_experience(
+        "15+ years of experience in embedded software, including 5+ years as a technical representative."
+    ) == (15.0, None)
+
+
+def test_experience_extraction_covers_mandatory_no_number_wording_without_false_positive_domains():
+    assert extract_experience("Proven track record of delivering production software") == (1.0, None)
+    assert extract_experience("Ideal for experienced engineers with strong DFT knowledge") == (1.0, None)
+    assert extract_experience("דרישות: ניסיון בפיתוח מערכות Linux - חובה") == (1.0, None)
+    assert extract_experience("דרישות: עבודה עם Linux ו-Kubernetes - חובה") == (1.0, None)
+    assert extract_experience("Join an experienced team and improve the user experience") == (None, None)
+    assert extract_experience("עבודה עם צוותי מוצר כחלק מתחומי האחריות") == (None, None)
+    assert extract_experience("Bachelor's degree or equivalent practical experience") == (None, None)
+
+
+def test_optional_numeric_experience_never_overrides_mandatory_requirement():
+    assert extract_experience(
+        "Requirements: 2+ years of professional experience. Preferred: 5+ years of industry experience."
+    ) == (2.0, None)
+
+
+def test_bare_work_with_is_one_year_only_inside_requirements_section():
+    assert extract_experience("Requirements:\n- Working with Linux and Kubernetes") == (1.0, None)
+    assert extract_experience("דרישות:\n- עבודה עם Linux ו-Kubernetes") == (1.0, None)
+    assert extract_experience("Responsibilities:\n- Working with product and engineering teams") == (None, None)
+    assert extract_experience("Qualifications:\n- Ability to work with cross-functional teams") == (None, None)

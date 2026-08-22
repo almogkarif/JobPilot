@@ -67,3 +67,20 @@ def test_quality_treats_proteantecs_pi_as_distinct_application_link():
         for i in range(15)
     ]
     validate_source_payload("proteanTecs", jobs)
+
+
+def test_quality_rejects_repeated_page_wide_description_even_with_distinct_jobs():
+    body = "Requirements and responsibilities " + ("production systems and engineering details " * 12)
+    jobs = [_job(i) for i in range(10)]
+    for item in jobs:
+        item.description = body
+    with pytest.raises(SourceDataQualityError, match="repeated the same job description"):
+        validate_source_payload("Broken wrapper", jobs)
+
+
+def test_quality_rejects_search_result_cards_instead_of_detail_pages():
+    jobs = [_job(i) for i in range(6)]
+    for item in jobs:
+        item.description = f"{item.title} Tel Aviv, Israel Product Engineering Save for Later"
+    with pytest.raises(SourceDataQualityError, match="search-result summaries"):
+        validate_source_payload("Rendered cards", jobs)

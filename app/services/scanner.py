@@ -4,21 +4,22 @@ from datetime import datetime, timedelta, timezone
 import asyncio
 import re
 from collections.abc import Callable
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
-from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source
+from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
 from ..database import get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .location_filter import is_israel_location
-from .matching import build_match_context, hard_exclusion_reason, score_job, track_job_relevance
+from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, score_job, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
 from .job_text import clean_job_text
+from .user_job_state import persist_v1_state, set_job_status
 
 
 SOURCE_SCAN_TIMEOUT_SECONDS = max(5, int(settings.source_scan_timeout_seconds))
@@ -30,6 +31,7 @@ async def scan_all_sources(
     source_ids: set[int] | None = None,
     progress_callback: Callable[[dict], None] | None = None,
     career_track: str = DEFAULT_TRACK,
+    catalog_only: bool = False,
 ) -> dict:
     """Scan enabled sources with bounded concurrency and commit each source immediately.
 
@@ -39,16 +41,21 @@ async def scan_all_sources(
     scan for hours.
     """
     career_track = normalize_track(career_track)
-    profile = get_user_profile(db)
-    if not profile:
+    profile = None if catalog_only else get_user_profile(db)
+    if not catalog_only and not profile:
         raise RuntimeError("Profile is not initialized")
-    default_resume = db.scalar(select(ResumeProfile).where(
-        ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track
-    ))
-    default_resume_skills = loads(default_resume.skills_json, []) if default_resume else []
-    match_context = build_match_context(profile, default_resume_skills, career_track=career_track)
+    default_resume = None
+    default_resume_skills: list[str] = []
+    match_context = None
     ranking_settings = get_ranking_settings(db)
-    evaluate_v2 = ranking_settings.active_engine == "v2" or ranking_settings.v2_shadow_mode
+    evaluate_v2 = False
+    if not catalog_only:
+        default_resume = db.scalar(select(ResumeProfile).where(
+            ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track
+        ))
+        default_resume_skills = loads(default_resume.skills_json, []) if default_resume else []
+        match_context = build_match_context(profile, default_resume_skills, career_track=career_track)
+        evaluate_v2 = ranking_settings.active_engine == "v2" or ranking_settings.v2_shadow_mode
     stale_deleted = 0
 
     now = datetime.now(timezone.utc)
@@ -90,7 +97,7 @@ async def scan_all_sources(
             "current_source": None,
         })
     if not snapshots:
-        stale_deleted = purge_stale_jobs(db, days=2)
+        stale_deleted = 0 if catalog_only else purge_stale_jobs(db, days=2)
         return {
             "status": "no_sources",
             "sources": 0,
@@ -261,7 +268,8 @@ async def scan_all_sources(
                 total_filtered_foreign += source_filtered_foreign
                 eligible_items = [
                     item for item in israel_items
-                    if not hard_exclusion_reason(item, profile, match_context.excluded) and track_job_relevance(item, career_track)[0]
+                    if track_job_relevance(item, career_track)[0]
+                    and (catalog_only or not hard_exclusion_reason(item, profile, match_context.excluded))
                 ]
                 source_filtered_mismatch = len(israel_items) - len(eligible_items)
                 total_filtered_mismatch += source_filtered_mismatch
@@ -326,24 +334,30 @@ async def scan_all_sources(
                         total_updated += 1
                         source_updated += 1
 
-                    result = score_job(job, profile, context=match_context)
-                    job.score = result.score
-                    job.score_reasons_json = dumps(result.reasons)
-                    job.match_breakdown_json = dumps(result.breakdown)
-                    job.skills_json = dumps(result.skills)
-                    job.experience_min = result.experience_min
-                    job.experience_max = result.experience_max
-                    if evaluate_v2:
-                        try:
-                            if job.id is None:
-                                db.flush()
-                            persist_v2_result(db, job, profile, ranking_settings, context=match_context)
-                        except Exception as exc:  # V2 shadow must never break V1 scanning.
-                            db.add(AuditLog(
-                                event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id or ""),
-                                message="V2 ranking failed during source scan",
-                                details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
-                            ))
+                    if catalog_only:
+                        text = f"{job.title} {job.description} {job.location}"
+                        job.skills_json = dumps(extract_skills(text))
+                        job.experience_min, job.experience_max = extract_experience(text)
+                    else:
+                        result = score_job(job, profile, context=match_context)
+                        if job.id is None:
+                            db.flush()
+                        persist_v1_state(db, job, result)
+                        # Catalog metadata is source-derived; do not rewrite it from
+                        # one user's ranking context.
+                        job.skills_json = dumps(extract_skills(f"{job.title} {job.description} {job.location}"))
+                        job.experience_min, job.experience_max = extract_experience(f"{job.title} {job.description} {job.location}")
+                        if evaluate_v2:
+                            try:
+                                if job.id is None:
+                                    db.flush()
+                                persist_v2_result(db, job, profile, ranking_settings, context=match_context)
+                            except Exception as exc:  # V2 shadow must never break V1 scanning.
+                                db.add(AuditLog(
+                                    event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id or ""),
+                                    message="V2 ranking failed during source scan",
+                                    details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
+                                ))
 
                     # Scoring a large source is CPU work inside an async scan. Yield
                     # cooperatively so lightweight web/health requests stay responsive.
@@ -358,7 +372,7 @@ async def scan_all_sources(
                     removal_reason = ""
                     if not is_israel_location(old.location):
                         removal_reason = "outside_israel"
-                    elif hard_exclusion_reason(old, profile, match_context.excluded):
+                    elif (not catalog_only) and hard_exclusion_reason(old, profile, match_context.excluded):
                         removal_reason = "hard_exclusion"
                     elif not track_job_relevance(old, career_track)[0]:
                         # Reconcile jobs saved under older/broader track rules too.
@@ -371,7 +385,12 @@ async def scan_all_sources(
                         # Only a real submitted application earns a 30-day history
                         # grace period. Queued/saved/failed applications disappear as
                         # soon as their job is no longer part of the active catalogue.
-                        deleted = deactivate_or_delete_job(db, old, removed_at=seen_at)
+                        if catalog_only:
+                            old.is_active = False
+                            old.removed_at = seen_at
+                            deleted = False
+                        else:
+                            deleted = deactivate_or_delete_job(db, old, removed_at=seen_at)
                         if deleted or was_active:
                             removed_jobs.append({
                                 "id": old.id,
@@ -416,7 +435,7 @@ async def scan_all_sources(
                 # while other source collectors are still running in parallel.
                 db.commit()
 
-                if profile.auto_submit_enabled and (source_new or source_updated):
+                if not catalog_only and profile.auto_submit_enabled and (source_new or source_updated):
                     total_auto_queued += auto_queue_jobs(db, profile)
 
                 source_result = {
@@ -472,10 +491,11 @@ async def scan_all_sources(
             "phase": "finalizing", "current": total_sources, "completed": total_sources,
             "total": total_sources, "current_source": None, "active_sources": [],
         })
-    stale_deleted += purge_stale_jobs(db, days=2)
-    # Final pass is cheap and catches any eligible job that was already present before
-    # this scan. Per-source auto-queueing above means new jobs do not wait for this step.
-    total_auto_queued += auto_queue_jobs(db, profile)
+    if not catalog_only:
+        stale_deleted += purge_stale_jobs(db, days=2)
+        # Final pass is cheap and catches any eligible job that was already present before
+        # this scan. Per-source auto-queueing above means new jobs do not wait for this step.
+        total_auto_queued += auto_queue_jobs(db, profile)
     successful = len(snapshots) - len(errors)
     status = "ok" if not errors else ("partial" if successful else "failed")
     return {
@@ -514,8 +534,10 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
 
     career_track = active_track(profile)
     ranking_settings = get_ranking_settings(db)
-    query = select(Job).options(joinedload(Job.application)).where(
-        Job.is_active.is_(True), Job.status == "new", Job.career_track == career_track,
+    query = select(Job).options(joinedload(Job.application)).outerjoin(
+        UserJobState, UserJobState.job_id == Job.id
+    ).where(
+        Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", Job.career_track == career_track,
     )
     if ranking_settings.active_engine == "v2":
         query = query.join(JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")).where(
@@ -523,7 +545,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
             JobRanking.score >= profile.auto_apply_threshold,
         )
     else:
-        query = query.where(Job.score >= profile.auto_apply_threshold)
+        query = query.where(func.coalesce(UserJobState.score, 0) >= profile.auto_apply_threshold)
     jobs = db.scalars(query).all()
     count = 0
     resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all()
@@ -543,7 +565,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
         db.add(Application(job_id=job.id, mode="auto",
                            resume_id=selected_resume.id if selected_resume else None,
                            resume_path=selected_resume.path if selected_resume else profile.cv_path))
-        job.status = "queued"
+        set_job_status(db, job, "queued")
         count += 1
     if count:
         db.add(AuditLog(event_type="jobs_auto_queued", message=f"Queued {count} jobs automatically"))
