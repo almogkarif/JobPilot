@@ -60,3 +60,69 @@ def test_official_location_requires_israel_evidence():
     assert _extract_israel_location("Ad Operation Specialist Service & Solutions Tel Aviv, Israel") == "Tel Aviv, Israel"
     assert _extract_israel_location("Accounts Payable Specialist Finance Gurugram, India") == ""
     assert _extract_israel_location("Software Engineer Jerusalem") == "Jerusalem, Israel"
+
+
+def test_summary_card_sources_hydrate_detail_pages_before_persistence():
+    from app.collectors.official import PRESETS
+
+    assert PRESETS["paloalto"]["hydrate_details"] is True
+    assert PRESETS["cisco"]["hydrate_details"] is True
+
+import asyncio
+
+import pytest
+
+from app.collectors import official as official_module
+from app.collectors.official import OfficialCareersCollector, PRESETS
+
+
+@pytest.mark.parametrize(
+    "identifier,href,title,expected_id,expected_company",
+    [
+        (
+            "sunflower",
+            "https://www.comeet.com/jobs/sunflower/AA.009/talent-acquisition-associate/8B.F64",
+            "Talent Acquisition Associate",
+            "8B.F64",
+            "Sunflower",
+        ),
+        (
+            "moonactive",
+            "https://www.moonactive.com/moonactive-position/?uid=CC.D1E",
+            "Senior Backend Developer",
+            "CC.D1E",
+            "Moon Active",
+        ),
+        (
+            "connecteam",
+            "https://connecteam.com/careers/5970677004/?gh_jid=5970677004",
+            "Senior Mobile Developer",
+            "5970677004",
+            "Connecteam",
+        ),
+    ],
+)
+def test_new_official_sources_extract_real_job_rows_and_hydrate_details(
+    monkeypatch, identifier, href, title, expected_id, expected_company
+):
+    async def fake_static_rows(preset):
+        assert preset is PRESETS[identifier]
+        return [{"href": href, "linkText": title, "title": title, "text": title}]
+
+    async def fake_hydrate(rows, preset):
+        assert preset is PRESETS[identifier]
+        return [{**rows[0], "text": f"{title}\nTel Aviv, Israel\n3+ years of relevant experience"}]
+
+    monkeypatch.setattr(official_module, "_collect_static_rows", fake_static_rows)
+    monkeypatch.setattr(official_module, "_hydrate_detail_rows", fake_hydrate)
+
+    jobs = asyncio.run(OfficialCareersCollector().collect(identifier))
+
+    assert len(jobs) == 1
+    job = jobs[0]
+    assert job.external_id == expected_id
+    assert job.title == title
+    assert job.company == expected_company
+    assert job.location == "Tel Aviv, Israel"
+    assert "3+ years of relevant experience" in job.description
+    assert job.apply_url == href
