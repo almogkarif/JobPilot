@@ -165,6 +165,9 @@ def _sqlite_additive_migrations(connection) -> None:
             "match_breakdown_json": "TEXT NOT NULL DEFAULT '{}'",
             "alternate_links_json": "TEXT NOT NULL DEFAULT '[]'",
             "removed_at": "DATETIME",
+            "degree_requirement": "VARCHAR(20) NOT NULL DEFAULT ''",
+            "degree_required": "BOOLEAN NOT NULL DEFAULT 0",
+            "degree_experience_alternative": "BOOLEAN NOT NULL DEFAULT 0",
         },
         "applications": {
             "resume_id": "INTEGER",
@@ -553,6 +556,12 @@ def _postgres_multiuser_migration(connection) -> None:
         job_columns = {c["name"]: c for c in inspect(connection).get_columns("jobs")}
         if "removed_at" not in job_columns:
             connection.execute(text("ALTER TABLE jobs ADD COLUMN removed_at TIMESTAMPTZ"))
+        if "degree_requirement" not in job_columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN degree_requirement VARCHAR(20) NOT NULL DEFAULT ''"))
+        if "degree_required" not in job_columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN degree_required BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "degree_experience_alternative" not in job_columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN degree_experience_alternative BOOLEAN NOT NULL DEFAULT FALSE"))
         if "ix_jobs_removed_at" not in _postgres_index_names(connection, "jobs"):
             connection.execute(text("CREATE INDEX ix_jobs_removed_at ON jobs(removed_at)"))
 

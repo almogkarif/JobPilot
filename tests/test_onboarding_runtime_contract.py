@@ -9,7 +9,7 @@ HTML = (ROOT / "app/static/index.html").read_text()
 def test_corrected_onboarding_generation_forces_one_clean_rerun():
     assert main.ONBOARDING_VERSION == 2
     assert "const ONBOARDING_VERSION = 2" in JS
-    assert "app.js?v=0.29.9" in HTML
+    assert "app.js?v=0.30.0" in HTML
 
 def test_developer_tools_are_server_authorized(monkeypatch):
     monkeypatch.setattr(main.settings, "auth_mode", "supabase")

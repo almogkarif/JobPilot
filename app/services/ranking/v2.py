@@ -12,14 +12,14 @@ from .engine import RankingEngine, RankingResult
 from .roles import role_match
 from .skills import score_skills
 from ..job_text import job_text_quality
+from ..degree_requirements import degree_label, degree_requirement_label
 
-DEGREE_TERMS = ("bsc", "b.sc", "bachelor", "degree", "תואר", "מהנדס", "engineering")
 MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certification", "הסמכה")
 
 
 class EligibilityRankingEngine(RankingEngine):
     key = "v2"
-    version = 3
+    version = 5
 
     def rank_job(self, job, profile, config=None, *, context=None) -> RankingResult:
         config = config if isinstance(config, RankingV2Config) else RankingV2Config.from_dict(config) if config else DEFAULT_V2_CONFIG
@@ -35,17 +35,24 @@ class EligibilityRankingEngine(RankingEngine):
 
         requirement_reasons: list[str] = []
         requirement_ratio = .70
-        has_degree = any(term in text for term in DEGREE_TERMS)
+        required_degree = eligibility.get("required_degree")
+        has_degree = bool(required_degree)
         mandatory = [term for term in MANDATORY_TERMS if term in text]
         if has_degree:
             requirement_ratio = .88
-            requirement_reasons.append("Professional degree requirement detected")
+            requirement_reasons.append(
+                "Academic requirement: " + degree_requirement_label(
+                    required_degree,
+                    required=bool(eligibility.get("degree_required")),
+                    experience_alternative=bool(eligibility.get("degree_experience_alternative")),
+                )
+            )
         else:
             requirement_reasons.append("Degree requirement unknown")
         if mandatory:
             requirement_ratio = min(requirement_ratio, .65)
             requirement_reasons.append(f"Mandatory prerequisite requires review: {', '.join(mandatory)}")
-        requirements = {"score": round(config.requirements_weight * requirement_ratio), "max": config.requirements_weight, "degree_detected": has_degree, "mandatory_prerequisites": mandatory, "reasons": requirement_reasons}
+        requirements = {"score": round(config.requirements_weight * requirement_ratio), "max": config.requirements_weight, "degree_detected": has_degree, "required_degree": required_degree, "degree_required": bool(eligibility.get("degree_required")), "degree_experience_alternative": bool(eligibility.get("degree_experience_alternative")), "degree_status": eligibility.get("degree_status"), "mandatory_prerequisites": mandatory, "reasons": requirement_reasons}
 
         preference_score = 0
         preference_reasons: list[str] = []

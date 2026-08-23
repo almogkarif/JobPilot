@@ -17,6 +17,15 @@ class ProfileUpdate(BaseModel):
     application_password: str | None = Field(default=None, max_length=500)
     years_experience: float = 0
     years_experience_options: list[str] = Field(default_factory=lambda: ["0"])
+    degree_level: str = ""
+
+    @field_validator("degree_level")
+    @classmethod
+    def validate_degree_level(cls, value: str) -> str:
+        value = str(value or "").strip().casefold()
+        if value not in {"", "bachelor", "master", "phd"}:
+            raise ValueError("Choose bachelor, master or phd")
+        return value
 
     @field_validator("years_experience_options")
     @classmethod
@@ -56,6 +65,7 @@ class ProfilePatch(BaseModel):
     application_password: str | None = Field(default=None, max_length=500)
     years_experience: float | None = None
     years_experience_options: list[str] | None = None
+    degree_level: str | None = None
     work_authorization: bool | None = None
     needs_sponsorship: bool | None = None
     skills: list[str] | None = None
@@ -67,6 +77,16 @@ class ProfilePatch(BaseModel):
     auto_apply_threshold: int | None = Field(default=None, ge=0, le=100)
     auto_submit_enabled: bool | None = None
     application_profile: dict[str, Any] | None = None
+
+    @field_validator("degree_level")
+    @classmethod
+    def validate_degree_level(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = str(value or "").strip().casefold()
+        if value not in {"", "bachelor", "master", "phd"}:
+            raise ValueError("Choose bachelor, master or phd")
+        return value
 
     @field_validator("years_experience_options")
     @classmethod

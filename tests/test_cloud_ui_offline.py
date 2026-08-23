@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import base64
 import json
 import shutil
@@ -34,8 +36,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.2" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.29.9"></script>', "")
+    html = re.sub(r'<link rel="stylesheet" href="/static/styles\.css\?v=[^"]+" />', f"<style>{css}</style>", html, count=1)
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", html, count=1)
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:
@@ -124,7 +126,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
 
 
 def test_cloud_without_session_shows_login_gate():
-    html = (ROOT / "app" / "static" / "index.html").read_text().replace('<script src="/static/app.js?v=0.29.9"></script>', "")
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", (ROOT / "app" / "static" / "index.html").read_text(), count=1)
     js = (ROOT / "app" / "static" / "app.js").read_text()
     with sync_playwright() as playwright:
         browser = _launch_browser(playwright)
@@ -154,8 +156,8 @@ def test_cloud_regular_user_can_submit_but_cannot_manage_worker_credentials():
     html = (ROOT / "app" / "static" / "index.html").read_text()
     css = (ROOT / "app" / "static" / "styles.css").read_text()
     js = (ROOT / "app" / "static" / "app.js").read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.2" />', f"<style>{css}</style>")
-    html = html.replace('<script src="/static/app.js?v=0.29.9"></script>', "")
+    html = re.sub(r'<link rel="stylesheet" href="/static/styles\.css\?v=[^"]+" />', f"<style>{css}</style>", html, count=1)
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", html, count=1)
     session = {"access_token": _fake_jwt(), "refresh_token": "refresh", "token_type": "bearer"}
 
     with sync_playwright() as playwright:

@@ -4,6 +4,7 @@ from datetime import timezone
 
 from ...utils import loads
 from ..location_filter import is_israel_location
+from ..degree_requirements import degree_label, degree_satisfies, job_degree_requirement, profile_degree_level
 from ..matching import hard_exclusion_reason, track_job_relevance
 from .experience import (
     SENIORITY_ORDER, detect_seniority, employment_type, experience_requirement_buckets,
@@ -106,6 +107,40 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
         state = "excluded"
         reasons.append(f"Experience gap of {gap:g} years exceeds configured limit")
 
+    degree_requirement = job_degree_requirement(job)
+    required_degree = degree_requirement.level
+    candidate_degree = profile_degree_level(profile)
+    degree_status = "unknown"
+    if not required_degree:
+        unknown.append("degree")
+    elif not candidate_degree:
+        degree_status = "not_configured"
+        unknown.append("profile_degree")
+        if degree_requirement.experience_alternative:
+            warnings.append(
+                f"Job accepts {degree_label(required_degree)} or equivalent experience; profile degree is not configured"
+            )
+        else:
+            warnings.append(f"Job requires {degree_label(required_degree)}; profile degree is not configured")
+    elif degree_satisfies(candidate_degree, required_degree):
+        degree_status = "match"
+        reasons.append(f"Degree requirement matches: {degree_label(required_degree)}")
+    elif degree_requirement.experience_alternative:
+        degree_status = "alternative"
+        warnings.append(
+            f"Academic path is {degree_label(required_degree)}, but equivalent experience is explicitly accepted"
+        )
+    elif degree_requirement.required:
+        degree_status = "mismatch"
+        state = "excluded"
+        reasons.append(
+            f"Degree requirement mismatch: requires {degree_label(required_degree)}, "
+            f"profile has {degree_label(candidate_degree)}"
+        )
+    else:
+        degree_status = "unknown"
+        unknown.append("degree")
+
     job_level = detect_seniority(getattr(job, "title", ""))
     user_level = profile_seniority(years)
     seniority_status = "unknown" if not job_level else "match"
@@ -180,6 +215,10 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
         "experience_gap": gap, "required_experience_min": exp_min, "required_experience_max": exp_max,
         "required_experience_buckets": sorted(requirement_buckets),
         "profile_experience": years, "profile_experience_options": sorted(selected_experience),
+        "degree_status": degree_status, "required_degree": required_degree or None,
+        "degree_required": degree_requirement.required,
+        "degree_experience_alternative": degree_requirement.experience_alternative,
+        "profile_degree_level": candidate_degree or None,
         "seniority_status": seniority_status,
         "job_seniority": job_level, "profile_seniority": user_level,
         "location_status": location_status, "job_location": job_location or None,

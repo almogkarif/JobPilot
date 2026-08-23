@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import shutil
 from pathlib import Path
 
@@ -19,8 +21,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.29.9"></script>', "")
-
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", html, count=1)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             headless=True,
@@ -108,8 +109,7 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
         pytest.skip("No system Chromium executable")
 
     html = (PROJECT_ROOT / "app" / "static" / "index.html").read_text()
-    html = html.replace('<script src="/static/app.js?v=0.29.9"></script>', "")
-
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", html, count=1)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=["--no-sandbox"])
         page = browser.new_page(locale="he-IL")

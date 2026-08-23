@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.responses import RedirectResponse
 import httpx
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import asc, case, desc, func, literal, select, update
+from sqlalchemy import asc, case, desc, func, literal, or_, select, update
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
@@ -61,6 +61,9 @@ from .services.application_submission import (automation_apply_url, build_submis
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
+from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value, degree_label,
+                                           degree_requirement_label, extract_degree_requirement_details,
+                                           normalize_degree_level, profile_degree_level)
 from .services.matching import build_match_context, extract_experience, extract_skills, score_job
 from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
 from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result,
@@ -450,16 +453,27 @@ def _refresh_persisted_experience_fields(db: Session, career_track: str) -> int:
     changed = 0
     jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
     for job in jobs:
-        minimum, maximum = extract_experience(f"{job.title or ''} {job.description or ''}")
-        if job.experience_min == minimum and job.experience_max == maximum:
+        source_text = f"{job.title or ''} {job.description or ''}"
+        minimum, maximum = extract_experience(source_text)
+        degree = extract_degree_requirement_details(source_text)
+        if (
+            job.experience_min == minimum
+            and job.experience_max == maximum
+            and getattr(job, "degree_requirement", "") == degree.level
+            and bool(getattr(job, "degree_required", False)) == degree.required
+            and bool(getattr(job, "degree_experience_alternative", False)) == degree.experience_alternative
+        ):
             continue
         job.experience_min = minimum
         job.experience_max = maximum
+        job.degree_requirement = degree.level
+        job.degree_required = degree.required
+        job.degree_experience_alternative = degree.experience_alternative
         changed += 1
     if changed:
         db.add(AuditLog(
             event_type="experience_requirements_refreshed", entity_type="job",
-            message=f"Refreshed experience requirements for {changed} saved jobs",
+            message=f"Refreshed experience/degree requirements for {changed} saved jobs",
             details_json=dumps({"career_track": track, "changed": changed}),
         ))
         db.commit()
@@ -1424,7 +1438,27 @@ def security_disable(request: Request):
     return response
 
 
-def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
+def _degree_visibility_condition(profile: Profile | None):
+    """SQL predicate for jobs that are not blocked solely by academic level.
+
+    Academic-or-experience alternatives remain visible because degree alone cannot
+    decide eligibility. Profiles created before this feature and not yet configured
+    also keep the full catalog until the user selects a degree level.
+    """
+    if profile is None:
+        return Job.is_active.is_(True)
+    allowed = allowed_job_degree_levels(profile_degree_level(profile))
+    if not allowed:
+        return Job.is_active.is_(True)
+    return Job.is_active.is_(True) & or_(
+        Job.degree_requirement == "",
+        Job.degree_required.is_(False),
+        Job.degree_experience_alternative.is_(True),
+        Job.degree_requirement.in_(allowed),
+    )
+
+
+def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str, dict[str, int]]:
     stats = {
         track.key: {"enabled_sources": 0, "source_errors": 0, "jobs": 0, "strong_matches": 0}
         for track in CAREER_TRACKS
@@ -1442,13 +1476,15 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
             stats[key]["enabled_sources"] = int(enabled_sources or 0)
             stats[key]["source_errors"] = int(source_errors or 0)
 
+    degree_condition = _degree_visibility_condition(profile)
+
     ranking_settings = get_ranking_settings(db)
     if ranking_settings.active_engine == "v2":
         job_rows = db.execute(
             select(
                 Job.career_track,
                 func.sum(case((
-                    Job.is_active.is_(True)
+                    degree_condition
                     & JobRanking.stale.is_(False)
                     & (JobRanking.error == "")
                     & (JobRanking.engine_version == get_ranking_engine("v2").version)
@@ -1456,7 +1492,7 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
                     1,
                 ), else_=0)),
                 func.sum(case((
-                    Job.is_active.is_(True)
+                    degree_condition
                     & JobRanking.stale.is_(False)
                     & (JobRanking.error == "")
                     & (JobRanking.engine_version == get_ranking_engine("v2").version)
@@ -1472,8 +1508,8 @@ def _career_track_stats(db: Session) -> dict[str, dict[str, int]]:
         job_rows = db.execute(
             select(
                 Job.career_track,
-                func.sum(case((Job.is_active.is_(True), 1), else_=0)),
-                func.sum(case((Job.is_active.is_(True) & (func.coalesce(UserJobState.score, 0) >= 80), 1), else_=0)),
+                func.sum(case((degree_condition, 1), else_=0)),
+                func.sum(case((degree_condition & (func.coalesce(UserJobState.score, 0) >= 80), 1), else_=0)),
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).group_by(Job.career_track)
         ).all()
     for track_key, jobs, strong_matches in job_rows:
@@ -1488,7 +1524,7 @@ def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats
     profile = profile or get_user_profile(db)
     ensure_track_state(profile)
     current = active_track(profile)
-    stats = stats or _career_track_stats(db)
+    stats = stats or _career_track_stats(db, profile=profile)
     rows = []
     for track in CAREER_TRACKS:
         track_stats = stats.get(track.key, {})
@@ -1606,7 +1642,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Guest mode mirrors the primary admin's live opportunity catalog while every
     # personal surface (profile, applications, blockers, answers) stays isolated.
     with _job_catalog_session(request, db) as catalog_db:
-        career_stats = _career_track_stats(catalog_db)
+        career_stats = _career_track_stats(catalog_db, profile=profile)
         current_stats = career_stats.get(career_track, {})
         total_jobs = int(current_stats.get("jobs", 0))
         strong_matches = int(current_stats.get("strong_matches", 0))
@@ -1623,6 +1659,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
                 func.coalesce(UserJobState.status, "new") != "submitted"
             )
+            top_jobs_statement = top_jobs_statement.where(_degree_visibility_condition(profile))
         if v2_active:
             top_jobs_statement = top_jobs_statement.join(JobRanking, JobRanking.job_id == Job.id).where(
                 JobRanking.engine == "v2",
@@ -1787,6 +1824,7 @@ def _apply_profile_changes(
     )
     resume_analysis_fields = ("full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url", "skills_json")
     matching_before = tuple(getattr(profile, field) for field in matching_fields)
+    degree_before = profile_degree_level(profile)
     resume_analysis_before = tuple(getattr(profile, field) for field in resume_analysis_fields)
 
     scalar_fields = {
@@ -1814,8 +1852,12 @@ def _apply_profile_changes(
         profile.years_experience_options_json = dumps(options)
         profile.years_experience = max(5.0 if value == "5+" else float(value) for value in options)
 
+    degree_update = normalize_degree_level(values.get("degree_level")) if "degree_level" in values else None
+
     if "application_profile" in values and values["application_profile"] is not None:
         incoming = dict(values["application_profile"] or {})
+        if "degree_level" in incoming:
+            degree_update = normalize_degree_level(incoming.get("degree_level"))
         if "work_experiences" in incoming:
             incoming = _mirror_latest_work_experience(incoming)
         if replace_application_profile:
@@ -1829,6 +1871,16 @@ def _apply_profile_changes(
                 merged = _mirror_latest_work_experience(merged)
             profile.application_profile_json = dumps(merged)
 
+    if degree_update is not None:
+        application_profile = loads(profile.application_profile_json, {})
+        if not isinstance(application_profile, dict):
+            application_profile = {}
+        application_profile["degree_level"] = degree_update
+        # Keep the generic application-form degree field aligned with the canonical
+        # eligibility choice. Field of study/institution remain separate fields.
+        application_profile["education_degree"] = application_degree_value(degree_update)
+        profile.application_profile_json = dumps(application_profile)
+
     # Track-local search preferences/skills must be captured on every relevant save,
     # otherwise a later CS↔IEM switch can restore stale values from track_profiles_json.
     persist_active_track(profile)
@@ -1839,7 +1891,7 @@ def _apply_profile_changes(
         details_json=dumps({"fields": changed_fields}),
     ))
 
-    matching_changed = tuple(getattr(profile, field) for field in matching_fields) != matching_before
+    matching_changed = (tuple(getattr(profile, field) for field in matching_fields) != matching_before or profile_degree_level(profile) != degree_before)
     resume_analysis_changed = tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before
     user_id = current_user_id(db)
     track = active_track(profile)
@@ -2317,7 +2369,14 @@ def refresh_personal_ranking(db: Session = Depends(get_db)):
     user_id = current_user_id(db)
     profile = get_user_profile(db)
     track = active_track(profile)
-    _queue_profile_derived_refresh(user_id, track, True, False, True)
+    ranking_settings = get_ranking_settings(db)
+    v2_active = ranking_settings.active_engine == "v2"
+    _queue_profile_derived_refresh(
+        user_id, track,
+        rescore_jobs=not v2_active,
+        refresh_resumes=False,
+        rank_v2=v2_active or ranking_settings.v2_shadow_mode,
+    )
     return {"status": "queued", "career_track": track}
 
 
@@ -2326,7 +2385,7 @@ def personal_ranking_status(db: Session = Depends(get_db)):
     user_id = current_user_id(db)
     profile = get_user_profile(db)
     track = active_track(profile)
-    refresh = _ranking_refresh_status(user_id, track)
+    refresh = _ranking_refresh_status(user_id, track, include_progress=True)
     total = int(db.scalar(select(func.count()).select_from(Job).where(
         Job.career_track == track, Job.is_active.is_(True)
     )) or 0)
@@ -2341,11 +2400,16 @@ def personal_ranking_status(db: Session = Depends(get_db)):
         ranked = int(db.scalar(select(func.count()).select_from(UserJobState).join(Job, UserJobState.job_id == Job.id).where(
             Job.career_track == track, Job.is_active.is_(True)
         )) or 0)
+    live_completed = int(refresh.get("completed") or 0)
+    live_total = int(refresh.get("total") or 0)
+    display_ranked = live_completed if refresh.get("running") and live_total else min(ranked, total)
+    display_total = live_total if refresh.get("running") and live_total else total
     return {
         "career_track": track,
         "running": bool(refresh.get("running")),
-        "total": total,
-        "ranked": min(ranked, total),
+        "phase": refresh.get("phase", ""),
+        "total": display_total,
+        "ranked": min(display_ranked, display_total),
         "ready": total == 0 or (not refresh.get("running") and ranked >= total),
         "message": refresh.get("message", ""),
     }
@@ -2382,6 +2446,11 @@ def list_jobs(
                 joinedload(Job.source), joinedload(Job.application)
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).where(Job.career_track == career_track)
             count_statement = count_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id)
+        selected_degree = "" if guest_catalog else profile_degree_level(profile)
+        if selected_degree:
+            degree_filter = _degree_visibility_condition(profile)
+            statement = statement.where(degree_filter)
+            count_statement = count_statement.where(degree_filter)
         if v2_active:
             ranking_filter = (
                 JobRanking.engine == "v2",
@@ -2496,7 +2565,12 @@ def import_job(payload: ImportJobRequest, request: Request, db: Session = Depend
     default_resume = db.scalar(select(ResumeProfile).where(ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track))
     result = score_job(job, profile, loads(default_resume.skills_json, []) if default_resume else [])
     job.skills_json = dumps(extract_skills(f"{job.title} {job.description} {job.location}"))
-    job.experience_min, job.experience_max = extract_experience(f"{job.title} {job.description} {job.location}")
+    source_text = f"{job.title} {job.description} {job.location}"
+    job.experience_min, job.experience_max = extract_experience(source_text)
+    degree = extract_degree_requirement_details(source_text)
+    job.degree_requirement = degree.level
+    job.degree_required = degree.required
+    job.degree_experience_alternative = degree.experience_alternative
     db.add(job)
     db.flush()
     persist_v1_state(db, job, result)
@@ -2512,11 +2586,11 @@ def skills_overview(db: Session = Depends(get_db)):
     profile_skills = loads(profile.skills_json, []) if profile else []
     owned = {skill.casefold().strip() for skill in profile_skills}
     career_track = active_track(profile)
-    jobs = db.scalars(
-        select(Job).options(load_only(Job.id, Job.title, Job.company, Job.skills_json)).where(
-            Job.is_active.is_(True), Job.career_track == career_track
-        )
-    ).all()
+    jobs_statement = select(Job).options(load_only(Job.id, Job.title, Job.company, Job.skills_json)).where(
+        Job.is_active.is_(True), Job.career_track == career_track
+    )
+    jobs_statement = jobs_statement.where(_degree_visibility_condition(profile))
+    jobs = db.scalars(jobs_statement).all()
     gaps: dict[str, dict] = {}
     for job in jobs:
         for skill in loads(job.skills_json, []):
@@ -4698,26 +4772,45 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
 _profile_refresh_pending: dict[tuple[str, str], dict[str, bool]] = {}
 _profile_refresh_workers: dict[tuple[str, str], threading.Thread] = {}
 _profile_refresh_active: dict[tuple[str, str], dict[str, bool]] = {}
+_profile_refresh_progress: dict[tuple[str, str], dict[str, object]] = {}
 _profile_refresh_queue_lock = threading.Lock()
 # Render is intentionally small. Never let several users run CPU-heavy ranking
 # refreshes at the same time and starve normal API requests.
 _global_profile_refresh_semaphore = threading.Semaphore(1)
 
 
-def _ranking_refresh_status(user_id: str, career_track: str) -> dict:
+def _ranking_refresh_status(user_id: str, career_track: str, *, include_progress: bool = False) -> dict:
     """Expose only job-ranking work, without leaking unrelated profile refreshes."""
     key = (user_id, normalize_track(career_track))
     with _profile_refresh_queue_lock:
         pending = _profile_refresh_pending.get(key, {})
         active = _profile_refresh_active.get(key, {})
+        progress = dict(_profile_refresh_progress.get(key, {}))
         running = any(bool(state.get(flag)) for state in (pending, active) for flag in ("rescore_jobs", "rank_v2"))
-    return {
+    payload = {
         "running": running,
         "message": (
             "אנחנו מדרגים מחדש את המשרות לפי הפרופיל וההעדפות העדכניים שלך. "
             "ההתאמות המוצגות יתעדכנו אוטומטית עם השלמת התהליך."
         ) if running else "",
     }
+    if include_progress:
+        payload.update({
+            "phase": str(progress.get("phase") or ("queued" if running else "")),
+            "completed": int(progress.get("completed") or 0),
+            "total": int(progress.get("total") or 0),
+        })
+    return payload
+
+
+def _set_ranking_refresh_progress(
+    user_id: str, career_track: str, *, phase: str, completed: int, total: int,
+) -> None:
+    key = (user_id, normalize_track(career_track))
+    with _profile_refresh_queue_lock:
+        _profile_refresh_progress[key] = {
+            "phase": phase, "completed": max(0, int(completed)), "total": max(0, int(total)),
+        }
 
 
 def _queue_profile_derived_refresh(
@@ -4736,6 +4829,8 @@ def _queue_profile_derived_refresh(
         pending["rescore_jobs"] = pending["rescore_jobs"] or bool(rescore_jobs)
         pending["refresh_resumes"] = pending["refresh_resumes"] or bool(refresh_resumes)
         pending["rank_v2"] = pending["rank_v2"] or bool(rank_v2)
+        if rescore_jobs or rank_v2:
+            _profile_refresh_progress[key] = {"phase": "queued", "completed": 0, "total": 0}
         worker = _profile_refresh_workers.get(key)
         if worker and worker.is_alive():
             return
@@ -4762,6 +4857,9 @@ def _profile_refresh_worker(user_id: str, career_track: str) -> None:
             finally:
                 with _profile_refresh_queue_lock:
                     _profile_refresh_active.pop(key, None)
+                    progress = _profile_refresh_progress.get(key)
+                    if progress and not _profile_refresh_pending.get(key):
+                        progress["phase"] = "complete"
     finally:
         with _profile_refresh_queue_lock:
             _profile_refresh_workers.pop(key, None)
@@ -4791,14 +4889,14 @@ def _refresh_profile_derived_background(
                     if not profile:
                         return
                     if rescore_jobs:
-                        _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25)
+                        _rescore_all_jobs(db, profile, career_track=career_track, commit_every=25, progress_key=(user_id, career_track))
                     if refresh_resumes:
                         _refresh_resume_analyses(db, profile, career_track=career_track)
                     if rank_v2:
                         _rescore_v2_jobs(
                             db, profile, career_track=career_track, commit_every=10,
                             yield_seconds=0.15 if settings.auth_mode == "supabase" else 0.0,
-                            stale_only=not rescore_jobs,
+                            stale_only=not rescore_jobs, progress_key=(user_id, career_track),
                         )
                     db.commit()
     except Exception as exc:
@@ -4806,16 +4904,26 @@ def _refresh_profile_derived_background(
         print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
 
 
-def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0) -> None:
+def _rescore_all_jobs(
+    db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0,
+    progress_key: tuple[str, str] | None = None,
+) -> None:
     track = normalize_track(career_track or active_track(profile))
     default_resume = db.scalar(select(ResumeProfile).where(
         ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
     ))
     resume_skills = loads(default_resume.skills_json, []) if default_resume else []
     context = build_match_context(profile, resume_skills, career_track=track)
-    for index, job in enumerate(db.scalars(select(Job).where(Job.career_track == track)).yield_per(50), start=1):
+    predicate = (Job.career_track == track, Job.is_active.is_(True))
+    total = int(db.scalar(select(func.count()).select_from(Job).where(*predicate)) or 0)
+    jobs = db.scalars(select(Job).where(*predicate)).yield_per(50)
+    if progress_key:
+        _set_ranking_refresh_progress(*progress_key, phase="v1", completed=0, total=total)
+    for index, job in enumerate(jobs, start=1):
         result = score_job(job, profile, context=context)
         persist_v1_state(db, job, result)
+        if progress_key:
+            _set_ranking_refresh_progress(*progress_key, phase="v1", completed=index, total=total)
         # Source-derived fields belong to the shared catalog. Ranking must never
         # rewrite them from a particular user's profile/context.
         if commit_every and index % commit_every == 0:
@@ -4824,7 +4932,7 @@ def _rescore_all_jobs(db: Session, profile: Profile, career_track: str | None = 
 
 def _rescore_v2_jobs(
     db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0,
-    yield_seconds: float = 0.0, stale_only: bool = False,
+    yield_seconds: float = 0.0, stale_only: bool = False, progress_key: tuple[str, str] | None = None,
 ) -> None:
     track = normalize_track(career_track or active_track(profile))
     default_resume = db.scalar(select(ResumeProfile).where(
@@ -4837,29 +4945,33 @@ def _rescore_v2_jobs(
     # Ranking is relevant only for jobs a user can actually see. Load persisted V2
     # rows once instead of doing a remote SELECT for every job (hundreds of round
     # trips on Supabase in the previous implementation).
-    jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
-    job_ids = [job.id for job in jobs]
+    predicate = (Job.career_track == track, Job.is_active.is_(True))
+    total = int(db.scalar(select(func.count()).select_from(Job).where(*predicate)) or 0)
     existing = {
-        row.job_id: row for row in db.scalars(select(JobRanking).where(
-            JobRanking.engine == "v2", JobRanking.job_id.in_(job_ids or [-1]),
-        )).all()
-    }
-    if stale_only:
-        jobs = [
-            job for job in jobs
-            if result_is_stale(existing.get(job.id), job, profile, ranking_settings)
-        ]
-    for index, job in enumerate(jobs, start=1):
-        try:
-            persist_v2_result(
-                db, job, profile, ranking_settings, context=context, existing_row=existing.get(job.id),
+        row.job_id: row for row in db.scalars(
+            select(JobRanking).join(Job, JobRanking.job_id == Job.id).where(
+                JobRanking.engine == "v2", *predicate,
             )
-        except Exception as exc:
-            db.add(AuditLog(
-                event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
-                message="V2 background ranking failed",
-                details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
-            ))
+        ).all()
+    }
+    jobs = db.scalars(select(Job).where(*predicate)).yield_per(50)
+    if progress_key:
+        _set_ranking_refresh_progress(*progress_key, phase="v2", completed=0, total=total)
+    for index, job in enumerate(jobs, start=1):
+        should_rank = not stale_only or result_is_stale(existing.get(job.id), job, profile, ranking_settings)
+        if should_rank:
+            try:
+                persist_v2_result(
+                    db, job, profile, ranking_settings, context=context, existing_row=existing.get(job.id),
+                )
+            except Exception as exc:
+                db.add(AuditLog(
+                    event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
+                    message="V2 background ranking failed",
+                    details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
+                ))
+        if progress_key:
+            _set_ranking_refresh_progress(*progress_key, phase="v2", completed=index, total=total)
         if commit_every and index % commit_every == 0:
             db.commit()
             if yield_seconds > 0:
@@ -4875,7 +4987,7 @@ def _profile_dict(p: Profile) -> dict:
         "application_password_configured": bool(p.application_password),
         "cv_path": p.cv_path, "cv_filename": Path(p.cv_path).name if p.cv_path else "",
         "grade_sheet_filename": p.grade_sheet_filename or "", "grade_sheet_uploaded": bool(p.grade_sheet_path),
-        "years_experience": p.years_experience, "work_authorization": p.work_authorization,
+        "years_experience": p.years_experience, "degree_level": profile_degree_level(p), "work_authorization": p.work_authorization,
         "years_experience_options": loads(p.years_experience_options_json, [str(int(p.years_experience or 0))]),
         "needs_sponsorship": p.needs_sponsorship,
         "skills": loads(p.skills_json, []), "desired_titles": loads(p.desired_titles_json, []),
@@ -4918,7 +5030,15 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
         "official_careers_url": resolve_official_careers_url(j.company, j.apply_url),
         "workplace": j.workplace, "apply_url": j.apply_url, "source_url": j.source_url,
         "published_at": j.published_at, "discovered_at": j.discovered_at, "experience_min": j.experience_min,
-        "experience_max": j.experience_max, "skills": skills, "skill_gaps": skill_gaps, "score": v1_score,
+        "experience_max": j.experience_max, "degree_requirement": getattr(j, "degree_requirement", ""),
+        "degree_required": bool(getattr(j, "degree_required", False)),
+        "degree_experience_alternative": bool(getattr(j, "degree_experience_alternative", False)),
+        "degree_requirement_label": degree_requirement_label(
+            getattr(j, "degree_requirement", ""),
+            required=bool(getattr(j, "degree_required", False)),
+            experience_alternative=bool(getattr(j, "degree_experience_alternative", False)),
+        ),
+        "skills": skills, "skill_gaps": skill_gaps, "score": v1_score,
         "score_reasons": v1_reasons, "status": effective_status(j), "is_active": j.is_active,
         "match_breakdown": v1_breakdown,
         "application_links": ([{"source": j.source.name if j.source else "", "apply_url": j.apply_url,

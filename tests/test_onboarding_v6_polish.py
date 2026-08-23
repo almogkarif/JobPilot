@@ -28,5 +28,5 @@ def test_ranking_waits_for_personal_catalog_ranking_before_declaring_completion(
     assert "למשרות שנבחרו עבורך" in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.29.9" in HTML
-    assert "styles.css?v=0.49.2" in HTML
+    assert "app.js?v=0.30.0" in HTML
+    assert "styles.css?v=0.50.0" in HTML

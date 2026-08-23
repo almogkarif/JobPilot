@@ -16,6 +16,7 @@ from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .location_filter import is_israel_location
 from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, score_job, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
+from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
 from .job_text import clean_job_text
@@ -338,6 +339,10 @@ async def scan_all_sources(
                         text = f"{job.title} {job.description} {job.location}"
                         job.skills_json = dumps(extract_skills(text))
                         job.experience_min, job.experience_max = extract_experience(text)
+                        degree = extract_degree_requirement_details(text)
+                        job.degree_requirement = degree.level
+                        job.degree_required = degree.required
+                        job.degree_experience_alternative = degree.experience_alternative
                     else:
                         result = score_job(job, profile, context=match_context)
                         if job.id is None:
@@ -345,8 +350,13 @@ async def scan_all_sources(
                         persist_v1_state(db, job, result)
                         # Catalog metadata is source-derived; do not rewrite it from
                         # one user's ranking context.
-                        job.skills_json = dumps(extract_skills(f"{job.title} {job.description} {job.location}"))
-                        job.experience_min, job.experience_max = extract_experience(f"{job.title} {job.description} {job.location}")
+                        source_text = f"{job.title} {job.description} {job.location}"
+                        job.skills_json = dumps(extract_skills(source_text))
+                        job.experience_min, job.experience_max = extract_experience(source_text)
+                        degree = extract_degree_requirement_details(source_text)
+                        job.degree_requirement = degree.level
+                        job.degree_required = degree.required
+                        job.degree_experience_alternative = degree.experience_alternative
                         if evaluate_v2:
                             try:
                                 if job.id is None:

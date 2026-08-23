@@ -221,3 +221,32 @@ def test_bare_work_with_is_one_year_only_inside_requirements_section():
     assert extract_experience("דרישות:\n- עבודה עם Linux ו-Kubernetes") == (1.0, None)
     assert extract_experience("Responsibilities:\n- Working with product and engineering teams") == (None, None)
     assert extract_experience("Qualifications:\n- Ability to work with cross-functional teams") == (None, None)
+
+
+def test_hebrew_spelled_out_experience_durations_are_extracted_as_real_years():
+    assert extract_experience("דרישות: ניסיון של שנתיים בפיתוח ב-C++") == (2.0, None)
+    assert extract_experience("דרישות: שלוש שנות ניסיון בפיתוח תוכנה") == (3.0, None)
+    assert extract_experience("דרישות: ניסיון של חמש שנים לפחות במערכות Embedded") == (5.0, None)
+    assert extract_experience("דרישות: לפחות ארבע שנים בפיתוח backend") == (4.0, None)
+    assert extract_experience("דרישות: ניסיון של שנה בפיתוח תוכנה") == (1.0, None)
+
+
+def test_hebrew_spelled_out_years_keep_optional_and_study_duration_guards():
+    assert extract_experience("יתרון: ניסיון של שנתיים ב-Kubernetes") == (None, None)
+    assert extract_experience("סטודנט עם שנתיים עד סיום התואר") == (None, None)
+    assert extract_experience("דרישות: היכרות עם Linux. יתרון: שלוש שנות ניסיון ב-AWS") == (None, None)
+
+
+def test_real_elbit_hebrew_job_reads_two_years_not_implicit_one_year():
+    text = (
+        "תיאור המשרה: אנו מחפשים מהנדס.ת תוכנה מנוסה.\n"
+        "במסגרת התפקיד:\n"
+        "פיתוח תוכנה ב-C++ עבור מערכות משובצות זמן אמת (Embedded)\n"
+        "דרישות :\n"
+        "תואר ראשון בהנדסת תוכנה / מדעי המחשב / הנדסת חשמל או תחום רלוונטי אחר\n"
+        "ניסיון של שנתיים בפיתוח ב-C++ בדגש על גרסאות מודרניות C++11\n"
+        "ניסיון בפיתוח על גבי פלטפורמות Embedded עדיפות ל-Jetson או Qualcomm - יתרון משמעותי\n"
+        "יכולת עבודה עם מערכות Linux וסביבת פיתוח משובצת\n"
+        "הכרות עם OpenCV, CUDA או frameworks דומים - יתרון משמעותי"
+    )
+    assert extract_experience(text) == (2.0, None)

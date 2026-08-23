@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from ..utils import loads
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, active_track
 from .job_text import job_text_quality
+from .degree_requirements import degree_label, degree_satisfies, job_degree_requirement, profile_degree_level
+from .job_requirements import normalize_requirement_text, section_kind_at
 
 KNOWN_SKILLS = {
     "c++": ["c++", "cpp"],
@@ -253,6 +255,7 @@ class MatchContext:
     excluded_levels: set[str]
     career_track: str
     years_experience: float
+    degree_level: str
     now: datetime
 
 
@@ -282,6 +285,7 @@ def build_match_context(
         excluded_levels={level for level in SENIORITY_LEVELS if level in excluded},
         career_track=career_track or active_track(profile),
         years_experience=float(profile.years_experience or 0),
+        degree_level=profile_degree_level(profile),
         now=now or datetime.now(timezone.utc),
     )
 
@@ -356,12 +360,19 @@ _EXPERIENCE_DOMAIN_FALSE_POSITIVES = (
 
 
 def _optional_experience_context(text: str, start: int, end: int) -> bool:
+    if section_kind_at(text, start) == "preferred":
+        return True
     clause = _experience_clause(text, start, end, radius=150)
     return any(cue in clause for cue in _EXPERIENCE_OPTIONAL_CUES)
 
 
 def _requirement_section_context(text: str, start: int) -> bool:
     """Return whether a bare phrase appears under the nearest requirements heading."""
+    semantic_kind = section_kind_at(text, start)
+    if semantic_kind == "required":
+        return True
+    if semantic_kind in {"preferred", "responsibilities"}:
+        return False
     before = text[max(0, start - 500):start]
     requirement_terms = (
         "requirements", "minimum qualifications", "qualifications", "what we need", "what you bring",
@@ -490,12 +501,12 @@ def extract_experience(text: str) -> tuple[float | None, float | None]:
     * Optional/preferred experience and unrelated ``N years`` durations are ignored.
     * Explicit no-experience roles remain zero-experience roles.
     """
-    lowered = str(text or "").casefold().replace("’", "'").replace("–", "-").replace("—", "-")
+    lowered = normalize_requirement_text(text).casefold()
     if not lowered.strip():
         return None, None
 
     number = r"\d+(?:\.\d+)?"
-    year_word = r"(?:years?|yrs?\.?|שנים|שנות)"
+    year_word = r"(?:years?|yrs?\.?|שנה|שנת|שנים|שנות)"
     ranges: list[tuple[float, float, int, int]] = []
     occupied: list[tuple[int, int]] = []
     range_pattern = re.compile(rf"(?P<low>{number})\s*(?:-|to|עד)\s*(?P<high>{number})\s*{year_word}")
@@ -531,6 +542,50 @@ def extract_experience(text: str) -> tuple[float | None, float | None]:
             continue
         value = float(match.group("value"))
         singles.append((value, match.start(), match.end()))
+
+    # Hebrew postings very often spell the duration out instead of using digits:
+    # "ניסיון של שנתיים", "שלוש שנות ניסיון", "חמש שנים בפיתוח".
+    # Treat these as numeric candidates so they go through the exact same
+    # mandatory/preferred/study-duration safeguards as digit-based requirements.
+    hebrew_year_values = (
+        (20.0, r"(?:עשרים)"),
+        (19.0, r"(?:תשע\s+עשרה|תשעה\s+עשר)"),
+        (18.0, r"(?:שמונה\s+עשרה|שמונה\s+עשר)"),
+        (17.0, r"(?:שבע\s+עשרה|שבעה\s+עשר)"),
+        (16.0, r"(?:שש\s+עשרה|שישה\s+עשר)"),
+        (15.0, r"(?:חמש\s+עשרה|חמישה\s+עשר)"),
+        (14.0, r"(?:ארבע\s+עשרה|ארבעה\s+עשר)"),
+        (13.0, r"(?:שלוש\s+עשרה|שלושה\s+עשר)"),
+        (12.0, r"(?:שתים\s+עשרה|שתיים\s+עשרה|שנים\s+עשר|שני\s+עשר)"),
+        (11.0, r"(?:אחת\s+עשרה|אחד\s+עשר)"),
+        (10.0, r"(?:עשר|עשרה)"),
+        (9.0, r"(?:תשע|תשעה)"),
+        (8.0, r"(?:שמונה)"),
+        (7.0, r"(?:שבע|שבעה)"),
+        (6.0, r"(?:שש|שישה)"),
+        (5.0, r"(?:חמש|חמישה)"),
+        (4.0, r"(?:ארבע|ארבעה)"),
+        (3.0, r"(?:שלוש|שלושה)"),
+    )
+    for value, word_pattern in hebrew_year_values:
+        word_year_pattern = re.compile(rf"(?<![\w]){word_pattern}\s+(?:שנים|שנות)(?![\w])")
+        for match in word_year_pattern.finditer(lowered):
+            if not _numeric_years_are_experience(lowered, match.start(), match.end()):
+                continue
+            singles.append((value, match.start(), match.end()))
+
+    # Hebrew has dedicated singular/dual year forms that do not contain a
+    # separate number token.  Keep them explicit to avoid trying to infer a
+    # general natural-language number from arbitrary prose.
+    for value, pattern in (
+        (2.0, re.compile(r"(?<![\w])שנתיים(?![\w])")),
+        (1.0, re.compile(r"(?<![\w])שנה(?:\s+אחת)?(?![\w])")),
+        (1.0, re.compile(r"(?<![\w])שנת\s+(?=ני?סיון|עבודה|פיתוח|תעסוקה)(?![\w])")),
+    ):
+        for match in pattern.finditer(lowered):
+            if not _numeric_years_are_experience(lowered, match.start(), match.end()):
+                continue
+            singles.append((value, match.start(), match.end()))
 
     numeric_candidates = [
         {"minimum": low, "maximum": high, "start": start, "end": end}
@@ -837,6 +892,34 @@ def score_job(
         score -= penalty
         reasons.append({"type": "negative", "label": f"חסרות דרישות חובה: {', '.join(missing_required_skills)}", "points": -penalty})
 
+    degree_requirement = job_degree_requirement(job)
+    required_degree = degree_requirement.level
+    degree_blocked = bool(
+        required_degree
+        and degree_requirement.required
+        and not degree_requirement.experience_alternative
+        and context.degree_level
+        and not degree_satisfies(context.degree_level, required_degree)
+    )
+    if degree_blocked:
+        reasons.append({
+            "type": "negative",
+            "label": f"נדרש {degree_label(required_degree)}",
+            "points": -100,
+        })
+    elif required_degree and context.degree_level and degree_satisfies(context.degree_level, required_degree):
+        reasons.append({
+            "type": "positive",
+            "label": f"התואר מתאים לדרישה: {degree_label(required_degree)}",
+            "points": 0,
+        })
+    elif required_degree and degree_requirement.experience_alternative:
+        reasons.append({
+            "type": "neutral",
+            "label": f"{degree_label(required_degree)} או ניסיון מקביל — לא נפסל לפי תואר בלבד",
+            "points": 0,
+        })
+
     exp_min, exp_max = extract_experience(text)
     if exp_min is None:
         reasons.append({"type": "neutral", "label": "דרישת הניסיון לא חד-משמעית", "points": 0})
@@ -942,7 +1025,7 @@ def score_job(
         score_cap = min(score_cap, 55)
         reasons.append({"type": "negative", "label": "פרטי המשרה נקלטו באופן חלקי", "points": 0})
     return MatchResult(
-        score=0 if blocked_levels or excluded_hits else min(score_cap, max(0, round(score))),
+        score=0 if blocked_levels or excluded_hits or degree_blocked else min(score_cap, max(0, round(score))),
         reasons=reasons,
         skills=sorted(job_skills),
         experience_min=exp_min,

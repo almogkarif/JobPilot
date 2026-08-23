@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import shutil
 from pathlib import Path
 
@@ -20,9 +22,8 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
     html = (ROOT / 'app' / 'static' / 'index.html').read_text()
     css = (ROOT / 'app' / 'static' / 'styles.css').read_text()
     js = (ROOT / 'app' / 'static' / 'app.js').read_text()
-    html = html.replace('<link rel="stylesheet" href="/static/styles.css?v=0.49.2" />', f'<style>{css}</style>')
-    html = html.replace('<script src="/static/app.js?v=0.29.9"></script>', '')
-
+    html = re.sub(r'<link rel="stylesheet" href="/static/styles\.css\?v=[^"]+" />', f"<style>{css}</style>", html, count=1)
+    html = re.sub(r'<script src="/static/app\.js\?v=[^"]+"></script>', "", html, count=1)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, executable_path=chromium, args=['--no-sandbox'])
         page = browser.new_page(locale='he-IL', viewport={'width': 1400, 'height': 1000})

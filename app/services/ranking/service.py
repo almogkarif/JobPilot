@@ -14,6 +14,7 @@ from ..matching import build_match_context
 from .config import DEFAULT_V2_CONFIG, RankingV2Config
 from .v1 import LegacyRankingEngine
 from .v2 import EligibilityRankingEngine
+from ..degree_requirements import profile_degree_level
 
 ENGINES = {"v1": LegacyRankingEngine(), "v2": EligibilityRankingEngine()}
 
@@ -48,7 +49,7 @@ def profile_fingerprint(profile, track: str | None = None) -> str:
         track or active_track(profile), profile.years_experience, profile.years_experience_options_json,
         profile.skills_json, profile.desired_titles_json, profile.preferred_locations_json,
         profile.preferred_work_modes_json, profile.keywords_json, profile.excluded_keywords_json,
-        profile.work_authorization, profile.needs_sponsorship,
+        profile.work_authorization, profile.needs_sponsorship, profile_degree_level(profile),
     ])
 
 

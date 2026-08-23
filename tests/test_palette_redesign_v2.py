@@ -6,7 +6,7 @@ HTML = Path('app/static/index.html').read_text()
 
 def test_palette_redesign_v2_is_present_and_cache_bumped():
     assert 'Palette Redesign V2' in CSS
-    assert 'styles.css?v=0.49.2' in HTML
+    assert 'styles.css?v=0.50.0' in HTML
 
 
 def test_iem_has_light_champagne_and_warm_graphite_dark_palette():
