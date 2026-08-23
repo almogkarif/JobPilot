@@ -316,6 +316,47 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     page.get_by_role("button", name="בדיקה והגשה אוטומטית").wait_for(state="visible")
 
 
+def test_small_choice_blocker_is_yellow_and_uses_clickable_options_everywhere(browser_page):
+    page, _ = browser_page
+    payload = page.evaluate("""async()=>{
+      const unique=Date.now();
+      const job=await (await fetch('/api/jobs/import',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          title:`Choice UI ${unique}`,company:'Choice UI Company',location:'Israel',
+          apply_url:`https://boards.greenhouse.io/choice/jobs/${unique}`
+        })
+      })).json();
+      const application=await (await fetch(`/api/jobs/${job.id}/mark-submitted`,{method:'POST'})).json();
+      const blocker=await (await fetch(`/api/agent/tasks/${application.id}/blocked`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          token:'change-me',kind:'choice_required',field_label:'Family employment',
+          question:'Is a family member employed by this company?',
+          explanation:'Choose one option to continue.',options:['Yes','No']
+        })
+      })).json();
+      return {applicationId:application.id,blockerId:blocker.id};
+    }""")
+
+    page.evaluate("id=>startApplicationTracking(id,true)", payload["applicationId"])
+    tracker = page.locator(".application-live-tracker.has-choice")
+    tracker.wait_for(state="visible")
+    marker = tracker.locator("li.choice-waiting > i")
+    marker.wait_for(state="visible")
+    assert marker.evaluate("el=>getComputedStyle(el).backgroundColor") == "rgb(214, 146, 50)"
+    assert tracker.locator(".application-live-choice input").count() == 0
+    assert tracker.locator('.application-live-choice button[data-choice-answer="Yes"]').is_visible()
+    assert tracker.locator('.application-live-choice button[data-choice-answer="No"]').is_visible()
+
+    page.locator('button[data-view="applications"]').click()
+    page.locator('[data-application-section="attention"]').click()
+    card = page.locator("#blockers-list .blocker-card").filter(has_text="Is a family member employed")
+    card.wait_for(state="visible")
+    assert "blocker-warning" in (card.get_attribute("class") or "")
+    assert card.locator(".blocker-answer input").count() == 0
+    assert card.locator('button[data-choice-answer="Yes"]').is_visible()
+    assert card.locator('button[data-choice-answer="No"]').is_visible()
+
+
 def test_all_main_views_load_without_javascript_errors(browser_page):
     page, _ = browser_page
     navigation = [
