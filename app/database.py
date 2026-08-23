@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -18,6 +19,7 @@ if database_url.startswith("postgresql://"):
 connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
 engine = create_engine(database_url, connect_args=connect_args, future=True, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -440,7 +442,7 @@ def _postgres_index_names(connection, table: str) -> set[str]:
     """), {"table": table}).scalars().all())
 
 
-def _postgres_multiuser_migration(connection) -> None:
+def _postgres_multiuser_migration(connection) -> bool:
     """Upgrade a v0.3.0 single-owner PostgreSQL DB in place.
 
     Existing rows are assigned to the existing AppIdentity when possible. If data was
@@ -451,16 +453,26 @@ def _postgres_multiuser_migration(connection) -> None:
     hot path so Render's old and new instances can overlap during zero-downtime deploys
     without repeatedly requesting AccessExclusiveLock on active tables.
     """
-    # Serialize JobPilot schema migrations with each other. This does not block normal
-    # application traffic and is released automatically when engine.begin() commits.
-    connection.execute(text(
-        "SELECT pg_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
-    ))
+    # Serialize JobPilot schema migrations with each other without ever blocking on
+    # the advisory lock. Render may briefly overlap old/new instances during a deploy;
+    # a blocking pg_advisory_xact_lock can then wait until Supabase statement_timeout
+    # cancels the transaction and aborts application startup. If another instance owns
+    # the lock, it is already responsible for this additive compatibility pass, so this
+    # instance can safely continue startup and retry on a later restart/deploy.
+    migration_lock_acquired = bool(connection.execute(text(
+        "SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
+    )).scalar())
+    if not migration_lock_acquired:
+        logger.warning(
+            "PostgreSQL compatibility migration is already running in another instance; "
+            "skipping this startup migration pass"
+        )
+        return False
 
     inspector = inspect(connection)
     tables = set(inspector.get_table_names())
     if not tables:
-        return
+        return True
     owner = "legacy-owner"
     if "app_identity" in tables:
         try:
@@ -639,6 +651,7 @@ def _postgres_multiuser_migration(connection) -> None:
                 safe_role = role.replace('"', '""')
                 connection.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM "{safe_role}"'))
 
+    return True
 
 
 def _migrate_plaintext_application_passwords(connection) -> None:
@@ -667,11 +680,13 @@ def _migrate_plaintext_application_passwords(connection) -> None:
 def ensure_compatibility_columns() -> None:
     """Apply additive compatibility migrations for local and cloud installations."""
     with engine.begin() as connection:
+        run_followup_migrations = True
         if engine.dialect.name == "sqlite":
             _sqlite_additive_migrations(connection)
         elif engine.dialect.name == "postgresql":
-            _postgres_multiuser_migration(connection)
-        _migrate_plaintext_application_passwords(connection)
+            run_followup_migrations = _postgres_multiuser_migration(connection)
+        if run_followup_migrations:
+            _migrate_plaintext_application_passwords(connection)
 
 
 def get_db(request: Request):

@@ -48,6 +48,8 @@ class _Connection:
     def execute(self, statement, params=None):
         sql = str(statement)
         self.statements.append(sql)
+        if "pg_try_advisory_xact_lock" in sql:
+            return _Result(scalar=True)
         if "SELECT auth_user_id FROM app_identity" in sql:
             return _Result(scalar="owner-user-id")
         if "SELECT rolname FROM pg_roles" in sql:
@@ -71,7 +73,7 @@ def test_postgres_startup_skips_already_applied_rls_and_revokes(monkeypatch):
     database_module._postgres_multiuser_migration(connection)
 
     sql = "\n".join(connection.statements)
-    assert "pg_advisory_xact_lock" in sql
+    assert "pg_try_advisory_xact_lock" in sql
     assert "ENABLE ROW LEVEL SECURITY" not in sql
     assert "REVOKE ALL PRIVILEGES" not in sql
 
@@ -139,3 +141,52 @@ def test_postgres_startup_does_not_rewrite_existing_salary_default(monkeypatch):
 
     sql = "\n".join(connection.statements)
     assert "ALTER COLUMN salary_expectation SET DEFAULT" not in sql
+
+
+def test_postgres_startup_skips_migration_when_another_instance_holds_lock(monkeypatch):
+    class _BusyConnection(_Connection):
+        def execute(self, statement, params=None):
+            sql = str(statement)
+            self.statements.append(sql)
+            if "pg_try_advisory_xact_lock" in sql:
+                return _Result(scalar=False)
+            raise AssertionError(f"migration continued after lock miss: {sql}")
+
+    connection = _BusyConnection()
+    acquired = database_module._postgres_multiuser_migration(connection)
+
+    assert acquired is False
+    assert len(connection.statements) == 1
+    assert "pg_try_advisory_xact_lock" in connection.statements[0]
+    assert "pg_advisory_xact_lock(" not in connection.statements[0]
+
+
+def test_ensure_compatibility_skips_followups_when_postgres_lock_is_busy(monkeypatch):
+    class _Dialect:
+        name = "postgresql"
+
+    class _Begin:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class _Engine:
+        dialect = _Dialect()
+
+        def begin(self):
+            return _Begin()
+
+    followups: list[object] = []
+    monkeypatch.setattr(database_module, "engine", _Engine())
+    monkeypatch.setattr(database_module, "_postgres_multiuser_migration", lambda _connection: False)
+    monkeypatch.setattr(
+        database_module,
+        "_migrate_plaintext_application_passwords",
+        lambda connection: followups.append(connection),
+    )
+
+    database_module.ensure_compatibility_columns()
+
+    assert followups == []
