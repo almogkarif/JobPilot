@@ -3169,6 +3169,32 @@ def automatic_application_queue(db: Session = Depends(get_db)):
     return _auto_apply_queue_snapshot(db, track)
 
 
+@app.post("/api/applications/{application_id}/prioritize")
+def prioritize_automatic_application(application_id: int, db: Session = Depends(get_db)):
+    """Move a waiting Auto Apply row to the head of the waiting queue.
+
+    Cloud workers resolve the real queue head when they claim work, ordering auto
+    applications by ``updated_at`` newest-first. Touching this queued row therefore
+    changes priority without interrupting an application that is already running.
+    """
+    application = _active_application_or_404(db, application_id)
+    if application.mode != "auto" or not _application_auto_submit_supported(application):
+        raise HTTPException(409, "המשרה אינה בתור ההגשה האוטומטית")
+    if application.status == "applying":
+        raise HTTPException(409, "המשרה כבר רצה עכשיו")
+    if application.status != "queued":
+        raise HTTPException(409, "ניתן לקדם רק משרה שממתינה בתור")
+    application.updated_at = utcnow()
+    _record_application_event(
+        db, application, "queue_prioritized", from_status="queued", to_status="queued",
+        actor="user", message="המשרה קודמה להגשה הבאה בתור",
+    )
+    db.commit()
+    db.refresh(application)
+    snapshot = _auto_apply_queue_snapshot(db, application.job.career_track)
+    return {"application": _application_dict(application, db), "auto_apply_queue": snapshot}
+
+
 @app.patch("/api/applications/{application_id}")
 def update_application(application_id: int, payload: ApplicationUpdate, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
@@ -3338,6 +3364,8 @@ def remove_application_from_queue(application_id: int, db: Session = Depends(get
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Submitted applications cannot be removed from history")
+    if application.status == "applying":
+        raise HTTPException(409, "לא ניתן לבטל הגשה בזמן שה-worker כבר מריץ אותה")
     job = application.job
     db.add(AuditLog(
         event_type="application_removed_from_queue",

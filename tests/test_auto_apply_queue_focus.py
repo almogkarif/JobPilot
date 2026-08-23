@@ -109,7 +109,7 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
 
     assert "await syncPrimaryApplicationTracking(application.id, true)" in js
     assert "startApplicationTracking(application.id, true)" not in js
-    assert "['queued','applying','needs_input','verification_pending'].includes(trackedStatus)" in js
+    assert "trackedStatus==='applying'" in js
     assert 'otherAutoQueueItems' in js
     assert 'showAutoApplyQueue' in js
     assert 'המשרות שממתינות בתור להגשה' in js or 'משרות ממתינות בתור להגשה' in js
@@ -121,6 +121,65 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     assert 'autoQueueWaitingCount' in js
     assert 'רץ עכשיו' in js
     assert 'הבאה בתור' in js
-    assert 'הגשה אוטומטית חדשה נכנסת לראש רשימת ההמתנה' in js
+    assert 'הגש הבא בתור' in js
+    assert 'ביטול' in js
+    assert 'פתח' in js
+    assert 'prioritizeAutoQueueApplication' in js
+    assert 'cancelAutoQueueApplication' in js
+    assert 'nextActiveId' in js
     assert '.application-running-badge' in css
     assert '.auto-queue-current' in css
+
+
+def test_prioritize_auto_queue_moves_waiting_job_to_head_without_interrupting_running_job():
+    with TestClient(app) as client:
+        _clear_active_queue()
+        running_job = _import_job(client, title='Running Greenhouse Auto', apply_url='https://job-boards.greenhouse.io/acme/jobs/3001')
+        first_waiting = _import_job(client, title='First Waiting Lever Auto', apply_url='https://jobs.lever.co/acme/3002')
+        promoted = _import_job(client, title='Promoted Greenhouse Auto', apply_url='https://job-boards.greenhouse.io/acme/jobs/3003')
+        with SessionLocal() as db:
+            ids = []
+            for payload, status in ((running_job, 'applying'), (first_waiting, 'queued'), (promoted, 'queued')):
+                job = db.get(Job, payload['id'])
+                application = Application(job_id=job.id, status=status, mode='auto')
+                db.add(application)
+                db.flush()
+                ids.append(application.id)
+            # Make the promoted row older so it starts behind the other waiting row.
+            from datetime import timedelta
+            from app.models import utcnow
+            db.get(Application, ids[1]).updated_at = utcnow()
+            db.get(Application, ids[2]).updated_at = utcnow() - timedelta(minutes=5)
+            db.commit()
+
+        before = client.get('/api/applications/auto-queue').json()
+        assert before['current']['id'] == ids[0]
+        assert [row['id'] for row in before['waiting']] == [ids[1], ids[2]]
+
+        response = client.post(f'/api/applications/{ids[2]}/prioritize')
+        assert response.status_code == 200, response.text
+        after = response.json()['auto_apply_queue']
+        assert after['current']['id'] == ids[0]
+        assert [row['id'] for row in after['waiting']] == [ids[2], ids[1]]
+
+        cancel_waiting = client.delete(f'/api/applications/{ids[2]}')
+        assert cancel_waiting.status_code == 200, cancel_waiting.text
+        remaining = client.get('/api/applications/auto-queue').json()
+        assert [remaining['current']['id'], *[row['id'] for row in remaining['waiting']]] == [ids[0], ids[1]]
+
+        running_cancel = client.delete(f'/api/applications/{ids[0]}')
+        assert running_cancel.status_code == 409
+
+
+def test_prioritize_rejects_nonqueued_application():
+    with TestClient(app) as client:
+        _clear_active_queue()
+        job_payload = _import_job(client, title='Already Running Auto', apply_url='https://jobs.lever.co/acme/4001')
+        with SessionLocal() as db:
+            job = db.get(Job, job_payload['id'])
+            application = Application(job_id=job.id, status='applying', mode='auto')
+            db.add(application)
+            db.commit()
+            application_id = application.id
+        response = client.post(f'/api/applications/{application_id}/prioritize')
+        assert response.status_code == 409

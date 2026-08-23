@@ -60,10 +60,11 @@ def automation_apply_url(job) -> str:
 
     Greenhouse Job Board API rows may deliberately expose a company-branded
     ``absolute_url`` (for example Taboola's careers site) even though the actual
-    application is still hosted by Greenhouse. Those branded pages can contain
-    unrelated inputs/search controls and are not a reliable automation surface.
-    Use the board token + Greenhouse job id for the browser while preserving the
-    original URL on the Job row for users.
+    application is still hosted by Greenhouse. The modern public job URL can also
+    redirect straight back to that branded page for boards that embed Greenhouse.
+    Drive the browser against Greenhouse's dedicated embedded application form so
+    the Agent sees the real form controls instead of career-site search/navigation
+    controls. The original public URL remains on the Job row for users.
     """
     original = str(getattr(job, "apply_url", "") or "").strip()
     source = getattr(job, "source", None)
@@ -77,9 +78,13 @@ def automation_apply_url(job) -> str:
     if not token or not external_id:
         return original
 
-    # Greenhouse ids are normally numeric, but quoting keeps this safe for any
-    # future opaque ids without changing the persistent source URL.
-    return f"https://job-boards.greenhouse.io/{quote(token, safe='-._~')}/jobs/{quote(external_id, safe='-._~')}"
+    # ``embed/job_app`` is the stable application surface used by branded
+    # Greenhouse career sites themselves. Unlike /{board}/jobs/{id}, it does not
+    # intentionally hand control back to the employer's custom career page.
+    return (
+        "https://job-boards.greenhouse.io/embed/job_app"
+        f"?for={quote(token, safe='-._~')}&token={quote(external_id, safe='-._~')}"
+    )
 
 
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:

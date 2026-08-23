@@ -66,16 +66,18 @@ def test_greenhouse_company_branded_url_resolves_to_native_hosted_form():
         external_id="8081260",
         apply_url="https://www.taboola.com/careers/job/algorithm-engineer-rtb?gh_jid=8081260",
     )
-    assert automation_apply_url(job) == "https://job-boards.greenhouse.io/taboola/jobs/8081260"
+    assert automation_apply_url(job) == "https://job-boards.greenhouse.io/embed/job_app?for=taboola&token=8081260"
 
 
-def test_existing_hosted_greenhouse_url_stays_on_same_native_job():
+def test_existing_hosted_greenhouse_url_uses_embed_application_surface():
     source = SimpleNamespace(kind="greenhouse", identifier="pagayais")
     job = SimpleNamespace(
         source=source, external_id="7811459003",
         apply_url="https://job-boards.greenhouse.io/pagayais/jobs/7811459003",
     )
-    assert automation_apply_url(job) == job.apply_url
+    assert automation_apply_url(job) == (
+        "https://job-boards.greenhouse.io/embed/job_app?for=pagayais&token=7811459003"
+    )
 
 
 def test_non_greenhouse_url_is_left_unchanged():
@@ -120,7 +122,7 @@ def test_agent_task_uses_native_greenhouse_url_but_preserves_official_url():
         task = response.json()["task"]
         assert task["application"]["id"] == application_id
         assert task["job"]["official_apply_url"] == official
-        assert task["job"]["apply_url"] == f"https://job-boards.greenhouse.io/{token}/jobs/8081260"
+        assert task["job"]["apply_url"] == f"https://job-boards.greenhouse.io/embed/job_app?for={token}&token=8081260"
 
 
 def test_old_submit_button_missing_blocker_is_requeued_once_on_native_greenhouse_url(monkeypatch):
@@ -182,7 +184,7 @@ def test_native_greenhouse_submit_missing_is_not_auto_retried_again(monkeypatch)
     monkeypatch.setattr(main_module, "dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
     unique = uuid4().hex[:10]
     token = f"native-no-loop-{unique}"
-    native = f"https://job-boards.greenhouse.io/{token}/jobs/8081260"
+    native = f"https://job-boards.greenhouse.io/embed/job_app?for={token}&token=8081260"
     official = "https://www.taboola.com/careers/job/algorithm-engineer-rtb?gh_jid=8081260"
     with TestClient(app) as client:
         _clear_active_queue()
