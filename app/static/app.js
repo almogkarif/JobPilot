@@ -759,6 +759,9 @@ const SOURCE_LOGO_DOMAINS = Object.freeze({
   'eleos health': 'eleos.health',
   'melio': 'melio.com',
   'neo security': 'neo.ai',
+  'axon': 'axon.com',
+  'wolt': 'wolt.com',
+  'ashley digital': 'ashleyfurniture.com',
 });
 
 function normalizeSourceBrand(value = '') {
@@ -796,11 +799,23 @@ function sourceLogoMarkup(source, className = '') {
   if (!domain) {
     return `<div class="source-logo-tile ${className}" aria-label="${company}"><span class="source-logo-fallback">${fallback}</span></div>`;
   }
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+  const logoUrl = `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(`https://${domain}`)}&sz=128`;
+  const fallbackUrl = `https://${domain}/favicon.ico`;
   return `<div class="source-logo-tile ${className}" title="${company}">
-    <img class="source-company-logo" src="${esc(logoUrl)}" alt="הלוגו של ${company}" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+    <img class="source-company-logo" src="${esc(logoUrl)}" data-logo-fallback="${esc(fallbackUrl)}" alt="הלוגו של ${company}" loading="lazy" referrerpolicy="no-referrer" onerror="sourceLogoImageError(this)">
     <span class="source-logo-fallback" hidden>${fallback}</span>
   </div>`;
+}
+
+function sourceLogoImageError(image) {
+  const fallbackUrl = String(image?.dataset?.logoFallback || '');
+  if (fallbackUrl) {
+    image.dataset.logoFallback = '';
+    image.src = fallbackUrl;
+    return;
+  }
+  image.hidden = true;
+  if (image.nextElementSibling) image.nextElementSibling.hidden = false;
 }
 
 const dateFmt = (value) => value
@@ -1887,7 +1902,7 @@ function rankingStatusMeta(status) {
   const map={
     match:['תואם','pass'],fresh:['עדכנית','pass'],realistic:['ריאלי','pass'],
     stretch:['גבולי','warn'],preference_mismatch:['מחוץ להעדפה','warn'],
-    mismatch:['לא תואם','fail'],old:['ישנה מדי','fail'],excluded:['נפסלה','fail'],
+    mismatch:['לא תואם','fail'],old:['ישנה מדי','fail'],excluded:['נפסלה','fail'],alternative:['חלופת ניסיון','warn'],
     not_configured:['לא הוגדרה העדפה','neutral'],unknown:['לא ידוע','neutral'],
   };
   return map[status] || [String(status||'לא ידוע'),'neutral'];
@@ -1906,6 +1921,18 @@ function v2ExperienceDetail(e) {
   const selected=Array.isArray(e.profile_experience_options)?e.profile_experience_options.filter(Boolean):[];
   if (selected.length) return `${required} · מסנן בפרופיל: ${selected.join(' · ')}`;
   return profile===null?required:`${required} · ניסיון בפרופיל: ${profile}`;
+}
+
+
+function degreeLevelLabel(value) {
+  return ({bachelor:'תואר ראשון (B.A. / B.Sc.)',master:'תואר שני (M.A. / M.Sc.)',phd:'דוקטורט (Ph.D.)'})[value] || 'לא זוהתה דרישת תואר';
+}
+
+function v2DegreeDetail(e) {
+  const level=degreeLevelLabel(e.required_degree);
+  const required=e.degree_experience_alternative?`${level} או ניסיון מקביל`:e.degree_required?`${level} ומעלה`:level;
+  const profile=e.profile_degree_level?degreeLevelLabel(e.profile_degree_level):'לא הוגדר תואר בפרופיל';
+  return `${required} · בפרופיל: ${profile}`;
 }
 
 function v2RoleDetail(part) {
@@ -1929,7 +1956,8 @@ function v2SkillsDetail(part) {
 }
 
 function v2RequirementsDetail(part) {
-  const chunks=[part?.degree_detected?'זוהתה דרישת תואר מקצועי':'לא זוהתה דרישת תואר ברורה'];
+  const degree=part?.required_degree?(part.degree_experience_alternative?`${degreeLevelLabel(part.required_degree)} או ניסיון מקביל`:part.degree_required?`${degreeLevelLabel(part.required_degree)} ומעלה`:degreeLevelLabel(part.required_degree)):'לא זוהתה דרישת תואר ברורה';
+  const chunks=[part?.required_degree?`דרישת תואר: ${degree}`:degree];
   if (part?.mandatory_prerequisites?.length) chunks.push(`דרישות חובה לבדיקה: ${part.mandatory_prerequisites.join(', ')}`);
   return chunks.join(' · ');
 }
@@ -1960,6 +1988,7 @@ function renderV2RankingExplanation(job) {
   const filterRows=[
     ['מסלול מקצועי',e.career_track_status,e.career_track_status==='match'?'המשרה שייכת למסלול הפעיל':'המשרה אינה שייכת למסלול הפעיל'],
     ['ניסיון',e.experience_status,v2ExperienceDetail(e)],
+    ['תואר',e.degree_status,v2DegreeDetail(e)],
     ['עדכניות',e.recency_status,e.age_days===null||e.age_days===undefined?'תאריך הפרסום לא ידוע':`פורסמה לפני ${e.age_days} ימים`],
     ['מיקום',e.location_status,e.job_location||job.location||'לא צוין'],
     ['מודל עבודה',e.work_mode_status,job.workplace&&job.workplace!=='unknown'?job.workplace:'לא צוין'],
@@ -1975,7 +2004,7 @@ function renderV2RankingExplanation(job) {
   const adjustments=[];
   if (Number(b.skills?.penalty)>0) adjustments.push(`חסרים סקילי חובה: הופחתו ${Number(b.skills.penalty)} נקודות והציון הוגבל לכל היותר ל־69`);
   for (const warning of (job.ranking_warnings||[])) { const label=v2WarningHebrew(warning); if(label&&!adjustments.includes(label)) adjustments.push(label); }
-  const unknown=(e.unknown_fields||[]).map(value=>({experience:'ניסיון נדרש',seniority:'רמת תפקיד',location:'מיקום',publication_date:'תאריך פרסום',work_mode:'מודל עבודה',employment_type:'סוג העסקה'})[value]||value);
+  const unknown=(e.unknown_fields||[]).map(value=>({experience:'ניסיון נדרש',degree:'דרישת תואר',profile_degree:'תואר בפרופיל',seniority:'רמת תפקיד',location:'מיקום',publication_date:'תאריך פרסום',work_mode:'מודל עבודה',employment_type:'סוג העסקה'})[value]||value);
   return `<section class="ranking-v2-explanation">
     <header class="ranking-v2-header"><span><strong>${rankingTierLabel(job.ranking_tier)}</strong><small>ודאות ${rankingConfidenceLabel(job.ranking_confidence)} · הסינון הראשוני נפרד מהניקוד</small></span><b>${Number(job.score)||0}<small>/100</small></b></header>
     <div class="ranking-filter-summary ${state[1]}"><strong>סינון ראשוני: ${esc(state[0])}</strong><span>${e.state==='excluded'?'לפחות תנאי סף אחד פסל את המשרה':e.state==='stretch'?'המשרה עברה עם הסתייגות שחשוב לבדוק':'המשרה עברה את תנאי הסף שניתן היה לבדוק'}</span></div>
@@ -1998,7 +2027,7 @@ async function showJob(id) {
     modal(`
       <span class="kicker">${esc(job.company)}</span>
       <h2 dir="auto">${esc(job.title)}</h2>
-      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>ציון ${job.score}</span><span>${statusLabel(job.status)}</span></div>
+      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>ציון ${job.score}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
       <h3>למה היא מתאימה</h3>
       ${job.ranking_engine==='v2'
         ? renderV2RankingExplanation(job)
@@ -2395,20 +2424,20 @@ async function loadSources() {
   root.innerHTML = state.sources.length ? state.sources.map((source) => `
     <div class="source-item interactive-row ${source.enabled ? '' : 'source-disabled'}" role="button" tabindex="0" data-source-id="${source.id}">
       ${sourceLogoMarkup(source)}
-      <div><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · נסרק ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${source.health_score}% בריאות מקור</strong></div></div>
-      ${canManageSources ? `<div class="source-actions" data-no-source-click>
+      <div class="source-main"><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · נסרק ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${source.health_score}% בריאות מקור</strong></div></div>
+      <div class="source-item-controls" data-no-source-click>${canManageSources ? `<div class="source-actions">
         <label class="source-toggle" title="${source.enabled ? 'המקור נסרק במסלול הזה' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
           <input type="checkbox" ${source.enabled ? 'checked' : ''} aria-label="${source.enabled ? 'כבה' : 'הפעל'} את ${esc(source.name)}" onchange="event.stopPropagation();toggleSource(${source.id},this.checked,this)" />
           <span class="source-toggle-track" aria-hidden="true"><i></i></span>
           <span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה' : 'לא ייסרק'}</small></span>
         </label>
         <button class="btn danger small" type="button" onclick="event.stopPropagation();deleteSource(${source.id})">מחק</button>
-      </div>` : '<span class="source-readonly-note">מנוהל אוטומטית</span>'}
+      </div>` : '<span class="source-readonly-note">מנוהל אוטומטית</span>'}</div>
     </div>
   `).join('') : emptyState('⌁', 'לא הוגדרו מקורות משרות', canManageSources ? 'אפשר להוסיף מקור ידנית או להתקין את רשימת המקורות המומלצים.' : 'המקורות מנוהלים על ידי מנהל המערכת.', canManageSources ? '<button class="btn primary small" type="button" onclick="installRecommendedSources()">הוסף מקורות מומלצים</button>' : '');
   $$('.source-item', root).forEach((item) => {
     const open = () => showSource(Number(item.dataset.sourceId));
-    item.onclick = (event) => { if (!event.target.closest('[data-no-source-click]')) open(); };
+    item.onclick = (event) => { if (!event.target.closest('button,input,label,[role="switch"]')) open(); };
     item.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } };
   });
 }
@@ -2482,13 +2511,13 @@ const LEGACY_PROFILE_DRAFT_KEY = 'jobpilot.profileDraft.v1';
 const profileDraftKey = () => `jobpilot.profileDraft.v3.${state.activeCareerTrack || 'computer_science'}`;
 const PROFILE_TEXT_FIELDS = [
   'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
-  'application_password', 'years_experience_options', 'skills', 'desired_titles', 'preferred_locations',
+  'application_password', 'years_experience_options', 'degree_level', 'skills', 'desired_titles', 'preferred_locations',
   'preferred_work_modes', 'keywords', 'excluded_keywords', 'auto_apply_threshold',
 ];
 const APPLICATION_PROFILE_FIELDS = [
   'preferred_name', 'pronouns', 'country', 'city', 'address_line1', 'address_line2', 'state', 'postal_code',
   'phone_country_code', 'website_url', 'work_experiences',
-  'education_school', 'education_degree', 'education_field', 'education_grade', 'education_start_date',
+  'education_school', 'education_field', 'education_grade', 'education_start_date',
   'education_end_date', 'languages', 'certifications', 'notice_period', 'available_start_date',
 ];
 const EXTRA_PROFILE_FIELDS = APPLICATION_PROFILE_FIELDS.map((name) => `extra_${name}`);
@@ -2801,7 +2830,7 @@ function profileFieldLabel(name) {
   const explicit = {
     full_name:'שם מלא', email:'אימייל', phone:'טלפון', location:'מיקום נוכחי', linkedin_url:'LinkedIn',
     github_url:'GitHub', portfolio_url:'Portfolio', application_password:'סיסמה לאתרי הגשה',
-    years_experience_options:'שנות ניסיון', work_authorization:'אישור עבודה בישראל', needs_sponsorship:'Sponsorship',
+    years_experience_options:'שנות ניסיון', degree_level:'סוג תואר', work_authorization:'אישור עבודה בישראל', needs_sponsorship:'Sponsorship',
     skills:'סקילים', desired_titles:'סוגי תפקידים', preferred_locations:'מיקומים', preferred_work_modes:'אופי עבודה',
     keywords:'רמות ניסיון רצויות', excluded_keywords:'רמות ניסיון שלא לחפש', auto_apply_threshold:'סף התאמה',
     auto_submit_enabled:'תור אוטומטי', extra_work_experiences:'ניסיון תעסוקתי', extra_languages:'שפות',
@@ -2842,7 +2871,7 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
 const PROFILE_COMPLETION_FIELDS = [
   ['full_name','שם מלא'], ['email','אימייל'], ['phone','טלפון'], ['location','מיקום'],
   ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_education_school','מוסד לימודים'],
-  ['extra_education_degree','השכלה'], ['extra_languages','שפות'],
+  ['degree_level','השכלה'], ['extra_languages','שפות'],
 ];
 function updateProfileCompletion() {
   const form = profileForm();
@@ -3044,7 +3073,7 @@ function buildProfilePayload(fields = PROFILE_FIELDS) {
     return name === 'years_experience_options' && !values.length ? ['0'] : values;
   };
   const scalar = [
-    'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
+    'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url', 'degree_level',
     'auto_apply_threshold', 'work_authorization', 'needs_sponsorship', 'auto_submit_enabled',
   ];
   scalar.forEach((name) => {
@@ -3557,7 +3586,9 @@ function positionThemeThumb(animate = true) {
   thumb.style.width = `${active.offsetWidth}px`;
   if (!animate) requestAnimationFrame(() => { thumb.style.transition = ''; });
 }
-let preferredTheme = localStorage.getItem('jobpilot-theme') || 'system';
+const storedThemePreference = localStorage.getItem('jobpilot-theme');
+let preferredTheme = ['light','system','dark'].includes(storedThemePreference) ? storedThemePreference : 'system';
+if (storedThemePreference && !['light','system','dark'].includes(storedThemePreference)) localStorage.removeItem('jobpilot-theme');
 applyTheme(preferredTheme);
 const TEXT_SIZE_CLASSES=['text-size-large','text-size-xlarge'];
 function applyTextSize(size,announce=false){
@@ -3974,7 +4005,7 @@ function onboardingPersistProfile(patch){
 function onboardingSchedulePreferences(delay=0){
   if(onboardingState.saveTimer)clearTimeout(onboardingState.saveTimer);
   const run=()=>{onboardingState.saveTimer=null;const draft=onboardingCollectPreferences();onboardingPersistProfile(draft).then(saved=>{
-    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],preferred_work_modes:[...(saved.preferred_work_modes||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
+    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],degree_level:saved.degree_level||'',preferred_work_modes:[...(saved.preferred_work_modes||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
   }).catch(()=>{});};
   if(delay)onboardingState.saveTimer=setTimeout(run,delay);else run();
 }
@@ -4040,6 +4071,7 @@ function onboardingSetStep(index){
       <fieldset class="onboarding-choice-field full"><legend>תפקידים רצויים</legend><div class="onboarding-choice-grid">${titleChoices.map(([v,l])=>onboardingChoiceBox('title',v,l,titles.has(v))).join('')}</div><label class="onboarding-other"><span>משהו נוסף?</span><input id="ob-titles-extra" value="${esc((profile.desired_titles||[]).filter(v=>!titleChoices.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף תפקיד שלא מופיע ברשימה"></label></fieldset>
       <fieldset class="onboarding-choice-field full onboarding-location-field"><legend>אזורי חיפוש</legend><div class="onboarding-choice-grid locations">${locationChoices.map(([v,l])=>onboardingChoiceBox('location',v,l,locations.has(v)||locations.has(l)||(v==='Israel'&&!locations.size))).join('')}</div></fieldset>
       <label><span>רמת ניסיון</span><select id="ob-experience">${['0','1','2','3','4','5+'].map(v=>`<option ${(profile.years_experience_options||['0']).includes(v)?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label><span>סוג תואר</span><select id="ob-degree" required><option value="" disabled ${!(draft.degree_level||profile.degree_level)?'selected':''}>בחר סוג תואר</option><option value="bachelor" ${(draft.degree_level||profile.degree_level)==='bachelor'?'selected':''}>תואר ראשון (B.A. / B.Sc.)</option><option value="master" ${(draft.degree_level||profile.degree_level)==='master'?'selected':''}>תואר שני (M.A. / M.Sc.)</option><option value="phd" ${(draft.degree_level||profile.degree_level)==='phd'?'selected':''}>דוקטורט (Ph.D.)</option></select></label>
       <fieldset class="full"><legend>אופן עבודה</legend><div class="onboarding-chips">${[['hybrid','היברידי'],['remote','מרחוק'],['onsite','מהמשרד']].map(([v,l])=>`<button type="button" class="onboarding-chip ${modes.has(v)?'selected':''}" data-ob-mode="${v}">${l}</button>`).join('')}</div></fieldset>
       <fieldset class="onboarding-choice-field full"><legend>רמות ניסיון שתרצה לראות</legend><div class="onboarding-choice-grid compact">${experienceChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח חיוביות נוספות</span><input id="ob-keywords-extra" value="${esc((draft.keywords||profile.keywords||[]).filter(v=>!experienceChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל: infrastructure, developer tools"></label></fieldset>
       <fieldset class="onboarding-choice-field full onboarding-exclude-field"><legend>רמות ניסיון ש<span class="negative-word">לא</span> לחפש עבורך</legend><div class="onboarding-choice-grid compact">${experienceChoices.map(([v,l])=>onboardingChoiceBox('excluded',v,l,excluded.has(v))).join('')}</div><label class="onboarding-other"><span>תחומים לא רצויים בכותרת המשרה בלבד</span><input id="ob-excluded-extra" value="${esc((draft.excluded_keywords||profile.excluded_keywords||[]).filter(v=>!experienceChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל: sales, manual QA"></label></fieldset>
@@ -4047,6 +4079,7 @@ function onboardingSetStep(index){
     $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>{b.classList.toggle('selected');onboardingSchedulePreferences()});
     $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>{onboardingToggleChoice(b);onboardingSchedulePreferences()});
     $('#ob-experience').onchange=()=>onboardingSchedulePreferences();
+    $('#ob-degree').onchange=()=>onboardingSchedulePreferences();
     ['#ob-titles-extra','#ob-keywords-extra','#ob-excluded-extra'].forEach(selector=>{const input=$(selector);if(input)input.oninput=()=>onboardingSchedulePreferences(450)});
   }else if(step==='review'){
     const d=onboardingState.draft;
@@ -4054,10 +4087,11 @@ function onboardingSetStep(index){
     const topTitles=(d.desired_titles||[]).slice(0,3);
     content.innerHTML=`<div class="onboarding-ready onboarding-launchpad"><div class="ready-eyebrow"><span class="ready-check">✓</span><span><b>הפרופיל הראשוני הושלם</b><small>${esc(track.label)}</small></span></div><h1 id="onboarding-title">הכול מוכן להתאמות האישיות שלך</h1><p class="ready-lead">JobPilot כבר יודע מה חשוב לך. מאגר המשרות משותף ומתעדכן אוטומטית בכל שעה; עכשיו נשאר רק לדרג אותו עבורך.</p>
       <div class="ready-spotlight"><div class="ready-spotlight-main"><span class="onboarding-track-symbol">${esc(track.symbol)}</span><div><small>מחפשים עבורך</small><strong>${esc(topTitles.join(' · ')||'משרות שמתאימות לפרופיל שלך')}</strong><p>${esc((d.preferred_locations||[]).join(' · ')||'ישראל')} · ${esc(modeLabels.join(' · ')||'כל צורות העבודה')}</p></div></div><div class="ready-pulse"><i></i><span>מוכן</span></div></div>
-      <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article></div>
+      <div class="ready-facts"><article><span>01</span><div><small>תחום</small><strong>${esc(track.label)}</strong></div></article><article><span>02</span><div><small>סקילים שנבחרו</small><strong>${onboardingState.selectedSkills.size}</strong></div></article><article><span>03</span><div><small>אזורי חיפוש</small><strong>${(d.preferred_locations||[]).length||1}</strong></div></article><article><span>04</span><div><small>רמת ניסיון</small><strong>${esc((d.years_experience_options||[]).join(' · ')||'0')} שנים</strong></div></article><article><span>05</span><div><small>תואר</small><strong>${esc(({bachelor:'תואר ראשון',master:'תואר שני',phd:'דוקטורט'}[d.degree_level]||'לא נבחר'))}</strong></div></article></div>
       <div class="ready-next"><span class="ready-next-icon">↗</span><div><strong>בשלב הבא</strong><p>נדרג עבורך את המשרות שכבר נמצאות במאגר המשותף ונציג קודם את ההתאמות החזקות ביותר. אין צורך להפעיל סריקה.</p></div></div><p class="onboarding-ready-note">כל הבחירות נשמרות בהעדפות החיפוש וניתנות לשינוי בכל רגע.</p></div>`;
   }else{
-    content.innerHTML=`<div class="onboarding-scan-stage scanning"><span class="kicker">ההתאמות שלך</span><h1 id="onboarding-title">מדרגים את מאגר המשרות עבורך</h1><p>אין כאן סריקה חדשה — המאגר כבר משותף לכולם ומתעדכן אוטומטית בכל שעה. אנחנו מחשבים עכשיו את ההתאמה האישית שלך.</p><div id="onboarding-ranking-status" class="scan-status onboarding-scan-status is-running" aria-live="polite"><span><b>מחשב התאמות…</b><small>טוען את המשרות הקיימות ומדרג לפי הפרופיל שלך</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i></div><button class="btn primary onboarding-scan" id="onboarding-enter-ranked" type="button" disabled>מכין את המשרות שלך…</button></div>`;
+    content.innerHTML=`<div class="onboarding-scan-stage scanning"><span class="kicker">ההתאמות שלך</span><h1 id="onboarding-title">מדרגים את מאגר המשרות עבורך</h1><p>אין כאן סריקה חדשה — המאגר כבר משותף לכולם ומתעדכן אוטומטית בכל שעה. אנחנו מחשבים עכשיו את ההתאמה האישית שלך.</p><div id="onboarding-ranking-status" class="scan-status onboarding-scan-status is-running" aria-live="polite"><span><b>מחשב התאמות…</b><small>טוען את המשרות הקיימות ומדרג לפי הפרופיל שלך</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i></div><div class="onboarding-ranking-actions"><button class="btn primary onboarding-scan" id="onboarding-enter-ranked" type="button" disabled>מכין את המשרות שלך…</button><button class="btn secondary onboarding-enter-now" id="onboarding-enter-now" type="button">המשך לאתר עכשיו</button></div></div>`;
+    $('#onboarding-enter-now').onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()};
     onboardingStartRanking();
   }
 }
@@ -4083,12 +4117,14 @@ async function onboardingSaveSkills(){
 }
 async function saveOnboardingPreferences(){
   const draft=onboardingCollectPreferences();
+  if(!draft.degree_level) throw new Error('בחר סוג תואר כדי שנוכל לסנן משרות לפי דרישת ההשכלה');
   const saved=await onboardingPersistProfile(draft);
   state.profile=saved;
   onboardingState.draft={
     desired_titles:[...(state.profile.desired_titles||[])],
     preferred_locations:[...(state.profile.preferred_locations||[])],
     years_experience_options:[...(state.profile.years_experience_options||[])],
+    degree_level:state.profile.degree_level||'',
     preferred_work_modes:[...(state.profile.preferred_work_modes||[])],
     keywords:[...(state.profile.keywords||[])],
     excluded_keywords:[...(state.profile.excluded_keywords||[])],
@@ -4097,7 +4133,7 @@ async function saveOnboardingPreferences(){
 }
 function onboardingCollectPreferences(){
   const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
-  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience').value],preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
+  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience')?.value||'0'],degree_level:$('#ob-degree')?.value||'',preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
 }
 async function onboardingFinish(skipped=false){
   await onboardingFlushSave();
@@ -4112,9 +4148,12 @@ function renderOnboardingRankingStatus(status){
   const ready=Boolean(status.ready);
   target.classList.toggle('is-running',!ready);
   target.style.setProperty('--scan-progress',`${percent}%`);
+  const waiting=!ready && (!total || status.phase==='queued');
   target.innerHTML=ready
     ? `<span><b>ההתאמות מוכנות</b><small>${total?`${ranked} משרות דורגו עבורך`:'הפרופיל מוכן; משרות חדשות ידורגו אוטומטית כשהמאגר יתעדכן'}</small></span><i class="scan-status-fill" aria-hidden="true"></i>`
-    : `<span><b>מחשב התאמות · ${ranked}${total?` מתוך ${total}`:''}</b><small>המאגר המשותף נשאר זמין בזמן שהדירוג האישי מתעדכן</small></span><i class="scan-status-fill ${total?'':'is-indeterminate'}" aria-hidden="true"></i>`;
+    : waiting
+      ? `<span><b>מכין את הדירוג האישי…</b><small>הדירוג נכנס לתור ויתחיל מיד כשהשרת פנוי. אפשר להמשיך לאתר כבר עכשיו.</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>`
+      : `<span><b>מחשב התאמות · ${ranked} מתוך ${total}</b><small>המאגר המשותף נשאר זמין בזמן שהדירוג האישי מתעדכן</small></span><i class="scan-status-fill" aria-hidden="true"></i>`;
 }
 async function onboardingWatchRanking(){
   try{
