@@ -283,7 +283,7 @@ def test_stress_many_approval_and_manual_handoff_cycles_do_not_leak_permissions(
             assert task["submit_approved_once"] is True
             submitted = client.post(
                 f"/api/agent/tasks/{application_id}/submitted",
-                json={"token": "change-me", "message": "stress submitted"},
+                json={"token": "change-me", "message": "stress submitted", "verification_state": "verified", "evidence": [{"type": "confirmation_page", "value": "stress submitted"}]},
             )
             assert submitted.status_code == 200
             assert submitted.json()["status"] == "submitted"

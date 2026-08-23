@@ -183,3 +183,53 @@ def test_prioritize_rejects_nonqueued_application():
             application_id = application.id
         response = client.post(f'/api/applications/{application_id}/prioritize')
         assert response.status_code == 409
+
+
+def test_tracking_status_is_lightweight_and_version_changes_with_new_event():
+    from app.models import ApplicationEvent
+
+    with TestClient(app) as client:
+        _clear_active_queue()
+        payload = _import_job(client, title='Tracking Version Engineer', apply_url='https://jobs.lever.co/acme/5001')
+        with SessionLocal() as db:
+            job = db.get(Job, payload['id'])
+            application = Application(job_id=job.id, status='applying', mode='auto')
+            db.add(application)
+            db.flush()
+            application_id = application.id
+            db.commit()
+
+        first = client.get(f'/api/applications/{application_id}/tracking-status')
+        assert first.status_code == 200, first.text
+        first_payload = first.json()
+        assert first_payload['status'] == 'applying'
+        assert first_payload['timeline_version']
+        assert 'events' not in first_payload
+        assert 'attempts' not in first_payload
+
+        with SessionLocal() as db:
+            db.add(ApplicationEvent(
+                application_id=application_id,
+                event_type='page_opened',
+                from_status='applying',
+                to_status='applying',
+                actor='agent',
+                message='page opened',
+            ))
+            db.commit()
+
+        second = client.get(f'/api/applications/{application_id}/tracking-status')
+        assert second.status_code == 200, second.text
+        assert second.json()['timeline_version'] != first_payload['timeline_version']
+
+
+def test_live_tracker_polls_change_token_not_full_timeline_every_two_seconds():
+    from pathlib import Path
+
+    js = (Path(__file__).resolve().parents[1] / 'app/static/app.js').read_text(encoding='utf-8')
+    assert '/tracking-status`' in js
+    assert 'applicationTrackingVersion' in js
+    assert 'version!==applicationTrackingVersion' in js
+    assert "return ['queued','applying'].includes(status)?2500:10000" in js
+    assert "document.visibilityState==='hidden'" in js
+    assert 'setInterval(refreshApplicationTracking,2000)' not in js

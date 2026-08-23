@@ -3277,6 +3277,46 @@ def _reconcile_lever_confirmation_url(db: Session, application: Application) -> 
     return True
 
 
+@app.get("/api/applications/{application_id}/tracking-status")
+def application_tracking_status(application_id: int, db: Session = Depends(get_db)):
+    """Lightweight change token for the live application tracker.
+
+    The browser polls this endpoint frequently while an application is active and
+    fetches the full timeline only when the token changes. This avoids repeatedly
+    downloading the complete event/attempt history every couple of seconds.
+    """
+    application = _active_application_or_404(db, application_id)
+    latest_event_id = db.scalar(select(func.max(ApplicationEvent.id)).where(
+        ApplicationEvent.application_id == application.id
+    )) or 0
+    latest_attempt = db.scalar(select(ApplicationAttempt).where(
+        ApplicationAttempt.application_id == application.id
+    ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
+    latest_blocker = db.scalar(select(Blocker).where(
+        Blocker.application_id == application.id
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    queue = _auto_apply_queue_snapshot(db, application.job.career_track)
+    current = queue.get("current") or {}
+    waiting_ids = [int(item.get("id") or 0) for item in queue.get("waiting") or []]
+    updated = application.updated_at.isoformat() if application.updated_at else ""
+    attempt_token = (
+        f"{latest_attempt.id}:{latest_attempt.status}:{latest_attempt.verification_state}"
+        if latest_attempt else "0"
+    )
+    blocker_token = (
+        f"{latest_blocker.id}:{latest_blocker.status}" if latest_blocker else "0"
+    )
+    queue_token = f"{int(current.get('id') or 0)}:{current.get('status') or ''}:{','.join(map(str, waiting_ids))}"
+    return {
+        "application_id": application.id,
+        "status": application.status,
+        "updated_at": application.updated_at,
+        "timeline_version": f"{updated}:{latest_event_id}:{attempt_token}:{blocker_token}:{queue_token}",
+        "latest_event_id": latest_event_id,
+        "auto_apply_queue": queue,
+    }
+
+
 @app.get("/api/applications/{application_id}/timeline")
 async def application_timeline(application_id: int, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
@@ -4738,7 +4778,9 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
     previous_status = application.status
     # Legacy Agents report a success message only after their confirmation-page
     # detector passes. Keep that contract while newer Agents attach structured evidence.
-    verified = payload.verification_state == "verified" and bool(payload.evidence or payload.confirmation_text or payload.message)
+    # A generic worker message is not proof that an ATS accepted an application.
+    # Require structured evidence or confirmation text before marking it submitted.
+    verified = payload.verification_state == "verified" and bool(payload.evidence or payload.confirmation_text)
     application.status = "submitted" if verified else "verification_pending"
     application.submitted_at = utcnow() if verified else None
     application.last_error = ""

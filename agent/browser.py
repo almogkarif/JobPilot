@@ -18,7 +18,7 @@ CAPTCHA_ACTION_TERMS = [
 ]
 SUCCESS_TERMS = [
     "application submitted", "thank you for applying", "thanks for applying", "application received",
-    "successfully submitted", "your application has been submitted", "your application was already submitted",
+    "successfully submitted", "your application has been submitted",
     "thanks for your application", "מועמדותך התקבלה", "הבקשה נשלחה", "תודה שהגשת",
 ]
 APPLY_START_TERMS = [
@@ -36,6 +36,10 @@ NO_ACCOUNT_TERMS = [
 SUBMIT_TERMS = [
     "submit application", "submit my application", "send application", "final submit",
     "שלח מועמדות", "שליחה סופית",
+]
+DUPLICATE_SUBMISSION_TERMS = [
+    "your application was already submitted", "application already submitted",
+    "you have already applied", "already applied for this job",
 ]
 
 SMALL_CHOICE_MAX_OPTIONS = 6
@@ -396,6 +400,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     network_error = f"Lever submission request failed: {lever_submit_failures[-1]}"
                 if network_evidence or network_error:
                     break
+                duplicate_text = _duplicate_submission_evidence(page)
+                if duplicate_text:
+                    raise ApplicationBlocked(
+                        "duplicate_submission", "הגשה קיימת", "נמצאה מועמדות קודמת",
+                        "Lever מציג שהמועמדות כבר הוגשה בעבר. JobPilot לא יסמן זאת כהגשה חדשה ולא ישלח שוב אוטומטית.",
+                        page.url,
+                    )
                 confirmation_text = _success_evidence(page)
                 if confirmation_text:
                     break
@@ -1754,6 +1765,21 @@ def _lever_visible_submission_error(page: Page) -> str:
         ) or "").strip()
     except Exception:
         return ""
+
+
+def _duplicate_submission_evidence(page: Page) -> str:
+    try:
+        body = page.locator("body").inner_text(timeout=5000)
+        lowered = body.lower()
+        for term in DUPLICATE_SUBMISSION_TERMS:
+            position = lowered.find(term)
+            if position >= 0:
+                start = max(0, position - 120)
+                end = min(len(body), position + len(term) + 240)
+                return " ".join(body[start:end].split())[:500]
+    except Exception:
+        return ""
+    return ""
 
 
 def _is_success(page: Page) -> bool:

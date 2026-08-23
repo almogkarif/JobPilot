@@ -398,3 +398,21 @@ def test_workday_segmented_date_inputs_are_filled_directly():
         assert page.locator('[data-automation-id="formField-endDate"] input').nth(0).input_value() == "08"
         assert page.locator('[data-automation-id="formField-endDate"] input').nth(1).input_value() == "2025"
         browser.close()
+
+
+def test_lever_already_submitted_text_is_not_treated_as_fresh_success():
+    from agent.browser import _duplicate_submission_evidence, _success_evidence
+
+    class Body:
+        def inner_text(self, timeout=0):
+            return 'Your application was already submitted for this opportunity.'
+
+    class FakePage:
+        url = 'https://jobs.eu.lever.co/mobileye/example/apply'
+        def locator(self, selector):
+            assert selector == 'body'
+            return Body()
+
+    page = FakePage()
+    assert _duplicate_submission_evidence(page)
+    assert _success_evidence(page) == ''
