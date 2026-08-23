@@ -33,7 +33,7 @@ def test_career_switch_does_not_recompute_every_job_or_resume(monkeypatch):
     def forbidden(*_args, **_kwargs):
         raise AssertionError("career switching must not trigger full recomputation")
 
-    monkeypatch.setattr(main_module, "_rescore_all_jobs", forbidden)
+    monkeypatch.setattr(main_module, "_rescore_v2_jobs", forbidden)
     monkeypatch.setattr(main_module, "_refresh_resume_analyses", forbidden)
     with TestClient(app) as client:
         client.put("/api/career-tracks/active", json={"track": COMPUTER_SCIENCE})

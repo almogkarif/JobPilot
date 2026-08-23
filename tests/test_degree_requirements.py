@@ -10,7 +10,7 @@ from app.services.degree_requirements import (
     extract_degree_requirement,
     extract_degree_requirement_details,
 )
-from app.services.matching import build_match_context, score_job
+from app.services.matching import build_match_context
 from app.services.ranking.config import RankingV2Config
 from app.services.ranking.service import rank_job
 from app.utils import dumps
@@ -135,7 +135,7 @@ def test_v2_eligibility_excludes_candidate_below_strict_required_degree():
     now = datetime(2026, 8, 23, tzinfo=timezone.utc)
     bachelor = _profile("bachelor")
     result = rank_job(
-        _job("master"), bachelor, "v2", RankingV2Config(),
+        _job("master"), bachelor, RankingV2Config(),
         context=build_match_context(bachelor, career_track="computer_science", now=now),
     )
     assert result.eligibility["degree_status"] == "mismatch"
@@ -144,7 +144,7 @@ def test_v2_eligibility_excludes_candidate_below_strict_required_degree():
 
     master = _profile("master")
     result = rank_job(
-        _job("master"), master, "v2", RankingV2Config(),
+        _job("master"), master, RankingV2Config(),
         context=build_match_context(master, career_track="computer_science", now=now),
     )
     assert result.eligibility["degree_status"] == "match"
@@ -155,7 +155,7 @@ def test_v2_does_not_exclude_lower_degree_when_posting_explicitly_accepts_equiva
     now = datetime(2026, 8, 23, tzinfo=timezone.utc)
     bachelor = _profile("bachelor")
     result = rank_job(
-        _job("master", required=False, alternative=True), bachelor, "v2", RankingV2Config(),
+        _job("master", required=False, alternative=True), bachelor, RankingV2Config(),
         context=build_match_context(bachelor, career_track="computer_science", now=now),
     )
     assert result.eligibility["degree_status"] == "alternative"
@@ -170,26 +170,6 @@ def test_master_planner_language_is_not_mistaken_for_a_masters_degree():
     )
     assert extract_degree_requirement(text) == "bachelor"
 
-
-def test_v1_matching_hard_blocks_only_strict_job_above_selected_degree():
-    now = datetime(2026, 8, 23, tzinfo=timezone.utc)
-    bachelor = _profile("bachelor")
-    job = _job("master")
-    job.skills_json = dumps(["python"])
-    result = score_job(
-        job, bachelor, context=build_match_context(bachelor, career_track="computer_science", now=now)
-    )
-    assert result.score == 0
-    assert any("תואר שני" in reason["label"] for reason in result.reasons)
-
-    alternative_job = _job("master", required=False, alternative=True)
-    alternative_job.skills_json = dumps(["python"])
-    result = score_job(
-        alternative_job, bachelor,
-        context=build_match_context(bachelor, career_track="computer_science", now=now),
-    )
-    assert result.score > 0
-    assert any("ניסיון מקביל" in reason["label"] for reason in result.reasons)
 
 
 def test_short_business_abbreviations_and_plain_english_are_not_degrees():

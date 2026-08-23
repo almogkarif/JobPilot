@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from ..database import get_user_profile
 from ..models import AuditLog, Job, Profile, Source
 from ..utils import dumps
-from .matching import build_match_context, score_job
+from .matching import build_match_context, extract_experience, extract_skills
 from .source_catalog import install_recommended_sources
+from .degree_requirements import extract_degree_requirement_details
+from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
 from .career_tracks import (COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING,
                             ensure_track_state, remove_unconfirmed_starter_skills)
 
@@ -113,14 +115,16 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
                 apply_url=f"https://example.com/jobs/{slug}",
                 published_at=datetime.now(timezone.utc) - timedelta(hours=age_hours),
             )
-            result = score_job(job, profile, context=match_context)
-            job.score = result.score
-            job.score_reasons_json = dumps(result.reasons)
-            job.match_breakdown_json = dumps(result.breakdown)
-            job.skills_json = dumps(result.skills)
-            job.experience_min = result.experience_min
-            job.experience_max = result.experience_max
+            text = f"{job.title} {job.description} {job.location}"
+            job.skills_json = dumps(extract_skills(text))
+            job.experience_min, job.experience_max = extract_experience(text)
+            degree = extract_degree_requirement_details(text)
+            job.degree_requirement = degree.level
+            job.degree_required = degree.required
+            job.degree_experience_alternative = degree.experience_alternative
             db.add(job)
+            db.flush()
+            persist_v2_result(db, job, profile, get_ranking_settings(db), context=match_context)
         if demo_only:
             db.flush()
         else:

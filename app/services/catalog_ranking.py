@@ -6,18 +6,12 @@ from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
 from ..utils import dumps, loads
 from .career_tracks import active_track, normalize_track
-from .matching import build_match_context, score_job
+from .matching import build_match_context
 from .ranking.service import get_settings as get_ranking_settings, persist_v2_result, result_is_stale
-from .user_job_state import persist_v1_state
 
 
 def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only: bool = False) -> dict:
-    """Synchronously personalize the shared catalog for one real account.
-
-    This is used by the external hourly worker after collection. It deliberately
-    writes only UserJobState/JobRanking rows; shared Job content is never mutated by
-    a user's profile.
-    """
+    """Synchronously personalize the shared catalog for one real account."""
     track = normalize_track(career_track)
     with user_session(user_id) as db:
         profile = get_user_profile(db)
@@ -30,33 +24,28 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         context = build_match_context(profile, resume_skills, career_track=track)
         settings = get_ranking_settings(db)
         jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
-        existing_v2 = {
+        existing = {
             row.job_id: row for row in db.scalars(select(JobRanking).where(
                 JobRanking.engine == "v2", JobRanking.job_id.in_([job.id for job in jobs] or [-1]),
             )).all()
         }
         ranked = 0
         for job in jobs:
-            result = score_job(job, profile, context=context)
-            persist_v1_state(db, job, result)
-            if settings.active_engine == "v2" or settings.v2_shadow_mode:
-                row = existing_v2.get(job.id)
-                if not stale_only or result_is_stale(row, job, profile, settings):
-                    try:
-                        persist_v2_result(db, job, profile, settings, context=context, existing_row=row)
-                    except Exception as exc:  # noqa: BLE001
-                        db.add(AuditLog(
-                            event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
-                            message="V2 hourly ranking failed",
-                            details_json=dumps({"stage": "hourly_ranking", "error": str(exc)[:1000]}),
-                        ))
+            row = existing.get(job.id)
+            if not stale_only or result_is_stale(row, job, profile, settings):
+                try:
+                    persist_v2_result(db, job, profile, settings, context=context, existing_row=row)
+                except Exception as exc:  # noqa: BLE001
+                    db.add(AuditLog(
+                        event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
+                        message="Hourly ranking failed",
+                        details_json=dumps({"stage": "hourly_ranking", "error": str(exc)[:1000]}),
+                    ))
             ranked += 1
             if ranked % 50 == 0:
                 db.commit()
         db.commit()
 
-        # Keep auto-submit behavior personal after ranking. Import lazily to avoid a
-        # scanner<->ranking import cycle at module import time.
         from .scanner import auto_queue_jobs
         auto_queued = auto_queue_jobs(db, profile)
         return {"status": "ok", "career_track": track, "ranked": ranked, "auto_queued": auto_queued}

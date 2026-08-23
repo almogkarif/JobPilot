@@ -150,9 +150,8 @@ class Job(SharedCatalogMixin, Base):
 class UserJobState(UserOwnedMixin, Base):
     """Per-user state for a row in the shared job catalog.
 
-    The source/job payload is global, while saved/skipped/application state and V1
-    fallback scoring remain private to each account. V2 scores continue to live in
-    JobRanking.
+    The source/job payload is global, while saved/skipped/application state remains
+    private to each account. Personalized ranking lives exclusively in JobRanking.
     """
 
     __tablename__ = "user_job_states"
@@ -164,6 +163,9 @@ class UserJobState(UserOwnedMixin, Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
     status: Mapped[str] = mapped_column(String(40), default="new", index=True)
+    # Retained as inert compatibility columns so existing cloud databases can be
+    # upgraded without a destructive table rewrite. Runtime ranking never reads or
+    # writes them; JobRanking is the only active ranking store.
     score: Mapped[int] = mapped_column(Integer, default=0, index=True)
     score_reasons_json: Mapped[str] = mapped_column(Text, default="[]")
     match_breakdown_json: Mapped[str] = mapped_column(Text, default="{}")
@@ -174,8 +176,6 @@ class RankingSettings(Base):
     __tablename__ = "ranking_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    active_engine: Mapped[str] = mapped_column(String(20), default="v1")
-    v2_shadow_mode: Mapped[bool] = mapped_column(Boolean, default=True)
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     config_version: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

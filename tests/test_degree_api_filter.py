@@ -5,7 +5,7 @@ from sqlalchemy import delete
 
 from app.database import LOCAL_USER_ID, SessionLocal, get_user_profile, set_user_scope
 from app.main import app
-from app.models import Job, RankingSettings, Source
+from app.models import Job, Source
 from app.utils import dumps, loads
 
 
@@ -22,15 +22,11 @@ def _set_degree(level: str) -> None:
 def test_jobs_are_filtered_by_minimum_mandatory_degree_hierarchy():
     source_id = None
     original_profile = None
-    original_engine = None
     with TestClient(app) as client:
         with SessionLocal() as db:
             set_user_scope(db, LOCAL_USER_ID)
             profile = get_user_profile(db)
             original_profile = profile.application_profile_json
-            ranking = db.get(RankingSettings, 1)
-            original_engine = ranking.active_engine
-            ranking.active_engine = "v1"
             source = Source(
                 name="Degree Filter Probe", kind="official_careers", identifier="degree-filter-probe",
                 company_name="Degree Filter Probe", career_track=profile.active_career_track, enabled=False,
@@ -92,9 +88,6 @@ def test_jobs_are_filtered_by_minimum_mandatory_degree_hierarchy():
                 if original_profile is not None:
                     profile = get_user_profile(db)
                     profile.application_profile_json = original_profile
-                ranking = db.get(RankingSettings, 1)
-                if original_engine is not None:
-                    ranking.active_engine = original_engine
                 if source_id is not None:
                     db.execute(delete(Job).where(Job.source_id == source_id))
                     source = db.get(Source, source_id)

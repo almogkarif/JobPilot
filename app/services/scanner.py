@@ -14,13 +14,13 @@ from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .location_filter import is_israel_location
-from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, score_job, track_job_relevance
+from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
 from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
-from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
+from .ranking.service import get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result
 from .job_text import clean_job_text
-from .user_job_state import persist_v1_state, set_job_status
+from .user_job_state import set_job_status
 
 
 SOURCE_SCAN_TIMEOUT_SECONDS = max(5, int(settings.source_scan_timeout_seconds))
@@ -49,14 +49,14 @@ async def scan_all_sources(
     default_resume_skills: list[str] = []
     match_context = None
     ranking_settings = get_ranking_settings(db)
-    evaluate_v2 = False
+    evaluate_ranking = False
     if not catalog_only:
         default_resume = db.scalar(select(ResumeProfile).where(
             ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track
         ))
         default_resume_skills = loads(default_resume.skills_json, []) if default_resume else []
         match_context = build_match_context(profile, default_resume_skills, career_track=career_track)
-        evaluate_v2 = ranking_settings.active_engine == "v2" or ranking_settings.v2_shadow_mode
+        evaluate_ranking = True
     stale_deleted = 0
 
     now = datetime.now(timezone.utc)
@@ -344,10 +344,8 @@ async def scan_all_sources(
                         job.degree_required = degree.required
                         job.degree_experience_alternative = degree.experience_alternative
                     else:
-                        result = score_job(job, profile, context=match_context)
                         if job.id is None:
                             db.flush()
-                        persist_v1_state(db, job, result)
                         # Catalog metadata is source-derived; do not rewrite it from
                         # one user's ranking context.
                         source_text = f"{job.title} {job.description} {job.location}"
@@ -357,15 +355,13 @@ async def scan_all_sources(
                         job.degree_requirement = degree.level
                         job.degree_required = degree.required
                         job.degree_experience_alternative = degree.experience_alternative
-                        if evaluate_v2:
+                        if evaluate_ranking:
                             try:
-                                if job.id is None:
-                                    db.flush()
                                 persist_v2_result(db, job, profile, ranking_settings, context=match_context)
-                            except Exception as exc:  # V2 shadow must never break V1 scanning.
+                            except Exception as exc:
                                 db.add(AuditLog(
                                     event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id or ""),
-                                    message="V2 ranking failed during source scan",
+                                    message="Ranking failed during source scan",
                                     details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
                                 ))
 
@@ -549,13 +545,12 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     ).where(
         Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", Job.career_track == career_track,
     )
-    if ranking_settings.active_engine == "v2":
-        query = query.join(JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")).where(
-            JobRanking.stale.is_(False), JobRanking.error == "", JobRanking.eligibility_state != "excluded",
-            JobRanking.score >= profile.auto_apply_threshold,
-        )
-    else:
-        query = query.where(func.coalesce(UserJobState.score, 0) >= profile.auto_apply_threshold)
+    query = query.join(JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")).where(
+        JobRanking.engine_version == get_ranking_engine().version,
+        JobRanking.config_version == ranking_settings.config_version,
+        JobRanking.stale.is_(False), JobRanking.error == "", JobRanking.eligibility_state != "excluded",
+        JobRanking.score >= profile.auto_apply_threshold,
+    )
     jobs = db.scalars(query).all()
     count = 0
     resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all()

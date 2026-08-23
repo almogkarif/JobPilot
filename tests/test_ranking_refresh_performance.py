@@ -52,7 +52,7 @@ def test_bulk_v2_persistence_reuses_preloaded_row_and_updates_experience(monkeyp
     )
 
     assert saved is row
-    assert saved.engine_version == service.ENGINES["v2"].version
+    assert saved.engine_version == service.get_ranking_engine().version
     assert saved.stale is False
     assert job.experience_min == 1.0
     assert job.experience_max is None
@@ -67,7 +67,7 @@ def test_failed_current_engine_row_does_not_retrigger_whole_startup_upgrade(monk
     with pytest.raises(ValueError, match="bad posting"):
         service.persist_v2_result(NoSelectDB(), _job(), _profile(), settings, existing_row=row)
 
-    assert row.engine_version == service.ENGINES["v2"].version
+    assert row.engine_version == service.get_ranking_engine().version
     assert row.stale is True
     assert "bad posting" in row.error
 

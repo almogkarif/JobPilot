@@ -35,7 +35,7 @@ def job(title, description, *, track="computer_science", location="Tel Aviv, Isr
 
 def score(candidate, opening, config=None):
     context = build_match_context(candidate, career_track=candidate.active_career_track, now=NOW)
-    return rank_job(opening, candidate, "v2", config or RankingV2Config(), context=context)
+    return rank_job(opening, candidate, config or RankingV2Config(), context=context)
 
 
 @pytest.mark.parametrize(("track", "title", "description", "expected"), [

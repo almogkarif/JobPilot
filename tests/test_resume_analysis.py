@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from app.services.resume_analysis import analyze_resume, extract_resume_text
-from app.services.matching import score_job
+from app.services.matching import build_match_context
+from app.services.ranking.service import rank_job
 from app.models import Job, Profile
 
 
@@ -45,12 +46,24 @@ def test_resume_autofill_never_overwrites_existing_personal_details():
 def test_resume_skills_contribute_to_job_match_score():
     profile = Profile(skills_json="[]", desired_titles_json="[]", preferred_locations_json="[]",
                       keywords_json="[]", excluded_keywords_json="[]", preferred_work_modes_json="[]")
-    job = Job(title="Backend Engineer", company="Example", location="Israel", workplace="onsite",
-              description="Python Docker", apply_url="https://example.com/apply", source_id=1, external_id="x")
-    without_resume = score_job(job, profile)
-    with_resume = score_job(job, profile, ["python", "docker"])
+    job = Job(
+        title="Backend Engineer", company="Example", location="Israel", workplace="onsite",
+        description=(
+            "Build and maintain reliable backend services and production APIs. "
+            "Python and Docker are required for this role. "
+            "You will test, review, and ship backend systems with the engineering team."
+        ),
+        apply_url="https://example.com/apply", source_id=1, external_id="x",
+    )
+    without_resume = rank_job(job, profile, context=build_match_context(profile))
+    with_resume = rank_job(
+        job, profile, context=build_match_context(profile, ["python", "docker"]),
+    )
     assert with_resume.score > without_resume.score
-    assert any("קורות החיים" in reason["label"] for reason in with_resume.reasons)
+    matched = set(with_resume.breakdown["skills"]["matched_required"]) | set(
+        with_resume.breakdown["skills"]["matched_preferred"]
+    )
+    assert {"python", "docker"}.issubset(matched)
 
 
 def _minimal_docx_bytes() -> bytes:

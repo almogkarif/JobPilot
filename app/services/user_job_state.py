@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Job, UserJobState
-from ..utils import dumps, loads
 
 
 def get_user_job_state(db: Session, job_id: int, *, create: bool = False) -> UserJobState | None:
@@ -45,23 +44,3 @@ def set_job_status(db: Session, job: Job, status: str) -> UserJobState:
     state.status = str(status or "new")
     setattr(job, "_user_job_state", state)
     return state
-
-
-def persist_v1_state(db: Session, job: Job, result) -> UserJobState:
-    state = get_user_job_state(db, int(job.id), create=True)
-    assert state is not None
-    state.score = int(result.score or 0)
-    state.score_reasons_json = dumps(result.reasons)
-    state.match_breakdown_json = dumps(result.breakdown)
-    setattr(job, "_user_job_state", state)
-    return state
-
-
-def effective_v1_payload(job: Job, db: Session | None = None) -> tuple[int, list, dict]:
-    state = getattr(job, "_user_job_state", None)
-    if state is None and db is not None:
-        state = get_user_job_state(db, int(job.id), create=False)
-        setattr(job, "_user_job_state", state)
-    if state is None:
-        return 0, [], {}
-    return int(state.score or 0), loads(state.score_reasons_json, []), loads(state.match_breakdown_json, {})

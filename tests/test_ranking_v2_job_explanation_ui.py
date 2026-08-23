@@ -32,6 +32,6 @@ def test_v2_explanation_has_separate_filter_and_weighted_score_layouts():
 
 def test_v2_engine_upgrade_never_serves_old_eligibility_rows():
     assert "def _v2_engine_refresh_required" in MAIN
-    assert 'JobRanking.engine_version == get_ranking_engine("v2").version' in MAIN
+    assert 'JobRanking.engine_version == get_ranking_engine().version' in MAIN
     assert "_delayed_v2_engine_refresh" in MAIN
     assert "_queue_profile_derived_refresh(user_id, career_track, False, False, True)" in MAIN

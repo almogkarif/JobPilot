@@ -299,7 +299,7 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     page, _ = browser_page
     job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-        title:'Supported ATS Test', company:'Greenhouse Test', location:'Israel',
+        title:'Supported ATS Test Software Engineer', company:'Greenhouse Test', location:'Israel',
         apply_url:'https://boards.greenhouse.io/example/jobs/987654'
       })
     })).json()""")

@@ -237,7 +237,7 @@ def _migrate_existing_catalog_to_shared(connection, preferred_owner: str) -> Non
     user's Application/JobRanking history on now-invisible Job ids.  This migration
     chooses one canonical source/job per logical listing, promotes it to the shared
     owner, and remaps private references to that canonical Job while preserving
-    per-user V1 status/score in UserJobState.
+    per-user legacy status/score in UserJobState.
 
     The migration is intentionally idempotent: rerunning it only sees already-shared
     canonicals and no longer needs to move private references.
@@ -317,8 +317,8 @@ def _migrate_existing_catalog_to_shared(connection, preferred_owner: str) -> Non
         for row in group:
             job_map[int(row["id"])] = canonical_id
 
-    # Preserve each legacy owner's personal V1 status/score before its Job row is
-    # hidden by SharedCatalogMixin.  V2 rankings are remapped separately below.
+    # Preserve each legacy owner's personal status/score before its Job row is
+    # hidden by SharedCatalogMixin. Personalized ranking rows are remapped separately below.
     if "user_job_states" in tables:
         for row in jobs:
             raw_user = str(row.get("user_id") or "").strip()

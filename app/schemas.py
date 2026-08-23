@@ -110,21 +110,6 @@ class CareerTrackSwitch(BaseModel):
     track: str = Field(min_length=2, max_length=40)
 
 
-class RankingEngineUpdate(BaseModel):
-    engine: str
-
-    @field_validator("engine")
-    @classmethod
-    def validate_engine(cls, value: str) -> str:
-        if value not in {"v1", "v2"}:
-            raise ValueError("Ranking engine must be v1 or v2")
-        return value
-
-
-class RankingShadowUpdate(BaseModel):
-    enabled: bool
-
-
 class RankingConfigUpdate(BaseModel):
     config: dict[str, Any]
 
