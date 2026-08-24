@@ -82,12 +82,24 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     }:
         return CandidateValue("Company website", "safe_default")
 
-    # JobPilot only admits jobs located in Israel. Country questions on hosted ATS
-    # forms are deterministic even when an older profile saved only a city.
+    # JobPilot only admits jobs located in Israel. A legacy UI bug sometimes saved
+    # the Israeli phone prefix (+972) in this field; repair that corrupted value
+    # without treating phone prefixes as countries in new profile data.
     if key in {"country", "country of residence", "current country", "country region"}:
         raw_country = str(extra.get("country") or "Israel").strip()
-        country = "Israel" if normalize(raw_country) in {"israel", "il", "972", "ישראל"} else raw_country
+        country = "Israel" if normalize(raw_country) in {"israel", "il", "972", "+972", "ישראל"} else raw_country
         return CandidateValue(country, "profile_country_default")
+
+    # The profile is canonical for identity values. Never let a partial answer
+    # saved by an interrupted old blocker override the complete email or phone.
+    exact_identity = {
+        "email": profile.get("email", ""), "e mail": profile.get("email", ""),
+        "email address": profile.get("email", ""), "phone": profile.get("phone", ""),
+        "phone number": profile.get("phone", ""), "mobile": profile.get("phone", ""),
+        "telephone": profile.get("phone", ""),
+    }
+    if key in exact_identity and str(exact_identity[key]).strip():
+        return CandidateValue(str(exact_identity[key]).strip(), "profile_identity")
 
     # Required privacy/data-processing acknowledgements are part of the
     # application the user already approved. Never extend this to marketing,
@@ -149,7 +161,7 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["address line 2", "address 2"], extra.get("address_line2", ""), "profile"),
         (["postal code", "zip code", "zip"], extra.get("postal_code", ""), "profile"),
         (["state", "province", "region"], extra.get("state", ""), "profile"),
-        (["country"], extra.get("country", "") or "Israel", "profile"),
+        (["country"], "Israel" if normalize(str(extra.get("country", ""))) in {"", "israel", "il", "972", "+972", "ישראל"} else extra.get("country", ""), "profile"),
         (["phone country code", "country phone code"], extra.get("phone_country_code", ""), "profile"),
         (["job title", "position title", "role title", "most recent title", "current title"], extra.get("current_job_title", ""), "profile"),
         (["company", "employer", "organization name"], extra.get("current_company", ""), "profile"),

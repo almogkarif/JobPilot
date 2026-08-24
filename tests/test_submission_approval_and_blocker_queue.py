@@ -132,6 +132,10 @@ def test_explicit_auto_retry_reapproves_and_dispatches_failed_application(monkey
         assert retried.status_code == 200, retried.text
         assert retried.json()["status"] == "queued"
         assert dispatched == [application["id"]]
+        duplicate_click = client.post(f"/api/applications/{application['id']}/retry?auto_submit=true")
+        assert duplicate_click.status_code == 200, duplicate_click.text
+        assert duplicate_click.json()["status"] == "queued"
+        assert dispatched == [application["id"]]
         with SessionLocal() as db:
             stored = db.get(Application, application["id"])
             assert loads(stored.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
@@ -396,7 +400,8 @@ def test_safe_defaults_stop_dispatching_after_eight_server_side_repairs(monkeypa
             for index in range(8):
                 db.add(ApplicationEvent(
                     application_id=application_id, event_type="profile_identity_auto_resolved",
-                    actor="system", message=f"repair {index}", details_json='{"field":"old_field_%d"}' % index,
+                    actor="system", message=f"repair {index}",
+                    details_json='{"field":"old_field_%d","repair_version":"identity_v2"}' % index,
                 ))
             db.commit()
         blocked = client.post(
@@ -626,3 +631,47 @@ def test_stress_many_approval_and_manual_handoff_cycles_do_not_leak_permissions(
             completed = client.post(f"/api/applications/{application_id}/mark-submitted")
             assert completed.status_code == 200
             assert completed.json()["status"] == "submitted"
+def test_duplicate_submission_is_verified_as_an_existing_application():
+    with TestClient(app) as client:
+        job = _make_job(client, "Existing Lever Application")
+        application_id, task = _queue_and_claim(client, job)
+        response = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "attempt_id": task["attempt"]["id"],
+                "kind": "duplicate_submission", "field_label": "הגשה קיימת",
+                "question": "נמצאה מועמדות קודמת",
+                "explanation": "Lever מציג שהמועמדות כבר הוגשה בעבר.",
+                "options": [], "page_url": "https://jobs.lever.co/acme/applied",
+            },
+        )
+        assert response.status_code == 200, response.text
+        listed = next(item for item in client.get("/api/applications").json() if item["id"] == application_id)
+        assert listed["status"] == "submitted"
+        assert listed["verification_state"] == "verified"
+        assert listed["blocker"] is None
+
+
+def test_legacy_yes_question_can_be_rediscovered_without_guessing_an_answer():
+    with TestClient(app) as client:
+        job = _make_job(client, "Legacy Choice Rediscovery")
+        application_id, _ = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "choice_required", "field_label": "Yes",
+                "question": "Yes", "explanation": "Old agent stored the option as the question.",
+                "options": ["Yes", "No"], "page_url": "https://example.com/apply/choice",
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["legacy_choice_question"] is True
+        resolved = client.post(
+            f"/api/blockers/{blocked.json()['id']}/resolve",
+            json={"action": "rediscover_question"},
+        )
+        assert resolved.status_code == 200, resolved.text
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "queued"
+            assert loads(application.answers_json, {}).get("Yes") is None

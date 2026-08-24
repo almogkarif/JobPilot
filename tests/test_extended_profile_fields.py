@@ -1,4 +1,5 @@
 from agent.fields import known_value, missing_profile_context
+from app.main import _normalize_application_contact_fields
 
 
 PROFILE = {
@@ -48,6 +49,29 @@ def test_country_defaults_to_israel_and_submission_processing_consent_is_approve
 
     assert country is not None and country.value == "Israel"
     assert consent is not None and consent.value is True
+
+
+def test_legacy_country_phone_prefix_and_partial_identity_answers_cannot_override_profile():
+    profile = {
+        **PROFILE, "email": "candidate@example.com", "phone": "+972501234567",
+        "application_profile": {**PROFILE["application_profile"], "country": "+972"},
+    }
+    assert known_value("Country*", "select-one", profile, {}, []).value == "Israel"
+    assert known_value("Email", "text", profile, {"Email": "candidate"}, []).value == "candidate@example.com"
+    assert known_value("Phone", "text", profile, {"Phone": "+972"}, []).value == "+972501234567"
+
+
+def test_legacy_phone_prefix_is_migrated_out_of_country_without_overwriting_existing_prefix():
+    repaired = _normalize_application_contact_fields({"country": "+972"})
+    assert repaired["country"] == "Israel"
+    assert repaired["phone_country_code"] == "+972"
+
+    existing = _normalize_application_contact_fields({"country": "+972", "phone_country_code": "+1"})
+    assert existing["country"] == "Israel"
+    assert existing["phone_country_code"] == "+1"
+
+    canonical = _normalize_application_contact_fields({"country": "Israel", "phone_country_code": "972"})
+    assert canonical == {"country": "Israel", "phone_country_code": "+972"}
 
 
 def test_privacy_acknowledgements_are_approved_but_marketing_opt_ins_are_not():

@@ -1860,6 +1860,27 @@ def _normalize_work_experiences(value) -> list[dict[str, str]]:
     return result
 
 
+def _normalize_application_contact_fields(application_profile: dict) -> dict:
+    """Keep country and phone prefix separate, repairing legacy mixed values."""
+    normalized = dict(application_profile or {})
+    raw_country = str(normalized.get("country") or "").strip()
+    country_key = _normalize_company_memory_text(raw_country)
+    raw_prefix = str(normalized.get("phone_country_code") or "").strip()
+
+    # Older UI versions accidentally persisted Israel's dialing prefix in the
+    # country field. Preserve both pieces of meaning while repairing that data.
+    if country_key in {"972", "+972"}:
+        normalized["country"] = "Israel"
+        if not raw_prefix:
+            normalized["phone_country_code"] = "+972"
+    elif country_key in {"il", "israel", "ישראל"}:
+        normalized["country"] = "Israel"
+
+    if str(normalized.get("phone_country_code") or "").strip() == "972":
+        normalized["phone_country_code"] = "+972"
+    return normalized
+
+
 def _mirror_latest_work_experience(application_profile: dict) -> dict:
     experiences = _normalize_work_experiences(application_profile.get("work_experiences"))
     application_profile["work_experiences"] = experiences
@@ -1924,7 +1945,7 @@ def _apply_profile_changes(
     degree_update = normalize_degree_level(values.get("degree_level")) if "degree_level" in values else None
 
     if "application_profile" in values and values["application_profile"] is not None:
-        incoming = dict(values["application_profile"] or {})
+        incoming = _normalize_application_contact_fields(dict(values["application_profile"] or {}))
         if "degree_level" in incoming:
             degree_update = normalize_degree_level(incoming.get("degree_level"))
         if "work_experiences" in incoming:
@@ -1936,6 +1957,7 @@ def _apply_profile_changes(
             if not isinstance(merged, dict):
                 merged = {}
             merged.update(incoming)
+            merged = _normalize_application_contact_fields(merged)
             if "work_experiences" in incoming:
                 merged = _mirror_latest_work_experience(merged)
             profile.application_profile_json = dumps(merged)
@@ -2802,6 +2824,36 @@ def _record_application_event(
     return event
 
 
+def _verify_existing_submission(
+    db: Session, application: Application, blocker: Blocker,
+    attempt: ApplicationAttempt | None = None,
+) -> None:
+    """Treat an ATS 'already applied' page as proof for this exact job."""
+    previous_status = application.status
+    blocker.status = "resolved"
+    blocker.answer = "existing_application_verified"
+    blocker.remember_answer = False
+    blocker.resolved_at = utcnow()
+    application.status = "submitted"
+    application.submitted_at = application.submitted_at or utcnow()
+    application.last_error = ""
+    set_job_status(db, application.job, "submitted")
+    if attempt:
+        attempt.status = "verified"
+        attempt.verification_state = "verified"
+        attempt.confirmation_text = blocker.explanation or blocker.question
+        attempt.confirmation_url = blocker.page_url
+        attempt.screenshot_path = blocker.screenshot_path
+        attempt.evidence_json = dumps([{"type": "existing_application", "value": blocker.question}])
+        attempt.finished_at = utcnow()
+    _record_application_event(
+        db, application, "existing_submission_verified", from_status=previous_status,
+        to_status="submitted", actor="agent",
+        message="Lever אישר שקיימת כבר מועמדות למשרה הזו",
+        details={"attempt_id": attempt.id if attempt else None, "page_url": blocker.page_url},
+    )
+
+
 def _attempt_dict(attempt: ApplicationAttempt | None) -> dict | None:
     if not attempt:
         return None
@@ -3209,6 +3261,17 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
         application for application in db.scalars(statement).unique().all()
         if application.job and application_history_visible(application.job, application)
     ]
+    repaired_existing = False
+    for application in applications:
+        duplicate_blocker = next(
+            (blocker for blocker in application.blockers if blocker.status == "open" and blocker.kind == "duplicate_submission"),
+            None,
+        )
+        if duplicate_blocker:
+            _verify_existing_submission(db, application, duplicate_blocker, _result_attempt(db, application.id))
+            repaired_existing = True
+    if repaired_existing:
+        db.commit()
     auto_queued = sorted(
         (item for item in applications
          if item.status == "queued" and item.mode == "auto" and _application_auto_submit_supported(item)),
@@ -3491,6 +3554,11 @@ async def retry_application(
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
+    # The same circular-arrow action is exposed in more than one UI surface.
+    # A second click that arrives after the first request queued/claimed the job
+    # must be a no-op, otherwise it dispatches a duplicate GitHub worker.
+    if application.status == "applying" or (application.status == "queued" and not application.last_error):
+        return _application_dict(application, db)
     if application.status == "verification_pending" and not confirm_not_submitted:
         raise HTTPException(409, "נדרש אישור מפורש שלא התקבל אישור הגשה לפני ניסיון חוזר")
     previous_status = application.status
@@ -3780,14 +3848,19 @@ def _auto_requeue_profile_identity(
         ApplicationEvent.application_id == application.id,
         ApplicationEvent.event_type == "profile_identity_auto_resolved",
     )).all()
+    repair_version = "identity_v2"
+    current_repairs = [
+        event for event in previous_auto_resolutions
+        if loads(event.details_json, {}).get("repair_version") == repair_version
+    ]
     resolved_fields = {
         str(loads(event.details_json, {}).get("field") or "")
-        for event in previous_auto_resolutions
+        for event in current_repairs
     }
     # Never spin on the same supposedly-safe answer. Also stop a pathological
     # long form after several server-side repairs and expose the next field to
     # the user instead of continuously buying new cloud workers.
-    if profile_field in resolved_fields or len(previous_auto_resolutions) >= 8:
+    if profile_field in resolved_fields or len(current_repairs) >= 8:
         return False
     answer_key = _submit_validation_field_label(blocker) or blocker.field_label or blocker.question or "Email"
     answers = loads(application.answers_json, {})
@@ -3810,7 +3883,8 @@ def _auto_requeue_profile_identity(
     _record_application_event(
         db, application, "profile_identity_auto_resolved", from_status=previous_status, to_status="queued",
         actor="system", message=f"השדה {blocker.field_label or blocker.question} מולא אוטומטית מהפרטים האישיים",
-        details={"blocker_id": blocker.id, "source": source, "field": profile_field},
+        details={"blocker_id": blocker.id, "source": source, "field": profile_field,
+                 "repair_version": repair_version},
     )
     db.commit()
     db.refresh(blocker)
@@ -4032,6 +4106,33 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     answers = loads(application.answers_json, {})
     answer_key = blocker.field_label or blocker.question
     action = (payload.action or "").strip().lower()
+
+    if action == "rediscover_question":
+        options = [str(option).strip() for option in loads(blocker.options_json, []) if str(option).strip()]
+        question_key = _normalize_company_memory_text(blocker.question)
+        option_keys = {_normalize_company_memory_text(option) for option in options}
+        if blocker.kind != "choice_required" or question_key not in option_keys:
+            raise HTTPException(400, "ניתן לזהות מחדש רק שאלת בחירה ישנה שנשמרה ללא נוסח")
+        for key in list(answers):
+            if _normalize_company_memory_text(key) in option_keys:
+                answers.pop(key, None)
+        blocker.status = "resolved"
+        blocker.answer = "rediscover_question"
+        blocker.remember_answer = False
+        blocker.resolved_at = utcnow()
+        application.answers_json = dumps(answers)
+        application.status = "queued"
+        application.last_error = ""
+        set_job_status(db, application.job, "queued")
+        _record_application_event(
+            db, application, "legacy_question_rediscovery", from_status="needs_input", to_status="queued",
+            actor="user", message="השאלה הישנה נשמרה ללא נוסח ונשלחה לזיהוי מחדש",
+            details={"blocker_id": blocker.id},
+        )
+        db.commit()
+        db.refresh(blocker)
+        await _dispatch_resolved_auto_application(db, application)
+        return _blocker_dict(blocker)
 
     if action == "use_profile_grade_sheet":
         profile = get_user_profile(db)
@@ -5023,6 +5124,11 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         db.add(blocker)
     db.flush()
     attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if payload.kind == "duplicate_submission":
+        _verify_existing_submission(db, application, blocker, attempt)
+        db.commit()
+        db.refresh(blocker)
+        return _blocker_dict(blocker)
     if _auto_requeue_greenhouse_native_url(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):
@@ -5390,6 +5496,10 @@ def _rescore_v2_jobs(
 
 
 def _profile_dict(p: Profile) -> dict:
+    application_profile = loads(p.application_profile_json, {})
+    if not isinstance(application_profile, dict):
+        application_profile = {}
+    application_profile = _normalize_application_contact_fields(application_profile)
     return {
         "id": p.id, "full_name": p.full_name, "email": p.email, "phone": p.phone, "location": p.location,
         "linkedin_url": p.linkedin_url, "github_url": p.github_url, "portfolio_url": p.portfolio_url,
@@ -5404,7 +5514,7 @@ def _profile_dict(p: Profile) -> dict:
         "preferred_work_modes": loads(p.preferred_work_modes_json, []), "keywords": loads(p.keywords_json, []),
         "excluded_keywords": loads(p.excluded_keywords_json, []), "auto_apply_threshold": p.auto_apply_threshold,
         "auto_submit_enabled": p.auto_submit_enabled, "updated_at": p.updated_at,
-        "application_profile": loads(p.application_profile_json, {}),
+        "application_profile": application_profile,
         "onboarding_version": int(p.onboarding_version or 0),
         "active_career_track": active_track(p),
         "career_track": track_public_dict(CAREER_TRACK_BY_KEY[active_track(p)], active=True),
@@ -5500,6 +5610,11 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         blocker_options = loads(active_blocker.options_json, [])
         if blocker_options:
             blocker_summary["options"] = blocker_options
+            blocker_summary["legacy_choice_question"] = (
+                active_blocker.kind == "choice_required"
+                and _normalize_company_memory_text(active_blocker.question)
+                in {_normalize_company_memory_text(str(option)) for option in blocker_options}
+            )
 
     status = a.status
     automatic_submit_supported = _application_auto_submit_supported(a)
@@ -5675,9 +5790,13 @@ def _draft_dict(draft: OpenAnswerDraft) -> dict:
 
 def _blocker_dict(b: Blocker) -> dict:
     kind, field_label, question, explanation = _effective_blocker_fields(b, b.application.job if b.application else None)
+    options = loads(b.options_json, [])
     return {
         "id": b.id, "application_id": b.application_id, "kind": kind, "field_label": field_label,
-        "question": question, "explanation": explanation, "options": loads(b.options_json, []),
+        "question": question, "explanation": explanation, "options": options,
+        "legacy_choice_question": kind == "choice_required" and _normalize_company_memory_text(b.question) in {
+            _normalize_company_memory_text(str(option)) for option in options
+        },
         "screenshot_path": b.screenshot_path, "screenshot_url": f"/api/blockers/{b.id}/screenshot" if b.screenshot_path else "",
         "page_url": b.page_url, "status": b.status,
         "answer": b.answer, "remember_answer": b.remember_answer, "created_at": b.created_at,

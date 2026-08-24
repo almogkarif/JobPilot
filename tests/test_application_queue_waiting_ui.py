@@ -89,6 +89,12 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "ממתינה להפעלת worker ברקע" in js
     assert "ירוק מציין הגשה שרצה" in js
     assert "autoQueueAttentionMarkup" in js
+    assert "retryAutomaticApplication" in js
+    assert "automaticRetryInFlight" in js
+    assert "retryAllAutoQueueApplications" in js
+    assert "הפעל מחדש את כולן" in js
+    assert "application-tracker-retry auto-queue-retry" in js
+    assert ".auto-queue-row-actions .auto-queue-retry" in css
 
 
 def test_tracking_list_is_a_compact_payload_not_full_application_history():
