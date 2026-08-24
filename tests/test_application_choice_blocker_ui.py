@@ -20,6 +20,17 @@ def test_small_choice_blocker_is_inline_and_yellow_in_live_tracker():
     assert ".application-live-choice" in css
 
 
+def test_short_unknown_field_has_inline_text_answer_and_auto_resume():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
+    assert "['unknown_field','missing_profile_detail'].includes(blocker?.kind)" in js
+    assert "data-text-blocker-input" in js
+    assert "resolveTextBlocker" in js
+    assert "maxlength=\"255\"" in js
+    assert "מחכה לתשובה קצרה" in js
+    assert ".application-live-text-answer" in css
+
+
 def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
