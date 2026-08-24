@@ -118,6 +118,8 @@ def test_application_workflow_is_headless_one_shot_and_uses_repository_secrets()
     assert "JOBPILOT_AGENT_HEADLESS: 'true'" in workflow
     assert "JOBPILOT_RUN_ONCE: 'true'" in workflow
     assert "python -m agent.run_agent" in workflow
+    assert "group: jobpilot-application-${{ inputs.application_id }}" in workflow
+    assert "group: jobpilot-application-worker" not in workflow
 
 
 def test_background_worker_connection_check_dispatches_without_claiming_a_real_application(monkeypatch):

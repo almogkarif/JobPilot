@@ -12,7 +12,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: jobpilot-application-worker
+  # GitHub keeps at most one pending run per concurrency group. A global group
+  # therefore silently cancels older submissions when a user queues several
+  # jobs in quick succession. Serialize duplicate dispatches for the same
+  # application, while allowing every distinct approved application to run.
+  group: jobpilot-application-${{ inputs.application_id }}
   cancel-in-progress: false
 
 jobs:
