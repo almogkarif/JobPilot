@@ -229,6 +229,33 @@ def test_existing_email_blocker_is_repaired_when_tracker_reads_timeline(monkeypa
         assert dispatched == [application_id]
 
 
+def test_phone_blocker_is_resolved_by_the_same_saved_profile_field_system(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        saved = client.patch("/api/profile", json={"phone": "+972501234567"})
+        assert saved.status_code == 200
+        job = _make_job(client, "Phone field engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Phone,",
+                "question": "Phone,", "explanation": "Answer required", "options": [],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert loads(application.answers_json, {})["Phone,"] == "+972501234567"
+        assert dispatched == [application_id]
+
+
 def test_captcha_is_exposed_compactly_with_exact_handoff_url_and_can_be_marked_submitted():
     with TestClient(app) as client:
         job = _make_job(client, "Junior CAPTCHA Queue Engineer")

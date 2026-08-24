@@ -30,7 +30,7 @@ from sqlalchemy import asc, case, desc, func, literal, or_, select, update
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
-from app.utils import select_next_queued_application
+from app.utils import select_next_queued_application, split_name
 
 from .config import BASE_DIR, settings
 from .database import (Base, LOCAL_USER_ID, SHARED_CATALOG_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
@@ -3554,6 +3554,43 @@ async def _dispatch_resolved_auto_application(db: Session, application: Applicat
         raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
 
 
+def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tuple[str, str]:
+    """Return a saved, non-judgmental profile value for an exact ATS field label."""
+    if not profile:
+        return "", ""
+    label = _normalize_company_memory_text(raw_label)
+    first_name, last_name = split_name(profile.full_name or "")
+    extra = loads(profile.application_profile_json, {})
+    if not isinstance(extra, dict):
+        extra = {}
+    aliases: list[tuple[set[str], object, str]] = [
+        ({"email", "e mail", "email address", "work email"}, profile.email, "email"),
+        ({"phone", "phone number", "mobile", "mobile phone", "mobile number", "telephone", "tel"}, profile.phone, "phone"),
+        ({"full name", "legal name", "name"}, profile.full_name, "full_name"),
+        ({"first name", "given name"}, first_name, "first_name"),
+        ({"last name", "family name", "surname"}, last_name, "last_name"),
+        ({"location", "current location"}, profile.location, "location"),
+        ({"city", "current city"}, extra.get("city") or extra.get("employment_location"), "city"),
+        ({"linkedin", "linkedin profile", "linkedin url"}, profile.linkedin_url, "linkedin_url"),
+        ({"github", "github profile", "github url"}, profile.github_url, "github_url"),
+        ({"portfolio", "portfolio url", "personal website", "website", "website url"}, extra.get("website_url") or profile.portfolio_url, "portfolio_url"),
+        ({"preferred name", "preferred first name"}, extra.get("preferred_name"), "preferred_name"),
+        ({"country", "country of residence"}, extra.get("country"), "country"),
+        ({"state", "province", "region"}, extra.get("state"), "state"),
+        ({"postal code", "zip", "zip code"}, extra.get("postal_code"), "postal_code"),
+        ({"address", "address line 1", "street address"}, extra.get("address_line1"), "address_line1"),
+        ({"address line 2"}, extra.get("address_line2"), "address_line2"),
+        ({"phone country code", "country phone code"}, extra.get("phone_country_code"), "phone_country_code"),
+        ({"most recent title", "current title", "current job title", "job title"}, extra.get("current_job_title"), "current_job_title"),
+        ({"most recent company", "current company", "employer", "company"}, extra.get("current_company"), "current_company"),
+    ]
+    for labels, value, field in aliases:
+        answer = str(value or "").strip()
+        if label in labels and answer:
+            return answer, field
+    return "", ""
+
+
 def _auto_requeue_profile_identity(
     db: Session, application: Application, blocker: Blocker, *, source: str,
     attempt: ApplicationAttempt | None = None,
@@ -3561,11 +3598,8 @@ def _auto_requeue_profile_identity(
     """Resolve exact identity fields from the saved profile, including old blockers."""
     if application.mode != "auto":
         return False
-    label = _normalize_company_memory_text(blocker.field_label or blocker.question)
-    if label not in {"email", "e mail", "email address", "work email"}:
-        return False
     profile = get_user_profile(db)
-    answer = str(profile.email or "").strip() if profile else ""
+    answer, profile_field = _saved_profile_field_answer(profile, blocker.field_label or blocker.question)
     if not answer:
         return False
     answer_key = blocker.field_label or blocker.question or "Email"
@@ -3588,8 +3622,8 @@ def _auto_requeue_profile_identity(
         attempt.finished_at = attempt.finished_at or utcnow()
     _record_application_event(
         db, application, "profile_identity_auto_resolved", from_status=previous_status, to_status="queued",
-        actor="system", message="שדה Email מולא אוטומטית מהפרטים האישיים",
-        details={"blocker_id": blocker.id, "source": source, "field": "email"},
+        actor="system", message=f"השדה {blocker.field_label or blocker.question} מולא אוטומטית מהפרטים האישיים",
+        details={"blocker_id": blocker.id, "source": source, "field": profile_field},
     )
     db.commit()
     db.refresh(blocker)
