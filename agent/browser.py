@@ -209,6 +209,17 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 anonymous_month_index += 1
             candidate = known_value(lookup_label, field_type, profile, answers, memories)
 
+            # Older blockers could use the first radio option as the question key
+            # (for example the positive Python-experience statement). On retry the
+            # chosen negative statement must be applied to every radio in that same
+            # group, not only to the first option whose label matched the key.
+            if field_type == "radio" and candidate is None:
+                group_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
+                for saved_question, saved_answer in answers.items():
+                    if normalize(saved_question) in group_options and normalize(str(saved_answer)) in group_options:
+                        candidate = CandidateValue(str(saved_answer), "resolved_choice_group")
+                        break
+
             if field_type == "file":
                 candidate = candidate or _lever_profile_document_fallback(
                     field, actionable_fields, profile, page.url

@@ -338,6 +338,35 @@ def test_required_small_select_becomes_choice_blocker():
             browser.close()
 
 
+def test_saved_answer_from_first_radio_option_selects_the_chosen_sibling_on_retry():
+    yes = "Yes, I have 2+ years of professional experience working with Python"
+    no = "No, I have less then 2 years working with Python"
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/**", lambda route: route.fulfill(content_type="text/html", body=f"""
+          <form>
+            <label for="python-yes">{yes}</label><input id="python-yes" name="python-years" type="radio" value="yes" required>
+            <label for="python-no">{no}</label><input id="python-no" name="python-years" type="radio" value="no" required>
+            <button type="submit">Submit Application</button>
+          </form>
+        """))
+        task = {
+            "job": {"apply_url": "https://careers.example.test/apply"},
+            "profile": {"full_name": "Demo Candidate"},
+            "answers": {yes: no}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent must stop at final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.locator("#python-no").is_checked()
+            assert not page.locator("#python-yes").is_checked()
+        finally:
+            browser.close()
+
+
 def test_dynamic_combobox_becomes_clickable_choice_blocker():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
