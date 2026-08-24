@@ -12,7 +12,7 @@ from .engine import RankingEngine, RankingResult
 from .roles import role_match
 from .skills import score_skills
 from ..job_text import job_text_quality
-from ..degree_requirements import degree_label, degree_requirement_label
+from ..degree_requirements import degree_requirement_label
 
 MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certification", "הסמכה")
 

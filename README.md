@@ -2,7 +2,7 @@
 
 **A full-stack job discovery, matching, and human-in-the-loop application platform.**
 
-[**Open the live application**](https://jobpilot.onrender.com) · [**View the source code**](https://github.com/almogkarif/JobPilot) · [Architecture](#architecture) · [Run locally](#quick-start--local-mode)
+[**Open the live application**](https://jobpilot-zxgg.onrender.com) · [**View the source code**](https://github.com/almogkarif/JobPilot) · [Architecture](#architecture) · [Run locally](#quick-start--local-mode)
 
 > **Recruiter?** Start with the [60-second overview](#for-recruiters--60-second-overview), then open the live application and choose **Continue as guest** (`המשך כאורח`). The product UI is intentionally built in Hebrew with full RTL support; the engineering documentation is in English.
 
@@ -33,7 +33,7 @@ JobPilot is an end-to-end production project rather than a UI prototype. It brin
 
 ### Quick product walkthrough
 
-1. Open the [live application](https://jobpilot.onrender.com).
+1. Open the [live application](https://jobpilot-zxgg.onrender.com).
 2. Select **Continue as guest** (`המשך כאורח`) to explore without creating an account.
 3. Review the dashboard and open the ranked jobs list to inspect scores and match explanations.
 4. Switch between Computer Science, Electrical Engineering, and Industrial Engineering & Management to see track-specific jobs and preferences.
@@ -404,6 +404,7 @@ jobpilot/
 Run the complete suite:
 
 ```bash
+pip install -r requirements-test.txt
 pytest -q
 ```
 

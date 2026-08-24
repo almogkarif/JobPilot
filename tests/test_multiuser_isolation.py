@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 
 import app.auth as auth_module
 from app.auth import AuthIdentity

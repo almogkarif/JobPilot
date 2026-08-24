@@ -2,7 +2,8 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
+from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
+                           _extract_fields, _external_application_id_from_url,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
@@ -61,6 +62,16 @@ def test_visible_captcha_checkbox_or_challenge_requires_handoff():
     ) is True
 
 
+def test_cybersecurity_job_description_is_not_mistaken_for_captcha():
+    description = (
+        "Staff Cyber Defense Engineer. Own complex security challenges and "
+        "improve the company's detection and response capabilities."
+    )
+    assert _body_text_requires_captcha_action(description) is False
+    assert _body_text_requires_captcha_action("Please complete the security challenge") is True
+    assert _body_text_requires_captcha_action("Verify you are human to continue") is True
+
+
 def test_lever_success_urls_are_strong_submission_evidence():
     evidence, application_id = lever_confirmation_from_url(
         "https://jobs.eu.lever.co/mobileye/abc123/thanks"
@@ -117,6 +128,26 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert application_id == "lever-app-123"
     assert error == ""
 
+    evidence, application_id, error = _lever_submission_response_result(
+        "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
+        400,
+        {"ok": False, "error": "custom question is required"},
+    )
+    assert evidence == ""
+    assert application_id == ""
+    assert "HTTP 400" in error
+    assert "custom question is required" in error
+
+    evidence, application_id, error = _lever_submission_response_result(
+        "https://jobs.eu.lever.co/mobileye/job-123/apply",
+        303,
+        {},
+        "/mobileye/job-123/thanks",
+    )
+    assert "Lever confirmation" in evidence
+    assert application_id == ""
+    assert error == ""
+
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:
@@ -141,26 +172,36 @@ def test_greenhouse_click_without_real_post_is_not_marked_verification_pending()
         finally:
             browser.close()
 
-    evidence, application_id, error = _lever_submission_response_result(
-        "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
-        400,
-        {"ok": False, "error": "custom question is required"},
-    )
-    assert evidence == ""
-    assert application_id == ""
-    assert "HTTP 400" in error
-    assert "custom question is required" in error
 
-    evidence, application_id, error = _lever_submission_response_result(
-        "https://jobs.eu.lever.co/mobileye/job-123/apply",
-        303,
-        {},
-        "/mobileye/job-123/thanks",
-    )
-    assert "Lever confirmation" in evidence
-    assert application_id == ""
-    assert error == ""
-
+def test_greenhouse_country_resume_and_processing_consent_fill_automatically(tmp_path):
+    resume = tmp_path / "resume.pdf"
+    resume.write_bytes(b"%PDF-1.4\n")
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://job-boards.greenhouse.io/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form>
+            <label>Country*<select required><option value="">Select</option><option>Israel</option><option>United States</option></select></label>
+            <label>Resume<input name="resume" type="file" required></label>
+            <label><input name="consent" type="checkbox" required>By submitting your application you consent to us sharing your information with a third party supporting us in this hiring process*</label>
+            <button type="submit">Submit Application</button>
+          </form>
+        """))
+        task = {
+            "job": {"apply_url": "https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123"},
+            "profile": {"location": "Tel Aviv", "cv_path": str(resume), "application_profile": {}},
+            "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent should stop for final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.locator("select").input_value() == "Israel"
+            assert page.locator('input[name="resume"]').evaluate("el => el.files.length") == 1
+            assert page.locator('input[name="consent"]').is_checked()
+        finally:
+            browser.close()
 
 def test_lever_submit_prefers_visible_template_button_over_hidden_native_submit():
     with sync_playwright() as playwright:

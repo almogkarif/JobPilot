@@ -13,7 +13,7 @@ CAPTCHA_ACTION_TERMS = [
     "verify you are human", "verify you're human", "verify that you are human",
     "i'm not a robot", "i am not a robot", "select all images", "select all squares",
     "complete the captcha", "please complete the captcha", "captcha verification failed",
-    "captcha failed", "recaptcha verification failed", "security challenge",
+    "captcha failed", "recaptcha verification failed", "complete the security challenge",
     "אימות שאינך רובוט", "אני לא רובוט", "ודא שאתה אנושי", "אימות אנושי נדרש",
 ]
 SUCCESS_TERMS = [
@@ -581,6 +581,12 @@ def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, wid
     return False
 
 
+def _body_text_requires_captcha_action(text: str) -> bool:
+    """Match explicit human-action messages, never job-description vocabulary."""
+    normalized = str(text or "").casefold()
+    return any(term.casefold() in normalized for term in CAPTCHA_ACTION_TERMS)
+
+
 def _detect_captcha(page: Page) -> None:
     text = ""
     try:
@@ -588,7 +594,7 @@ def _detect_captcha(page: Page) -> None:
     except Exception:
         pass
 
-    body_requires_action = any(term.casefold() in text for term in CAPTCHA_ACTION_TERMS)
+    body_requires_action = _body_text_requires_captcha_action(text)
     frame_requires_action = False
     try:
         frames = page.locator("iframe")

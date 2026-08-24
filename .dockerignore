@@ -9,7 +9,11 @@ data/*.db
 data/*.sqlite*
 data/resumes/*
 data/screenshots/*
+data/documents/*
 agent/browser-profile
 agent/agent-cache
 *.zip
+*.patch
+TEST-REPORT*.txt
+tests
 docs/screenshots

@@ -1,12 +1,30 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.database import SessionLocal, set_user_scope
 from app.main import app
+from app.models import Job, Source
 from app.schemas import ProfileUpdate, AgentBlockerRequest
 
 
 def test_health_and_dashboard():
     with TestClient(app) as client:
+        fixture_roles = (
+            ("Graduate Software Developer – Python / C++", "Build Python and C++ tools, automation, CI/CD and Linux systems. 0-2 years experience."),
+            ("Junior Backend Engineer", "Junior backend role using Python, REST APIs, SQL, Git and Docker."),
+            ("AI Research Engineer", "Research and develop machine learning systems with Python."),
+        )
+        for index, (title, description) in enumerate(fixture_roles):
+            response = client.post("/api/jobs/import", json={
+                "title": title,
+                "company": "Test Fixture Company",
+                "location": "Tel Aviv, Israel",
+                "description": description,
+                "apply_url": f"https://jobs.test-fixture.invalid/roles/{index}",
+            })
+            assert response.status_code == 200
         assert client.get("/api/health").status_code == 200
         dashboard = client.get("/api/dashboard").json()
         assert dashboard["total_jobs"] >= 3
@@ -15,6 +33,30 @@ def test_health_and_dashboard():
         assert set(dashboard["readiness"]) >= {
             "ready", "profile_complete", "resume_uploaded", "sources_enabled", "agent_token_secure"
         }
+
+
+def test_demo_jobs_and_sources_are_never_exposed_by_product_endpoints():
+    with TestClient(app) as client:
+        with SessionLocal() as db:
+            set_user_scope(db, "local-owner")
+            source = Source(
+                name="Demo Jobs", kind="demo", identifier="legacy-demo-source",
+                company_name="Demo", career_track="computer_science", enabled=True,
+            )
+            db.add(source)
+            db.flush()
+            db.add(Job(
+                source_id=source.id, external_id="legacy-example", career_track="computer_science",
+                title="Example Software Engineer", company="Example Company",
+                location="Israel", description="Example job", apply_url="https://example.com/job",
+            ))
+            db.commit()
+            demo_job_id = db.scalar(select(Job.id).where(Job.external_id == "legacy-example"))
+
+        assert all(item["company"] != "Example Company" for item in client.get("/api/jobs").json())
+        assert all(item["name"] != "Demo Jobs" for item in client.get("/api/sources").json())
+        assert all(item["company"] != "Example Company" for item in client.get("/api/dashboard").json()["recent_jobs"])
+        assert client.get(f"/api/jobs/{demo_job_id}").status_code == 404
 
 
 def test_already_applied_job_stays_in_jobs_and_is_removed_from_dashboard():

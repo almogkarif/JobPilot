@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from ..matching import KNOWN_SKILLS, _contains_variant, extract_skills
+from ..matching import extract_skills
 from ..job_requirements import iter_requirement_clauses
 
 REQUIRED_MARKERS = (

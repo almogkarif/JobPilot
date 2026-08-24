@@ -321,6 +321,64 @@ def test_referral_source_blocker_uses_safe_default_without_user_input(monkeypatc
         assert dispatched == [application_id]
 
 
+def test_hiring_process_consent_blocker_is_safely_resolved(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Hiring process consent engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        question = (
+            "By submitting your application you consent to us sharing your information "
+            "with a third party supporting us in this hiring process*"
+        )
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": question,
+                "question": question, "explanation": "Answer required", "options": [],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert loads(application.answers_json, {})[question] == "Yes"
+        assert dispatched == [application_id]
+
+
+def test_verified_submission_resolves_blockers_from_earlier_attempts():
+    with TestClient(app) as client:
+        job = _make_job(client, "Resolved stale blocker engineer")
+        application_id, task = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            blocker = Blocker(
+                application_id=application_id, kind="file_required", status="open",
+                field_label="Resume", question="Resume", explanation="Resume was missing",
+            )
+            db.add(blocker)
+            db.commit()
+            blocker_id = blocker.id
+        submitted = client.post(
+            f"/api/agent/tasks/{application_id}/submitted",
+            json={
+                "token": "change-me", "attempt_id": task["attempt"]["id"],
+                "message": "Application received", "verification_state": "verified",
+                "confirmation_text": "Thank you for applying",
+                "evidence": [{"type": "confirmation_text", "value": "Thank you for applying"}],
+            },
+        )
+        assert submitted.status_code == 200, submitted.text
+        assert submitted.json()["status"] == "submitted"
+        with SessionLocal() as db:
+            blocker = db.get(Blocker, blocker_id)
+            assert blocker.status == "resolved"
+            assert blocker.answer == "resolved_by_verified_submission"
+
+
 def test_opaque_referral_option_group_chooses_none_of_the_above(monkeypatch):
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))

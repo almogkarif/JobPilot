@@ -5,7 +5,7 @@ import asyncio
 import re
 from collections.abc import Callable
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
 from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState

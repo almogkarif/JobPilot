@@ -39,6 +39,6 @@ def test_guest_mode_has_visible_entry_logout_and_client_side_write_guard():
 def test_iem_theme_final_pass_covers_dashboard_cards_empty_states_and_notifications():
     assert 'final Industrial Engineering palette pass' in CSS
     for selector in ('.flow-list li', '.empty-state-icon', '.notification-center', '.metric-copy b', '.auth-guest'):
-        assert f'body.track-industrial-engineering' in CSS and selector in CSS
+        assert 'body.track-industrial-engineering' in CSS and selector in CSS
     assert 'body.theme-dark.track-industrial-engineering' in CSS
     assert 'background-color:#2a220d !important' in CSS

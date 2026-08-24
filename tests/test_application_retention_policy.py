@@ -4,10 +4,9 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.collectors.base import NormalizedJob
 from app.database import Base, SessionLocal
 from app.main import app
 from app.models import Application, Job, Profile, Source

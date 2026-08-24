@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import re
 
 from ...utils import loads
 from ..matching import SENIORITY_LEVELS, extract_experience

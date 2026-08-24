@@ -7,9 +7,9 @@ import app.auth as auth_module
 import app.storage as storage_module
 from app.auth import AuthIdentity
 from app.config import settings
-from app.database import SessionLocal
+from app.database import SessionLocal, get_user_profile
 from app.main import app
-from app.models import AgentDevice, AppIdentity, Application, Job, ResumeProfile, Source, utcnow
+from app.models import AgentDevice, AppIdentity, Application, Job, ResumeProfile, Source
 
 
 def test_auth_config_never_exposes_server_keys(monkeypatch):
@@ -180,7 +180,7 @@ def test_agent_can_download_selected_resume_without_web_session(monkeypatch, tmp
     resume_file.write_bytes(b"cloud-agent-resume")
     with TestClient(app) as client:
         with SessionLocal() as db:
-            source = Source(name="Cloud Agent Test", kind="demo", identifier="cloud-agent-test", enabled=False)
+            source = Source(name="Cloud Agent Test", kind="fixture", identifier="cloud-agent-test", enabled=False)
             db.add(source); db.flush()
             job = Job(source_id=source.id, external_id="agent-resume", title="Test Role", company="Test",
                       location="Tel Aviv, Israel", apply_url="https://example.com/apply")
@@ -215,6 +215,65 @@ def test_agent_can_download_selected_resume_without_web_session(monkeypatch, tmp
                 source = db.get(Source, source_id)
                 if source:
                     db.delete(source)
+                db.commit()
+
+
+def test_agent_claim_hydrates_legacy_application_resume_from_profile(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "auth_mode", "local")
+    monkeypatch.setattr(settings, "agent_token", "agent-test-token")
+    resume_file = tmp_path / "profile-cv.txt"
+    resume_file.write_bytes(b"profile resume")
+
+    with TestClient(app) as client:
+        with SessionLocal() as db:
+            profile = get_user_profile(db)
+            previous_cv = profile.cv_path
+            previous_password = profile.application_password
+            profile.cv_path = str(resume_file)
+            # This test exercises resume hydration only. Other security tests
+            # deliberately rotate the credential key, so do not inherit an
+            # encrypted password produced under a different test key.
+            profile.application_password = ""
+            source = Source(name="Legacy Resume Test", kind="greenhouse", identifier="legacy-resume-test", enabled=False)
+            db.add(source)
+            db.flush()
+            job = Job(
+                source_id=source.id, external_id="legacy-missing-resume", title="Test Role",
+                company="Test", location="Tel Aviv, Israel",
+                apply_url="https://boards.greenhouse.io/test/jobs/123",
+            )
+            db.add(job)
+            db.flush()
+            application = Application(job_id=job.id, resume_path="", status="queued", mode="auto")
+            db.add(application)
+            db.commit()
+            application_id, source_id = application.id, source.id
+
+        try:
+            response = client.get(
+                "/api/agent/tasks/next",
+                params={
+                    "agent_id": "pytest-cloud-agent", "worker_type": "cloud",
+                    "application_id": application_id,
+                },
+                headers={"X-JobPilot-Agent-Token": "agent-test-token"},
+            )
+            assert response.status_code == 200, response.text
+            task = response.json()["task"]
+            assert task and task["application"]["id"] == application_id
+            assert task["application"]["resume_path"] == str(resume_file)
+        finally:
+            with SessionLocal() as db:
+                application = db.get(Application, application_id)
+                if application:
+                    db.delete(application)
+                    db.flush()
+                source = db.get(Source, source_id)
+                if source:
+                    db.delete(source)
+                profile = get_user_profile(db)
+                profile.cv_path = previous_cv
+                profile.application_password = previous_password
                 db.commit()
 
 

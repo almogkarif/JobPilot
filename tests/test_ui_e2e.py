@@ -238,8 +238,17 @@ def test_failed_save_keeps_draft_and_red_warning(browser_page):
     errors[:] = [item for item in errors if "500 (Internal Server Error)" not in item]
 
 
-def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(browser_page):
+def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(browser_page, live_server):
     page, _ = browser_page
+    imported = page.request.post(f"{live_server}/api/jobs/import", data={
+        "title": "Junior Backend Engineer",
+        "company": "UI Test Fixture Company",
+        "location": "Tel Aviv, Israel",
+        "description": "Junior backend role using Python, REST APIs, SQL, Git and Docker.",
+        "apply_url": "https://jobs.ui-test-fixture.invalid/backend-engineer",
+    })
+    assert imported.ok, f"Could not create isolated UI job fixture: {imported.status}"
+    page.reload(wait_until="networkidle")
 
     # Recent dashboard job opens the same rich job dialog as the Jobs tab.
     page.get_by_role("button", name="לוח בקרה").click()
@@ -297,7 +306,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
 
 def test_supported_job_shows_automatic_submission_badge_and_action(browser_page):
     page, _ = browser_page
-    job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
+    page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
         title:'Supported ATS Test Software Engineer', company:'Greenhouse Test', location:'Israel',
         apply_url:'https://boards.greenhouse.io/example/jobs/987654'

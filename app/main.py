@@ -30,14 +30,14 @@ from sqlalchemy import asc, case, desc, func, literal, or_, select, update
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
-from app.utils import select_next_queued_application, split_name
+from app.utils import split_name
 
 from .config import BASE_DIR, settings
 from .database import (Base, LOCAL_USER_ID, SHARED_CATALOG_USER_ID, SessionLocal, current_user_id, engine, ensure_compatibility_columns,
                        get_db, get_user_profile, set_user_scope, user_session)
 from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationCampaign, ApplicationEvent,
                      AppIdentity, AgentDevice, AuditLog, Blocker, CampaignRun, EmailConnection, Job, JobRanking,
-                     OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, UserJobState, utcnow)
+                     OpenAnswerDraft, Profile, ResumeProfile, Source, UserJobState, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
@@ -56,12 +56,12 @@ from .schemas import (
     SourceUpdate,
 )
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
-from .services.job_cleanup import application_history_visible, delete_job_tree, purge_stale_jobs
+from .services.job_cleanup import application_history_visible
 from .services.application_submission import (automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
-from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value, degree_label,
+from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value,
                                            degree_requirement_label, extract_degree_requirement_details,
                                            normalize_degree_level, profile_degree_level)
 from .services.matching import build_match_context, extract_experience, extract_skills
@@ -70,12 +70,12 @@ from .services.ranking.service import (get_ranking_engine, get_settings as get_r
                                        rank_job as run_ranking, result_is_stale, v2_config)
 from .services.career_tracks import (
     CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
-    INDUSTRIAL_ENGINEERING, TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
+    TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
     persist_active_track, switch_track, track_public_dict,
 )
 from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
-from .services.scan_runtime import create_scan_run, persistent_scan_status, update_scan_run
+from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
 from .services.github_actions import dispatch_application_workflow, dispatch_scan_workflow
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
@@ -504,7 +504,6 @@ def _v2_engine_refresh_required(db: Session, career_track: str) -> bool:
 
 
 def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool, bool]:
-    repaired_source_ids: list[int] = []
     with user_session(user_id) as db:
         initialize_database(db)
         profile = get_user_profile(db)
@@ -1508,7 +1507,7 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
             stats[key]["enabled_sources"] = int(enabled_sources or 0)
             stats[key]["source_errors"] = int(source_errors or 0)
 
-    degree_condition = _degree_visibility_condition(profile)
+    degree_condition = _degree_visibility_condition(profile) & Job.source.has(Source.kind != "demo")
 
     ranking_settings = get_ranking_settings(db)
     valid_ranking_join = (
@@ -1675,6 +1674,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # should not disappear just because it was discovered before today.
         top_jobs_statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
             Job.is_active.is_(True), Job.career_track == career_track,
+            Job.source.has(Source.kind != "demo"),
         )
         ranking_settings = get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
@@ -2259,7 +2259,9 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)):
 def list_sources(db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     track = active_track(profile)
-    sources = db.scalars(select(Source).where(Source.career_track == track).order_by(Source.name)).all()
+    sources = db.scalars(select(Source).where(
+        Source.career_track == track, Source.kind != "demo",
+    ).order_by(Source.name)).all()
     visible = []
     for source in sources:
         metadata = loads(source.metadata_json, {})
@@ -2452,8 +2454,12 @@ def list_jobs(
     with _job_catalog_session(request, db) as catalog_db:
         ranking_settings = get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
-        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(Job.career_track == career_track)
-        count_statement = select(func.count()).select_from(Job).where(Job.career_track == career_track)
+        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+            Job.career_track == career_track, Job.source.has(Source.kind != "demo"),
+        )
+        count_statement = select(func.count()).select_from(Job).where(
+            Job.career_track == career_track, Job.source.has(Source.kind != "demo"),
+        )
         if ranking_active:
             # User state and ranking are both LEFT JOINed. A missing/stale ranking must
             # never make a catalog job disappear while background ranking catches up.
@@ -2469,7 +2475,7 @@ def list_jobs(
                 joinedload(Job.source), joinedload(Job.application)
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).outerjoin(
                 JobRanking, valid_ranking_join
-            ).where(Job.career_track == career_track)
+            ).where(Job.career_track == career_track, Job.source.has(Source.kind != "demo"))
             count_statement = count_statement.outerjoin(
                 UserJobState, UserJobState.job_id == Job.id
             ).outerjoin(JobRanking, valid_ranking_join)
@@ -2572,7 +2578,7 @@ def get_job(job_id: int, request: Request, db: Session = Depends(get_db)):
     career_track = active_track(profile)
     with _job_catalog_session(request, db) as catalog_db:
         job = catalog_db.get(Job, job_id, options=(joinedload(Job.source), joinedload(Job.application)))
-        if not job or job.career_track != career_track:
+        if not job or job.career_track != career_track or (job.source and job.source.kind == "demo"):
             raise HTTPException(404, "Job not found")
         if not _request_is_guest(request):
             attach_user_job_states(catalog_db, [job])
@@ -3009,6 +3015,7 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
     if not raw_token or not hmac.compare_digest(hashlib.sha256(raw_token.encode()).hexdigest(), run.preview_token_hash):
         raise HTTPException(403, "Invalid campaign preview token")
     queued = []
+    queued_application_ids: list[int] = []
     profile = get_user_profile(db)
     for item in loads(run.selected_jobs_json, []):
         job = db.get(Job, int(item["job_id"]))
@@ -3399,7 +3406,7 @@ async def application_timeline(application_id: int, db: Session = Depends(get_db
 
 @app.post("/api/jobs/{job_id}/answer-drafts")
 def create_answer_draft(job_id: int, payload: DraftRequest, db: Session = Depends(get_db)):
-    job = _active_job_or_404(db, job_id); profile = get_user_profile(db)
+    job = _active_job_or_404(db, job_id)
     draft_text = (payload.draft or "").strip() or (
         f"I am interested in {job.company} because this {job.title} opportunity connects my experience "
         f"with the role's core challenges. I would bring a practical, learning-oriented approach and "
@@ -3635,7 +3642,7 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
         ({"github", "github profile", "github url"}, profile.github_url, "github_url"),
         ({"portfolio", "portfolio url", "personal website", "website", "website url"}, extra.get("website_url") or profile.portfolio_url, "portfolio_url"),
         ({"preferred name", "preferred first name"}, extra.get("preferred_name"), "preferred_name"),
-        ({"country", "country of residence"}, extra.get("country"), "country"),
+        ({"country", "country of residence"}, extra.get("country") or "Israel", "country"),
         ({"state", "province", "region"}, extra.get("state"), "state"),
         ({"postal code", "zip", "zip code"}, extra.get("postal_code"), "postal_code"),
         ({"address", "address line 1", "street address"}, extra.get("address_line1"), "address_line1"),
@@ -3653,6 +3660,25 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
 
 def _safe_default_blocker_answer(blocker: Blocker) -> tuple[str, str]:
     label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+    # Resolve required application-processing/privacy acknowledgements without
+    # treating marketing, newsletters, or talent-community opt-ins as consent.
+    consent_action = any(term in label for term in ("consent", "agree", "acknowledge", "accept"))
+    submission_context = any(term in label for term in (
+        "hiring process", "recruitment process", "application process",
+        "process my personal", "processing of my personal", "process your personal",
+        "share my information", "sharing your information", "share my data", "sharing your data",
+        "privacy policy", "privacy notice", "data protection", "terms and conditions",
+    ))
+    promotional_context = any(term in label for term in (
+        "marketing", "newsletter", "promotional", "talent community", "talent network",
+        "future opportunities", "future job", "job alerts",
+    ))
+    if consent_action and submission_context and not promotional_context:
+        options = [str(value).strip() for value in loads(blocker.options_json, []) if str(value).strip()]
+        affirmative = next((option for option in options if _normalize_company_memory_text(option) in {
+            "yes", "i agree", "agree", "accept", "i consent",
+        }), "")
+        return affirmative or "Yes", "submission_processing_consent"
     direct_referral_question = label in {
         "how did you hear about us", "how did you hear about this job",
         "how did you hear about this role", "how did you hear about this position",
@@ -4783,6 +4809,17 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         ).order_by(Application.updated_at).limit(1))
     if not application:
         return {"task": None}
+    # Legacy/retried applications may predate resume selection. Hydrate the chosen
+    # document before the cloud worker claims the task so a normal Resume input
+    # never becomes a misleading request for an additional file.
+    if not str(application.resume_path or "").strip():
+        profile = get_user_profile(db)
+        selected_resume = _best_resume_for_job(db, application.job)
+        if selected_resume:
+            application.resume_id = selected_resume.id
+            application.resume_path = selected_resume.path
+        elif profile and str(profile.cv_path or "").strip():
+            application.resume_path = profile.cv_path
     # Claim with a conditional write and commit immediately. This prevents two
     # local Agent processes from receiving the same queued application.
     claimed = db.execute(
@@ -4977,6 +5014,16 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
     application.submitted_at = utcnow() if verified else None
     application.last_error = ""
     set_job_status(db, application.job, application.status)
+    if verified:
+        # A successful later attempt supersedes every blocker left by earlier
+        # attempts. Keeping those rows open made a submitted application still
+        # look as if it needed input in the notification center.
+        for blocker in application.blockers:
+            if blocker.status == "open":
+                blocker.status = "resolved"
+                blocker.answer = blocker.answer or "resolved_by_verified_submission"
+                blocker.remember_answer = False
+                blocker.resolved_at = utcnow()
     attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "verified" if verified else "pending_verification"

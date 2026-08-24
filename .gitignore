@@ -8,6 +8,9 @@ data/resumes/*
 !data/resumes/.gitkeep
 data/screenshots/*
 !data/screenshots/.gitkeep
+data/documents/*
+!data/documents/.gitkeep
+*.patch
 agent/browser-profile/
 
 .DS_Store

@@ -17,7 +17,6 @@ from app.services.scan_runtime import (
     scheduled_scan_due,
     update_scan_run,
 )
-from app.services.seed import initialize_database
 from app.utils import dumps, loads
 
 
@@ -93,6 +92,20 @@ def test_legacy_cron_endpoint_is_safe_in_external_mode(monkeypatch):
         response = client.post("/api/cron/scan", headers={"X-JobPilot-Cron-Secret": "test-cron-secret"})
         assert response.status_code == 202
         assert response.json() == {"status": "external_worker", "worker": "github_actions"}
+
+
+def test_legacy_internal_cron_checks_schedule_without_name_error(monkeypatch):
+    monkeypatch.setattr(main.settings, "scan_execution_mode", "local")
+    monkeypatch.setattr(main.settings, "cron_secret", "test-cron-secret")
+    monkeypatch.setattr(
+        main, "scheduled_scan_due",
+        lambda _db, _track: (False, datetime.now(timezone.utc), None),
+    )
+
+    with TestClient(main.app) as client:
+        response = client.post("/api/cron/scan", headers={"X-JobPilot-Cron-Secret": "test-cron-secret"})
+        assert response.status_code == 202, response.text
+        assert response.json()["status"] == "not_due"
 
 
 def test_github_workflow_runs_worker_directly_and_render_image_has_no_chromium_install():

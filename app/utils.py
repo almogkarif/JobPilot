@@ -4,7 +4,6 @@ import html
 import json
 import re
 from datetime import datetime, timezone
-from typing import Any
 
 from bs4 import BeautifulSoup
 from sqlalchemy import select

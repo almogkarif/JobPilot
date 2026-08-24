@@ -129,7 +129,8 @@ def test_automatic_queue_rejects_missing_or_unapproved_preview():
         assert response.status_code == 409
 
 
-def test_campaign_config_dry_run_and_activation_require_exact_preview_token():
+def test_campaign_config_dry_run_and_activation_require_exact_preview_token(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda _application_id: None)
     with TestClient(app) as client:
         configured = client.patch("/api/application-campaign", json={
             "mode": "advanced", "min_score": 77, "daily_cap": 3,
@@ -145,6 +146,13 @@ def test_campaign_config_dry_run_and_activation_require_exact_preview_token():
             json={"preview_token": "wrong"},
         )
         assert denied.status_code == 403
+        activated = client.post(
+            f"/api/application-campaign/runs/{preview.json()['run_id']}/activate",
+            json={"preview_token": preview.json()["preview_token"]},
+        )
+        assert activated.status_code == 200, activated.text
+        assert activated.json()["activated"] is True
+        assert activated.json()["queued_count"] == len(activated.json()["queued_job_ids"])
 
 
 def test_application_timeline_exposes_verification_receipt_without_private_storage_path():

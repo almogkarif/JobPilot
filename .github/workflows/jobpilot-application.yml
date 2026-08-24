@@ -36,7 +36,7 @@ jobs:
       JOBPILOT_BROWSER_PROFILE: /tmp/jobpilot-browser-profile
     steps:
       - name: Checkout JobPilot
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate worker configuration
         env:
@@ -47,7 +47,7 @@ jobs:
           [[ "$JOBPILOT_AGENT_TOKEN" == jp_agent_* ]] || { echo "JOBPILOT_AGENT_TOKEN secret is missing or invalid" >&2; exit 1; }
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip

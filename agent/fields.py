@@ -82,6 +82,28 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     }:
         return CandidateValue("Company website", "safe_default")
 
+    # JobPilot only admits jobs located in Israel. Country questions on hosted ATS
+    # forms are deterministic even when an older profile saved only a city.
+    if key in {"country", "country of residence", "current country", "country region"}:
+        return CandidateValue(str(extra.get("country") or "Israel"), "profile_country_default")
+
+    # Required privacy/data-processing acknowledgements are part of the
+    # application the user already approved. Never extend this to marketing,
+    # newsletters, talent communities, or future-opportunity subscriptions.
+    consent_action = any(term in key for term in ("consent", "agree", "acknowledge", "accept"))
+    submission_context = any(term in key for term in (
+        "hiring process", "recruitment process", "application process",
+        "process my personal", "processing of my personal", "process your personal",
+        "share my information", "sharing your information", "share my data", "sharing your data",
+        "privacy policy", "privacy notice", "data protection", "terms and conditions",
+    ))
+    promotional_context = any(term in key for term in (
+        "marketing", "newsletter", "promotional", "talent community", "talent network",
+        "future opportunities", "future job", "job alerts",
+    ))
+    if consent_action and submission_context and not promotional_context:
+        return CandidateValue(True if field_type == "checkbox" else "Yes", "submission_consent")
+
     # Workday uses very short labels for employment dates. They must be exact:
     # substring matching "to" would incorrectly match "Type to Add Skills".
     if key == "from" and extra.get("employment_start_date"):
@@ -125,7 +147,7 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["address line 2", "address 2"], extra.get("address_line2", ""), "profile"),
         (["postal code", "zip code", "zip"], extra.get("postal_code", ""), "profile"),
         (["state", "province", "region"], extra.get("state", ""), "profile"),
-        (["country"], extra.get("country", "") or profile.get("location", ""), "profile"),
+        (["country"], extra.get("country", "") or "Israel", "profile"),
         (["phone country code", "country phone code"], extra.get("phone_country_code", ""), "profile"),
         (["job title", "position title", "role title", "most recent title", "current title"], extra.get("current_job_title", ""), "profile"),
         (["company", "employer", "organization name"], extra.get("current_company", ""), "profile"),

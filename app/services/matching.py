@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from datetime import datetime, timezone
 from ..utils import loads
-from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, active_track
+from .career_tracks import COMPUTER_SCIENCE, ELECTRICAL_ENGINEERING, active_track
 from .degree_requirements import profile_degree_level
 from .job_requirements import normalize_requirement_text, section_kind_at
 

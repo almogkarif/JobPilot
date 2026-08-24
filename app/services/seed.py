@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..database import get_user_profile
 from ..models import AuditLog, Job, Profile, Source
 from ..utils import dumps
-from .matching import build_match_context, extract_experience, extract_skills
 from .source_catalog import install_recommended_sources
-from .degree_requirements import extract_degree_requirement_details
-from .ranking.service import get_settings as get_ranking_settings, persist_v2_result
 from .career_tracks import (COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING,
                             ensure_track_state, remove_unconfirmed_starter_skills)
 
@@ -79,59 +75,9 @@ def initialize_database(db: Session, *, full_name: str | None = None, email: str
         install_recommended_sources(db, INDUSTRIAL_ENGINEERING)
         install_recommended_sources(db, ELECTRICAL_ENGINEERING)
 
-    demo_tracks = [COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING] if demo_only else [COMPUTER_SCIENCE]
-    demo_definitions = {
-        COMPUTER_SCIENCE: [
-            ("demo-mobileye", "Graduate Software Developer – Python / C++", "Example Mobility", "Haifa, Israel", "hybrid",
-             "Graduate software developer. Build Python and C++ internal tools, automation, CI/CD and Linux systems. 0-2 years experience.", "graduate-software", 24),
-            ("demo-backend", "Junior Backend Engineer", "Example Cloud", "Tel Aviv, Israel", "hybrid",
-             "Junior backend role using Python, REST APIs, SQL, Git and Docker. One year of experience or strong projects.", "backend", 24),
-            ("demo-senior", "Senior Staff Software Architect", "Example Enterprise", "Herzliya, Israel", "onsite",
-             "8+ years of Java and architecture experience required.", "senior", 12),
-        ],
-        INDUSTRIAL_ENGINEERING: [
-            ("demo-iem-analyst", "Operations & BI Analyst", "Example Logistics", "Tel Aviv, Israel", "hybrid",
-             "Entry-level operations analytics role using Excel, Power BI, SQL, KPI dashboards and process improvement.", "operations-analyst", 20),
-            ("demo-iem-supply", "Junior Supply Chain Planner", "Example Manufacturing", "Haifa, Israel", "hybrid",
-             "Supply-chain planning, inventory analysis, ERP, forecasting and cross-functional coordination. 0-2 years experience.", "supply-chain", 28),
-            ("demo-iem-senior", "Senior Operations Program Manager", "Example Industry", "Central Israel", "onsite",
-             "Lead complex operations programs and process optimization. 7+ years of experience required.", "operations-manager", 10),
-        ],
-    }
-    for demo_track in demo_tracks:
-        if db.scalar(select(Source.id).where(Source.kind == "demo", Source.career_track == demo_track).limit(1)):
-            continue
-        source = Source(
-            name="Demo Jobs", kind="demo", identifier=f"demo-{demo_track}", company_name="Demo",
-            enabled=False, career_track=demo_track,
-        )
-        db.add(source)
-        db.flush()
-        match_context = build_match_context(profile, career_track=demo_track)
-        for external_id, title, company, location, workplace, description, slug, age_hours in demo_definitions[demo_track]:
-            job = Job(
-                source_id=source.id, career_track=demo_track, external_id=external_id, title=title, company=company,
-                location=location, workplace=workplace, description=description,
-                apply_url=f"https://example.com/jobs/{slug}",
-                published_at=datetime.now(timezone.utc) - timedelta(hours=age_hours),
-            )
-            text = f"{job.title} {job.description} {job.location}"
-            job.skills_json = dumps(extract_skills(text))
-            job.experience_min, job.experience_max = extract_experience(text)
-            degree = extract_degree_requirement_details(text)
-            job.degree_requirement = degree.level
-            job.degree_required = degree.required
-            job.degree_experience_alternative = degree.experience_alternative
-            db.add(job)
-            db.flush()
-            persist_v2_result(db, job, profile, get_ranking_settings(db), context=match_context)
-        if demo_only:
-            db.flush()
-        else:
-            db.commit()
-
-    if demo_only:
-        # Guest bootstrap is one transaction: either the profile and all demo rows
-        # become visible together or none of them do. This prevents a half-created
-        # guest environment from poisoning the next login attempt.
-        db.commit()
+    # Demo jobs used by early local/portfolio builds must never reach the product
+    # catalog. Stop creating them and hide any legacy rows during workspace startup.
+    demo_source_ids = select(Source.id).where(Source.kind == "demo")
+    db.execute(update(Job).where(Job.source_id.in_(demo_source_ids)).values(is_active=False))
+    db.execute(update(Source).where(Source.kind == "demo").values(enabled=False))
+    db.commit()

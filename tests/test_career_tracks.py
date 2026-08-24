@@ -5,8 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-
 from app.database import SessionLocal
 from app.main import app, _run_scan
 from app.models import Application, Job, Source
@@ -79,8 +77,8 @@ def test_track_preferences_and_skills_are_independent_and_restore_exactly():
 
 def test_jobs_are_isolated_by_active_career_track():
     with TestClient(app) as client, SessionLocal() as db:
-        cs_source = Source(name="Track CS fixture", kind="demo", identifier="track-cs-fixture", company_name="TrackCS", career_track=COMPUTER_SCIENCE, enabled=False)
-        iem_source = Source(name="Track IEM fixture", kind="demo", identifier="track-iem-fixture", company_name="TrackIEM", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
+        cs_source = Source(name="Track CS fixture", kind="fixture", identifier="track-cs-fixture", company_name="TrackCS", career_track=COMPUTER_SCIENCE, enabled=False)
+        iem_source = Source(name="Track IEM fixture", kind="fixture", identifier="track-iem-fixture", company_name="TrackIEM", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
         db.add_all([cs_source, iem_source]); db.flush()
         cs_job = Job(source_id=cs_source.id, career_track=COMPUTER_SCIENCE, external_id="cs-only", title="Software Engineer Track Fixture", company="TrackCS", location="Haifa, Israel", apply_url="https://example.com/cs", score=91)
         iem_job = Job(source_id=iem_source.id, career_track=INDUSTRIAL_ENGINEERING, external_id="iem-only", title="Industrial Engineer Track Fixture", company="TrackIEM", location="Haifa, Israel", apply_url="https://example.com/iem", score=91)
@@ -106,7 +104,7 @@ def test_jobs_are_isolated_by_active_career_track():
 
 def test_agent_queue_can_be_restricted_to_active_track():
     with SessionLocal() as db:
-        source = Source(name="IEM Agent fixture", kind="demo", identifier="iem-agent-fixture", company_name="IEMFixture", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
+        source = Source(name="IEM Agent fixture", kind="fixture", identifier="iem-agent-fixture", company_name="IEMFixture", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
         db.add(source); db.flush()
         job = Job(source_id=source.id, career_track=INDUSTRIAL_ENGINEERING, external_id="agent-i", title="Operations Analyst", company="IEMFixture", location="Tel Aviv, Israel", apply_url="https://example.com/agent", score=80)
         db.add(job); db.flush()
@@ -303,7 +301,7 @@ def test_source_delete_retires_shared_catalog_without_erasing_private_history():
 
     with TestClient(app) as client, SessionLocal() as db:
         switch(client, INDUSTRIAL_ENGINEERING)
-        source = Source(name="IEM delete fixture", kind="demo", identifier="iem-delete-fixture", company_name="DeleteFixture", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
+        source = Source(name="IEM delete fixture", kind="fixture", identifier="iem-delete-fixture", company_name="DeleteFixture", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
         db.add(source); db.flush()
         job = Job(source_id=source.id, career_track=INDUSTRIAL_ENGINEERING, external_id="delete-tree", title="Operations Analyst", company="DeleteFixture", location="Israel", apply_url="https://example.com/delete", score=80)
         db.add(job); db.flush()
@@ -349,8 +347,8 @@ def test_iem_catalog_uses_only_supported_collector_identifiers():
 
 def test_agent_api_claims_only_from_current_professional_track():
     with TestClient(app) as client, SessionLocal() as db:
-        cs_source = Source(name="Agent CS API", kind="demo", identifier="agent-api-cs", company_name="AgentCS", career_track=COMPUTER_SCIENCE, enabled=False)
-        iem_source = Source(name="Agent IEM API", kind="demo", identifier="agent-api-iem", company_name="AgentIEM", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
+        cs_source = Source(name="Agent CS API", kind="fixture", identifier="agent-api-cs", company_name="AgentCS", career_track=COMPUTER_SCIENCE, enabled=False)
+        iem_source = Source(name="Agent IEM API", kind="fixture", identifier="agent-api-iem", company_name="AgentIEM", career_track=INDUSTRIAL_ENGINEERING, enabled=False)
         db.add_all([cs_source, iem_source]); db.flush()
         cs_job = Job(source_id=cs_source.id, career_track=COMPUTER_SCIENCE, external_id="agent-api-cs", title="Software Engineer", company="AgentCS", location="Israel", apply_url="https://example.com/cs-agent", score=85, status="queued")
         iem_job = Job(source_id=iem_source.id, career_track=INDUSTRIAL_ENGINEERING, external_id="agent-api-iem", title="Supply Chain Analyst", company="AgentIEM", location="Israel", apply_url="https://example.com/iem-agent", score=85, status="queued")

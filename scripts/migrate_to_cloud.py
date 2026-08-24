@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import MetaData, create_engine, inspect, select, text
+from sqlalchemy import MetaData, create_engine, select, text
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:

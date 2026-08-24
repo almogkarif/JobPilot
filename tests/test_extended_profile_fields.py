@@ -37,6 +37,34 @@ def test_referral_source_uses_user_approved_safe_default():
     assert answer.source == "safe_default"
 
 
+def test_country_defaults_to_israel_and_submission_processing_consent_is_approved():
+    profile = {**PROFILE, "location": "Tel Aviv", "application_profile": {}}
+    country = known_value("Country*", "select-one", profile, {}, [])
+    consent = known_value(
+        "By submitting your application you consent to us sharing your information "
+        "with a third party supporting us in this hiring process*",
+        "checkbox", profile, {}, [],
+    )
+
+    assert country is not None and country.value == "Israel"
+    assert consent is not None and consent.value is True
+
+
+def test_privacy_acknowledgements_are_approved_but_marketing_opt_ins_are_not():
+    privacy = known_value(
+        "I agree to the Privacy Policy and processing of my personal data",
+        "radio", PROFILE, {}, [],
+    )
+    marketing = known_value(
+        "I agree to receive marketing newsletters and future job opportunities",
+        "checkbox", PROFILE, {}, [],
+    )
+
+    assert privacy is not None and privacy.value == "Yes"
+    assert privacy.source == "submission_consent"
+    assert marketing is None
+
+
 def test_missing_job_title_gets_professional_profile_error():
     section, explanation = missing_profile_context("Job Title*")
     assert section == "ניסיון תעסוקתי"
