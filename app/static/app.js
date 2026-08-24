@@ -2414,6 +2414,7 @@ function bindChoiceBlockerButtons(root) {
   $$('[data-text-blocker]', root).forEach((button) => {
     const blockerId=Number(button.dataset.textBlocker),applicationId=Number(button.dataset.textApplication);
     const input=root.querySelector(`[data-text-blocker-input="${blockerId}"]`);
+    if(input)input.oninput=()=>applicationTextAnswerDrafts.set(blockerId,input.value);
     button.onclick=()=>resolveTextBlocker(blockerId,applicationId,input,button);
     if(input)input.onkeydown=(event)=>{if(event.key==='Enter'){event.preventDefault();button.click()}};
   });
@@ -2426,6 +2427,7 @@ async function resolveTextBlocker(blockerId, applicationId, input, button = null
   if(button){button.disabled=true;button.textContent='ממשיך…'}
   try{
     await api(`/api/blockers/${blockerId}/resolve`,{method:'POST',body:JSON.stringify({answer,remember:false})});
+    applicationTextAnswerDrafts.delete(Number(blockerId));
     toast('התשובה נשמרה לחברה הזו — ההגשה ממשיכה אוטומטית');
     await Promise.all([loadBlockers(),loadApplications(),loadDashboard()]);
     if(Number(applicationId)===Number(trackedApplicationId))startApplicationTracking(applicationId,false);
@@ -3482,6 +3484,7 @@ const NOTIFICATION_VIEWS = {
 };
 let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
 let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null,applicationTrackingVersion='',applicationTrackingPollBusy=false,trackingApplications=[],notificationTrackingRefreshTimer=null,trackingPinnedByUser=false;
+const applicationTextAnswerDrafts=new Map();
 const TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','verification_pending','failed']);
 async function refreshTrackingApplications(){try{const rows=await api('/api/applications'),currentQueueId=Number(state.autoApplyQueue?.current?.id||0);trackingApplications=rows.filter(item=>item.mode==='auto'&&(TRACKABLE_APPLICATION_STATUSES.has(item.status)||(item.status==='queued'&&(Number(item.attempt_count||0)>0||Number(item.id)===Number(trackedApplicationId)||Number(item.id)===currentQueueId)))).sort((a,b)=>Number(a.id)-Number(b.id));return trackingApplications}catch{return trackingApplications}}
 function trackedApplicationPosition(){const index=trackingApplications.findIndex(item=>Number(item.id)===Number(trackedApplicationId));return {index,total:trackingApplications.length}}
@@ -3511,13 +3514,13 @@ function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
   const data=applicationTrackingData,events=data.events||[],latestAttemptId=Number(data.attempts?.[0]?.id||0),attemptEvents=latestAttemptId?events.filter(event=>['queued','worker_dispatched','grade_sheet_auto_requeued'].includes(event.event_type)||Number(event.details?.attempt_id||0)===latestAttemptId):events,types=new Set(attemptEvents.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
   const queuePosition=Number(data.application?.queue_position||0),queuedWaiting=status==='queued';
-  const choiceOptions=blocker?.kind==='choice_required'&&Array.isArray(blocker.options)?blocker.options.filter(Boolean):[],choiceWaiting=status==='needs_input'&&choiceOptions.length>=2&&choiceOptions.length<=6;
+  const choiceOptions=Array.isArray(blocker?.options)?blocker.options.filter(Boolean):[],choiceWaiting=status==='needs_input'&&choiceOptions.length>=2&&choiceOptions.length<=6;
   const textWaiting=status==='needs_input'&&['unknown_field','missing_profile_detail'].includes(blocker?.kind)&&!choiceOptions.length;
   const gradeSheetWaiting=status==='needs_input'&&blocker?.kind==='grade_sheet_required',hasGradeSheet=Boolean(state.profile?.grade_sheet_uploaded),gradeSheetNeedsUpload=gradeSheetWaiting&&!hasGradeSheet,attentionWaiting=choiceWaiting||textWaiting||gradeSheetNeedsUpload;
   const verificationPending=status==='verification_pending',isRunning=status==='applying',failed=['failed','needs_input'].includes(status)&&!attentionWaiting,verified=status==='submitted'&&types.has('submission_verified');let firstPending=true;
   const rows=APPLICATION_PROGRESS_STEPS.map(([key,title,copy],index)=>{const event=attemptEvents.find(item=>item.event_type===key),done=queuedWaiting?(key==='queued'||(key==='worker_dispatched'&&types.has(key))):(types.has(key)||(key==='submission_verified'&&verified)),current=!done&&firstPending;if(current)firstPending=false;const stateClass=done?'done':current?(attentionWaiting?'choice-waiting':verificationPending&&key==='submission_verified'?'verification-waiting':failed?'failed':'active'):'pending';const marker=done?'✓':current&&choiceWaiting?'?':current&&gradeSheetNeedsUpload?'↑':current&&verificationPending&&key==='submission_verified'?'…':current&&failed?'!':index+1;const rowCopy=current&&queuedWaiting&&key==='attempt_started'?(queuePosition>1?`מיקום ${queuePosition} בתור · תופעל אוטומטית ברצף אחרי ההגשות שלפניה`:'ממתינה ל־worker · תתחיל אוטומטית כשהוא יתפנה'):current&&gradeSheetWaiting?(hasGradeSheet?'הצירוף האוטומטי של גיליון הציונים נכשל':'חסר גיליון ציונים בפרופיל'):current&&verificationPending&&key==='submission_verified'?'נצפתה בקשת Submit; ממתינים לראיית אישור חד־משמעית מהאתר או ממייל':done?(event?.message||copy):copy;return `<li class="${stateClass}"><i>${marker}</i><span><strong>${esc(title)}</strong><small>${esc(rowCopy)}</small></span></li>`}).join('');
   const choicePanel=choiceWaiting?`<div class="application-live-choice"><strong>${esc(blocker.question||'נדרשת בחירה כדי להמשיך')}</strong><div>${choiceOptions.map((option)=>`<button type="button" data-choice-blocker="${blocker.id}" data-choice-application="${data.application.id}" data-choice-answer="${esc(option)}">${esc(option)}</button>`).join('')}</div><small>בחר תשובה וה־Agent יחזור אוטומטית להגשה עם הבחירה הזו.</small></div>`:'';
-  const textPanel=textWaiting?`<div class="application-live-choice application-live-text-answer"><strong>${esc(blocker.question||blocker.field_label||'נדרשת תשובה קצרה כדי להמשיך')}</strong><div><input type="text" maxlength="255" autocomplete="off" data-text-blocker-input="${blocker.id}" placeholder="כתוב תשובה קצרה"><button type="button" data-text-blocker="${blocker.id}" data-text-application="${data.application.id}">שמור והמשך</button></div><small>התשובה תישמר עבור החברה הזו וה־Agent יחזור אוטומטית להגשה.</small></div>`:'';
+  const textPanel=textWaiting?`<div class="application-live-choice application-live-text-answer"><strong>${esc(blocker.question||blocker.field_label||'נדרשת תשובה קצרה כדי להמשיך')}</strong><div><input type="text" maxlength="255" autocomplete="off" data-text-blocker-input="${blocker.id}" value="${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}" placeholder="כתוב תשובה קצרה"><button type="button" data-text-blocker="${blocker.id}" data-text-application="${data.application.id}">שמור והמשך</button></div><small>התשובה תישמר עבור החברה הזו וה־Agent יחזור אוטומטית להגשה.</small></div>`:'';
   const gradeSheetPanel=gradeSheetWaiting?(hasGradeSheet
     ? `<div class="application-live-warning"><strong>גיליון הציונים קיים בפרופיל, אבל לא צורף לטופס</strong><small>${esc(blocker.explanation||'הניסיון האוטומטי לצרף את הקובץ נכשל. ההגשה נעצרה כדי לא ליצור לולאה.')}</small></div>`
     : `<div class="application-live-choice application-live-document"><strong>${esc(blocker.question||'נדרש גיליון ציונים')}</strong><div><button type="button" onclick="openGradeSheetProfile()">העלה גיליון ציונים בפרופיל</button></div><small>הקובץ יישמר בפרטים האישיים וישמש אוטומטית בכל הגשה שתבקש אותו.</small></div>`):'';
@@ -3554,6 +3557,7 @@ function notificationItems() {
 function renderNotificationCenter() {
   const root = $('#notification-list');
   if (!root) return;
+  $$('[data-text-blocker-input]',root).forEach((input)=>applicationTextAnswerDrafts.set(Number(input.dataset.textBlockerInput),input.value));
   const items = notificationItems();
   $('#notification-count').hidden = !items.length;
   $('#notification-count').textContent = items.length;

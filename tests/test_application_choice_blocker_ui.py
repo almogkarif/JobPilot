@@ -31,6 +31,15 @@ def test_short_unknown_field_has_inline_text_answer_and_auto_resume():
     assert ".application-live-text-answer" in css
 
 
+def test_legacy_unknown_field_with_options_is_rendered_as_choice_and_text_draft_survives_polling():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    assert "choiceOptions=Array.isArray(blocker?.options)?blocker.options.filter(Boolean):[]" in js
+    assert "applicationTextAnswerDrafts=new Map()" in js
+    assert "applicationTextAnswerDrafts.set(blockerId,input.value)" in js
+    assert "value=\"${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}\"" in js
+    assert "applicationTextAnswerDrafts.delete(Number(blockerId))" in js
+
+
 def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
