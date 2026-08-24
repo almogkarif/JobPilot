@@ -31,6 +31,12 @@ def test_semantic_email_type_survives_a_missing_framework_label():
     assert known_value("opaque generated field", "email", profile, {}, []).value == "demo@example.com"
 
 
+def test_referral_source_uses_user_approved_safe_default():
+    answer = known_value("How did you hear about this job?", "text", PROFILE, {}, [])
+    assert answer.value == "Company website"
+    assert answer.source == "safe_default"
+
+
 def test_missing_job_title_gets_professional_profile_error():
     section, explanation = missing_profile_context("Job Title*")
     assert section == "ניסיון תעסוקתי"

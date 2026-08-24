@@ -3591,6 +3591,21 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
     return "", ""
 
 
+def _safe_default_blocker_answer(blocker: Blocker) -> tuple[str, str]:
+    label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+    if label not in {
+        "how did you hear about us", "how did you hear about this job",
+        "how did you hear about this role", "how did you hear about this position",
+        "how did you learn about us", "how did you find us",
+    }:
+        return "", ""
+    options = [str(value).strip() for value in loads(blocker.options_json, []) if str(value).strip()]
+    preferred_terms = ("company website", "career site", "careers page", "job board", "linkedin")
+    preferred = next((option for term in preferred_terms for option in options
+                      if term in _normalize_company_memory_text(option)), "")
+    return preferred or (options[0] if options else "Company website"), "safe_referral_default"
+
+
 def _auto_requeue_profile_identity(
     db: Session, application: Application, blocker: Blocker, *, source: str,
     attempt: ApplicationAttempt | None = None,
@@ -3599,7 +3614,9 @@ def _auto_requeue_profile_identity(
     if application.mode != "auto":
         return False
     profile = get_user_profile(db)
-    answer, profile_field = _saved_profile_field_answer(profile, blocker.field_label or blocker.question)
+    answer, profile_field = _safe_default_blocker_answer(blocker)
+    if not answer:
+        answer, profile_field = _saved_profile_field_answer(profile, blocker.field_label or blocker.question)
     if not answer:
         return False
     answer_key = blocker.field_label or blocker.question or "Email"

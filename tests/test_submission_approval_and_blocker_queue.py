@@ -256,6 +256,33 @@ def test_phone_blocker_is_resolved_by_the_same_saved_profile_field_system(monkey
         assert dispatched == [application_id]
 
 
+def test_referral_source_blocker_uses_safe_default_without_user_input(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Referral source field engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field",
+                "field_label": "How did you hear about this job?",
+                "question": "How did you hear about this job?", "explanation": "Answer required",
+                "options": ["Employee referral", "LinkedIn", "Company careers page"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert loads(application.answers_json, {})["How did you hear about this job?"] == "Company careers page"
+        assert dispatched == [application_id]
+
+
 def test_captcha_is_exposed_compactly_with_exact_handoff_url_and_can_be_marked_submitted():
     with TestClient(app) as client:
         job = _make_job(client, "Junior CAPTCHA Queue Engineer")

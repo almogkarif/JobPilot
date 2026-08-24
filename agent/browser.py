@@ -729,6 +729,7 @@ def _select_best(locator: Locator, value: str) -> bool:
     no = wanted in {"false", "no", "לא", "0"}
     try:
         options = locator.locator("option").all_text_contents()
+        referral_fallback = ""
         for option in options:
             option_key = normalize(option)
             if option_key == wanted or wanted in option_key or option_key in wanted:
@@ -740,6 +741,13 @@ def _select_best(locator: Locator, value: str) -> bool:
             if no and option_key in {"no", "לא", "not required", "i am not"}:
                 locator.select_option(label=option, timeout=2_000)
                 return True
+            if wanted == "company website" and not referral_fallback and any(
+                term in option_key for term in ("company website", "career site", "careers page", "job board", "linkedin")
+            ):
+                referral_fallback = option
+        if referral_fallback:
+            locator.select_option(label=referral_fallback, timeout=2_000)
+            return True
     except Exception:
         return False
     return False
@@ -1435,6 +1443,10 @@ def _best_visible_option(page: Page, value: str) -> Locator | None:
         except Exception:
             continue
         score = 3 if key == wanted else 2 if wanted in key else 1 if key and key in wanted else 0
+        if wanted == "company website" and any(
+            term in key for term in ("company website", "career site", "careers page", "job board", "linkedin")
+        ):
+            score = max(score, 1)
         if score > best_score:
             best, best_score = option, score
     return best

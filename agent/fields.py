@@ -75,6 +75,13 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     if field_type == "tel" and str(profile.get("phone", "")).strip():
         return CandidateValue(profile["phone"], "profile")
 
+    if key in {
+        "how did you hear about us", "how did you hear about this job",
+        "how did you hear about this role", "how did you hear about this position",
+        "how did you learn about us", "how did you find us",
+    }:
+        return CandidateValue("Company website", "safe_default")
+
     # Workday uses very short labels for employment dates. They must be exact:
     # substring matching "to" would incorrectly match "Type to Add Skills".
     if key == "from" and extra.get("employment_start_date"):
