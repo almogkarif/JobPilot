@@ -33,7 +33,7 @@ def test_profile_grade_sheet_reuse_is_automatic_not_a_user_confirmation():
 def test_auto_apply_queue_count_and_modal_include_the_running_application():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     assert "const autoQueueCount=autoQueue.total_active_count" in js
-    assert "התור כולל גם את המשרה שרצה עכשיו" in js
+    assert "המשרה הירוקה היא הפעילה כעת" in js
     assert "משרות פעילות'} בתור" in js
 
 
@@ -62,4 +62,6 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "/retry?auto_submit=true" in js
     assert "application-list-number" in js
     assert ".application-tracker-navigator" in css
-    assert ".auto-queue-current.is-running" in css
+    assert ".auto-queue-current.is-active" in css
+    assert "בהכנה עכשיו" in js
+    assert "המשרה הירוקה היא הפעילה כעת" in js
