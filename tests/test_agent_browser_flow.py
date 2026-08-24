@@ -359,6 +359,23 @@ def test_unknown_required_field_reports_aria_labelled_question_and_options():
         browser.close()
 
 
+def test_radio_group_uses_question_instead_of_first_answer_as_label():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <fieldset><legend>Do you have two years of Python experience?</legend>
+            <label for="yes-python">Yes</label><input id="yes-python" name="python" type="radio" value="yes" required>
+            <label for="no-python">No</label><input id="no-python" name="python" type="radio" value="no" required>
+          </fieldset>
+        """)
+        field = next(item for item in _extract_fields(page) if item["value"] == "yes")
+        assert field["label"] == "Yes"
+        assert field["group_label"] == "Do you have two years of Python experience?"
+        assert _display_field_label(field) == "Do you have two years of Python experience?"
+        browser.close()
+
+
 def test_small_choice_options_filters_placeholder_and_rejects_large_selects():
     assert _small_choice_options({
         "tag": "select", "type": "select-one", "options": ["Select an option", "Yes", "No"],

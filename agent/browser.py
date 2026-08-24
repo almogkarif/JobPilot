@@ -679,6 +679,19 @@ def _extract_fields(page: Page) -> list[dict]:
                 label = lines.find(value => value.length >= 3 && value.length <= 300 && !optionText.has(value) && !generic.has(value.toLowerCase())) || '';
               }
             }
+            let groupLabel = '';
+            if ((el.type || '').toLowerCase() === 'radio') {
+              const group = el.closest('fieldset, [role="radiogroup"], [role="group"], .application-question, .ashby-application-form-question, [class*="question"], [class*="field"]');
+              if (group) {
+                const direct = group.querySelector('legend, [role="heading"], .application-label, [class*="question-title"], [class*="questionTitle"]');
+                groupLabel = (direct?.innerText || '').replace(/\s+/g, ' ').trim();
+                if (!groupLabel) {
+                  const optionLabels = new Set([...group.querySelectorAll('label')].map(node => (node.innerText || '').replace(/\s+/g, ' ').trim()));
+                  const lines = (group.innerText || '').split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
+                  groupLabel = lines.find(value => value.length >= 3 && value.length <= 300 && !optionLabels.has(value)) || '';
+                }
+              }
+            }
             let fileContext = '';
             let fileContainerSelector = '';
             let fileContainerVisible = false;
@@ -728,6 +741,7 @@ def _extract_fields(page: Page) -> list[dict]:
               role: el.getAttribute('role') || '',
               aria_label: el.getAttribute('aria-label') || '',
               label,
+              group_label: groupLabel.slice(0, 500),
               file_context: fileContext,
               file_container_selector: fileContainerSelector,
               file_container_visible: fileContainerVisible,
@@ -960,6 +974,7 @@ def _ensure_profile_documents_attached(
 
 def _display_field_label(field: dict) -> str:
     label = str(field.get("label") or "").strip()
+    group_label = str(field.get("group_label") or "").strip()
     file_context = str(field.get("file_context") or "").strip()
     raw_name = str(field.get("name") or "").strip()
     placeholder = str(field.get("placeholder") or "").strip()
@@ -972,6 +987,8 @@ def _display_field_label(field: dict) -> str:
         return file_context[:500]
     if field.get("type") == "file" and file_context and _is_generic_file_action_label(label):
         return file_context[:500]
+    if field.get("type") == "radio" and group_label:
+        return group_label[:500]
     if label:
         return label
     if field.get("type") == "file" and file_context:

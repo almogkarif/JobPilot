@@ -38,7 +38,10 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
     assert "const autoQueueCount=autoQueue.total_active_count" in js
-    assert "ירוק מציין הגשה שרצה בפועל" in js
+    assert "ירוק מציין הגשה שרצה" in js
+    assert "צהוב מציין המתנה או שאלה" in js
+    assert "attention:Array.isArray" in js
+    assert "data-choice-blocker" in js
     assert "workers פעילים" in js
     assert "queue.running" in js
     assert "running_count" in js
@@ -84,7 +87,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "העתק אבחון של ההגשות שלא הושלמו" in js
     assert ".auto-queue-current.is-active" in css
     assert "ממתינה להפעלת worker ברקע" in js
-    assert "ירוק מציין הגשה שרצה בפועל" in js
+    assert "ירוק מציין הגשה שרצה" in js
+    assert "autoQueueAttentionMarkup" in js
 
 
 def test_tracking_list_is_a_compact_payload_not_full_application_history():

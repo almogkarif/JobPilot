@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.main import app
-from app.models import Application, Job, utcnow
+from app.models import Application, Blocker, Job, utcnow
 
 
 def _job(client: TestClient, title: str, url: str) -> dict:
@@ -26,7 +26,7 @@ def _job(client: TestClient, title: str, url: str) -> dict:
 def _clear_queue() -> None:
     with SessionLocal() as db:
         for row in db.scalars(select(Application)).all():
-            if row.status in {'queued', 'applying'}:
+            if row.status in {'queued', 'applying', 'needs_input', 'failed', 'verification_pending'}:
                 row.status = 'saved'
                 if row.job and row.job.status in {'queued', 'applying'}:
                     row.job.status = 'saved'
@@ -92,6 +92,30 @@ def test_queue_snapshot_exposes_every_running_worker_and_flags_exact_duplicates(
         assert [item['id'] for item in queue['waiting']] == [waiting_id]
         assert queue['waiting'][0]['queue_position'] == 1
         assert queue['total_active_count'] == 3
+
+
+def test_queue_snapshot_includes_blocked_question_with_clickable_options():
+    with TestClient(app) as client:
+        _clear_queue()
+        job = _job(client, 'Question Waiting', 'https://jobs.lever.co/acme/question')
+        with SessionLocal() as db:
+            application = Application(job_id=job['id'], status='needs_input', mode='auto')
+            db.add(application)
+            db.flush()
+            db.add(Blocker(
+                application_id=application.id, kind='choice_required', status='open',
+                field_label='Yes', question='Yes', options_json='["Yes", "No"]',
+                explanation='נדרשת בחירה מאושרת כדי להמשיך.',
+            ))
+            db.commit()
+            application_id = application.id
+
+        queue = client.get('/api/applications/auto-queue').json()
+        assert queue['attention_count'] == 1
+        assert queue['attention'][0]['id'] == application_id
+        assert queue['attention'][0]['blocker']['kind'] == 'choice_required'
+        assert queue['attention'][0]['blocker']['question'] == 'בחר את התשובה המתאימה'
+        assert queue['attention'][0]['blocker']['options'] == ['Yes', 'No']
 
 
 def test_cloud_worker_claims_actual_priority_head_not_old_dispatch_id():

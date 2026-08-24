@@ -257,7 +257,17 @@ def _effective_blocker_fields(blocker: Blocker, job: Job | None = None) -> tuple
         return (
             "grade_sheet_required", "גיליון ציונים", question, explanation,
         )
-    return blocker.kind, blocker.field_label, blocker.question, blocker.explanation
+    question = blocker.question
+    if blocker.kind == "choice_required":
+        options = [str(value).strip() for value in loads(blocker.options_json, []) if str(value).strip()]
+        option_keys = {_normalize_company_memory_text(value) for value in options}
+        if _normalize_company_memory_text(question) in option_keys:
+            field_label = str(blocker.field_label or "").strip()
+            question = (
+                field_label if _normalize_company_memory_text(field_label) not in option_keys
+                else "בחר את התשובה המתאימה"
+            )
+    return blocker.kind, blocker.field_label, question, blocker.explanation
 
 def _user_scan_states(user_id: str) -> dict[str, dict]:
     return scan_states_by_user.setdefault(user_id, {track.key: _new_scan_state() for track in CAREER_TRACKS})
@@ -877,12 +887,12 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
-        .options(joinedload(Application.job).joinedload(Job.source))
+        .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
         .where(
             Job.career_track == career_track,
             Job.is_active.is_(True),
             Application.mode == "auto",
-            Application.status.in_(["queued", "applying"]),
+            Application.status.in_(["queued", "applying", "needs_input", "failed", "verification_pending"]),
         )
         .order_by(Application.updated_at, Application.id)
     ).unique().all()
@@ -893,6 +903,11 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     )
     queued = sorted(
         (item for item in eligible if item.status == "queued"),
+        key=lambda item: (chronological_key(item.updated_at), item.id),
+        reverse=True,
+    )
+    attention = sorted(
+        (item for item in eligible if item.status in {"needs_input", "failed", "verification_pending"}),
         key=lambda item: (chronological_key(item.updated_at), item.id),
         reverse=True,
     )
@@ -913,6 +928,11 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
             signatures[signature] = item.id
 
     def item_payload(application: Application, position: int | None = None) -> dict:
+        open_blocker = max(
+            (blocker for blocker in application.blockers if blocker.status == "open"),
+            key=lambda blocker: blocker.created_at,
+            default=None,
+        )
         return {
             "id": application.id,
             "job_id": application.job_id,
@@ -922,6 +942,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
             "attempt_count": int(application.attempt_count or 0),
             "last_error": application.last_error,
             "duplicate_of": duplicate_of.get(application.id),
+            "blocker": _blocker_dict(open_blocker) if open_blocker else None,
             "job": {
                 "id": application.job.id,
                 "title": application.job.title,
@@ -938,6 +959,8 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
         "running_count": len(applying),
         "waiting": [item_payload(item, waiting_start + index) for index, item in enumerate(waiting)],
         "waiting_count": len(waiting),
+        "attention": [item_payload(item) for item in attention],
+        "attention_count": len(attention),
         "queued_count": len(queued),
         "total_active_count": len(eligible),
     }
@@ -4595,15 +4618,37 @@ async def verify_applications_from_gmail(db: Session = Depends(get_db)):
     applications = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
         Application.status == "verification_pending"
     )).all()
-    for application in applications:
-        company_terms = [part.casefold() for part in application.job.company.split() if len(part) >= 3]
-        title_terms = [part.casefold() for part in application.job.title.split() if len(part) >= 4]
-        match = next((message for message in messages if
-                      any(term in message["text"].casefold() for term in GMAIL_CONFIRMATION_TERMS)
-                      and (not company_terms or any(term in message["text"].casefold() for term in company_terms))
-                      and (not title_terms or any(term in message["text"].casefold() for term in title_terms))), None)
-        if not match:
+    # One confirmation email may verify at most one application. Generic company
+    # receipts (common at Mobileye) are not enough when several roles from that
+    # company are pending; in that case require a uniquely strongest title match.
+    unmatched = {application.id: application for application in applications}
+    matched_pairs: list[tuple[Application, dict]] = []
+    for message in messages:
+        text_key = _normalize_company_memory_text(message["text"])
+        if not any(_normalize_company_memory_text(term) in text_key for term in GMAIL_CONFIRMATION_TERMS):
             continue
+        candidates = []
+        for application in unmatched.values():
+            company_tokens = [token for token in _normalize_company_memory_text(application.job.company).split() if len(token) >= 3]
+            if company_tokens and not all(token in text_key for token in company_tokens):
+                continue
+            title_tokens = [token for token in _normalize_company_memory_text(application.job.title).split() if len(token) >= 4]
+            title_score = sum(token in text_key for token in title_tokens)
+            candidates.append((title_score, application))
+        if not candidates:
+            continue
+        candidates.sort(key=lambda pair: (pair[0], pair[1].id), reverse=True)
+        best_score = candidates[0][0]
+        best = [application for score, application in candidates if score == best_score]
+        if best_score < 2 and len(candidates) != 1:
+            continue
+        if len(best) != 1:
+            continue
+        application = best[0]
+        unmatched.pop(application.id, None)
+        matched_pairs.append((application, message))
+
+    for application, match in matched_pairs:
         attempt = _result_attempt(db, application.id)
         if attempt:
             evidence = loads(attempt.evidence_json, [])
