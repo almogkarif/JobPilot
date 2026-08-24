@@ -59,6 +59,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "trackingNavigatorMarkup(applicationTrackingData?.application?.status" in js
     assert "משרה ${index+1} מתוך ${total}" in js
     assert "title=\"הגשה מחדש\"" in js
+    assert "status==='queued'&&attemptCount>0" in js
     assert "/retry?auto_submit=true" in js
     assert "application-list-number" in js
     assert ".application-tracker-navigator" in css
