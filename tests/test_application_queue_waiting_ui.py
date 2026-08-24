@@ -55,6 +55,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert ".sort((a,b)=>Number(a.id)-Number(b.id))" in js
     assert "trackingPinnedByUser=false" in js
     assert "startApplicationTracking(trackingApplications[next].id,false,true)" in js
+    assert "(index+Number(direction||0)+total)%total" in js
+    assert "index===total-1?'disabled'" not in js
     assert "if(!trackingPinnedByUser&&['verification_pending','failed','needs_input']" in js
     assert "trackingNavigatorMarkup(applicationTrackingData?.application?.status" in js
     assert "משרה ${index+1} מתוך ${total}" in js
@@ -63,6 +65,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "/retry?auto_submit=true" in js
     assert "application-list-number" in js
     assert ".application-tracker-navigator" in css
+    assert ".application-live-tracker.has-running{border:2px solid #35a66f" in css
     assert ".auto-queue-current.is-active" in css
     assert "בהכנה עכשיו" in js
     assert "המשרה הירוקה היא הפעילה כעת" in js
