@@ -3163,6 +3163,40 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
     return [_application_dict(a, queue_position=queue_positions.get(a.id)) for a in applications]
 
 
+@app.get("/api/applications/tracking-list")
+def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    """Return only the tiny navigation payload needed by the notification tracker.
+
+    The full applications endpoint eagerly loads jobs, sources, blockers and every
+    attempt. Polling that graph every three seconds made the notification center
+    progressively slower as submission history grew.
+    """
+    track = active_track(get_user_profile(db))
+    rows = db.execute(
+        select(
+            Application.id, Application.status, Application.mode, Application.attempt_count,
+            Application.updated_at, Job.title, Job.company,
+        )
+        .join(Job, Application.job_id == Job.id)
+        .where(
+            Job.career_track == track,
+            Job.is_active.is_(True),
+            Application.mode == "auto",
+            Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "queued")),
+        )
+        .order_by(Application.id)
+    ).all()
+    return [
+        {
+            "id": row.id, "status": row.status, "mode": row.mode,
+            "attempt_count": int(row.attempt_count or 0), "updated_at": row.updated_at,
+            "job": {"title": row.title, "company": row.company},
+        }
+        for row in rows
+        if row.status != "queued" or int(row.attempt_count or 0) > 0 or row.id == current_id
+    ]
+
+
 @app.get("/api/applications/auto-queue")
 def automatic_application_queue(db: Session = Depends(get_db)):
     track = active_track(get_user_profile(db))

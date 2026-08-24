@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from app.main import app
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,6 +55,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
     assert "TRACKABLE_APPLICATION_STATUSES" in js
+    assert "/api/applications/tracking-list?current_id=" in js
     assert "item.status==='queued'&&(Number(item.attempt_count||0)>0" in js
     assert ".sort((a,b)=>Number(a.id)-Number(b.id))" in js
     assert "trackingPinnedByUser=false" in js
@@ -72,3 +77,14 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert ".auto-queue-current.is-active" in css
     assert "בהכנה עכשיו" in js
     assert "המשרה הירוקה היא הפעילה כעת" in js
+
+
+def test_tracking_list_is_a_compact_payload_not_full_application_history():
+    with TestClient(app) as client:
+        response = client.get("/api/applications/tracking-list", params={"current_id": 0})
+    assert response.status_code == 200
+    for row in response.json():
+        assert set(row) == {"id", "status", "mode", "attempt_count", "updated_at", "job"}
+        assert set(row["job"]) == {"title", "company"}
+        assert "attempts" not in row
+        assert "blocker" not in row
