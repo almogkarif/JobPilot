@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.main import ONE_TIME_SUBMIT_KEY, app
-from app.models import Application
+from app.models import Application, Blocker
 from app.utils import loads
 
 
@@ -135,6 +135,37 @@ def test_explicit_auto_retry_reapproves_and_dispatches_failed_application(monkey
         with SessionLocal() as db:
             stored = db.get(Application, application["id"])
             assert loads(stored.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
+
+
+def test_verification_pending_retry_requires_explicit_no_receipt_confirmation(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Unverified submission retry engineer")
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.mode = "auto"
+            stored.status = "verification_pending"
+            stored.job.status = "verification_pending"
+            db.add(Blocker(
+                application_id=stored.id, kind="confirmation_missing", status="open",
+                field_label="אישור שליחה", question="האם המועמדות נשלחה?",
+                explanation="לא התקבלה ראיה חד־משמעית",
+            ))
+            db.commit()
+        denied = client.post(f"/api/applications/{application['id']}/retry?auto_submit=true")
+        assert denied.status_code == 409
+        allowed = client.post(
+            f"/api/applications/{application['id']}/retry?auto_submit=true&confirm_not_submitted=true"
+        )
+        assert allowed.status_code == 200, allowed.text
+        assert allowed.json()["status"] == "queued"
+        with SessionLocal() as db:
+            blocker = db.scalar(select(Blocker).where(Blocker.application_id == application["id"]))
+            assert blocker.status == "resolved"
+            assert blocker.answer == "user_confirmed_no_submission_receipt"
+        assert dispatched == [application["id"]]
 
 
 def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
@@ -280,6 +311,32 @@ def test_referral_source_blocker_uses_safe_default_without_user_input(monkeypatc
         with SessionLocal() as db:
             application = db.get(Application, application_id)
             assert loads(application.answers_json, {})["How did you hear about this job?"] == "Company careers page"
+        assert dispatched == [application_id]
+
+
+def test_opaque_referral_option_group_chooses_none_of_the_above(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Opaque referral group engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        options = ["Riskified blog", "Riskified tech blog", "Meetup", "Podcast", "Conference", "Riskified Social media", "None of the above"]
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Riskified blog",
+                "question": "Riskified blog", "explanation": "Answer required", "options": options,
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert loads(application.answers_json, {})["Riskified blog"] == "None of the above"
         assert dispatched == [application_id]
 
 

@@ -52,6 +52,8 @@ def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
     assert "if(status==='submitted')" in js
     assert "verification-waiting" in js
     assert ".application-live-tracker li.verification-waiting>i" in css
+    assert "confirm_not_submitted=true" in js
+    assert "לא התקבל אישור — נסה שוב" in js
 
 
 def test_lever_no_post_is_not_presented_as_verification_pending():

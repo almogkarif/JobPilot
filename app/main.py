@@ -3424,10 +3424,23 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 
 
 @app.post("/api/applications/{application_id}/retry")
-async def retry_application(application_id: int, auto_submit: bool = False, db: Session = Depends(get_db)):
+async def retry_application(
+    application_id: int, auto_submit: bool = False, confirm_not_submitted: bool = False,
+    db: Session = Depends(get_db),
+):
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
+    if application.status == "verification_pending" and not confirm_not_submitted:
+        raise HTTPException(409, "נדרש אישור מפורש שלא התקבל אישור הגשה לפני ניסיון חוזר")
+    previous_status = application.status
+    if previous_status == "verification_pending":
+        for blocker in application.blockers:
+            if blocker.status == "open" and blocker.kind == "confirmation_missing":
+                blocker.status = "resolved"
+                blocker.answer = "user_confirmed_no_submission_receipt"
+                blocker.remember_answer = False
+                blocker.resolved_at = utcnow()
     application.status = "queued"
     set_job_status(db, application.job, "queued")
     application.last_error = ""
@@ -3438,6 +3451,12 @@ async def retry_application(application_id: int, auto_submit: bool = False, db: 
             raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
         answers[ONE_TIME_SUBMIT_KEY] = True
     application.answers_json = dumps(answers)
+    if previous_status == "verification_pending":
+        _record_application_event(
+            db, application, "unverified_submission_retry_approved",
+            from_status=previous_status, to_status="queued", actor="user",
+            message="המשתמש אישר שלא התקבל אישור הגשה וביקש ניסיון חוזר",
+        )
     db.commit()
     if auto_submit:
         try:
@@ -3627,13 +3646,22 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
 
 def _safe_default_blocker_answer(blocker: Blocker) -> tuple[str, str]:
     label = _normalize_company_memory_text(blocker.field_label or blocker.question)
-    if label not in {
+    direct_referral_question = label in {
         "how did you hear about us", "how did you hear about this job",
         "how did you hear about this role", "how did you hear about this position",
         "how did you learn about us", "how did you find us",
-    }:
-        return "", ""
+    }
     options = [str(value).strip() for value in loads(blocker.options_json, []) if str(value).strip()]
+    option_keys = [_normalize_company_memory_text(option) for option in options]
+    referral_terms = ("blog", "meetup", "podcast", "conference", "social media", "job board", "linkedin")
+    referral_option_group = sum(any(term in key for term in referral_terms) for key in option_keys) >= 2
+    if not direct_referral_question and not referral_option_group:
+        return "", ""
+    if referral_option_group:
+        neutral = next((option for option, key in zip(options, option_keys)
+                        if "none of the above" in key or key in {"other", "other source"}), "")
+        if neutral:
+            return neutral, "safe_referral_default"
     preferred_terms = ("company website", "career site", "careers page", "job board", "linkedin")
     preferred = next((option for term in preferred_terms for option in options
                       if term in _normalize_company_memory_text(option)), "")

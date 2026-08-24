@@ -45,7 +45,10 @@ DUPLICATE_SUBMISSION_TERMS = [
 SMALL_CHOICE_MAX_OPTIONS = 6
 LEVER_API_HOSTS = {"api.lever.co", "api.eu.lever.co"}
 LEVER_JOBS_HOSTS = {"jobs.lever.co", "jobs.eu.lever.co"}
-GREENHOUSE_HOSTS = {"job-boards.greenhouse.io", "boards.greenhouse.io", "boards.eu.greenhouse.io"}
+GREENHOUSE_HOSTS = {
+    "job-boards.greenhouse.io", "job-boards.eu.greenhouse.io", "boards.greenhouse.io",
+    "boards.eu.greenhouse.io", "boards-api.greenhouse.io",
+}
 CHOICE_PLACEHOLDERS = {
     "select", "select an option", "select option", "please select", "choose", "choose an option",
     "choose option", "please choose", "בחר", "בחר תשובה", "נא לבחור",
@@ -213,12 +216,16 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # (for example the positive Python-experience statement). On retry the
             # chosen negative statement must be applied to every radio in that same
             # group, not only to the first option whose label matched the key.
-            if field_type == "radio" and candidate is None:
+            if field_type in {"radio", "checkbox"} and candidate is None:
                 group_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
                 for saved_question, saved_answer in answers.items():
                     if normalize(saved_question) in group_options and normalize(str(saved_answer)) in group_options:
                         candidate = CandidateValue(str(saved_answer), "resolved_choice_group")
                         break
+                if candidate is None:
+                    referral = _safe_referral_group_option(field.get("options", []))
+                    if referral:
+                        candidate = CandidateValue(referral, "safe_referral_default")
 
             if field_type == "file":
                 candidate = candidate or _lever_profile_document_fallback(
@@ -354,12 +361,16 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             lever_submit_requests = []
             lever_submit_responses = []
             lever_submit_failures = []
+            hosted_submit_requests = []
+            hosted_submit_failures = []
             hosted_submit_responses = []
 
             def capture_lever_request(request):
                 try:
                     if request.method.upper() == "POST" and _is_lever_submission_endpoint(request.url):
                         lever_submit_requests.append(request.url)
+                    if request.method.upper() == "POST" and _is_hosted_ats_submission_endpoint(request.url):
+                        hosted_submit_requests.append(request.url)
                 except Exception:
                     pass
 
@@ -407,6 +418,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 try:
                     if request.method.upper() == "POST" and _is_lever_submission_endpoint(request.url):
                         lever_submit_failures.append(str(request.failure or "network request failed"))
+                    if request.method.upper() == "POST" and _is_hosted_ats_submission_endpoint(request.url):
+                        hosted_submit_failures.append(str(request.failure or "network request failed"))
                 except Exception:
                     pass
 
@@ -439,8 +452,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 if lever_submit_requests and progress and not post_reported:
                     progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Lever", lever_submit_requests[-1])
                     post_reported = True
+                if hosted_submit_requests and progress and not post_reported:
+                    progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Greenhouse", hosted_submit_requests[-1])
+                    post_reported = True
                 if not network_error and lever_submit_failures:
                     network_error = f"Lever submission request failed: {lever_submit_failures[-1]}"
+                if not network_error and hosted_submit_failures:
+                    network_error = f"Greenhouse submission request failed: {hosted_submit_failures[-1]}"
                 if network_evidence or network_error:
                     break
                 duplicate_text = _duplicate_submission_evidence(page)
@@ -504,6 +522,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "כפתור ה־Submit האמיתי נלחץ, אבל הדפדפן לא שלח בכלל בקשת מועמדות ל־Lever. "
                     "זה בדרך כלל אומר ש־Lever עצר את השליחה בצד הדפדפן (למשל אימות/ולידציה). "
                     "המועמדות לא תסומן כמוגשת ולא תיכנס למצב ‘ממתין לאימות’.", page.url,
+                )
+            if _is_hosted_ats_apply_url(page.url) and not hosted_submit_requests:
+                submit_error = _visible_submission_error(page)
+                raise ApplicationBlocked(
+                    "submit_not_sent", "שליחת המועמדות", "הטופס לא יצא מ־Greenhouse",
+                    "Greenhouse עצר את השליחה לפני שנשלחה בקשת POST. " +
+                    (submit_error or "לא זוהתה בקשת הגשה אמיתית; ייתכן ששדה חובה או אימות סמוי עצר את הטופס."),
+                    page.url,
                 )
             raise ApplicationBlocked(
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
@@ -718,6 +744,16 @@ def _extract_fields(page: Page) -> list[dict]:
 def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
     desired_key = normalize(str(desired))
     desired_bool = desired if isinstance(desired, bool) else desired_key in {"true", "yes", "כן", "1"}
+    if field.get("type") in {"radio", "checkbox"} and not isinstance(desired, bool) and desired_key not in {
+        "true", "yes", "כן", "1", "false", "no", "לא", "0",
+    }:
+        option = normalize(" ".join([field.get("value", ""), field.get("label", "")]))
+        selected = bool(desired_key and (option == desired_key or option.endswith(" " + desired_key)))
+        if selected and not field.get("checked"):
+            locator.check(force=True, timeout=2_000)
+        elif not selected and field.get("checked"):
+            locator.uncheck(force=True, timeout=2_000)
+        return
     if field.get("type") == "radio":
         option = normalize(" ".join([field.get("value", ""), field.get("label", "")]))
         wanted_terms = {desired_key}
@@ -732,6 +768,18 @@ def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
         locator.check(force=True, timeout=2_000)
     elif not desired_bool and field.get("checked"):
         locator.uncheck(force=True, timeout=2_000)
+
+
+def _safe_referral_group_option(options: list[str]) -> str:
+    cleaned = [str(option).strip() for option in options if str(option).strip()]
+    keys = [normalize(option) for option in cleaned]
+    referral_terms = ("blog", "meetup", "podcast", "conference", "social media", "job board", "linkedin")
+    if sum(any(term in key for term in referral_terms) for key in keys) < 2:
+        return ""
+    for option, key in zip(cleaned, keys):
+        if "none of the above" in key or key in {"other", "other source"}:
+            return option
+    return cleaned[0] if cleaned else ""
 
 
 def _select_best(locator: Locator, value: str) -> bool:
@@ -1741,10 +1789,14 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
     except Exception:
         return False
     host = (parsed.hostname or "").casefold()
-    path = (parsed.path or "").casefold()
-    if host in GREENHOUSE_HOSTS:
-        return "/embed/job_app" in path or "/applications" in path or "/jobs/" in path
-    return False
+    return host in GREENHOUSE_HOSTS
+
+
+def _is_hosted_ats_apply_url(url: str) -> bool:
+    try:
+        return (urlparse(str(url or "")).hostname or "").casefold() in GREENHOUSE_HOSTS
+    except Exception:
+        return False
 
 
 def _hosted_ats_submission_response_result(
@@ -1875,10 +1927,8 @@ def _lever_required_file_issue(page: Page) -> dict | None:
     return {"label": str(issue["label"]).strip(), "options": _file_accept_options({"accept": issue.get("accept", "")})}
 
 
-def _lever_visible_submission_error(page: Page) -> str:
-    """Return a visible Lever validation/error message after Submit, excluding hidden template text."""
-    if not _is_lever_apply_url(page.url):
-        return ""
+def _visible_submission_error(page: Page) -> str:
+    """Return a visible validation/error message after Submit, excluding hidden template text."""
     try:
         return str(page.evaluate(
             r"""() => {
@@ -1904,6 +1954,12 @@ def _lever_visible_submission_error(page: Page) -> str:
         ) or "").strip()
     except Exception:
         return ""
+
+
+def _lever_visible_submission_error(page: Page) -> str:
+    if not _is_lever_apply_url(page.url):
+        return ""
+    return _visible_submission_error(page)
 
 
 def _duplicate_submission_evidence(page: Page) -> str:

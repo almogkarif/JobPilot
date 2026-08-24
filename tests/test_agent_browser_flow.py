@@ -117,6 +117,30 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert application_id == "lever-app-123"
     assert error == ""
 
+
+def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://job-boards.greenhouse.io/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form onsubmit="event.preventDefault()">
+            <label>Email<input type="email" required></label>
+            <button type="submit">Submit Application</button>
+          </form>
+        """))
+        task = {
+            "job": {"apply_url": "https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123"},
+            "profile": {"email": "candidate@example.com"}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=True)
+            raise AssertionError("A click without an application POST is not a submission")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "submit_not_sent"
+            assert "לא זוהתה בקשת הגשה אמיתית" in blocker.explanation
+        finally:
+            browser.close()
+
     evidence, application_id, error = _lever_submission_response_result(
         "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
         400,
@@ -338,7 +362,7 @@ def test_required_small_select_becomes_choice_blocker():
             browser.close()
 
 
-def test_saved_answer_from_first_radio_option_selects_the_chosen_sibling_on_retry():
+def test_saved_answer_from_first_lever_checkbox_option_selects_the_chosen_sibling_on_retry():
     yes = "Yes, I have 2+ years of professional experience working with Python"
     no = "No, I have less then 2 years working with Python"
     with sync_playwright() as playwright:
@@ -346,8 +370,8 @@ def test_saved_answer_from_first_radio_option_selects_the_chosen_sibling_on_retr
         page = browser.new_page()
         page.route("https://careers.example.test/**", lambda route: route.fulfill(content_type="text/html", body=f"""
           <form>
-            <label for="python-yes">{yes}</label><input id="python-yes" name="python-years" type="radio" value="yes" required>
-            <label for="python-no">{no}</label><input id="python-no" name="python-years" type="radio" value="no" required>
+            <label><input id="python-yes" name="python-years" type="checkbox" value="{yes}" required>{yes}</label>
+            <label><input id="python-no" name="python-years" type="checkbox" value="{no}" required>{no}</label>
             <button type="submit">Submit Application</button>
           </form>
         """))
