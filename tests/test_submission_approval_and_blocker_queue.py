@@ -141,7 +141,14 @@ def test_verification_pending_retry_requires_explicit_no_receipt_confirmation(mo
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
     with TestClient(app) as client:
-        job = _make_job(client, "Unverified submission retry engineer")
+        unique = uuid4().hex
+        job = client.post("/api/jobs/import", json={
+            "title": "Unverified submission retry engineer",
+            "company": "Supported Greenhouse Retry",
+            "location": "Tel Aviv, Israel",
+            "description": "Software role",
+            "apply_url": f"https://boards.greenhouse.io/supportedretry/jobs/{unique}",
+        }).json()
         application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
         with SessionLocal() as db:
             stored = db.get(Application, application["id"])

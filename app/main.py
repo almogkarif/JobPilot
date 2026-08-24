@@ -868,6 +868,13 @@ def _application_auto_submit_supported(application: Application) -> bool:
 
 def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     """Return only real cloud-auto submissions, never review/manual queue rows."""
+    def chronological_key(value: datetime | None) -> float:
+        if value is None:
+            return 0.0
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.timestamp()
+
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
@@ -883,11 +890,11 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     eligible = [item for item in rows if _application_auto_submit_supported(item)]
     applying = sorted(
         (item for item in eligible if item.status == "applying"),
-        key=lambda item: (item.started_at or item.updated_at, item.id),
+        key=lambda item: (chronological_key(item.started_at or item.updated_at), item.id),
     )
     queued = sorted(
         (item for item in eligible if item.status == "queued"),
-        key=lambda item: (item.updated_at, item.id),
+        key=lambda item: (chronological_key(item.updated_at), item.id),
         reverse=True,
     )
     current = applying[0] if applying else (queued[0] if queued else None)
