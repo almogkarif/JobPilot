@@ -57,6 +57,43 @@ def test_newest_auto_approval_is_head_of_waiting_queue_while_running_job_stays_c
         assert [item['queue_position'] for item in queue['waiting']] == [1, 2]
 
 
+def test_queue_snapshot_exposes_every_running_worker_and_flags_exact_duplicates():
+    with TestClient(app) as client:
+        _clear_queue()
+        first_job = _job(client, 'Parallel Worker Role', 'https://jobs.lever.co/acme/parallel-1')
+        second_job = _job(client, 'Temporary Different Role', 'https://jobs.lever.co/acme/parallel-2')
+        waiting_job = _job(client, 'Waiting Behind Workers', 'https://jobs.lever.co/acme/waiting')
+        now = utcnow()
+        with SessionLocal() as db:
+            first_source_job = db.get(Job, first_job['id'])
+            duplicate_source_job = db.get(Job, second_job['id'])
+            duplicate_source_job.title = first_source_job.title
+            duplicate_source_job.company = first_source_job.company
+            duplicate_source_job.apply_url = first_source_job.apply_url
+            first = Application(
+                job_id=first_source_job.id, status='applying', mode='auto',
+                agent_id='github-actions-101', started_at=now - timedelta(minutes=2),
+            )
+            duplicate = Application(
+                job_id=duplicate_source_job.id, status='applying', mode='auto',
+                agent_id='github-actions-102', started_at=now - timedelta(minutes=1),
+            )
+            waiting = Application(job_id=waiting_job['id'], status='queued', mode='auto', updated_at=now)
+            db.add_all([first, duplicate, waiting])
+            db.commit()
+            first_id, duplicate_id, waiting_id = first.id, duplicate.id, waiting.id
+
+        queue = client.get('/api/applications/auto-queue').json()
+        assert queue['current']['id'] == first_id
+        assert queue['running_count'] == 2
+        assert [item['id'] for item in queue['running']] == [first_id, duplicate_id]
+        assert queue['running'][0]['agent_id'] == 'github-actions-101'
+        assert queue['running'][1]['duplicate_of'] == first_id
+        assert [item['id'] for item in queue['waiting']] == [waiting_id]
+        assert queue['waiting'][0]['queue_position'] == 1
+        assert queue['total_active_count'] == 3
+
+
 def test_cloud_worker_claims_actual_priority_head_not_old_dispatch_id():
     with TestClient(app) as client:
         _clear_queue()

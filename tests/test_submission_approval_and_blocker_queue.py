@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.main import ONE_TIME_SUBMIT_KEY, app
-from app.models import Application, Blocker
+from app.models import Application, ApplicationEvent, Blocker
 from app.utils import loads
 
 
@@ -348,6 +348,69 @@ def test_hiring_process_consent_blocker_is_safely_resolved(monkeypatch):
             application = db.get(Application, application_id)
             assert loads(application.answers_json, {})[question] == "Yes"
         assert dispatched == [application_id]
+
+
+def test_legacy_greenhouse_country_validation_is_repaired_once_without_a_loop(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = _make_job(client, "Greenhouse country validation engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        payload = {
+            "token": "change-me", "kind": "submit_not_sent", "field_label": "שליחת המועמדות",
+            "question": "הטופס לא יצא מ־Greenhouse",
+            "explanation": "Greenhouse עצר את השליחה לפני שנשלחה בקשת POST. שדה שלא עבר ולידציה: Country*",
+            "options": [],
+        }
+        first = client.post(f"/api/agent/tasks/{application_id}/blocked", json=payload)
+        assert first.status_code == 200, first.text
+        assert first.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert loads(application.answers_json, {})["Country*"] == "Israel"
+
+        second = client.post(f"/api/agent/tasks/{application_id}/blocked", json=payload)
+        assert second.status_code == 200, second.text
+        assert second.json().get("auto_resolved") is not True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "needs_input"
+        assert dispatched == [application_id]
+
+
+def test_safe_defaults_stop_dispatching_after_eight_server_side_repairs(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        saved = client.patch("/api/profile", json={"email": "saved@example.com"})
+        assert saved.status_code == 200
+        job = _make_job(client, "Loop guarded identity engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            for index in range(8):
+                db.add(ApplicationEvent(
+                    application_id=application_id, event_type="profile_identity_auto_resolved",
+                    actor="system", message=f"repair {index}", details_json='{"field":"old_field_%d"}' % index,
+                ))
+            db.commit()
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Email",
+                "question": "Email", "explanation": "Answer required", "options": [],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json().get("auto_resolved") is not True
+        with SessionLocal() as db:
+            assert db.get(Application, application_id).status == "needs_input"
+        assert dispatched == []
 
 
 def test_verified_submission_resolves_blockers_from_earlier_attempts():

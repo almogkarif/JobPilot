@@ -899,12 +899,29 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     current = applying[0] if applying else (queued[0] if queued else None)
     waiting = queued if current is None or current.status == "applying" else queued[1:]
 
+    signatures: dict[tuple[str, str, str], int] = {}
+    duplicate_of: dict[int, int] = {}
+    for item in applying + queued:
+        signature = (
+            str(item.job.company or "").casefold().strip(),
+            str(item.job.title or "").casefold().strip(),
+            str(item.job.apply_url or "").casefold().strip().rstrip("/"),
+        )
+        if all(signature) and signature in signatures:
+            duplicate_of[item.id] = signatures[signature]
+        elif all(signature):
+            signatures[signature] = item.id
+
     def item_payload(application: Application, position: int | None = None) -> dict:
         return {
             "id": application.id,
             "job_id": application.job_id,
             "status": application.status,
             "queue_position": position,
+            "agent_id": application.agent_id,
+            "attempt_count": int(application.attempt_count or 0),
+            "last_error": application.last_error,
+            "duplicate_of": duplicate_of.get(application.id),
             "job": {
                 "id": application.job.id,
                 "title": application.job.title,
@@ -917,6 +934,8 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
     waiting_start = 2 if current and current.status == "queued" else 1
     return {
         "current": item_payload(current, current_position) if current else None,
+        "running": [item_payload(item) for item in applying],
+        "running_count": len(applying),
         "waiting": [item_payload(item, waiting_start + index) for index, item in enumerate(waiting)],
         "waiting_count": len(waiting),
         "queued_count": len(queued),
@@ -3354,7 +3373,11 @@ def application_tracking_status(application_id: int, db: Session = Depends(get_d
     blocker_token = (
         f"{latest_blocker.id}:{latest_blocker.status}" if latest_blocker else "0"
     )
-    queue_token = f"{int(current.get('id') or 0)}:{current.get('status') or ''}:{','.join(map(str, waiting_ids))}"
+    running_ids = [int(item.get("id") or 0) for item in queue.get("running") or []]
+    queue_token = (
+        f"{int(current.get('id') or 0)}:{current.get('status') or ''}:"
+        f"{','.join(map(str, running_ids))}:{','.join(map(str, waiting_ids))}"
+    )
     return {
         "application_id": application.id,
         "status": application.status,
@@ -3630,6 +3653,11 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
     extra = loads(profile.application_profile_json, {})
     if not isinstance(extra, dict):
         extra = {}
+    raw_country = str(extra.get("country") or "Israel").strip()
+    profile_country = (
+        "Israel" if _normalize_company_memory_text(raw_country) in {"israel", "il", "972", "ישראל"}
+        else raw_country
+    )
     aliases: list[tuple[set[str], object, str]] = [
         ({"email", "e mail", "email address", "work email"}, profile.email, "email"),
         ({"phone", "phone number", "mobile", "mobile phone", "mobile number", "telephone", "tel"}, profile.phone, "phone"),
@@ -3642,7 +3670,7 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
         ({"github", "github profile", "github url"}, profile.github_url, "github_url"),
         ({"portfolio", "portfolio url", "personal website", "website", "website url"}, extra.get("website_url") or profile.portfolio_url, "portfolio_url"),
         ({"preferred name", "preferred first name"}, extra.get("preferred_name"), "preferred_name"),
-        ({"country", "country of residence"}, extra.get("country") or "Israel", "country"),
+        ({"country", "country of residence"}, profile_country, "country"),
         ({"state", "province", "region"}, extra.get("state"), "state"),
         ({"postal code", "zip", "zip code"}, extra.get("postal_code"), "postal_code"),
         ({"address", "address line 1", "street address"}, extra.get("address_line1"), "address_line1"),
@@ -3656,6 +3684,16 @@ def _saved_profile_field_answer(profile: Profile | None, raw_label: str) -> tupl
         if label in labels and answer:
             return answer, field
     return "", ""
+
+
+def _submit_validation_field_label(blocker: Blocker | None) -> str:
+    if not blocker or blocker.kind != "submit_not_sent":
+        return ""
+    explanation = str(blocker.explanation or "")
+    marker = "שדה שלא עבר ולידציה:"
+    if marker not in explanation:
+        return ""
+    return explanation.split(marker, 1)[1].strip()[:500]
 
 
 def _safe_default_blocker_answer(blocker: Blocker) -> tuple[str, str]:
@@ -3711,10 +3749,24 @@ def _auto_requeue_profile_identity(
     profile = get_user_profile(db)
     answer, profile_field = _safe_default_blocker_answer(blocker)
     if not answer:
-        answer, profile_field = _saved_profile_field_answer(profile, blocker.field_label or blocker.question)
+        answer_label = _submit_validation_field_label(blocker) or blocker.field_label or blocker.question
+        answer, profile_field = _saved_profile_field_answer(profile, answer_label)
     if not answer:
         return False
-    answer_key = blocker.field_label or blocker.question or "Email"
+    previous_auto_resolutions = db.scalars(select(ApplicationEvent).where(
+        ApplicationEvent.application_id == application.id,
+        ApplicationEvent.event_type == "profile_identity_auto_resolved",
+    )).all()
+    resolved_fields = {
+        str(loads(event.details_json, {}).get("field") or "")
+        for event in previous_auto_resolutions
+    }
+    # Never spin on the same supposedly-safe answer. Also stop a pathological
+    # long form after several server-side repairs and expose the next field to
+    # the user instead of continuously buying new cloud workers.
+    if profile_field in resolved_fields or len(previous_auto_resolutions) >= 8:
+        return False
+    answer_key = _submit_validation_field_label(blocker) or blocker.field_label or blocker.question or "Email"
     answers = loads(application.answers_json, {})
     answers[answer_key] = answer
     application.answers_json = dumps(answers)

@@ -85,7 +85,9 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     # JobPilot only admits jobs located in Israel. Country questions on hosted ATS
     # forms are deterministic even when an older profile saved only a city.
     if key in {"country", "country of residence", "current country", "country region"}:
-        return CandidateValue(str(extra.get("country") or "Israel"), "profile_country_default")
+        raw_country = str(extra.get("country") or "Israel").strip()
+        country = "Israel" if normalize(raw_country) in {"israel", "il", "972", "ישראל"} else raw_country
+        return CandidateValue(country, "profile_country_default")
 
     # Required privacy/data-processing acknowledgements are part of the
     # application the user already approved. Never extend this to marketing,
