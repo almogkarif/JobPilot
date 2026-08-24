@@ -38,6 +38,8 @@ def test_legacy_unknown_field_with_options_is_rendered_as_choice_and_text_draft_
     assert "applicationTextAnswerDrafts.set(blockerId,input.value)" in js
     assert "value=\"${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}\"" in js
     assert "applicationTextAnswerDrafts.delete(Number(blockerId))" in js
+    assert "document.activeElement?.matches?.('[data-text-blocker-input]')" in js
+    assert "if(activeTextAnswer)return" in js
 
 
 def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():

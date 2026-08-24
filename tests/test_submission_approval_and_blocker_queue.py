@@ -175,6 +175,60 @@ def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
     assert dispatched == [application_id]
 
 
+def test_auto_email_blocker_is_resolved_from_saved_profile_without_user_input(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        saved = client.patch("/api/profile", json={"email": "saved@example.com"})
+        assert saved.status_code == 200
+        job = _make_job(client, "Identity field engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Email",
+                "question": "Email", "explanation": "Answer required", "options": [],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["auto_resolved"] is True
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            assert application.status == "queued"
+            assert loads(application.answers_json, {})["Email"] == "saved@example.com"
+        assert dispatched == [application_id]
+
+
+def test_existing_email_blocker_is_repaired_when_tracker_reads_timeline(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        client.patch("/api/profile", json={"email": "saved@example.com"})
+        job = _make_job(client, "Existing identity blocker engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "unknown_field", "field_label": "Email",
+                "question": "Email", "explanation": "Answer required", "options": [],
+            },
+        )
+        assert blocked.status_code == 200
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+        timeline = client.get(f"/api/applications/{application_id}/timeline")
+        assert timeline.status_code == 200, timeline.text
+        assert timeline.json()["application"]["status"] == "queued"
+        assert timeline.json()["application"]["blocker"] is None
+        assert dispatched == [application_id]
+
+
 def test_captcha_is_exposed_compactly_with_exact_handoff_url_and_can_be_marked_submitted():
     with TestClient(app) as client:
         job = _make_job(client, "Junior CAPTCHA Queue Engineer")

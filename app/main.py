@@ -3333,6 +3333,11 @@ async def application_timeline(application_id: int, db: Session = Depends(get_db
         db, application, open_blocker, source="timeline_read_repair"
     ):
         await _dispatch_resolved_auto_application(db, application)
+        open_blocker = None
+    if open_blocker and _auto_requeue_profile_identity(
+        db, application, open_blocker, source="timeline_read_repair"
+    ):
+        await _dispatch_resolved_auto_application(db, application)
     events = db.scalars(select(ApplicationEvent).where(
         ApplicationEvent.application_id == application.id
     ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
@@ -3547,6 +3552,49 @@ async def _dispatch_resolved_auto_application(db: Session, application: Applicat
         application.last_error = f"התשובה נשמרה, אך לא ניתן להפעיל worker ברקע: {exc}"[:2000]
         db.commit()
         raise HTTPException(503, "התשובה נשמרה, אך ה־worker לא הופעל. אפשר לנסות שוב ממסך ההגשות.") from exc
+
+
+def _auto_requeue_profile_identity(
+    db: Session, application: Application, blocker: Blocker, *, source: str,
+    attempt: ApplicationAttempt | None = None,
+) -> bool:
+    """Resolve exact identity fields from the saved profile, including old blockers."""
+    if application.mode != "auto":
+        return False
+    label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+    if label not in {"email", "e mail", "email address", "work email"}:
+        return False
+    profile = get_user_profile(db)
+    answer = str(profile.email or "").strip() if profile else ""
+    if not answer:
+        return False
+    answer_key = blocker.field_label or blocker.question or "Email"
+    answers = loads(application.answers_json, {})
+    answers[answer_key] = answer
+    application.answers_json = dumps(answers)
+    blocker.answer = answer
+    blocker.remember_answer = False
+    blocker.status = "resolved"
+    blocker.resolved_at = utcnow()
+    previous_status = application.status
+    application.status = "queued"
+    set_job_status(db, application.job, "queued")
+    application.last_error = ""
+    attempt = attempt or _result_attempt(db, application.id)
+    if attempt and attempt.status in {"running", "blocked"}:
+        attempt.status = "blocked"
+        attempt.verification_state = "none"
+        attempt.error = ""
+        attempt.finished_at = attempt.finished_at or utcnow()
+    _record_application_event(
+        db, application, "profile_identity_auto_resolved", from_status=previous_status, to_status="queued",
+        actor="system", message="שדה Email מולא אוטומטית מהפרטים האישיים",
+        details={"blocker_id": blocker.id, "source": source, "field": "email"},
+    )
+    db.commit()
+    db.refresh(blocker)
+    db.refresh(application)
+    return True
 
 
 def _auto_requeue_greenhouse_native_url(
@@ -4729,6 +4777,13 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         payload_out["auto_resolved"] = True
         return payload_out
     if _auto_requeue_stored_grade_sheet(
+        db, application, blocker, source="agent_blocked", attempt=attempt
+    ):
+        await _dispatch_resolved_auto_application(db, application)
+        payload_out = _blocker_dict(blocker)
+        payload_out["auto_resolved"] = True
+        return payload_out
+    if _auto_requeue_profile_identity(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):
         await _dispatch_resolved_auto_application(db, application)

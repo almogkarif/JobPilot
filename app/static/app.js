@@ -3557,6 +3557,8 @@ function notificationItems() {
 function renderNotificationCenter() {
   const root = $('#notification-list');
   if (!root) return;
+  const activeTextAnswer=document.activeElement?.matches?.('[data-text-blocker-input]')&&root.contains(document.activeElement);
+  if(activeTextAnswer)return;
   $$('[data-text-blocker-input]',root).forEach((input)=>applicationTextAnswerDrafts.set(Number(input.dataset.textBlockerInput),input.value));
   const items = notificationItems();
   $('#notification-count').hidden = !items.length;
