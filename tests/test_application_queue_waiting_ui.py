@@ -66,6 +66,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "application-list-number" in js
     assert ".application-tracker-navigator" in css
     assert ".application-live-tracker.has-running{border:2px solid #35a66f" in css
+    assert "copyApplicationFailureDiagnostics" in js
+    assert "העתק אבחון של ההגשות שלא הושלמו" in js
     assert ".auto-queue-current.is-active" in css
     assert "בהכנה עכשיו" in js
     assert "המשרה הירוקה היא הפעילה כעת" in js
