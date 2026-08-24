@@ -53,6 +53,9 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "TRACKABLE_APPLICATION_STATUSES" in js
     assert "item.status==='queued'&&(Number(item.attempt_count||0)>0" in js
     assert ".sort((a,b)=>Number(a.id)-Number(b.id))" in js
+    assert "trackingPinnedByUser=false" in js
+    assert "startApplicationTracking(trackingApplications[next].id,false,true)" in js
+    assert "if(!trackingPinnedByUser&&['verification_pending','failed','needs_input']" in js
     assert "trackingNavigatorMarkup(applicationTrackingData?.application?.status" in js
     assert "משרה ${index+1} מתוך ${total}" in js
     assert "title=\"הגשה מחדש\"" in js
