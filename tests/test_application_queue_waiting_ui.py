@@ -9,7 +9,7 @@ def test_auto_apply_queue_has_persistent_visual_waiting_state():
 
     assert "ממתינה בתור להגשה אוטומטית" in js
     assert "תופעל אוטומטית ברצף" in js
-    assert "autoQueue.queued_count" in js
+    assert "autoQueue.total_active_count" in js
     assert "otherAutoQueueItems" in js
     assert "ממתינות להגשה אוטומטית" in js
     assert "queue_position" in js
@@ -28,3 +28,20 @@ def test_profile_grade_sheet_reuse_is_automatic_not_a_user_confirmation():
     assert "השתמש בגיליון הציונים השמור והמשך" not in js
     assert "latestAttemptId" in js
     assert "attemptEvents" in js
+
+
+def test_auto_apply_queue_count_and_modal_include_the_running_application():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    assert "const autoQueueCount=autoQueue.total_active_count" in js
+    assert "התור כולל גם את המשרה שרצה עכשיו" in js
+    assert "משרות פעילות'} בתור" in js
+
+
+def test_attention_tab_has_single_card_navigation_between_failed_submissions():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
+    assert "function renderActiveBlocker" in js
+    assert "function moveBetweenBlockers" in js
+    assert "מתוך ${state.blockers.length}" in js
+    assert "בדיוק מה עצר כל אחת" in js
+    assert ".blocker-navigator" in css

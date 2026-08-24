@@ -17,6 +17,7 @@ const state = {
   careerTracks: [],
   activeCareerTrack: 'computer_science',
 };
+let activeBlockerIndex = 0;
 
 
 const CAREER_TRACK_UI = Object.freeze({
@@ -2338,9 +2339,34 @@ async function loadBlockers() {
   });
   const root = $('#blockers-list');
   setPageContext('blockers', state.blockers.length);
-  root.innerHTML = state.blockers.length ? state.blockers.map(renderBlockerCard).join('') : emptyState('✓', 'הכול מטופל', 'אין כרגע שאלות, אימותים או פעולות שמחכים לך.');
+  activeBlockerIndex = Math.max(0, Math.min(activeBlockerIndex, state.blockers.length - 1));
+  renderActiveBlocker(root);
+}
+
+function renderActiveBlocker(root = $('#blockers-list')) {
+  if (!root) return;
+  if (!state.blockers.length) {
+    root.innerHTML = emptyState('✓', 'הכול מטופל', 'אין כרגע שאלות, אימותים או פעולות שמחכים לך.');
+    return;
+  }
+  activeBlockerIndex = Math.max(0, Math.min(activeBlockerIndex, state.blockers.length - 1));
+  const blocker = state.blockers[activeBlockerIndex];
+  root.innerHTML = `<nav class="blocker-navigator" aria-label="מעבר בין הגשות שדורשות טיפול">
+      <button type="button" aria-label="ההגשה הקודמת" onclick="moveBetweenBlockers(-1)" ${activeBlockerIndex === 0 ? 'disabled' : ''}>→</button>
+      <span><strong>${activeBlockerIndex + 1} מתוך ${state.blockers.length}</strong><small>עבור בין ההגשות כדי לראות בדיוק מה עצר כל אחת</small></span>
+      <button type="button" aria-label="ההגשה הבאה" onclick="moveBetweenBlockers(1)" ${activeBlockerIndex === state.blockers.length - 1 ? 'disabled' : ''}>←</button>
+    </nav>${renderBlockerCard(blocker)}`;
   bindChoiceBlockerButtons(root);
 }
+
+function moveBetweenBlockers(direction) {
+  const next = activeBlockerIndex + Number(direction || 0);
+  if (next < 0 || next >= state.blockers.length) return;
+  activeBlockerIndex = next;
+  renderActiveBlocker();
+  $('#blockers-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.moveBetweenBlockers = moveBetweenBlockers;
 
 async function resolveBlocker(id) {
   const answerInput = $(`#answer-${id}`);
@@ -3442,7 +3468,7 @@ function autoQueueWaitingCount(snapshot=state.autoApplyQueue,applicationId=track
 async function refreshAutoApplyQueue(){try{return setAutoApplyQueue(await api('/api/applications/auto-queue'))}catch{return setAutoApplyQueue(state.autoApplyQueue)}}
 function autoQueueCountLabel(count){return count===1?'משרה אחת ממתינה בתור להגשה':`${count} משרות ממתינות בתור להגשה`}
 function autoQueueRowActions(item,{isCurrent=false}={}){const running=item.status==='applying',alreadyNext=isCurrent&&!running;return `<div class="auto-queue-row-actions"><button class="btn secondary small" type="button" onclick="openAutoQueueApplication(${item.id})">פתח</button><button class="btn secondary small" type="button" onclick="prioritizeAutoQueueApplication(${item.id})" ${running||alreadyNext?'disabled':''}>${alreadyNext?'הבא בתור':'הגש הבא בתור'}</button><button class="btn danger-outline small" type="button" onclick="cancelAutoQueueApplication(${item.id})" ${running?'disabled title="לא ניתן לבטל worker שכבר רץ"':''}>ביטול</button></div>`}
-async function showAutoApplyQueue(){const queue=await refreshAutoApplyQueue(),current=queue.current,waiting=queue.waiting||[];if(!current&&!waiting.length){closeModal();toast('אין כרגע משרות בתור להגשה אוטומטית');return}const currentMarkup=current?`<article class="auto-queue-current ${current.status==='applying'?'is-running':'is-next'}"><b>${current.status==='applying'?'▶':Number(current.queue_position||1)}</b><span><strong>${esc(current.job?.title||'משרה')}</strong><small>${esc(current.job?.company||'')} · ${current.status==='applying'?'רץ עכשיו':'הבאה בתור'}</small></span><em>${current.status==='applying'?'רץ עכשיו':'הבאה'}</em>${autoQueueRowActions(current,{isCurrent:true})}</article>`:'';const waitingMarkup=waiting.map((item,index)=>`<article class="auto-queue-waiting"><b>${Number(item.queue_position||index+1)}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ממתינה בתור</small></span><em>ממתינה</em>${autoQueueRowActions(item)}</article>`).join('');modal(`<span class="kicker">תור הגשה אוטומטית</span><h2>${waiting.length?esc(autoQueueCountLabel(waiting.length)):'אין משרות נוספות שממתינות'}</h2><p class="muted">המשרה שמסומנת "רץ עכשיו" נשארת פעילה. אפשר לפתוח כל הגשה, לבטל משרה שעדיין ממתינה או לקדם אותה להיות ההגשה הבאה בתור.</p><div class="auto-apply-queue-list">${currentMarkup}${waitingMarkup}</div><div class="modal-actions"><button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`)}
+async function showAutoApplyQueue(){const queue=await refreshAutoApplyQueue(),current=queue.current,waiting=queue.waiting||[],total=Number(queue.total_active_count||((current?1:0)+waiting.length));if(!current&&!waiting.length){closeModal();toast('אין כרגע משרות בתור להגשה אוטומטית');return}const currentMarkup=current?`<article class="auto-queue-current ${current.status==='applying'?'is-running':'is-next'}"><b>${current.status==='applying'?'▶':Number(current.queue_position||1)}</b><span><strong>${esc(current.job?.title||'משרה')}</strong><small>${esc(current.job?.company||'')} · ${current.status==='applying'?'רץ עכשיו':'הבאה בתור'}</small></span><em>${current.status==='applying'?'רץ עכשיו':'הבאה'}</em>${autoQueueRowActions(current,{isCurrent:true})}</article>`:'';const waitingMarkup=waiting.map((item,index)=>`<article class="auto-queue-waiting"><b>${Number(item.queue_position||index+1)}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ממתינה בתור</small></span><em>ממתינה</em>${autoQueueRowActions(item)}</article>`).join('');modal(`<span class="kicker">תור הגשה אוטומטית</span><h2>${total} ${total===1?'משרה פעילה':'משרות פעילות'} בתור</h2><p class="muted">התור כולל גם את המשרה שרצה עכשיו וגם את כל המשרות שממתינות אחריה. אפשר לפתוח כל הגשה, לבטל משרה שעדיין ממתינה או לקדם אותה להיות הבאה בתור.</p><div class="auto-apply-queue-list">${currentMarkup}${waitingMarkup}</div><div class="modal-actions"><button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`)}
 function openAutoQueueApplication(id){closeModal();startApplicationTracking(Number(id),true)}
 async function prioritizeAutoQueueApplication(id){try{const result=await api(`/api/applications/${id}/prioritize`,{method:'POST'});if(result.auto_apply_queue)setAutoApplyQueue(result.auto_apply_queue);toast('המשרה קודמה להגשה הבאה בתור');await Promise.all([loadDashboard(),showAutoApplyQueue()])}catch(error){toast(error.message)}}
 async function cancelAutoQueueApplication(id){if(!confirm('לבטל את ההגשה האוטומטית הזו? המשרה עצמה תישאר ברשימת המשרות.'))return;try{await api(`/api/applications/${id}`,{method:'DELETE'});if(Number(trackedApplicationId)===Number(id)){trackedApplicationId=null;applicationTrackingData=null;localStorage.removeItem('jobpilot-tracked-application')}toast('ההגשה בוטלה והמשרה נשארה ברשימת המשרות');await Promise.all([loadDashboard(),state.activeView==='applications'?loadApplications():Promise.resolve()]);await showAutoApplyQueue()}catch(error){toast(error.message)}}
@@ -3485,7 +3511,7 @@ function notificationItems() {
   const items = [];
   if (Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
   const autoQueue=normalizeAutoApplyQueue(state.autoApplyQueue||dashboard.auto_apply_queue||{});
-  const autoQueueCount=autoQueue.queued_count;
+  const autoQueueCount=autoQueue.total_active_count;
   if (autoQueueCount) items.push({ view:'applications', count:autoQueueCount, queue:true });
   if (Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
   const fresh = Number(dashboard.scan?.last_result?.new || 0);
