@@ -45,3 +45,16 @@ def test_attention_tab_has_single_card_navigation_between_failed_submissions():
     assert "מתוך ${state.blockers.length}" in js
     assert "בדיוק מה עצר כל אחת" in js
     assert ".blocker-navigator" in css
+
+
+def test_notification_tracker_navigates_all_unfinished_auto_applications_and_retries_failures():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
+    assert "TRACKABLE_APPLICATION_STATUSES" in js
+    assert "trackingNavigatorMarkup(applicationTrackingData?.application?.status" in js
+    assert "משרה ${index+1} מתוך ${total}" in js
+    assert "title=\"הגשה מחדש\"" in js
+    assert "/retry?auto_submit=true" in js
+    assert "application-list-number" in js
+    assert ".application-tracker-navigator" in css
+    assert ".auto-queue-current.is-running" in css

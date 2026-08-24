@@ -112,6 +112,31 @@ def test_final_review_approval_is_consumed_once_and_really_authorizes_next_attem
         assert third_task["submit_approved_once"] is False
 
 
+def test_explicit_auto_retry_reapproves_and_dispatches_failed_application(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Retry Engineer", "company": "Retry Co", "location": "Israel",
+            "apply_url": "https://boards.greenhouse.io/retryco/jobs/987",
+        }).json()
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.mode = "auto"
+            stored.status = "failed"
+            stored.job.status = "failed"
+            db.commit()
+
+        retried = client.post(f"/api/applications/{application['id']}/retry?auto_submit=true")
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["status"] == "queued"
+        assert dispatched == [application["id"]]
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            assert loads(stored.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
+
+
 def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))

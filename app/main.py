@@ -3385,7 +3385,7 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 
 
 @app.post("/api/applications/{application_id}/retry")
-def retry_application(application_id: int, db: Session = Depends(get_db)):
+async def retry_application(application_id: int, auto_submit: bool = False, db: Session = Depends(get_db)):
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
@@ -3394,9 +3394,26 @@ def retry_application(application_id: int, db: Session = Depends(get_db)):
     application.last_error = ""
     answers = loads(application.answers_json, {})
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
+    if auto_submit:
+        if application.mode != "auto" or not _application_auto_submit_supported(application):
+            raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
+        answers[ONE_TIME_SUBMIT_KEY] = True
     application.answers_json = dumps(answers)
     db.commit()
-    return _application_dict(application)
+    if auto_submit:
+        try:
+            await run_in_threadpool(dispatch_application_workflow, application.id)
+            _record_application_event(
+                db, application, "worker_dispatched", from_status="queued", to_status="queued",
+                actor="user", message="הגשה מחדש הופעלה ממרכז ההתראות",
+                details={"application_id": application.id, "trigger": "notification_retry"},
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            application.last_error = f"ההגשה נשמרה בתור, אך הפעלת ה-worker נכשלה: {exc}"[:2000]
+            db.commit()
+            raise HTTPException(503, "ההגשה נשמרה בתור, אך לא ניתן היה להפעיל את ה-worker") from exc
+    return _application_dict(application, db)
 
 
 @app.delete("/api/applications/{application_id}")

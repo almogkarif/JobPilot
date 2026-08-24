@@ -28,6 +28,11 @@
   color: var(--ink);
 }
 
+/* Application review navigation and explicit queue state. */
+.application-list-number{width:25px;height:25px;display:inline-grid;place-items:center;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-soft);color:var(--muted);font-size:10px;font-weight:900}.kanban-card>.application-list-number{position:absolute;inset-inline-end:8px;top:8px}.kanban-card{position:relative;padding-top:38px}
+.application-tracker-navigator{display:grid;grid-template-columns:34px minmax(0,1fr) 34px 34px;align-items:center;gap:7px;margin:-3px 0 11px;padding-bottom:10px;border-bottom:1px solid var(--line)}.application-tracker-navigator>span{display:grid;gap:1px;text-align:center}.application-tracker-navigator strong{font-size:10px;color:var(--ink)}.application-tracker-navigator small{font-size:8px;color:var(--muted)}.application-tracker-navigator button{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:50%;background:var(--surface-soft);color:var(--accent-heading);font-size:15px;font-weight:900;cursor:pointer}.application-tracker-navigator button:hover:not(:disabled),.application-tracker-navigator button:focus-visible{border-color:var(--accent);background:var(--accent-soft);outline:none}.application-tracker-navigator button:disabled{opacity:.28;cursor:not-allowed}.application-tracker-navigator>i{width:34px}.application-tracker-navigator .application-tracker-retry{color:#b76f16;border-color:color-mix(in srgb,#d69232 55%,var(--line));background:color-mix(in srgb,#d69232 11%,var(--panel))}
+.auto-apply-queue-list article.auto-queue-current.is-running{border-color:#63b889;background:color-mix(in srgb,#35a66f 13%,var(--panel));box-shadow:inset 3px 0 0 #35a66f}.auto-apply-queue-list article.auto-queue-current.is-running>b{background:#2f9b69;box-shadow:0 0 0 4px rgba(47,155,105,.13)}.auto-apply-queue-list article.auto-queue-current.is-running em{background:rgba(47,155,105,.14);color:#267c57}body.theme-dark .auto-apply-queue-list article.auto-queue-current.is-running em{color:#8fddb4}
+
 * { box-sizing: border-box; }
 @property --dock-label { syntax: '<number>'; inherits: true; initial-value: 0; }
 [hidden] { display: none !important; }
