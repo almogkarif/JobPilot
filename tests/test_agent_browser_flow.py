@@ -3,7 +3,9 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _display_field_label, _extract_fields, _external_application_id_from_url,
-                           _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button, _is_lever_submission_endpoint, _lever_submission_response_result,
+                           _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
+                           _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
 
@@ -93,6 +95,18 @@ def test_lever_submission_post_response_is_definitive_evidence():
         "https://jobs.eu.lever.co/mobileye/d1f956e3-fc71-4a88-90d1-bdaf99fa96f0/apply"
     ) is True
     assert _is_lever_submission_endpoint("https://example.com/apply") is False
+
+
+def test_greenhouse_submission_response_requires_explicit_success_evidence():
+    url = "https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123"
+    assert _is_hosted_ats_submission_endpoint(url)
+    evidence, _, error = _hosted_ats_submission_response_result(
+        url, 200, '<h1>Thank you for applying</h1>'
+    )
+    assert evidence
+    assert error == ""
+    assert _hosted_ats_submission_response_result(url, 200, "ordinary page") == ("", "", "")
+    assert _hosted_ats_submission_response_result("https://analytics.example/collect", 200, '{"success":true}') == ("", "", "")
 
     evidence, application_id, error = _lever_submission_response_result(
         "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
@@ -319,6 +333,37 @@ def test_required_small_select_becomes_choice_blocker():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "choice_required"
             assert blocker.question == "Is a family member currently employed by Mobileye?"
+            assert blocker.options == ["Yes", "No"]
+        finally:
+            browser.close()
+
+
+def test_dynamic_combobox_becomes_clickable_choice_blocker():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <label id="fixed-term-label" for="fixed-term">Open to a fixed-term role?*</label>
+          <input id="fixed-term" role="combobox" aria-labelledby="fixed-term-label" aria-required="true">
+          <div id="choices" hidden><div role="option">Yes</div><div role="option">No</div></div>
+          <script>
+            document.querySelector('[role=combobox]').addEventListener('click', () => choices.hidden = false);
+            document.querySelector('[role=combobox]').addEventListener('keydown', event => {
+              if (event.key === 'Escape') choices.hidden = true;
+            });
+          </script>
+          <button type="submit">Submit Application</button>
+        """))
+        task = {
+            "job": {"apply_url": "https://careers.example.test/apply"},
+            "profile": {"full_name": "Demo Candidate"}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The dynamic choice must not be treated as free text")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "choice_required"
+            assert blocker.question == "Open to a fixed-term role?*"
             assert blocker.options == ["Yes", "No"]
         finally:
             browser.close()

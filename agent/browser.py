@@ -45,6 +45,7 @@ DUPLICATE_SUBMISSION_TERMS = [
 SMALL_CHOICE_MAX_OPTIONS = 6
 LEVER_API_HOSTS = {"api.lever.co", "api.eu.lever.co"}
 LEVER_JOBS_HOSTS = {"jobs.lever.co", "jobs.eu.lever.co"}
+GREENHOUSE_HOSTS = {"job-boards.greenhouse.io", "boards.greenhouse.io", "boards.eu.greenhouse.io"}
 CHOICE_PLACEHOLDERS = {
     "select", "select an option", "select option", "please select", "choose", "choose an option",
     "choose option", "please choose", "בחר", "בחר תשובה", "נא לבחור",
@@ -182,6 +183,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories))
+        # Opening a custom combobox can reveal its closed set of choices and can
+        # also re-render its hidden required input. Re-snapshot before validation.
+        fields = _extract_fields(page)
+        actionable_fields = [
+            field for field in fields
+            if not field.get("disabled") and (
+                field.get("visible") or (field.get("type") == "file" and is_application_path)
+            )
+        ]
         filled.extend(_fill_tokenized_skills(page, profile))
         anonymous_month_index = 0
         for field in actionable_fields:
@@ -333,6 +343,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             lever_submit_requests = []
             lever_submit_responses = []
             lever_submit_failures = []
+            hosted_submit_responses = []
 
             def capture_lever_request(request):
                 try:
@@ -343,7 +354,24 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
             def capture_lever_response(response):
                 try:
-                    if response.request.method.upper() != "POST" or not _is_lever_submission_endpoint(response.url):
+                    if response.request.method.upper() != "POST":
+                        return
+                    if _is_hosted_ats_submission_endpoint(response.url):
+                        payload_text = ""
+                        try:
+                            payload_text = response.text()
+                        except Exception:
+                            pass
+                        location = ""
+                        try:
+                            location = response.header_value("location") or ""
+                        except Exception:
+                            pass
+                        hosted_submit_responses.append({
+                            "url": response.url, "status": response.status,
+                            "text": payload_text[:100_000], "location": location,
+                        })
+                    if not _is_lever_submission_endpoint(response.url):
                         return
                     payload = {}
                     try:
@@ -393,6 +421,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             for _ in range(40):
                 _detect_captcha(page)
                 network_evidence, network_application_id, network_error = _lever_submission_responses_result(responses=lever_submit_responses)
+                if not network_evidence and not network_error:
+                    network_evidence, network_application_id, network_error = _hosted_ats_submission_responses_result(
+                        responses=hosted_submit_responses
+                    )
                 if lever_submit_requests and progress and not post_reported:
                     progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Lever", lever_submit_requests[-1])
                     post_reported = True
@@ -413,9 +445,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 page.wait_for_timeout(500)
             if network_evidence:
                 return {
-                    "submitted": True, "message": "Lever accepted the application",
+                    "submitted": True, "message": "The ATS accepted the application",
                     "page_url": page.url, "confirmation_text": network_evidence,
-                    "evidence": [{"type": "lever_submission_response", "value": network_evidence, "url": page.url}],
+                    "evidence": [{"type": "ats_submission_response", "value": network_evidence, "url": page.url}],
                     "external_application_id": network_application_id,
                 }
             if network_error:
@@ -634,6 +666,12 @@ def _extract_fields(page: Page) -> list[dict]:
                 const optionLabel = option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : option.closest('label');
                 return (optionLabel?.innerText || option.value || '').replace(/\s+/g, ' ').trim();
               }).filter(Boolean);
+            }
+            if (!options.length) {
+              const optionHost = el.closest('[data-jobpilot-options]');
+              if (optionHost) {
+                try { options = JSON.parse(optionHost.dataset.jobpilotOptions || '[]'); } catch (_) {}
+              }
             }
             const style = window.getComputedStyle(el);
             const rect = el.getBoundingClientRect();
@@ -1413,6 +1451,12 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
         try:
             label = control.get_attribute("aria-label") or ""
             if not label:
+                labelled_by = (control.get_attribute("aria-labelledby") or "").split()
+                label = " ".join(
+                    page.locator(f"#{ref}").inner_text(timeout=500)
+                    for ref in labelled_by if page.locator(f"#{ref}").count()
+                )
+            if not label:
                 label = control.locator("xpath=ancestor::*[self::fieldset or @role='group' or @data-automation-id][1]").inner_text(timeout=1_000)
             key = normalize(label)
             if "skill" in key:
@@ -1429,6 +1473,28 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 known = known_value(label, "select", profile, answers, memories)
                 candidate = str(known.value) if known else ""
             if not candidate:
+                # Open unresolved compact dropdowns once so their real choices are
+                # available to the blocker UI instead of presenting a free-text box.
+                control.click(timeout=2_000)
+                page.wait_for_timeout(250)
+                options = []
+                visible_options = page.locator('[role="option"]:visible')
+                for option_index in range(min(visible_options.count(), SMALL_CHOICE_MAX_OPTIONS + 1)):
+                    value = re.sub(r"\s+", " ", visible_options.nth(option_index).inner_text(timeout=500)).strip()
+                    if value and value not in options:
+                        options.append(value)
+                if 2 <= len(options) <= SMALL_CHOICE_MAX_OPTIONS:
+                    control.evaluate(
+                        "(el, options) => { const host = el.closest('.field-wrapper, [class*=field], [class*=question]') || el.parentElement; host.dataset.jobpilotOptions = JSON.stringify(options); }",
+                        options,
+                    )
+                control.press("Escape")
+                if 2 <= len(options) <= SMALL_CHOICE_MAX_OPTIONS:
+                    raise ApplicationBlocked(
+                        "choice_required", label or "בחירה נדרשת", label or "בחירה נדרשת",
+                        "נדרשת בחירה מאושרת כדי להמשיך. בחר אחת מהאפשרויות והסוכן ימשיך אוטומטית.",
+                        page.url, options,
+                    )
                 continue
             _show_agent_pointer(page, control, f"בוחר: {candidate}")
             control.click(timeout=2_000)
@@ -1439,6 +1505,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 filled.append({"label": label or "בחירה", "source": "profile"})
             else:
                 control.press("Escape")
+        except ApplicationBlocked:
+            raise
         except Exception:
             continue
     return filled
@@ -1641,6 +1709,54 @@ def _is_lever_submission_endpoint(url: str) -> bool:
     if host in LEVER_JOBS_HOSTS:
         return path.endswith("/apply")
     return False
+
+
+def _is_hosted_ats_submission_endpoint(url: str) -> bool:
+    """Identify trusted hosted-form POSTs without trusting CAPTCHA/analytics traffic."""
+    try:
+        parsed = urlparse(str(url or ""))
+    except Exception:
+        return False
+    host = (parsed.hostname or "").casefold()
+    path = (parsed.path or "").casefold()
+    if host in GREENHOUSE_HOSTS:
+        return "/embed/job_app" in path or "/applications" in path or "/jobs/" in path
+    return False
+
+
+def _hosted_ats_submission_response_result(
+    url: str, status: int, text: str = "", location: str = ""
+) -> tuple[str, str, str]:
+    """Classify a hosted ATS response; a plain 2xx is intentionally insufficient."""
+    if not _is_hosted_ats_submission_endpoint(url):
+        return "", "", ""
+    code = int(status or 0)
+    body = normalize(str(text or ""))
+    redirect = normalize(str(location or ""))
+    evidence_term = next((term for term in SUCCESS_TERMS if normalize(term) in body), "")
+    if not evidence_term and redirect:
+        evidence_term = next((term for term in SUCCESS_TERMS if normalize(term) in redirect), "")
+    compact = re.sub(r"\s+", "", str(text or "")).casefold()
+    explicit_json_success = any(token in compact for token in ('"success":true', '"submitted":true'))
+    if 200 <= code < 400 and (evidence_term or explicit_json_success):
+        return evidence_term or "Greenhouse accepted the application", "", ""
+    if code >= 400:
+        return "", "", f"The hosted ATS rejected the application (HTTP {code})"
+    return "", "", ""
+
+
+def _hosted_ats_submission_responses_result(*, responses: list) -> tuple[str, str, str]:
+    last_error = ""
+    for response in list(responses):
+        evidence, application_id, error = _hosted_ats_submission_response_result(
+            str(response.get("url") or ""), int(response.get("status") or 0),
+            str(response.get("text") or ""), str(response.get("location") or ""),
+        )
+        if evidence:
+            return evidence, application_id, ""
+        if error:
+            last_error = error
+    return "", "", last_error
 
 
 def _lever_submission_response_result(url: str, status: int, payload, location: str = "") -> tuple[str, str, str]:

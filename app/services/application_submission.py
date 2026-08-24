@@ -74,7 +74,10 @@ def automation_apply_url(job) -> str:
 
     raw_identifier = str(getattr(source, "identifier", "") or "").strip()
     token = raw_identifier.split(":", 1)[1] if raw_identifier.casefold().startswith("eu:") else raw_identifier
-    external_id = str(getattr(job, "external_id", "") or "").strip()
+    query = parse_qs(urlparse(original).query)
+    url_job_id = next((values[0] for key, values in query.items()
+                       if key.casefold() == "gh_jid" and values and str(values[0]).strip()), "")
+    external_id = str(url_job_id or getattr(job, "external_id", "") or "").strip()
     if not token or not external_id:
         return original
 

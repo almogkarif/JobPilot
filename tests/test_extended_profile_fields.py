@@ -23,6 +23,12 @@ def test_common_workday_profile_fields_are_filled_from_extended_profile():
     assert known_value("Languages", "text", PROFILE, {}, []).value.startswith("Hebrew")
     assert known_value("Website", "url", PROFILE, {}, []).value == "https://example.dev"
     assert known_value("Technical Skills", "text", PROFILE, {}, []).value == "Python, Linux"
+    assert known_value("Most Recent Title*", "text", PROFILE, {}, []).value == "Software Engineer"
+
+
+def test_semantic_email_type_survives_a_missing_framework_label():
+    profile = {**PROFILE, "email": "demo@example.com"}
+    assert known_value("opaque generated field", "email", profile, {}, []).value == "demo@example.com"
 
 
 def test_missing_job_title_gets_professional_profile_error():

@@ -69,6 +69,15 @@ def test_greenhouse_company_branded_url_resolves_to_native_hosted_form():
     assert automation_apply_url(job) == "https://job-boards.greenhouse.io/embed/job_app?for=taboola&token=8081260"
 
 
+def test_greenhouse_public_gh_jid_repairs_a_stale_stored_external_id():
+    source = SimpleNamespace(kind="greenhouse", identifier="taboola")
+    job = SimpleNamespace(
+        source=source, external_id="stale-id",
+        apply_url="https://www.taboola.com/careers/job/algorithm-engineer-rtb?gh_jid=8081260",
+    )
+    assert automation_apply_url(job).endswith("for=taboola&token=8081260")
+
+
 def test_existing_hosted_greenhouse_url_uses_embed_application_surface():
     source = SimpleNamespace(kind="greenhouse", identifier="pagayais")
     job = SimpleNamespace(

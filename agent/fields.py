@@ -68,6 +68,13 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
             return CandidateValue(profile["grade_sheet_path"], "profile_grade_sheet")
         return None
 
+    # Semantic input types survive label-less React re-renders and are exact for
+    # these identity fields.
+    if field_type == "email" and str(profile.get("email", "")).strip():
+        return CandidateValue(profile["email"], "profile")
+    if field_type == "tel" and str(profile.get("phone", "")).strip():
+        return CandidateValue(profile["phone"], "profile")
+
     # Workday uses very short labels for employment dates. They must be exact:
     # substring matching "to" would incorrectly match "Type to Add Skills".
     if key == "from" and extra.get("employment_start_date"):
@@ -113,7 +120,7 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["state", "province", "region"], extra.get("state", ""), "profile"),
         (["country"], extra.get("country", "") or profile.get("location", ""), "profile"),
         (["phone country code", "country phone code"], extra.get("phone_country_code", ""), "profile"),
-        (["job title", "position title", "role title"], extra.get("current_job_title", ""), "profile"),
+        (["job title", "position title", "role title", "most recent title", "current title"], extra.get("current_job_title", ""), "profile"),
         (["company", "employer", "organization name"], extra.get("current_company", ""), "profile"),
         (["employment type"], extra.get("employment_type", ""), "profile"),
         (["job location", "employment location"], extra.get("employment_location", ""), "profile"),
