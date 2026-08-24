@@ -3462,12 +3462,12 @@ const NOTIFICATION_VIEWS = {
   sources: { icon: '↯', title: 'מקורות דורשים בדיקה', copy: 'מקור אחד או יותר דיווח על שגיאה' },
 };
 let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
-let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null,applicationTrackingVersion='',applicationTrackingPollBusy=false,trackingApplications=[];
-const TRACKABLE_APPLICATION_STATUSES=new Set(['queued','applying','needs_input','verification_pending','failed']);
-async function refreshTrackingApplications(){try{const rows=await api('/api/applications');trackingApplications=rows.filter(item=>item.mode==='auto'&&TRACKABLE_APPLICATION_STATUSES.has(item.status));return trackingApplications}catch{return trackingApplications}}
+let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null,applicationTrackingVersion='',applicationTrackingPollBusy=false,trackingApplications=[],notificationTrackingRefreshTimer=null;
+const TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','verification_pending','failed']);
+async function refreshTrackingApplications(){try{const rows=await api('/api/applications'),currentQueueId=Number(state.autoApplyQueue?.current?.id||0);trackingApplications=rows.filter(item=>item.mode==='auto'&&(TRACKABLE_APPLICATION_STATUSES.has(item.status)||(item.status==='queued'&&(Number(item.attempt_count||0)>0||Number(item.id)===Number(trackedApplicationId)||Number(item.id)===currentQueueId)))).sort((a,b)=>Number(a.id)-Number(b.id));return trackingApplications}catch{return trackingApplications}}
 function trackedApplicationPosition(){const index=trackingApplications.findIndex(item=>Number(item.id)===Number(trackedApplicationId));return {index,total:trackingApplications.length}}
 function trackingNavigatorMarkup(status=''){const {index,total}=trackedApplicationPosition(),known=index>=0;if(!known||!total)return '';const retryable=status==='failed';return `<nav class="application-tracker-navigator" aria-label="מעבר בין הגשות שלא הושלמו"><button type="button" onclick="moveTrackedApplication(-1)" aria-label="המשרה הקודמת" title="המשרה הקודמת" ${index===0?'disabled':''}>→</button><span><strong>משרה ${index+1} מתוך ${total}</strong><small>הגשות שטרם הושלמו</small></span>${retryable?`<button class="application-tracker-retry" type="button" onclick="retryTrackedApplication(${trackedApplicationId})" aria-label="הגשה מחדש" title="הגשה מחדש">↻</button>`:'<i></i>'}<button type="button" onclick="moveTrackedApplication(1)" aria-label="המשרה הבאה" title="המשרה הבאה" ${index===total-1?'disabled':''}>←</button></nav>`}
-function moveTrackedApplication(direction){const {index,total}=trackedApplicationPosition(),next=index+Number(direction||0);if(index<0||next<0||next>=total)return;startApplicationTracking(trackingApplications[next].id,false)}
+async function moveTrackedApplication(direction){await refreshTrackingApplications();const {index,total}=trackedApplicationPosition(),next=index+Number(direction||0);if(index<0||next<0||next>=total){renderNotificationCenter();return}startApplicationTracking(trackingApplications[next].id,false)}
 async function retryTrackedApplication(id){try{await api(`/api/applications/${id}/retry?auto_submit=true`,{method:'POST'});toast('ההגשה הוחזרה לתור ומופעלת מחדש');await refreshTrackingApplications();startApplicationTracking(id,false)}catch(error){toast(error.message)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
@@ -3486,7 +3486,7 @@ window.openAutoQueueApplication=openAutoQueueApplication;
 window.prioritizeAutoQueueApplication=prioritizeAutoQueueApplication;
 window.cancelAutoQueueApplication=cancelAutoQueueApplication;
 const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה נשמרה בבטחה'],['worker_dispatched','ה־worker הופעל','GitHub Actions מכין סביבת עבודה זמנית'],['attempt_started','סביבת הרקע מוכנה','המשימה נלקחה לעבודה בלעדית'],['page_opened','עמוד ההגשה נפתח','נפתח ב־Chromium נסתר בענן'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים והמסמכים מולאו','הפרופיל, קורות החיים וגיליון הציונים (אם נדרש) הוזנו'],['submit_clicked','נלחץ Submit','כפתור ה־Submit הסופי נלחץ; עדיין לא נחשב כהגשה'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
-function openNotifications(){setMobileTabMenu(false);refreshTrackingApplications().then(renderNotificationCenter);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
+function openNotifications(){setMobileTabMenu(false);clearInterval(notificationTrackingRefreshTimer);refreshTrackingApplications().then(renderNotificationCenter);notificationTrackingRefreshTimer=setInterval(()=>refreshTrackingApplications().then(renderNotificationCenter),3000);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
 function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
   const data=applicationTrackingData,events=data.events||[],latestAttemptId=Number(data.attempts?.[0]?.id||0),attemptEvents=latestAttemptId?events.filter(event=>['queued','worker_dispatched','grade_sheet_auto_requeued'].includes(event.event_type)||Number(event.details?.attempt_id||0)===latestAttemptId):events,types=new Set(attemptEvents.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
@@ -3548,14 +3548,16 @@ function renderNotificationCenter() {
   $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
 }
 function closeNotifications() {
+  clearInterval(notificationTrackingRefreshTimer);notificationTrackingRefreshTimer=null;
   $('#notification-center').classList.remove('open');
   $('#notification-center').setAttribute('aria-hidden','true');
   $('#notification-trigger').setAttribute('aria-expanded','false');
 }
 $('#notification-trigger').onclick = () => {
   setMobileTabMenu(false);
-  renderNotificationCenter();
   const open = $('#notification-center').classList.toggle('open');
+  clearInterval(notificationTrackingRefreshTimer);notificationTrackingRefreshTimer=null;
+  if(open){refreshTrackingApplications().then(renderNotificationCenter);notificationTrackingRefreshTimer=setInterval(()=>refreshTrackingApplications().then(renderNotificationCenter),3000)}else renderNotificationCenter();
   $('#notification-center').setAttribute('aria-hidden', String(!open));
   $('#notification-trigger').setAttribute('aria-expanded', String(open));
 };
