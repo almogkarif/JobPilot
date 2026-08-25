@@ -573,7 +573,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "submit_not_sent", "שליחת המועמדות", "הטופס לא יצא מ־Greenhouse",
                     "Greenhouse עצר את השליחה לפני שנשלחה בקשת POST. " +
                     (submit_error or "לא זוהתה בקשת הגשה אמיתית; ייתכן ששדה חובה או אימות סמוי עצר את הטופס."),
-                    page.url,
+                    page.url, diagnostics=_submission_diagnostics(page, filled),
                 )
             raise ApplicationBlocked(
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
@@ -854,6 +854,9 @@ def _extract_fields(page: Page) -> list[dict]:
               role: el.getAttribute('role') || '',
               aria_label: el.getAttribute('aria-label') || '',
               autocomplete: el.getAttribute('autocomplete') || '',
+              aria_invalid: el.getAttribute('aria-invalid') || '',
+              validation_message: el.validationMessage || '',
+              class_name: typeof el.className === 'string' ? el.className.slice(0, 300) : '',
               label,
               group_label: groupLabel.slice(0, 500),
               file_context: fileContext,
@@ -2017,8 +2020,19 @@ def _field_diagnostics(field: dict) -> dict:
     """Return structural field metadata only; never include entered values."""
     return {key: field.get(key) for key in (
         "tag", "type", "name", "automation", "role", "aria_label", "autocomplete",
-        "label", "group_label", "placeholder", "required", "visible", "disabled", "options",
+        "aria_invalid", "validation_message", "class_name", "label", "group_label", "placeholder",
+        "required", "visible", "disabled", "options",
     )}
+
+
+def _submission_diagnostics(page: Page, filled: list[dict] | None = None) -> dict:
+    fields = _extract_fields(page)
+    invalid = [field for field in fields if field.get("aria_invalid") == "true" or field.get("validation_message")]
+    return {
+        "invalid_fields": [_field_diagnostics(field) for field in invalid[:8]],
+        "comboboxes": [_field_diagnostics(field) for field in fields if field.get("role") == "combobox"][:12],
+        "filled_fields": [{"label": item.get("label"), "source": item.get("source")} for item in (filled or [])[-20:]],
+    }
 
 
 def _lever_submission_response_result(url: str, status: int, payload, location: str = "") -> tuple[str, str, str]:

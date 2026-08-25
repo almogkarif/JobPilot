@@ -5,6 +5,7 @@ import time
 import signal
 import inspect
 import re
+import json
 from urllib.parse import unquote
 from contextlib import contextmanager
 from datetime import datetime
@@ -232,6 +233,8 @@ def run_task(context, task: dict):
         blocker.attempt_id = attempt_id
         report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
         print(f"[blocked:{blocker.kind}] {blocker.explanation}")
+        if blocker.diagnostics:
+            print(f"[diagnostics] {json.dumps(blocker.diagnostics, ensure_ascii=False, separators=(',', ':'))}")
     except AgentTaskTimeout as exc:
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"recovery_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
