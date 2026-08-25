@@ -2026,12 +2026,18 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
     except Exception:
         return False
     host = (parsed.hostname or "").casefold()
-    return host in GREENHOUSE_HOSTS
+    path = (parsed.path or "").rstrip("/").casefold()
+    is_ashby_graphql = (
+        (host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"))
+        and path == "/api/non-user-graphql"
+    )
+    return host in GREENHOUSE_HOSTS or is_ashby_graphql
 
 
 def _is_hosted_ats_apply_url(url: str) -> bool:
     try:
-        return (urlparse(str(url or "")).hostname or "").casefold() in GREENHOUSE_HOSTS
+        host = (urlparse(str(url or "")).hostname or "").casefold()
+        return host in GREENHOUSE_HOSTS or host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
     except Exception:
         return False
 
@@ -2043,12 +2049,26 @@ def _hosted_ats_submission_response_result(
     if not _is_hosted_ats_submission_endpoint(url):
         return "", "", ""
     code = int(status or 0)
+    host = (urlparse(str(url or "")).hostname or "").casefold()
     body = normalize(str(text or ""))
     redirect = normalize(str(location or ""))
     evidence_term = next((term for term in SUCCESS_TERMS if normalize(term) in body), "")
     if not evidence_term and redirect:
         evidence_term = next((term for term in SUCCESS_TERMS if normalize(term) in redirect), "")
     compact = re.sub(r"\s+", "", str(text or "")).casefold()
+    is_ashby = host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
+    if is_ashby:
+        is_application_action = any(token in compact for token in (
+            '"submitapplicationformaction"', '"submitsingleapplicationformaction"',
+            '"submitmultipleformsaction"',
+        ))
+        if 200 <= code < 300 and is_application_action and '"__typename":"formsubmitsuccess"' in compact:
+            return "Ashby accepted the application", "", ""
+        if code >= 400 or (is_application_action and any(token in compact for token in (
+            '"__typename":"formsubmitfailure"', '"errors":[',
+        ))):
+            return "", "", f"Ashby rejected the application (HTTP {code})"
+        return "", "", ""
     explicit_json_success = any(token in compact for token in ('"success":true', '"submitted":true'))
     if 200 <= code < 400 and (evidence_term or explicit_json_success):
         return evidence_term or "Greenhouse accepted the application", "", ""

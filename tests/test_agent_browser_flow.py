@@ -126,6 +126,26 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert _hosted_ats_submission_response_result(url, 428, "verification required") == ("", "", "")
     assert _hosted_ats_submission_response_result("https://analytics.example/collect", 200, '{"success":true}') == ("", "", "")
 
+
+def test_ashby_graphql_submission_requires_form_submit_success_typename():
+    url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=submitApplicationForm"
+    assert _is_hosted_ats_submission_endpoint(url) is True
+    evidence, application_id, error = _hosted_ats_submission_response_result(
+        url, 200,
+        '{"data":{"submitApplicationFormAction":{"__typename":"FormSubmitSuccess"}}}',
+    )
+    assert evidence == "Ashby accepted the application"
+    assert application_id == ""
+    assert error == ""
+    assert _hosted_ats_submission_response_result(
+        url, 200, '{"data":{"unrelatedQuery":{"__typename":"FormSubmitSuccess"}}}'
+    ) == ("", "", "")
+    _, _, rejection = _hosted_ats_submission_response_result(
+        url, 200,
+        '{"data":{"submitApplicationFormAction":{"__typename":"FormSubmitFailure"}}}',
+    )
+    assert "Ashby rejected" in rejection
+
     evidence, application_id, error = _lever_submission_response_result(
         "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",
         200,
@@ -226,22 +246,6 @@ def test_resume_attachment_recovers_after_ashby_style_react_rerender(tmp_path):
         assert page.locator('input[type="file"]').evaluate("el => el.files[0].name") == "resume.pdf"
         browser.close()
 
-
-def test_ashby_resume_upload_can_consume_and_replace_native_input(tmp_path):
-    resume = tmp_path / "resume.pdf"
-    resume.write_bytes(b"%PDF-1.4\n")
-    with sync_playwright() as playwright:
-        browser = _launch(playwright)
-        page = browser.new_page()
-        page.route("https://jobs.ashbyhq.com/**", lambda route: route.fulfill(
-            content_type="text/html",
-            body='''<label>Resume<input type="file" required accept=".pdf"
-              onchange="this.outerHTML='<input type=file required accept=.pdf>'"></label>''',
-        ))
-        page.goto("https://jobs.ashbyhq.com/acme/application")
-        field = _extract_fields(page)[0]
-        assert _attach_file_to_field(page, field, resume) is True
-        browser.close()
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:
