@@ -134,6 +134,7 @@ def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_
             "options": blocker.options,
             "screenshot_path": screenshot_path,
             "page_url": blocker.page_url,
+            "diagnostics": blocker.diagnostics,
         },
     )
 

@@ -65,6 +65,28 @@ def test_failure_diagnostics_contains_question_error_attempt_and_timeline():
         assert row["events"][0]["details"] == {"stage": "details_filled"}
 
 
+def test_agent_blocker_diagnostics_are_saved_in_timeline_without_field_values():
+    with TestClient(app) as client:
+        job = _make_job(client, "Structural diagnostics engineer")
+        application_id, task = _queue_and_claim(client, job)
+        response = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "attempt_id": task["attempt"]["id"],
+                "kind": "choice_required", "field_label": "Experience question",
+                "question": "Experience question", "options": ["Yes", "No"],
+                "explanation": "Choice required",
+                "diagnostics": {"type": "radio", "name": "experience", "required": True},
+            },
+        )
+        assert response.status_code == 200, response.text
+        timeline = client.get(f"/api/applications/{application_id}/timeline").json()
+        event = next(item for item in timeline["events"] if item["event_type"] == "blocked")
+        assert event["details"]["diagnostics"] == {
+            "type": "radio", "name": "experience", "required": True,
+        }
+
+
 def _isolate_queue(application_id: int) -> None:
     with SessionLocal() as db:
         for application in db.scalars(select(Application)).all():

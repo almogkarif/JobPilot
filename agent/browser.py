@@ -61,7 +61,8 @@ GENERIC_FILE_ACTION_LABELS = {
 
 
 class ApplicationBlocked(Exception):
-    def __init__(self, kind: str, label: str, question: str, explanation: str, page_url: str, options=None):
+    def __init__(self, kind: str, label: str, question: str, explanation: str, page_url: str, options=None,
+                 diagnostics: dict | None = None):
         super().__init__(explanation)
         self.kind = kind
         self.label = label
@@ -69,6 +70,7 @@ class ApplicationBlocked(Exception):
         self.explanation = explanation
         self.page_url = page_url
         self.options = options or []
+        self.diagnostics = diagnostics or {}
 
 
 def ensure_supported(url: str) -> None:
@@ -186,7 +188,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
-        filled.extend(_fill_custom_comboboxes(page, profile, answers, memories))
+        filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
         # Opening a custom combobox can reveal its closed set of choices and can
         # also re-render its hidden required input. Re-snapshot before validation.
         fields = _extract_fields(page)
@@ -321,13 +323,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 raise ApplicationBlocked(
                     "choice_required", label, label,
                     "נדרשת בחירה מאושרת כדי להמשיך. בחר אחת מהאפשרויות והסוכן ימשיך אוטומטית.",
-                    page.url, choice_options,
+                    page.url, choice_options, _field_diagnostics(field),
                 )
             missing = missing_profile_context(label)
             raise ApplicationBlocked(
                 "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
                 missing[1] if missing else "זהו שדה חובה שאין עבורו תשובה מאושרת בפרופיל. ענה במערכת והסוכן ינסה שוב מההתחלה.",
-                page.url, field.get("options", []),
+                page.url, field.get("options", []), _field_diagnostics(field),
             )
 
         if progress:
@@ -506,9 +508,18 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "external_application_id": network_application_id,
                 }
             if network_error:
+                hosted_error = bool(hosted_submit_responses or hosted_submit_failures)
                 raise ApplicationBlocked(
-                    "submit_rejected", "שליחת המועמדות", "Lever לא קיבל את המועמדות",
-                    network_error, page.url,
+                    "submit_rejected", "שליחת המועמדות",
+                    ("Greenhouse לא קיבל את המועמדות" if hosted_error else "Lever לא קיבל את המועמדות"),
+                    network_error, page.url, diagnostics={
+                        "hosted_responses": [{"url": item.get("url"), "status": item.get("status"),
+                                              "location": item.get("location"), "body_length": len(item.get("text") or "")}
+                                             for item in hosted_submit_responses[-3:]],
+                        "lever_responses": [{"url": item.get("url"), "status": item.get("status"),
+                                             "location": item.get("location")}
+                                            for item in lever_submit_responses[-3:]],
+                    },
                 )
             if confirmation_text:
                 external_application_id = _external_application_id_from_url(page.url)
@@ -736,7 +747,10 @@ def _extract_fields(page: Page) -> list[dict]:
             }
             let groupLabel = '';
             if ((el.type || '').toLowerCase() === 'radio') {
-              const group = el.closest('fieldset, [role="radiogroup"], [role="group"], .application-question, .ashby-application-form-question, [class*="question"], [class*="field"]');
+              const peers = el.name ? [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)] : [el];
+              let common = peers[0] || el;
+              while (common && !peers.every(peer => common.contains(peer))) common = common.parentElement;
+              const group = el.closest('fieldset, [role="radiogroup"], .application-question, .ashby-application-form-question, [class*="question"]') || common;
               if (group) {
                 const direct = group.querySelector('legend, [role="heading"], .application-label, [class*="question-title"], [class*="questionTitle"]');
                 groupLabel = (direct?.innerText || '').replace(/\s+/g, ' ').trim();
@@ -744,6 +758,25 @@ def _extract_fields(page: Page) -> list[dict]:
                   const optionLabels = new Set([...group.querySelectorAll('label')].map(node => (node.innerText || '').replace(/\s+/g, ' ').trim()));
                   const lines = (group.innerText || '').split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
                   groupLabel = lines.find(value => value.length >= 3 && value.length <= 300 && !optionLabels.has(value)) || '';
+                }
+                if (!groupLabel && common) {
+                  const optionLabels = new Set(peers.map(option => {
+                    const node = option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : option.closest('label');
+                    return (node?.innerText || option.value || '').replace(/\s+/g, ' ').trim();
+                  }));
+                  let context = common;
+                  for (let depth = 0; context && depth < 4 && !groupLabel; depth++, context = context.parentElement) {
+                    const raw = (context.innerText || '').trim();
+                    if (raw.length > 1600) continue;
+                    const lines = raw.split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
+                    groupLabel = lines.find(value => value.length >= 4 && value.length <= 500
+                      && !optionLabels.has(value) && !/^(required|optional|yes|no)$/i.test(value)) || '';
+                    let sibling = context.previousElementSibling;
+                    for (let hops = 0; sibling && hops < 3 && !groupLabel; hops++, sibling = sibling.previousElementSibling) {
+                      const text = (sibling.innerText || '').replace(/\s+/g, ' ').trim();
+                      if (text.length >= 4 && text.length <= 500) groupLabel = text;
+                    }
+                  }
                 }
               }
             }
@@ -800,6 +833,7 @@ def _extract_fields(page: Page) -> list[dict]:
               automation: el.getAttribute('data-automation-id') || '',
               role: el.getAttribute('role') || '',
               aria_label: el.getAttribute('aria-label') || '',
+              autocomplete: el.getAttribute('autocomplete') || '',
               label,
               group_label: groupLabel.slice(0, 500),
               file_context: fileContext,
@@ -1038,6 +1072,7 @@ def _display_field_label(field: dict) -> str:
     file_context = str(field.get("file_context") or "").strip()
     raw_name = str(field.get("name") or "").strip()
     placeholder = str(field.get("placeholder") or "").strip()
+    autocomplete = normalize(str(field.get("autocomplete") or ""))
     technical_name = bool(re.fullmatch(r"cards\[[^]]+\]\[field\d+\]", raw_name, flags=re.IGNORECASE))
     # Lever and several hosted ATSs label the file control itself only as
     # "Upload file". The actual question (for example Grade Sheet Submission)
@@ -1049,6 +1084,10 @@ def _display_field_label(field: dict) -> str:
         return file_context[:500]
     if field.get("type") == "radio" and group_label:
         return group_label[:500]
+    if field.get("type") == "email" or autocomplete == "email" or re.search(r"(?:^|[^a-z])e?mail(?:[^a-z]|$)", raw_name, re.I):
+        return "Email"
+    if field.get("type") == "tel" or autocomplete in {"tel", "tel national"}:
+        return "Phone"
     if label:
         return label
     if field.get("type") == "file" and file_context:
@@ -1602,7 +1641,18 @@ def _best_visible_option(page: Page, value: str) -> Locator | None:
     return best
 
 
-def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: list) -> list[dict]:
+def _job_city_candidate(profile: dict, job: dict | None) -> str:
+    extra = profile.get("application_profile", {}) or {}
+    candidates = [extra.get("city"), extra.get("employment_location"), profile.get("location"), (job or {}).get("location")]
+    for raw in candidates:
+        for part in re.split(r"[,;/|]", str(raw or "")):
+            value = part.strip()
+            if value and normalize(value) not in {"israel", "il", "remote", "hybrid", "onsite"}:
+                return value
+    return ""
+
+
+def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: list, job: dict | None = None) -> list[dict]:
     """Open custom ATS dropdowns, inspect their options, and choose the best match."""
     filled = []
     controls = page.locator('[role="combobox"]:visible, button[aria-haspopup="listbox"]:visible')
@@ -1634,6 +1684,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             if not candidate:
                 known = known_value(label, "select", profile, answers, memories)
                 candidate = str(known.value) if known else ""
+            if "city" in key and (not candidate or normalize(candidate) in {"israel", "il"}):
+                candidate = _job_city_candidate(profile, job)
             if not candidate:
                 # Open unresolved compact dropdowns once so their real choices are
                 # available to the blocker UI instead of presenting a free-text box.
@@ -1917,6 +1969,11 @@ def _hosted_ats_submission_response_result(
     explicit_json_success = any(token in compact for token in ('"success":true', '"submitted":true'))
     if 200 <= code < 400 and (evidence_term or explicit_json_success):
         return evidence_term or "Greenhouse accepted the application", "", ""
+    # Greenhouse uses 428 as an email-verification challenge. The page renders a
+    # security-code control immediately afterwards, so this is not a rejected
+    # application and must remain in the same browser session.
+    if code == 428:
+        return "", "", ""
     if code >= 400:
         return "", "", f"The hosted ATS rejected the application (HTTP {code})"
     return "", "", ""
@@ -1934,6 +1991,14 @@ def _hosted_ats_submission_responses_result(*, responses: list) -> tuple[str, st
         if error:
             last_error = error
     return "", "", last_error
+
+
+def _field_diagnostics(field: dict) -> dict:
+    """Return structural field metadata only; never include entered values."""
+    return {key: field.get(key) for key in (
+        "tag", "type", "name", "automation", "role", "aria_label", "autocomplete",
+        "label", "group_label", "placeholder", "required", "visible", "disabled", "options",
+    )}
 
 
 def _lever_submission_response_result(url: str, status: int, payload, location: str = "") -> tuple[str, str, str]:

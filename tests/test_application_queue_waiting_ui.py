@@ -90,6 +90,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "RED_ERROR" in js
     assert "recent_timeline" in js
     assert "recent_attempts" in js
+    assert "blocker_diagnostics" in js
+    assert "profile_readiness" in js
     assert "security_code_required" in js
     assert "/security-code" in js
     assert "autocomplete=\"one-time-code\"" in js

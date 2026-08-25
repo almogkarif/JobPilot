@@ -3512,6 +3512,7 @@ function applicationDiagnosticText(item,index){
     `YELLOW_QUESTION options: ${(question.options||[]).join(' | ')||'—'}`,
     `RED_ERROR explanation: ${error.explanation||'—'}`,
     `RED_ERROR raw: ${error.last_error||'—'}`,
+    `blocker_diagnostics: ${compactDiagnosticValue(item.blocker_diagnostics||{})}`,
     `saved_answers: ${compactDiagnosticValue(item.saved_answers||{})}`,
     `latest_attempt: number=${latest.attempt_number||'—'} | id=${latest.id||'—'} | status=${latest.status||'—'} | verification=${latest.verification_state||'—'} | worker_type=${latest.worker_type||'—'}`,
     `latest_attempt timing: ${latest.started_at||'—'} → ${latest.finished_at||'—'}`,
@@ -3525,7 +3526,7 @@ function applicationDiagnosticText(item,index){
   ];
   return lines.join('\n');
 }
-async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],header=[`JobPilot auto-apply diagnostics v2`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק — כולל שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
+async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],header=[`JobPilot auto-apply diagnostics v3`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק — כולל מבנה שדות, שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;window.copyApplicationFailureDiagnostics=copyApplicationFailureDiagnostics;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,running:Array.isArray(snapshot?.running)?snapshot.running:(snapshot?.current?.status==='applying'?[snapshot.current]:[]),running_count:Number(snapshot?.running_count??(snapshot?.current?.status==='applying'?1:0)),waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),attention:Array.isArray(snapshot?.attention)?snapshot.attention:[],attention_count:Number(snapshot?.attention_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
 function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}

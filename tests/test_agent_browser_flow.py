@@ -7,6 +7,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _job_city_candidate,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
@@ -118,6 +119,7 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert evidence
     assert error == ""
     assert _hosted_ats_submission_response_result(url, 200, "ordinary page") == ("", "", "")
+    assert _hosted_ats_submission_response_result(url, 428, "verification required") == ("", "", "")
     assert _hosted_ats_submission_response_result("https://analytics.example/collect", 200, '{"success":true}') == ("", "", "")
 
     evidence, application_id, error = _lever_submission_response_result(
@@ -149,6 +151,34 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert application_id == ""
     assert error == ""
 
+
+def test_radio_question_uses_common_group_context_instead_of_yes_option_label():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('''
+          <section class="application-question-wrapper">
+            <div class="application-prompt">Do you have 3+ years of professional C++ experience?</div>
+            <div class="field-option"><label><input type="radio" name="experience" value="yes" required>Yes</label></div>
+            <div class="field-option"><label><input type="radio" name="experience" value="no" required>No</label></div>
+          </section>
+        ''')
+        fields = [field for field in _extract_fields(page) if field["type"] == "radio"]
+        assert len(fields) == 2
+        assert all("3+ years" in _display_field_label(field) for field in fields)
+        browser.close()
+
+
+def test_semantic_email_and_city_fallback_survive_weak_ats_labels():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('<input type="text" name="cards[random][field0]" autocomplete="email" required>')
+        field = _extract_fields(page)[0]
+        assert _display_field_label(field) == "Email"
+        browser.close()
+    profile = {"location": "Israel", "application_profile": {}}
+    assert _job_city_candidate(profile, {"location": "Tel Aviv, Israel"}) == "Tel Aviv"
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:

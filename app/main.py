@@ -3325,7 +3325,11 @@ def automatic_application_queue(db: Session = Depends(get_db)):
 @app.get("/api/applications/failure-diagnostics")
 def application_failure_diagnostics(db: Session = Depends(get_db)):
     """Return one bounded, high-signal snapshot for troubleshooting auto-apply."""
-    track = active_track(get_user_profile(db))
+    profile = get_user_profile(db)
+    track = active_track(profile)
+    profile_extra = loads(profile.application_profile_json, {}) if profile else {}
+    if not isinstance(profile_extra, dict):
+        profile_extra = {}
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
@@ -3364,6 +3368,12 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         }
         recent_attempts = attempts_by_application.get(application.id, [])[:3]
         recent_events = events_by_application.get(application.id, [])[:10]
+        blocker_diagnostics = {}
+        for item in recent_events:
+            candidate = loads(item.details_json, {}).get("diagnostics")
+            if isinstance(candidate, dict) and candidate:
+                blocker_diagnostics = candidate
+                break
         diagnostics.append({
             "application_id": application.id,
             "job_id": application.job_id,
@@ -3392,6 +3402,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
                 "explanation": blocker.get("explanation", "") if blocker else "",
                 "last_error": application.last_error,
             },
+            "blocker_diagnostics": blocker_diagnostics,
             "saved_answers": answers,
             "attempts": [_attempt_dict(item) for item in recent_attempts],
             "events": [{
@@ -3400,7 +3411,17 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
                 "created_at": item.created_at,
             } for item in recent_events],
         })
-    return {"generated_at": utcnow(), "career_track": track, "count": len(diagnostics), "applications": diagnostics}
+    return {
+        "generated_at": utcnow(), "career_track": track, "count": len(diagnostics),
+        "profile_readiness": {
+            "email": bool(profile and str(profile.email or "").strip()),
+            "phone": bool(profile and str(profile.phone or "").strip()),
+            "location": bool(profile and str(profile.location or "").strip()),
+            "city": bool(str(profile_extra.get("city") or profile_extra.get("employment_location") or "").strip()),
+            "resume": bool(profile and str(profile.cv_path or "").strip()),
+        },
+        "applications": diagnostics,
+    }
 
 
 @app.post("/api/applications/{application_id}/prioritize")
@@ -5249,7 +5270,8 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         db, application, "verification_pending" if uncertain_submission else "blocked",
         from_status=previous_status, to_status=application.status, actor="agent",
         message=payload.explanation or payload.question,
-        details={"attempt_id": attempt.id if attempt else None, "kind": payload.kind, "page_url": payload.page_url},
+        details={"attempt_id": attempt.id if attempt else None, "kind": payload.kind,
+                 "page_url": payload.page_url, "diagnostics": payload.diagnostics},
     )
     db.add(AuditLog(event_type="application_blocked", entity_type="application", entity_id=str(application_id),
                     message=payload.question or payload.explanation))

@@ -192,6 +192,7 @@ class AgentBlockerRequest(BaseModel):
     options: list[str] = Field(default_factory=list)
     screenshot_path: str = ""
     page_url: str = ""
+    diagnostics: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgentResultRequest(BaseModel):
