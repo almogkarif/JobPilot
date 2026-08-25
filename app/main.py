@@ -5352,6 +5352,36 @@ def agent_security_code(
     return {"code": str(blocker.answer or ""), "waiting": not bool(blocker.answer)}
 
 
+@app.post("/api/agent/tasks/{application_id}/retry-stopped")
+def agent_retry_stopped_application(
+    application_id: int, payload: AgentSecurityCodeRequest, db: Session = Depends(get_db),
+):
+    """Explicit operator retry for one stopped auto application.
+
+    This endpoint is agent-token protected and deliberately excludes submitted,
+    active, queued and verification-pending rows to prevent duplicate submissions.
+    """
+    _check_agent_token(db, payload.token, application_id=application_id)
+    application = db.get(Application, application_id)
+    if not application:
+        raise HTTPException(404, "Application not found")
+    if application.mode != "auto" or not _application_auto_submit_supported(application):
+        raise HTTPException(409, "Application is not eligible for automatic submission")
+    if application.status not in {"needs_input", "failed"}:
+        raise HTTPException(409, f"Application cannot be safely retried from status {application.status}")
+    previous_status = application.status
+    application.status = "queued"
+    application.last_error = ""
+    set_job_status(db, application.job, "queued")
+    _record_application_event(
+        db, application, "operator_retry_queued", from_status=previous_status, to_status="queued",
+        actor="agent_operator", message="ההגשה הוחזרה לניסיון ממוקד על ידי מפעיל ה־worker",
+        details={"application_id": application.id},
+    )
+    db.commit()
+    return {"application_id": application.id, "status": application.status}
+
+
 @app.post("/api/applications/{application_id}/security-code")
 def submit_application_security_code(
     application_id: int, payload: SecurityCodeSubmitRequest, db: Session = Depends(get_db),

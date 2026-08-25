@@ -153,6 +153,34 @@ def test_security_code_is_delivered_only_to_the_active_attempt_and_then_erased()
             assert blocker.answer == ""
 
 
+def test_agent_operator_can_retry_only_a_stopped_auto_application(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: None)
+    with TestClient(app) as client:
+        job = _make_job(client, "Operator retry engineer")
+        application_id, task = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={"token": "change-me", "attempt_id": task["attempt"]["id"],
+                  "kind": "unknown_field", "field_label": "Question", "question": "Question",
+                  "explanation": "Needs a retry"},
+        )
+        assert blocked.status_code == 200
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            application.job.apply_url = "https://job-boards.greenhouse.io/embed/job_app?for=acme&token=operator-retry"
+            db.commit()
+        retried = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped", json={"token": "change-me"},
+        )
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["status"] == "queued"
+        denied = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped", json={"token": "change-me"},
+        )
+        assert denied.status_code == 409
+
+
 def test_final_review_approval_is_consumed_once_and_really_authorizes_next_attempt():
     with TestClient(app) as client:
         job = _make_job(client, "Junior One-Time Approval Engineer")

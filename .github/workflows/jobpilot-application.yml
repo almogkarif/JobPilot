@@ -7,6 +7,11 @@ on:
         description: Queued JobPilot application ID
         required: true
         type: string
+      retry_stopped:
+        description: Safely requeue this stopped auto application before running
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -57,6 +62,16 @@ jobs:
 
       - name: Install headless Chromium
         run: python -m playwright install --with-deps chromium
+
+      - name: Requeue the selected stopped application
+        if: ${{ inputs.retry_stopped }}
+        env:
+          REQUESTED_APPLICATION_ID: ${{ inputs.application_id }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d "{\"token\":\"$JOBPILOT_AGENT_TOKEN\"}" \
+            "$JOBPILOT_BASE_URL/api/agent/tasks/$REQUESTED_APPLICATION_ID/retry-stopped"
 
       - name: Process one queued application in the background
         run: python -m agent.run_agent
