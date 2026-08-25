@@ -316,12 +316,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     raise ApplicationBlocked(
                         "grade_sheet_required", "גיליון ציונים", question,
                         "חסר גיליון ציונים בפרופיל. העלה אותו בפרטים האישיים, וה־Agent ינסה שוב אוטומטית.",
-                        page.url, _file_accept_options(field),
+                        page.url, _file_accept_options(field), _field_diagnostics(field),
                     )
                 raise ApplicationBlocked(
                     "file_required", label, label,
                     "זהו קובץ חובה נוסף שלא הוגדר בפרופיל. השלם אותו ידנית או הוסף תמיכה ייעודית במסמך הזה.",
-                    page.url, _file_accept_options(field),
+                    page.url, _file_accept_options(field), _field_diagnostics(field),
                 )
             choice_options = _small_choice_options(field)
             if choice_options:
