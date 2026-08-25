@@ -235,6 +235,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 candidate = candidate or _lever_profile_document_fallback(
                     field, actionable_fields, profile, page.url
                 )
+                if candidate is not None:
+                    field["candidate_source"] = candidate.source
                 candidate_path = Path(str(candidate.value)) if candidate else None
                 document_kind = _profile_document_kind(field, candidate)
                 if candidate_path and candidate_path.exists() and _file_input_has_file(locator, candidate_path.name):
@@ -1494,15 +1496,31 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
     therefore accept a successful hand-off unless the *same question container* shows
     a visible upload error. Final form validation remains the authoritative fallback.
     """
+    active_field = field
+    locator = page.locator(field["selector"]).first
     try:
-        locator = page.locator(field["selector"]).first
         locator.set_input_files(str(path), timeout=5_000)
     except Exception:
-        return False
+        # Ashby and other React ATSs can replace a file input after contact fields
+        # are filled. Re-extract and match the logical document slot instead of
+        # treating the detached temporary data attribute as a missing document.
+        identity = normalize(_file_field_identity(field))
+        refreshed = [item for item in _extract_fields(page) if item.get("type") == "file"]
+        matches = [item for item in refreshed if normalize(_file_field_identity(item)) == identity]
+        if not matches and is_resume_file_label(identity):
+            matches = [item for item in refreshed if is_resume_file_label(_file_field_identity(item))]
+        if len(matches) != 1:
+            return False
+        active_field = matches[0]
+        locator = page.locator(active_field["selector"]).first
+        try:
+            locator.set_input_files(str(path), timeout=5_000)
+        except Exception:
+            return False
     for _ in range(8):
-        if _file_field_has_attachment(page, field, path.name, locator=locator):
+        if _file_field_has_attachment(page, active_field, path.name, locator=locator):
             return True
-        if _file_field_visible_upload_error(page, field):
+        if _file_field_visible_upload_error(page, active_field):
             return False
         try:
             page.wait_for_timeout(250)
@@ -1515,7 +1533,7 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
         # means Playwright successfully handed the file to the correct question and
         # no local upload error appeared; allow Lever's own pre-submit validation to
         # make the final decision instead of producing a false blocker ourselves.
-        return not bool(_file_field_visible_upload_error(page, field))
+        return not bool(_file_field_visible_upload_error(page, active_field))
     return False
 
 

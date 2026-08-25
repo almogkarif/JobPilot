@@ -3,6 +3,7 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
+                           _attach_file_to_field,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _field_diagnostics,
                            _fill_text_field,
@@ -206,6 +207,23 @@ def test_text_fill_recovers_after_ashby_style_react_rerender():
         )
         _fill_text_field(page, stale, field, "candidate@example.com")
         assert page.locator('input[name="_systemfield_email"]').input_value() == "candidate@example.com"
+        browser.close()
+
+
+def test_resume_attachment_recovers_after_ashby_style_react_rerender(tmp_path):
+    resume = tmp_path / "resume.pdf"
+    resume.write_bytes(b"%PDF-1.4\n")
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        markup = '<label>Resume<input type="file" required accept=".pdf"></label>'
+        page.set_content(markup)
+        field = _extract_fields(page)[0]
+        page.locator("body").evaluate(
+            "(el, html) => { el.innerHTML = html; }", markup
+        )
+        assert _attach_file_to_field(page, field, resume) is True
+        assert page.locator('input[type="file"]').evaluate("el => el.files[0].name") == "resume.pdf"
         browser.close()
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
