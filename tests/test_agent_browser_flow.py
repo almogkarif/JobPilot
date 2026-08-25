@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _field_diagnostics,
+                           _fill_text_field,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
@@ -191,6 +192,21 @@ def test_field_diagnostics_include_value_source_and_fill_error_but_never_value()
     assert diagnostics["candidate_source"] == "profile_identity"
     assert diagnostics["fill_error"] == "TimeoutError: input was detached"
     assert "value" not in diagnostics
+
+
+def test_text_fill_recovers_after_ashby_style_react_rerender():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('<input type="email" name="_systemfield_email" required>')
+        field = _extract_fields(page)[0]
+        stale = page.locator(field["selector"]).first
+        page.locator("body").evaluate(
+            "el => { el.innerHTML = '<input type=\"email\" name=\"_systemfield_email\" required>'; }"
+        )
+        _fill_text_field(page, stale, field, "candidate@example.com")
+        assert page.locator('input[name="_systemfield_email"]').input_value() == "candidate@example.com"
+        browser.close()
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:

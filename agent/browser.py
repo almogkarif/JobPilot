@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Callable
@@ -276,7 +277,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                                 unknown.append(field)
                             continue
                     else:
-                        locator.fill(str(candidate.value), timeout=2_000)
+                        _fill_text_field(page, locator, field, str(candidate.value))
                     filled.append({"label": label, "source": candidate.source})
                 except Exception as exc:
                     field["fill_error"] = f"{type(exc).__name__}: {exc}"[:500]
@@ -1124,6 +1125,28 @@ def _display_field_label(field: dict) -> str:
     if placeholder:
         return placeholder
     return "שאלה מותאמת בטופס המועמדות"
+
+
+def _fill_text_field(page: Page, locator: Locator, field: dict, value: str) -> None:
+    """Fill a text input even when a React ATS replaces it after extraction."""
+    try:
+        locator.fill(value, timeout=2_000)
+        return
+    except Exception as original_exc:
+        tag = str(field.get("tag") or "input").strip().lower()
+        name = str(field.get("name") or "").strip()
+        if tag not in {"input", "textarea"} or not name:
+            raise original_exc
+        # JSON string escaping is valid inside a CSS attribute selector and keeps
+        # Ashby/Greenhouse-generated brackets and underscores literal.
+        fresh = page.locator(f'{tag}[name={json.dumps(name)}]').first
+        try:
+            if fresh.count() and fresh.is_visible(timeout=1_000):
+                fresh.fill(value, timeout=3_000)
+                return
+        except Exception:
+            pass
+        raise original_exc
 
 
 def _action_text(candidate: Locator) -> str:
