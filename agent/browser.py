@@ -1527,12 +1527,12 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
         except Exception:
             break
     host = (urlparse(str(getattr(page, "url", "") or "")).hostname or "").casefold()
-    if host in LEVER_JOBS_HOSTS:
-        # Lever's upload component may reset/replace the hidden input after consuming
-        # it, so ``input.files`` is not a stable post-upload contract. Reaching here
-        # means Playwright successfully handed the file to the correct question and
-        # no local upload error appeared; allow Lever's own pre-submit validation to
-        # make the final decision instead of producing a false blocker ourselves.
+    if host in LEVER_JOBS_HOSTS or host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"):
+        # Lever and Ashby's upload components may reset/replace the input after
+        # consuming it, so ``input.files`` is not a stable post-upload contract.
+        # Reaching here means Playwright successfully handed the file to the
+        # correct question and no local upload error appeared; their own pre-submit
+        # validation remains the authoritative final check.
         return not bool(_file_field_visible_upload_error(page, active_field))
     return False
 

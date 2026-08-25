@@ -226,6 +226,23 @@ def test_resume_attachment_recovers_after_ashby_style_react_rerender(tmp_path):
         assert page.locator('input[type="file"]').evaluate("el => el.files[0].name") == "resume.pdf"
         browser.close()
 
+
+def test_ashby_resume_upload_can_consume_and_replace_native_input(tmp_path):
+    resume = tmp_path / "resume.pdf"
+    resume.write_bytes(b"%PDF-1.4\n")
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.ashbyhq.com/**", lambda route: route.fulfill(
+            content_type="text/html",
+            body='''<label>Resume<input type="file" required accept=".pdf"
+              onchange="this.outerHTML='<input type=file required accept=.pdf>'"></label>''',
+        ))
+        page.goto("https://jobs.ashbyhq.com/acme/application")
+        field = _extract_fields(page)[0]
+        assert _attach_file_to_field(page, field, resume) is True
+        browser.close()
+
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
