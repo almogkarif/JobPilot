@@ -11,6 +11,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _safe_hosted_response_diagnostics,
                            _job_city_candidate,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
@@ -145,6 +146,14 @@ def test_ashby_graphql_submission_requires_form_submit_success_typename():
         '{"data":{"submitApplicationFormAction":{"__typename":"FormSubmitFailure"}}}',
     )
     assert "Ashby rejected" in rejection
+
+    diagnostics = _safe_hosted_response_diagnostics({
+        "url": url, "status": 200,
+        "text": '{"data":{"submitApplicationFormAction":{"applicationFormResult":{"__typename":"FormSubmitSuccess"},"email":"private@example.com"}}}',
+    })
+    assert diagnostics["typenames"] == ["FormSubmitSuccess"]
+    assert diagnostics["submit_action_keys"] == ["submitApplicationFormAction"]
+    assert "private@example.com" not in str(diagnostics)
 
     evidence, application_id, error = _lever_submission_response_result(
         "https://api.eu.lever.co/v0/postings/mobileye/job-123?key=secret",

@@ -453,7 +453,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             network_error = ""
             post_reported = False
             security_code_completed = False
-            for _ in range(40):
+            # Ashby's GraphQL mutation can remain pending behind reCAPTCHA/device
+            # fingerprinting for longer than 20 seconds. Keep the hidden browser
+            # alive for up to a minute so we record the authoritative response
+            # instead of cancelling a legitimate in-flight submission.
+            for _ in range(120):
                 _detect_captcha(page)
                 security_inputs = _greenhouse_security_code_inputs(page)
                 if security_inputs and not security_code_completed:
@@ -586,6 +590,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 "confirmation_missing", "אישור שליחה", "האם המועמדות נשלחה?",
                 "נצפתה בקשת Submit, אך לא התקבלה תשובת קבלה חד־משמעית ולא זוהה מסך אישור. "
                 "כדי למנוע הגשה כפולה JobPilot לא ישלח שוב אוטומטית ללא ראיה חדשה.", page.url,
+                diagnostics={
+                    "hosted_requests": hosted_submit_requests[-3:],
+                    "hosted_responses": [_safe_hosted_response_diagnostics(item) for item in hosted_submit_responses[-3:]],
+                    "hosted_failures": hosted_submit_failures[-3:],
+                    "lever_requests": lever_submit_requests[-3:],
+                    "lever_responses": [{"url": item.get("url"), "status": item.get("status"),
+                                           "location": item.get("location")} for item in lever_submit_responses[-3:]],
+                },
             )
 
         next_button = _find_action(page, NAVIGATION_TERMS)
@@ -2094,6 +2106,20 @@ def _hosted_ats_submission_responses_result(*, responses: list) -> tuple[str, st
         if error:
             last_error = error
     return "", "", last_error
+
+
+def _safe_hosted_response_diagnostics(response: dict) -> dict:
+    """Keep response structure useful without logging application content."""
+    text = str(response.get("text") or "")
+    typenames = list(dict.fromkeys(re.findall(r'"__typename"\s*:\s*"([A-Za-z0-9_]+)"', text)))[:12]
+    action_keys = list(dict.fromkeys(re.findall(
+        r'"(submit[A-Za-z0-9_]{1,80}Action)"\s*:', text
+    )))[:8]
+    return {
+        "url": response.get("url"), "status": response.get("status"),
+        "location": response.get("location"), "body_length": len(text),
+        "typenames": typenames, "submit_action_keys": action_keys,
+    }
 
 
 def _field_diagnostics(field: dict) -> dict:
