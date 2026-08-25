@@ -731,7 +731,12 @@ def _extract_fields(page: Page) -> list[dict]:
             }
             const style = window.getComputedStyle(el);
             const rect = el.getBoundingClientRect();
-            const visible = style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            // React Select (used by current Greenhouse forms) renders a second,
+            // aria-hidden required input beside the real combobox. It exists only
+            // to trigger native validation and must never be filled or reported as
+            // a duplicate question by the Agent.
+            const semanticallyHidden = el.getAttribute('aria-hidden') === 'true' || el.hidden;
+            const visible = !semanticallyHidden && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
             return {
               selector: `[data-jobpilot-id="${el.dataset.jobpilotId}"]`,
               tag: el.tagName.toLowerCase(),
@@ -1515,6 +1520,8 @@ def _fill_tokenized_skills(page: Page, profile: dict) -> list[dict]:
 
 def _best_visible_option(page: Page, value: str) -> Locator | None:
     wanted = normalize(value)
+    yes = wanted in {"true", "yes", "כן", "1"}
+    no = wanted in {"false", "no", "לא", "0"}
     options = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
     best = None
     best_score = 0
@@ -1525,6 +1532,12 @@ def _best_visible_option(page: Page, value: str) -> Locator | None:
         except Exception:
             continue
         score = 3 if key == wanted else 2 if wanted in key else 1 if key and key in wanted else 0
+        if yes and (key.startswith("yes") or key.startswith("i agree") or key.startswith("i consent")
+                    or key.startswith("i acknowledge") or key.startswith("i accept")
+                    or key == "confirm" or "acknowledge confirm" in key):
+            score = max(score, 2)
+        if no and (key.startswith("no") or key.startswith("i do not") or key.startswith("i don t")):
+            score = max(score, 2)
         if wanted == "company website" and any(
             term in key for term in ("company website", "career site", "careers page", "job board", "linkedin")
         ):
@@ -1593,6 +1606,17 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             _show_agent_pointer(page, control, f"בוחר: {candidate}")
             control.click(timeout=2_000)
             page.wait_for_timeout(300)
+            # Current Greenhouse React Select country lists contain 240+ items.
+            # Filter a searchable combobox before matching instead of inspecting
+            # only the first viewport/options (Israel otherwise appears too late).
+            if (normalize(candidate) not in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
+                    and (control.get_attribute("role") or "").casefold() == "combobox"
+                    and control.evaluate("el => el.tagName") == "INPUT"):
+                try:
+                    control.fill(candidate, timeout=2_000)
+                    page.wait_for_timeout(250)
+                except Exception:
+                    pass
             option = _best_visible_option(page, candidate)
             if option:
                 option.click(timeout=2_000)

@@ -3,7 +3,7 @@ import shutil
 from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
-                           _extract_fields, _external_application_id_from_url,
+                           _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
@@ -202,6 +202,42 @@ def test_greenhouse_country_resume_and_processing_consent_fill_automatically(tmp
             assert page.locator('input[name="consent"]').is_checked()
         finally:
             browser.close()
+
+
+def test_greenhouse_react_select_hidden_validation_input_is_not_actionable():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div class="field-wrapper">
+            <label id="country-label" for="country">Country*</label>
+            <input id="country" role="combobox" aria-labelledby="country-label"
+                   aria-required="true" type="text">
+            <input required tabindex="-1" aria-hidden="true"
+                   class="requiredInput" type="text">
+          </div>
+        """)
+        fields = _extract_fields(page)
+        visible = [field for field in fields if field["visible"]]
+        assert len(visible) == 1
+        assert visible[0]["role"] == "combobox"
+        assert visible[0]["label"] == "Country*"
+        assert fields[1]["visible"] is False
+        browser.close()
+
+
+def test_greenhouse_consent_confirmation_options_match_an_approved_yes_answer():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div role="option">Confirm</div>
+          <div role="option">Acknowledge &amp; Confirm</div>
+        """)
+        option = _best_visible_option(page, "Yes")
+        assert option is not None
+        assert option.inner_text() in {"Confirm", "Acknowledge & Confirm"}
+        browser.close()
 
 def test_lever_submit_prefers_visible_template_button_over_hidden_native_submit():
     with sync_playwright() as playwright:
