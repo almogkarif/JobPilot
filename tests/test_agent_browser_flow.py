@@ -6,6 +6,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
+                           _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
                            _job_city_candidate,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
@@ -287,6 +288,21 @@ def test_greenhouse_security_code_is_detected_and_filled_without_opening_another
         _fill_greenhouse_security_code(inputs, "2TXo8FkJ")
         assert page.locator("#security").input_value() == "2TXo8FkJ"
         assert len(page.context.pages) == 1
+        browser.close()
+
+
+def test_security_code_waiting_requires_visible_proof_that_email_was_sent():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('<label>Security code<input name="security_code"></label>')
+        assert _greenhouse_security_code_inputs(page) == []  # not a hosted Greenhouse URL
+        assert _greenhouse_security_code_delivery_confirmed(page) is False
+        page.set_content('''
+          <p>We sent a security code to your email. Check your inbox and enter the code below.</p>
+          <label>Security code<input name="security_code"></label>
+        ''')
+        assert _greenhouse_security_code_delivery_confirmed(page) is True
         browser.close()
 
 

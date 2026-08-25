@@ -450,6 +450,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 _detect_captcha(page)
                 security_inputs = _greenhouse_security_code_inputs(page)
                 if security_inputs and not security_code_completed:
+                    # A 428 response or an OTP-looking input alone does not prove
+                    # that Greenhouse actually sent an email. Keep observing the
+                    # page until it explicitly says the code was sent/check email;
+                    # only then ask the user and paint the state yellow.
+                    if not _greenhouse_security_code_delivery_confirmed(page):
+                        page.wait_for_timeout(500)
+                        continue
                     if progress:
                         progress("security_code_waiting", "Greenhouse ממתין לקוד האבטחה מהמייל", page.url)
                     code = str(security_code_provider() if security_code_provider else "").strip()
@@ -685,6 +692,19 @@ def _greenhouse_security_code_inputs(page: Page) -> list[Locator]:
         )):
             matches.append(page.locator(field["selector"]).first)
     return matches
+
+
+def _greenhouse_security_code_delivery_confirmed(page: Page) -> bool:
+    """Require visible page copy that says an email code was actually dispatched."""
+    text = normalize(_body_text(page))
+    has_code = any(term in text for term in (
+        "security code", "verification code", "one time code", "קוד אבטחה", "קוד אימות",
+    ))
+    has_email = any(term in text for term in ("email", "e mail", "inbox", "מייל", "דוא ל"))
+    has_delivery = any(term in text for term in (
+        "sent", "send", "check your", "enter the", "copy and paste", "נשלח", "בדוק", "הזן", "הדבק",
+    ))
+    return has_code and has_email and has_delivery
 
 
 def _fill_greenhouse_security_code(inputs: list[Locator], code: str) -> None:
