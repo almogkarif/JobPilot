@@ -1514,17 +1514,23 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
         matches = [item for item in refreshed if normalize(_file_field_identity(item)) == identity]
         if not matches and is_resume_file_label(identity):
             matches = [item for item in refreshed if is_resume_file_label(_file_field_identity(item))]
-        if len(matches) != 1:
+        if not matches:
             field["upload_handoff"] = f"ambiguous_active_inputs:{len(matches)}"
             return False
-        active_field = matches[0]
-        locator = page.locator(active_field["selector"]).first
-        try:
-            locator.set_input_files(str(path), timeout=5_000)
-            field["upload_handoff"] = "refreshed_input"
-        except Exception:
+        attached_match = None
+        for match in matches:
+            candidate_locator = page.locator(match["selector"]).first
+            try:
+                candidate_locator.set_input_files(str(path), timeout=5_000)
+                attached_match = (match, candidate_locator)
+                break
+            except Exception:
+                continue
+        if attached_match is None:
             field["upload_handoff"] = "refreshed_input_failed"
             return False
+        active_field, locator = attached_match
+        field["upload_handoff"] = f"refreshed_input:{len(matches)}"
     for _ in range(8):
         if _file_field_has_attachment(page, active_field, path.name, locator=locator):
             return True
