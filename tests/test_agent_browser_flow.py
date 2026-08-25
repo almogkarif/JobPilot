@@ -4,6 +4,7 @@ from playwright.sync_api import sync_playwright
 
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
+                           _field_diagnostics,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
@@ -180,6 +181,16 @@ def test_semantic_email_and_city_fallback_survive_weak_ats_labels():
         browser.close()
     profile = {"location": "Israel", "application_profile": {}}
     assert _job_city_candidate(profile, {"location": "Tel Aviv, Israel"}) == "Tel Aviv"
+
+
+def test_field_diagnostics_include_value_source_and_fill_error_but_never_value():
+    diagnostics = _field_diagnostics({
+        "type": "email", "candidate_source": "profile_identity",
+        "fill_error": "TimeoutError: input was detached", "value": "private@example.com",
+    })
+    assert diagnostics["candidate_source"] == "profile_identity"
+    assert diagnostics["fill_error"] == "TimeoutError: input was detached"
+    assert "value" not in diagnostics
 
 def test_greenhouse_click_without_real_post_is_not_marked_verification_pending():
     with sync_playwright() as playwright:

@@ -266,6 +266,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 continue
 
             if candidate is not None:
+                # Keep only the provenance for safe diagnostics. Never retain or
+                # log the entered value (which can be contact data or an answer).
+                field["candidate_source"] = candidate.source
                 try:
                     if normalize(field.get("placeholder", "")) in {"mm/yyyy", "mm yyyy"}:
                         if not _fill_masked_month(locator, str(candidate.value)):
@@ -275,7 +278,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     else:
                         locator.fill(str(candidate.value), timeout=2_000)
                     filled.append({"label": label, "source": candidate.source})
-                except Exception:
+                except Exception as exc:
+                    field["fill_error"] = f"{type(exc).__name__}: {exc}"[:500]
                     if field.get("required"):
                         unknown.append(field)
             elif field.get("required") and not field.get("value"):
@@ -2021,7 +2025,7 @@ def _field_diagnostics(field: dict) -> dict:
     return {key: field.get(key) for key in (
         "tag", "type", "name", "automation", "role", "aria_label", "autocomplete",
         "aria_invalid", "validation_message", "class_name", "label", "group_label", "placeholder",
-        "required", "visible", "disabled", "options",
+        "required", "visible", "disabled", "options", "candidate_source", "fill_error",
     )}
 
 
