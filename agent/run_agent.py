@@ -173,10 +173,25 @@ def run_task(context, task: dict):
                 })
             except Exception as progress_exc:  # noqa: BLE001
                 print(f"[progress warning] {progress_exc}", file=sys.stderr)
+        def wait_for_security_code():
+            # Keep the current hidden page and browser session alive. Restarting
+            # the task can generate another Greenhouse code and invalidate the
+            # code the user just received.
+            for _ in range(100):
+                response = api("POST", f"/api/agent/tasks/{application_id}/security-code", json={
+                    "token": TOKEN, "attempt_id": attempt_id,
+                })
+                code = str(response.get("code") or "").strip()
+                if code:
+                    return code
+                time.sleep(3)
+            return ""
         with task_deadline(TASK_TIMEOUT_SECONDS):
-            supports_progress = "progress" in inspect.signature(fill_application).parameters
-            result = fill_application(page, task, auto_submit=submit_authorized, progress=report_progress) \
-                if supports_progress else fill_application(page, task, auto_submit=submit_authorized)
+            parameters = inspect.signature(fill_application).parameters
+            kwargs = {"progress": report_progress} if "progress" in parameters else {}
+            if "security_code_provider" in parameters:
+                kwargs["security_code_provider"] = wait_for_security_code
+            result = fill_application(page, task, auto_submit=submit_authorized, **kwargs)
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"submitted_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         try:

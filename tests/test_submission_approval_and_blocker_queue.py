@@ -88,6 +88,49 @@ def _queue_and_claim(client: TestClient, job: dict) -> tuple[int, dict]:
     return application_id, task
 
 
+def test_security_code_is_delivered_only_to_the_active_attempt_and_then_erased():
+    with TestClient(app) as client:
+        job = _make_job(client, "Greenhouse security code engineer")
+        application_id, task = _queue_and_claim(client, job)
+        attempt_id = task["attempt"]["id"]
+
+        waiting = client.post(
+            f"/api/agent/tasks/{application_id}/security-code",
+            json={"token": "change-me", "attempt_id": attempt_id},
+        )
+        assert waiting.status_code == 200, waiting.text
+        assert waiting.json() == {"code": "", "waiting": True}
+
+        listed = next(item for item in client.get("/api/applications").json() if item["id"] == application_id)
+        assert listed["status"] == "applying"
+        assert listed["blocker"]["kind"] == "security_code_required"
+        assert listed["blocker"].get("answer", "") == ""
+
+        invalid = client.post(f"/api/applications/{application_id}/security-code", json={"code": "12-34"})
+        assert invalid.status_code == 422
+        accepted = client.post(
+            f"/api/applications/{application_id}/security-code", json={"code": "2TXo8FkJ"}
+        )
+        assert accepted.status_code == 200, accepted.text
+
+        delivered = client.post(
+            f"/api/agent/tasks/{application_id}/security-code",
+            json={"token": "change-me", "attempt_id": attempt_id},
+        )
+        assert delivered.json() == {"code": "2TXo8FkJ", "waiting": False}
+        filled = client.post(
+            f"/api/agent/tasks/{application_id}/progress",
+            json={"token": "change-me", "attempt_id": attempt_id, "stage": "security_code_filled"},
+        )
+        assert filled.status_code == 200, filled.text
+        with SessionLocal() as db:
+            blocker = db.scalar(select(Blocker).where(
+                Blocker.application_id == application_id, Blocker.kind == "security_code_required"
+            ))
+            assert blocker.status == "resolved"
+            assert blocker.answer == ""
+
+
 def test_final_review_approval_is_consumed_once_and_really_authorizes_next_attempt():
     with TestClient(app) as client:
         job = _make_job(client, "Junior One-Time Approval Engineer")

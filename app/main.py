@@ -41,7 +41,7 @@ from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationC
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
-    AgentResultRequest, AgentProgressRequest, CampaignUpdate,
+    AgentResultRequest, AgentProgressRequest, AgentSecurityCodeRequest, CampaignUpdate,
     DesiredTitleUpdateRequest,
     ImportJobRequest,
     ProfilePatch,
@@ -49,7 +49,7 @@ from .schemas import (
     OnboardingUpdate,
     QueueApplicationRequest,
     ResumeSuggestionApply,
-    ResolveBlockerRequest,
+    ResolveBlockerRequest, SecurityCodeSubmitRequest,
     SkillUpdateRequest,
     RankingConfigUpdate, RankingPreviewRequest,
     SourceCreate,
@@ -5273,6 +5273,16 @@ def agent_progress(application_id: int, payload: AgentProgressRequest, db: Sessi
         ApplicationEvent.event_type == payload.stage,
     )).all()
     duplicate = any(loads(item.details_json, {}).get("attempt_id") == attempt.id for item in existing_events)
+    if payload.stage == "security_code_filled":
+        blocker = db.scalar(select(Blocker).where(
+            Blocker.application_id == application_id,
+            Blocker.kind == "security_code_required",
+            Blocker.status == "open",
+        ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+        if blocker:
+            blocker.status = "resolved"
+            blocker.answer = ""
+            blocker.resolved_at = utcnow()
     if not duplicate:
         _record_application_event(
             db, application, payload.stage, from_status=application.status, to_status=application.status,
@@ -5280,6 +5290,66 @@ def agent_progress(application_id: int, payload: AgentProgressRequest, db: Sessi
         )
         db.commit()
     return {"recorded": not duplicate, "stage": payload.stage}
+
+
+@app.post("/api/agent/tasks/{application_id}/security-code")
+def agent_security_code(
+    application_id: int, payload: AgentSecurityCodeRequest, db: Session = Depends(get_db),
+):
+    """Let the active worker wait for a manually pasted OTP without restarting."""
+    _check_agent_token(db, payload.token, application_id=application_id)
+    application = db.get(Application, application_id)
+    if not application or application.status != "applying":
+        raise HTTPException(409, "Application attempt is no longer active")
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if not attempt or attempt.status != "running":
+        raise HTTPException(409, "Application attempt is no longer active")
+    blocker = db.scalar(select(Blocker).where(
+        Blocker.application_id == application_id,
+        Blocker.kind == "security_code_required",
+        Blocker.status == "open",
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    if not blocker:
+        blocker = Blocker(
+            application_id=application_id,
+            kind="security_code_required",
+            field_label="קוד אבטחה",
+            question="הדבק את קוד האבטחה שקיבלת במייל",
+            explanation="Greenhouse מבקש לוודא את כתובת המייל. ה־worker ממתין באותו סשן רקע ולא יפתח חלון.",
+            page_url=attempt.confirmation_url or application.job.apply_url,
+        )
+        db.add(blocker)
+        db.flush()
+        _record_application_event(
+            db, application, "security_code_waiting", from_status="applying", to_status="applying",
+            actor=attempt.worker_type, message="ממתין לקוד אבטחה ידני",
+            details={"attempt_id": attempt.id, "blocker_id": blocker.id},
+        )
+        db.commit()
+        return {"code": "", "waiting": True}
+    return {"code": str(blocker.answer or ""), "waiting": not bool(blocker.answer)}
+
+
+@app.post("/api/applications/{application_id}/security-code")
+def submit_application_security_code(
+    application_id: int, payload: SecurityCodeSubmitRequest, db: Session = Depends(get_db),
+):
+    application = _active_application_or_404(db, application_id)
+    blocker = db.scalar(select(Blocker).where(
+        Blocker.application_id == application.id,
+        Blocker.kind == "security_code_required",
+        Blocker.status == "open",
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+    if not blocker or application.status != "applying":
+        raise HTTPException(409, "ה־worker כבר לא ממתין לקוד עבור ההגשה הזו")
+    blocker.answer = payload.code.strip()
+    _record_application_event(
+        db, application, "security_code_received", from_status="applying", to_status="applying",
+        actor="user", message="קוד האבטחה הועבר ל־worker שמחזיק את הסשן",
+        details={"blocker_id": blocker.id},
+    )
+    db.commit()
+    return {"accepted": True, "application_id": application.id}
 
 
 @app.post("/api/agent/tasks/{application_id}/submitted")
@@ -5880,7 +5950,8 @@ def _blocker_dict(b: Blocker) -> dict:
         },
         "screenshot_path": b.screenshot_path, "screenshot_url": f"/api/blockers/{b.id}/screenshot" if b.screenshot_path else "",
         "page_url": b.page_url, "status": b.status,
-        "answer": b.answer, "remember_answer": b.remember_answer, "created_at": b.created_at,
+        "answer": "" if kind == "security_code_required" else b.answer,
+        "remember_answer": b.remember_answer, "created_at": b.created_at,
         "resolved_at": b.resolved_at,
         "job": _job_dict(b.application.job) if b.application and b.application.job else None,
     }

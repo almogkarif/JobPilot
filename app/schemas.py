@@ -209,9 +209,18 @@ class AgentResultRequest(BaseModel):
 class AgentProgressRequest(BaseModel):
     token: str
     attempt_id: int | None = None
-    stage: str = Field(pattern="^(page_opened|form_detected|details_filled|submit_clicked)$")
+    stage: str = Field(pattern="^(page_opened|form_detected|details_filled|submit_clicked|security_code_waiting|security_code_filled)$")
     message: str = Field(default="", max_length=500)
     page_url: str = Field(default="", max_length=2_000)
+
+
+class AgentSecurityCodeRequest(BaseModel):
+    token: str
+    attempt_id: int | None = None
+
+
+class SecurityCodeSubmitRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=16, pattern=r"^[A-Za-z0-9]+$")
 
 
 class CampaignUpdate(BaseModel):

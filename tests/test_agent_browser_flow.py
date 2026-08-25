@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
+                           _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
@@ -238,6 +239,26 @@ def test_greenhouse_consent_confirmation_options_match_an_approved_yes_answer():
         assert option is not None
         assert option.inner_text() in {"Confirm", "Acknowledge & Confirm"}
         browser.close()
+
+
+def test_greenhouse_security_code_is_detected_and_filled_without_opening_another_page():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://job-boards.greenhouse.io/**", lambda route: route.fulfill(
+            content_type="text/html", body='''
+              <label for="security">Security code</label>
+              <input id="security" name="security_code" autocomplete="one-time-code" required>
+            ''',
+        ))
+        page.goto("https://job-boards.greenhouse.io/embed/job_app?for=acme&token=123")
+        inputs = _greenhouse_security_code_inputs(page)
+        assert len(inputs) == 1
+        _fill_greenhouse_security_code(inputs, "2TXo8FkJ")
+        assert page.locator("#security").input_value() == "2TXo8FkJ"
+        assert len(page.context.pages) == 1
+        browser.close()
+
 
 def test_lever_submit_prefers_visible_template_button_over_hidden_native_submit():
     with sync_playwright() as playwright:

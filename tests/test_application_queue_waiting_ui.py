@@ -90,6 +90,10 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "RED_ERROR" in js
     assert "recent_timeline" in js
     assert "recent_attempts" in js
+    assert "security_code_required" in js
+    assert "/security-code" in js
+    assert "autocomplete=\"one-time-code\"" in js
+    assert "applicationSecurityCodeDrafts" in js
     assert ".auto-queue-current.is-active" in css
     assert "ממתינה להפעלת worker ברקע" in js
     assert "ירוק מציין הגשה שרצה" in js

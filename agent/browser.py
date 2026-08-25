@@ -86,7 +86,8 @@ def ensure_supported(url: str) -> None:
         )
 
 
-def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None) -> dict:
+def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None,
+                     security_code_provider: Callable[[], str] | None = None) -> dict:
     job = task["job"]
     profile = task["profile"]
     answers = task.get("answers", {})
@@ -442,8 +443,33 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             network_application_id = ""
             network_error = ""
             post_reported = False
+            security_code_completed = False
             for _ in range(40):
                 _detect_captcha(page)
+                security_inputs = _greenhouse_security_code_inputs(page)
+                if security_inputs and not security_code_completed:
+                    if progress:
+                        progress("security_code_waiting", "Greenhouse ממתין לקוד האבטחה מהמייל", page.url)
+                    code = str(security_code_provider() if security_code_provider else "").strip()
+                    if not re.fullmatch(r"[A-Za-z0-9]{6,16}", code):
+                        raise ApplicationBlocked(
+                            "security_code_required", "קוד אבטחה", "הדבק את קוד האבטחה שקיבלת במייל",
+                            "ה־worker נשאר באותו סשן, אך לא התקבל קוד בזמן. רק הקוד האחרון ש־Greenhouse שלחה תקף.",
+                            page.url,
+                        )
+                    _fill_greenhouse_security_code(security_inputs, code)
+                    security_code_completed = True
+                    if progress:
+                        progress("security_code_filled", "קוד האבטחה הוזן באותו סשן רקע", page.url)
+                    retry_submit = _find_submit_button(page)
+                    if not retry_submit:
+                        raise ApplicationBlocked(
+                            "submit_button_missing", "שליחה לאחר אימות", "לא נמצא כפתור Resubmit לאחר הזנת הקוד",
+                            "קוד האבטחה הוזן, אך Greenhouse לא הציג כפתור המשך שניתן לזהות בבטחה.", page.url,
+                        )
+                    retry_submit.click()
+                    page.wait_for_timeout(500)
+                    continue
                 network_evidence, network_application_id, network_error = _lever_submission_responses_result(responses=lever_submit_responses)
                 if not network_evidence and not network_error:
                     network_evidence, network_application_id, network_error = _hosted_ats_submission_responses_result(
@@ -629,6 +655,35 @@ def _body_text(page: Page) -> str:
         return normalize(page.locator("body").inner_text(timeout=3_000))
     except Exception:
         return ""
+
+
+def _greenhouse_security_code_inputs(page: Page) -> list[Locator]:
+    """Find visible Greenhouse verification controls shown after Submit."""
+    if not _is_hosted_ats_apply_url(page.url):
+        return []
+    matches: list[Locator] = []
+    for field in _extract_fields(page):
+        if not field.get("visible") or field.get("disabled"):
+            continue
+        signal = normalize(" ".join(str(field.get(key) or "") for key in (
+            "label", "placeholder", "aria_label", "name",
+        )))
+        if any(term in signal for term in (
+            "security code", "verification code", "one time code", "one time password", "otp code",
+            "קוד אבטחה", "קוד אימות",
+        )):
+            matches.append(page.locator(field["selector"]).first)
+    return matches
+
+
+def _fill_greenhouse_security_code(inputs: list[Locator], code: str) -> None:
+    if len(inputs) == 1:
+        inputs[0].fill(code, timeout=2_000)
+        return
+    if len(inputs) < len(code):
+        raise ValueError("Greenhouse security-code control count does not match the code")
+    for locator, character in zip(inputs, code):
+        locator.fill(character, timeout=1_000)
 
 
 def _extract_fields(page: Page) -> list[dict]:
