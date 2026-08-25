@@ -1498,24 +1498,32 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
     """
     active_field = field
     locator = page.locator(field["selector"]).first
+    field["upload_host"] = (urlparse(str(getattr(page, "url", "") or "")).hostname or "").casefold()
     try:
         locator.set_input_files(str(path), timeout=5_000)
+        field["upload_handoff"] = "initial_input"
     except Exception:
         # Ashby and other React ATSs can replace a file input after contact fields
         # are filled. Re-extract and match the logical document slot instead of
         # treating the detached temporary data attribute as a missing document.
         identity = normalize(_file_field_identity(field))
-        refreshed = [item for item in _extract_fields(page) if item.get("type") == "file"]
+        refreshed = [
+            item for item in _extract_fields(page)
+            if item.get("type") == "file" and item.get("visible") and not item.get("disabled")
+        ]
         matches = [item for item in refreshed if normalize(_file_field_identity(item)) == identity]
         if not matches and is_resume_file_label(identity):
             matches = [item for item in refreshed if is_resume_file_label(_file_field_identity(item))]
         if len(matches) != 1:
+            field["upload_handoff"] = f"ambiguous_active_inputs:{len(matches)}"
             return False
         active_field = matches[0]
         locator = page.locator(active_field["selector"]).first
         try:
             locator.set_input_files(str(path), timeout=5_000)
+            field["upload_handoff"] = "refreshed_input"
         except Exception:
+            field["upload_handoff"] = "refreshed_input_failed"
             return False
     for _ in range(8):
         if _file_field_has_attachment(page, active_field, path.name, locator=locator):
@@ -1534,6 +1542,7 @@ def _attach_file_to_field(page: Page, field: dict, path: Path) -> bool:
         # correct question and no local upload error appeared; their own pre-submit
         # validation remains the authoritative final check.
         return not bool(_file_field_visible_upload_error(page, active_field))
+    field["upload_handoff"] = f"postcheck_unconfirmed:{host or 'unknown_host'}"
     return False
 
 
@@ -2067,6 +2076,7 @@ def _field_diagnostics(field: dict) -> dict:
         "tag", "type", "name", "automation", "role", "aria_label", "autocomplete",
         "aria_invalid", "validation_message", "class_name", "label", "group_label", "placeholder",
         "required", "visible", "disabled", "options", "candidate_source", "fill_error",
+        "upload_host", "upload_handoff",
     )}
 
 
