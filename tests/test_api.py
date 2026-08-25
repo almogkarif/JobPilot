@@ -4,9 +4,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.database import SessionLocal, set_user_scope
-from app.main import app
-from app.models import Job, Source
+from app.main import _agent_profile_dict, app
+from app.models import Job, Profile, Source
 from app.schemas import ProfileUpdate, AgentBlockerRequest
+
+
+def test_agent_profile_uses_authenticated_email_when_legacy_profile_email_is_empty():
+    profile = Profile(email="", full_name="Candidate", user_id="account-1")
+    payload = _agent_profile_dict(profile, identity_email="candidate@example.com")
+    assert payload["email"] == "candidate@example.com"
+
+
+def test_agent_profile_keeps_explicit_profile_email_over_account_fallback():
+    profile = Profile(email="applications@example.com", full_name="Candidate", user_id="account-1")
+    payload = _agent_profile_dict(profile, identity_email="login@example.com")
+    assert payload["email"] == "applications@example.com"
 
 
 def test_health_and_dashboard():

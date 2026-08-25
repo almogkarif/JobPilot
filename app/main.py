@@ -5177,13 +5177,16 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     agent_job = _job_dict(application.job, full=True)
     agent_job["official_apply_url"] = agent_job.get("apply_url", "")
     agent_job["apply_url"] = automation_apply_url(application.job)
+    identity_email = db.scalar(select(AppIdentity.email).where(
+        AppIdentity.auth_user_id == current_user_id(db)
+    )) or ""
     return {
         "task": {
             "application": _application_dict(application, db),
             "job": agent_job,
             "submission_adapter": {"key": adapter.key, "label": adapter.label},
             "attempt": _attempt_dict(attempt),
-            "profile": _agent_profile_dict(profile),
+            "profile": _agent_profile_dict(profile, identity_email=identity_email),
             "answers": answers,
             "submit_approved_once": submit_approved_once,
             "answer_memories": _agent_answer_memory_payload(memories, application.job) + [
@@ -5724,8 +5727,14 @@ def _profile_dict(p: Profile) -> dict:
     }
 
 
-def _agent_profile_dict(p: Profile) -> dict:
+def _agent_profile_dict(p: Profile, *, identity_email: str = "") -> dict:
     data = _profile_dict(p)
+    # The authenticated account is the canonical fallback for application email.
+    # Older accounts can display their login email in the UI while the tenant
+    # Profile row still contains an empty legacy value; hosted ATS system email
+    # fields must not turn that migration gap into a user-facing blocker.
+    if not str(data.get("email") or "").strip() and str(identity_email or "").strip():
+        data["email"] = str(identity_email).strip()
     data["application_password"] = decrypt_credential(p.application_password)
     data["grade_sheet_path"] = p.grade_sheet_path or ""
     return data
