@@ -3322,6 +3322,87 @@ def automatic_application_queue(db: Session = Depends(get_db)):
     return _auto_apply_queue_snapshot(db, track)
 
 
+@app.get("/api/applications/failure-diagnostics")
+def application_failure_diagnostics(db: Session = Depends(get_db)):
+    """Return one bounded, high-signal snapshot for troubleshooting auto-apply."""
+    track = active_track(get_user_profile(db))
+    rows = db.scalars(
+        select(Application)
+        .join(Job, Application.job_id == Job.id)
+        .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
+        .where(
+            Job.career_track == track,
+            Application.mode == "auto",
+            Application.status.in_(("applying", "needs_input", "verification_pending", "failed")),
+        )
+        .order_by(Application.id)
+    ).unique().all()
+    application_ids = [row.id for row in rows]
+    attempts_by_application: dict[int, list[ApplicationAttempt]] = {item: [] for item in application_ids}
+    events_by_application: dict[int, list[ApplicationEvent]] = {item: [] for item in application_ids}
+    if application_ids:
+        attempts = db.scalars(select(ApplicationAttempt).where(
+            ApplicationAttempt.application_id.in_(application_ids)
+        ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))).all()
+        events = db.scalars(select(ApplicationEvent).where(
+            ApplicationEvent.application_id.in_(application_ids)
+        ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
+        for attempt in attempts:
+            attempts_by_application[attempt.application_id].append(attempt)
+        for event in events:
+            events_by_application[event.application_id].append(event)
+
+    diagnostics = []
+    for application in rows:
+        open_blocker = next((item for item in application.blockers if item.status == "open"), None)
+        blocker = _blocker_dict(open_blocker) if open_blocker else None
+        source_kind = application.job.source.kind if application.job.source else ""
+        adapter = detect_adapter(application.job.apply_url, source_kind)
+        answers = {
+            str(key): value for key, value in loads(application.answers_json, {}).items()
+            if not str(key).startswith("__jobpilot_")
+        }
+        recent_attempts = attempts_by_application.get(application.id, [])[:3]
+        recent_events = events_by_application.get(application.id, [])[:10]
+        diagnostics.append({
+            "application_id": application.id,
+            "job_id": application.job_id,
+            "company": application.job.company,
+            "title": application.job.title,
+            "status": application.status,
+            "mode": application.mode,
+            "attempt_count": int(application.attempt_count or 0),
+            "agent_id": application.agent_id,
+            "last_error": application.last_error,
+            "started_at": application.started_at,
+            "updated_at": application.updated_at,
+            "adapter": {"key": adapter.key, "label": adapter.label, "automatic": adapter.supports_automatic_submit},
+            "source": {"kind": source_kind, "name": application.job.source.name if application.job.source else ""},
+            "urls": {
+                "job": application.job.apply_url,
+                "automation": automation_apply_url(application.job),
+                "blocker_page": open_blocker.page_url if open_blocker else "",
+                "blocker_screenshot": f"/api/blockers/{open_blocker.id}/screenshot" if open_blocker and open_blocker.screenshot_path else "",
+            },
+            "yellow_question": {
+                "kind": blocker.get("kind", ""), "field_label": blocker.get("field_label", ""),
+                "question": blocker.get("question", ""), "options": blocker.get("options", []),
+            } if blocker else None,
+            "red_error": {
+                "explanation": blocker.get("explanation", "") if blocker else "",
+                "last_error": application.last_error,
+            },
+            "saved_answers": answers,
+            "attempts": [_attempt_dict(item) for item in recent_attempts],
+            "events": [{
+                "event_type": item.event_type, "from_status": item.from_status, "to_status": item.to_status,
+                "actor": item.actor, "message": item.message, "details": loads(item.details_json, {}),
+                "created_at": item.created_at,
+            } for item in recent_events],
+        })
+    return {"generated_at": utcnow(), "career_track": track, "count": len(diagnostics), "applications": diagnostics}
+
+
 @app.post("/api/applications/{application_id}/prioritize")
 def prioritize_automatic_application(application_id: int, db: Session = Depends(get_db)):
     """Move a waiting Auto Apply row to the head of the waiting queue.

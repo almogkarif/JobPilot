@@ -3495,7 +3495,36 @@ async function moveTrackedApplication(direction){await refreshTrackingApplicatio
 const automaticRetryInFlight=new Set();
 async function retryAutomaticApplication(id,{status='',button=null,refreshQueue=false,batch=false}={}){id=Number(id);if(!id||automaticRetryInFlight.has(id))return false;const uncertain=status==='verification_pending'||(Number(id)===Number(trackedApplicationId)&&applicationTrackingData?.application?.status==='verification_pending');if(uncertain&&!confirm('לא התקבל אצלך אישור מהחברה? ניסיון חוזר עלול ליצור הגשה כפולה אם המועמדות כן נקלטה. להמשיך?'))return false;automaticRetryInFlight.add(id);const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='…'}try{const suffix=uncertain?'&confirm_not_submitted=true':'';await api(`/api/applications/${id}/retry?auto_submit=true${suffix}`,{method:'POST'});if(!batch){toast('ההגשה הוחזרה לתור ומופעלת מחדש');await Promise.all([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);if(refreshQueue&&$('#modal')?.classList.contains('open'))await showAutoApplyQueue();if(Number(id)===Number(trackedApplicationId))startApplicationTracking(id,false,true)}return true}catch(error){toast(error.message);return false}finally{automaticRetryInFlight.delete(id);if(button?.isConnected){button.disabled=false;button.textContent=original}}}
 async function retryTrackedApplication(id,button=null){return retryAutomaticApplication(id,{status:applicationTrackingData?.application?.status||'',button})}
-async function copyApplicationFailureDiagnostics(){try{const rows=await api('/api/applications'),failures=rows.filter(item=>item.mode==='auto'&&TRACKABLE_APPLICATION_STATUSES.has(item.status)).sort((a,b)=>Number(a.id)-Number(b.id));const text=failures.map((item,index)=>{const blocker=item.blocker||{};return [`${index+1}. ${item.job?.company||''} — ${item.job?.title||''}`,`application_id: ${item.id} | status: ${item.status} | attempts: ${item.attempt_count||0}`,`kind: ${blocker.kind||''}`,`question: ${blocker.question||''}`,`options: ${(blocker.options||[]).join(' | ')}`,`error: ${item.agent_failure_detail||item.last_error||blocker.explanation||''}`].join('\n')}).join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון של ${failures.length} הגשות הועתק — אפשר להדביק אותו בצ׳אט`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
+function compactDiagnosticValue(value){if(value===null||value===undefined||value==='')return '—';if(typeof value==='string')return value.replace(/\s+/g,' ').trim()||'—';try{return JSON.stringify(value)}catch{return String(value)}}
+function applicationDiagnosticText(item,index){
+  const question=item.yellow_question||{},error=item.red_error||{},attempts=Array.isArray(item.attempts)?item.attempts:[],events=Array.isArray(item.events)?item.events:[],latest=attempts[0]||{};
+  const lines=[
+    `${index+1}. ${item.company||''} — ${item.title||''}`,
+    `application_id: ${item.application_id} | job_id: ${item.job_id} | status: ${item.status} | mode: ${item.mode} | attempts: ${item.attempt_count||0}`,
+    `ats: ${item.adapter?.key||'unknown'} (${item.adapter?.label||'unknown'}) | auto_supported: ${item.adapter?.automatic===true} | source: ${item.source?.kind||'—'} / ${item.source?.name||'—'}`,
+    `worker: ${item.agent_id||'—'} | started_at: ${item.started_at||'—'} | updated_at: ${item.updated_at||'—'}`,
+    `job_url: ${item.urls?.job||'—'}`,
+    `automation_url: ${item.urls?.automation||'—'}`,
+    `blocker_page: ${item.urls?.blocker_page||'—'} | screenshot: ${item.urls?.blocker_screenshot||'—'}`,
+    `YELLOW_QUESTION kind: ${question.kind||'—'} | field: ${question.field_label||'—'}`,
+    `YELLOW_QUESTION text: ${question.question||'—'}`,
+    `YELLOW_QUESTION options: ${(question.options||[]).join(' | ')||'—'}`,
+    `RED_ERROR explanation: ${error.explanation||'—'}`,
+    `RED_ERROR raw: ${error.last_error||'—'}`,
+    `saved_answers: ${compactDiagnosticValue(item.saved_answers||{})}`,
+    `latest_attempt: number=${latest.attempt_number||'—'} | id=${latest.id||'—'} | status=${latest.status||'—'} | verification=${latest.verification_state||'—'} | worker_type=${latest.worker_type||'—'}`,
+    `latest_attempt timing: ${latest.started_at||'—'} → ${latest.finished_at||'—'}`,
+    `latest_attempt error: ${latest.error||'—'}`,
+    `latest_attempt confirmation: ${latest.confirmation_text||'—'} | url: ${latest.confirmation_url||'—'} | external_id: ${latest.external_application_id||'—'}`,
+    `latest_attempt evidence: ${compactDiagnosticValue(latest.evidence||[])}`,
+    'recent_attempts:',
+    ...attempts.map(value=>`  - #${value.attempt_number||'?'} ${value.status||'—'} / ${value.verification_state||'—'} | ${value.started_at||'—'} → ${value.finished_at||'—'} | error=${compactDiagnosticValue(value.error)}`),
+    'recent_timeline:',
+    ...events.map(value=>`  - ${value.created_at||'—'} | ${value.event_type||'—'} | ${value.from_status||'—'}→${value.to_status||'—'} | ${value.actor||'—'} | ${compactDiagnosticValue(value.message)} | details=${compactDiagnosticValue(value.details||{})}`),
+  ];
+  return lines.join('\n');
+}
+async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],header=[`JobPilot auto-apply diagnostics v2`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק — כולל שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;window.copyApplicationFailureDiagnostics=copyApplicationFailureDiagnostics;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,running:Array.isArray(snapshot?.running)?snapshot.running:(snapshot?.current?.status==='applying'?[snapshot.current]:[]),running_count:Number(snapshot?.running_count??(snapshot?.current?.status==='applying'?1:0)),waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),attention:Array.isArray(snapshot?.attention)?snapshot.attention:[],attention_count:Number(snapshot?.attention_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
 function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}

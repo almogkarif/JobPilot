@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.main import ONE_TIME_SUBMIT_KEY, app
-from app.models import Application, ApplicationEvent, Blocker
+from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker
 from app.utils import loads
 
 
@@ -25,6 +25,44 @@ def _make_job(client: TestClient, title: str) -> dict:
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def test_failure_diagnostics_contains_question_error_attempt_and_timeline():
+    with TestClient(app) as client:
+        job = _make_job(client, "Diagnostic snapshot engineer")
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.mode = "auto"
+            stored.status = "needs_input"
+            stored.last_error = "red raw failure"
+            stored.answers_json = '{"Approved question":"Approved answer","__jobpilot_internal":true}'
+            db.add(Blocker(
+                application_id=stored.id, kind="choice_required", field_label="Python experience",
+                question="Do you have Python experience?", explanation="yellow choice required",
+                options_json='["Yes","No"]', page_url="https://example.com/form",
+            ))
+            db.add(ApplicationAttempt(
+                application_id=stored.id, attempt_number=1, idempotency_key="diagnostic-attempt",
+                adapter="greenhouse", worker_type="cloud", status="blocked",
+                verification_state="none", error="attempt-level failure",
+            ))
+            db.add(ApplicationEvent(
+                application_id=stored.id, event_type="blocked", from_status="applying",
+                to_status="needs_input", actor="agent", message="timeline failure",
+                details_json='{"stage":"details_filled"}',
+            ))
+            db.commit()
+
+        response = client.get("/api/applications/failure-diagnostics")
+        assert response.status_code == 200, response.text
+        row = next(item for item in response.json()["applications"] if item["application_id"] == application["id"])
+        assert row["yellow_question"]["question"] == "Do you have Python experience?"
+        assert row["yellow_question"]["options"] == ["Yes", "No"]
+        assert row["red_error"]["last_error"] == "red raw failure"
+        assert row["saved_answers"] == {"Approved question": "Approved answer"}
+        assert row["attempts"][0]["error"] == "attempt-level failure"
+        assert row["events"][0]["details"] == {"stage": "details_filled"}
 
 
 def _isolate_queue(application_id: int) -> None:
