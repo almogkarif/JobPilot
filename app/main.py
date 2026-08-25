@@ -5076,30 +5076,19 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     track = active_track(get_user_profile(db))
     if worker_type == "cloud":
         cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
-        # ``application_id`` identifies/scopes the user that dispatched this GitHub
-        # run, but queued runs are deliberately allowed to claim a newer approved
-        # application from the same user+career track. GitHub concurrency is FIFO;
-        # resolving the real head here is what lets a newly approved Auto Apply job
-        # jump to the front of the waiting queue without interrupting the job that
-        # is already running.
+        # A cloud workflow is an authorization for exactly one application. Never
+        # let an old or delayed GitHub run consume another queued job: doing so can
+        # submit to a company the user explicitly did not select. Queue ordering is
+        # a UI/dispatch concern; the claim boundary must remain ID-exact.
         anchor = db.get(Application, application_id)
         application = None
-        if anchor and anchor.job:
-            candidates = db.scalars(
-                select(Application)
-                .join(Job, Application.job_id == Job.id)
-                .options(joinedload(Application.job).joinedload(Job.source))
-                .where(
-                    Application.status == "queued",
-                    Application.mode == "auto",
-                    Job.career_track == anchor.job.career_track,
-                    Job.is_active.is_(True),
-                )
-                .order_by(desc(Application.updated_at), desc(Application.id))
-            ).unique().all()
-            application = next((item for item in candidates if
-                detect_adapter(item.job.apply_url, item.job.source.kind if item.job.source else "").key
-                in cloud_adapters), None)
+        if (
+            anchor and anchor.job and anchor.status == "queued" and anchor.mode == "auto"
+            and anchor.job.is_active
+            and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
+            in cloud_adapters
+        ):
+            application = anchor
     else:
         # Automatic submissions are background-only. A visible local browser may
         # claim review tasks, but must never pop open for an automatic campaign.

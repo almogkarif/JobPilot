@@ -118,11 +118,11 @@ def test_queue_snapshot_includes_blocked_question_with_clickable_options():
         assert queue['attention'][0]['blocker']['options'] == ['Yes', 'No']
 
 
-def test_cloud_worker_claims_actual_priority_head_not_old_dispatch_id():
+def test_cloud_worker_claims_only_its_exact_dispatch_id():
     with TestClient(app) as client:
         _clear_queue()
-        older_job = _job(client, 'Originally Dispatched', 'https://job-boards.greenhouse.io/acme/jobs/401')
-        newest_job = _job(client, 'Promoted New Approval', 'https://jobs.lever.co/acme/402')
+        older_job = _job(client, 'Explicit Guardz Dispatch', 'https://job-boards.greenhouse.io/guardz/jobs/401')
+        newest_job = _job(client, 'Queued Mobileye Must Stay Queued', 'https://jobs.eu.lever.co/mobileye/402')
         now = utcnow()
         with SessionLocal() as db:
             older = Application(job_id=older_job['id'], status='queued', mode='auto', updated_at=now - timedelta(minutes=2))
@@ -133,15 +133,14 @@ def test_cloud_worker_claims_actual_priority_head_not_old_dispatch_id():
             db.commit()
             older_id, newest_id = older.id, newest.id
 
-        # Simulate a FIFO GitHub Actions run that was originally dispatched for
-        # the older application. The claim endpoint must resolve the DB priority
-        # head at execution time and take the newly approved job instead.
+        # A delayed worker for one company must never consume another queued job,
+        # even when the other application is newer or first in the visible queue.
         claimed = client.get('/api/agent/tasks/next', params={
             'agent_id': 'priority-cloud', 'token': 'change-me',
             'worker_type': 'cloud', 'application_id': older_id,
         })
         assert claimed.status_code == 200, claimed.text
-        assert claimed.json()['task']['application']['id'] == newest_id
+        assert claimed.json()['task']['application']['id'] == older_id
         with SessionLocal() as db:
-            assert db.get(Application, newest_id).status == 'applying'
-            assert db.get(Application, older_id).status == 'queued'
+            assert db.get(Application, older_id).status == 'applying'
+            assert db.get(Application, newest_id).status == 'queued'
