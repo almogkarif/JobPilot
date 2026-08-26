@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 from typing import Callable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 from app.services.application_submission import lever_confirmation_from_url
 from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
@@ -499,12 +499,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Lever", lever_submit_requests[-1])
                     post_reported = True
                 if hosted_submit_requests and progress and not post_reported:
-                    progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Greenhouse", hosted_submit_requests[-1])
+                    progress("submit_request_sent", f"בקשת ההגשה נשלחה ל־{_hosted_ats_name(hosted_submit_requests[-1])}", hosted_submit_requests[-1])
                     post_reported = True
                 if not network_error and lever_submit_failures:
                     network_error = f"Lever submission request failed: {lever_submit_failures[-1]}"
                 if not network_error and hosted_submit_failures:
-                    network_error = f"Greenhouse submission request failed: {hosted_submit_failures[-1]}"
+                    hosted_name = _hosted_ats_name(page.url)
+                    network_error = f"{hosted_name} submission request failed: {hosted_submit_failures[-1]}"
                 if network_evidence or network_error:
                     break
                 duplicate_text = _duplicate_submission_evidence(page)
@@ -527,9 +528,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 }
             if network_error:
                 hosted_error = bool(hosted_submit_responses or hosted_submit_failures)
+                hosted_name = _hosted_ats_name(page.url)
                 raise ApplicationBlocked(
                     "submit_rejected", "שליחת המועמדות",
-                    ("Greenhouse לא קיבל את המועמדות" if hosted_error else "Lever לא קיבל את המועמדות"),
+                    (f"{hosted_name} לא קיבל את המועמדות" if hosted_error else "Lever לא קיבל את המועמדות"),
                     network_error, page.url, diagnostics={
                         "hosted_responses": [{"url": item.get("url"), "status": item.get("status"),
                                               "location": item.get("location"), "body_length": len(item.get("text") or "")}
@@ -580,9 +582,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 )
             if _is_hosted_ats_apply_url(page.url) and not hosted_submit_requests:
                 submit_error = _visible_submission_error(page)
+                hosted_name = _hosted_ats_name(page.url)
                 raise ApplicationBlocked(
-                    "submit_not_sent", "שליחת המועמדות", "הטופס לא יצא מ־Greenhouse",
-                    "Greenhouse עצר את השליחה לפני שנשלחה בקשת POST. " +
+                    "submit_not_sent", "שליחת המועמדות", f"הטופס לא יצא מ־{hosted_name}",
+                    f"{hosted_name} עצר את השליחה לפני שנשלחה בקשת Submit אמיתית. " +
                     (submit_error or "לא זוהתה בקשת הגשה אמיתית; ייתכן ששדה חובה או אימות סמוי עצר את הטופס."),
                     page.url, diagnostics=_submission_diagnostics(page, filled),
                 )
@@ -732,8 +735,14 @@ def _fill_greenhouse_security_code(inputs: list[Locator], code: str) -> None:
         return
     if len(inputs) < len(code):
         raise ValueError("Greenhouse security-code control count does not match the code")
+    # Greenhouse currently renders the email verification code as a row of
+    # single-character React inputs. ``fill()`` mutates the DOM value, but it does
+    # not reproduce the key events that advance/finalize that OTP component. Use
+    # real key presses for split controls so React receives the same event sequence
+    # as a candidate typing the code.
     for locator, character in zip(inputs, code):
-        locator.fill(character, timeout=1_000)
+        locator.click(timeout=1_000)
+        locator.type(character, timeout=1_000)
 
 
 def _extract_fields(page: Page) -> list[dict]:
@@ -863,7 +872,21 @@ def _extract_fields(page: Page) -> list[dict]:
             // to trigger native validation and must never be filled or reported as
             // a duplicate question by the Agent.
             const semanticallyHidden = el.getAttribute('aria-hidden') === 'true' || el.hidden;
-            const visible = !semanticallyHidden && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            const nativeVisible = !semanticallyHidden && style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            // Lever and other ATSs often hide the native radio/checkbox and expose
+            // a styled <label> as the actual visible control. Those inputs still
+            // participate in HTML validation, so skipping them leaves an unanswered
+            // required Yes/No question that blocks Submit. Treat a hidden native
+            // choice as actionable when its associated label is visibly clickable.
+            let labelledChoiceVisible = false;
+            if (!semanticallyHidden && ['radio', 'checkbox'].includes((el.type || '').toLowerCase())) {
+              const choiceLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : el.closest('label');
+              if (choiceLabel) {
+                const labelStyle = window.getComputedStyle(choiceLabel), labelRect = choiceLabel.getBoundingClientRect();
+                labelledChoiceVisible = labelStyle.display !== 'none' && labelStyle.visibility !== 'hidden' && labelRect.width > 0 && labelRect.height > 0;
+              }
+            }
+            const visible = nativeVisible || labelledChoiceVisible;
             return {
               selector: `[data-jobpilot-id="${el.dataset.jobpilotId}"]`,
               tag: el.tagName.toLowerCase(),
@@ -1808,21 +1831,41 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             _show_agent_pointer(page, control, f"בוחר: {candidate}")
             control.click(timeout=2_000)
             page.wait_for_timeout(300)
-            # Current Greenhouse React Select country lists contain 240+ items.
-            # Filter a searchable combobox before matching instead of inspecting
-            # only the first viewport/options (Israel otherwise appears too late).
-            if (normalize(candidate) not in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
-                    and (control.get_attribute("role") or "").casefold() == "combobox"
-                    and control.evaluate("el => el.tagName") == "INPUT"):
+            # Current Greenhouse React Select country/city lists can be remote and
+            # contain hundreds of entries. Filter first, then allow the portal-backed
+            # option list time to arrive instead of checking a single 250 ms snapshot.
+            searchable_input = (
+                normalize(candidate) not in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
+                and (control.get_attribute("role") or "").casefold() == "combobox"
+                and control.evaluate("el => el.tagName") == "INPUT"
+            )
+            if searchable_input:
                 try:
                     control.fill(candidate, timeout=2_000)
-                    page.wait_for_timeout(250)
                 except Exception:
                     pass
-            option = _best_visible_option(page, candidate)
+            option = None
+            for _ in range(8):
+                option = _best_visible_option(page, candidate)
+                if option:
+                    break
+                page.wait_for_timeout(250)
             if option:
                 option.click(timeout=2_000)
                 filled.append({"label": label or "בחירה", "source": "profile"})
+            elif searchable_input and any(term in key for term in ("city", "location")):
+                # Location autocompletes occasionally expose their first filtered
+                # result only to keyboard navigation (or race while mounting the
+                # portal). With a concrete profile city already typed, ArrowDown +
+                # Enter is safer than leaving a required location silently empty.
+                try:
+                    control.press("ArrowDown", timeout=1_000)
+                    page.wait_for_timeout(150)
+                    control.press("Enter", timeout=1_000)
+                    page.wait_for_timeout(250)
+                    filled.append({"label": label or "בחירה", "source": "profile_city_keyboard"})
+                except Exception:
+                    control.press("Escape")
             else:
                 control.press("Escape")
         except ApplicationBlocked:
@@ -2032,18 +2075,39 @@ def _is_lever_submission_endpoint(url: str) -> bool:
 
 
 def _is_hosted_ats_submission_endpoint(url: str) -> bool:
-    """Identify trusted hosted-form POSTs without trusting CAPTCHA/analytics traffic."""
+    """Identify trusted hosted-form *submission* POSTs only.
+
+    Ashby uses the same GraphQL URL for every field update. Counting
+    ``ApiSetFormValue`` as a submission made ordinary autosave traffic look like a
+    sent application and stranded retries in ``verification_pending``.
+    """
     try:
         parsed = urlparse(str(url or ""))
     except Exception:
         return False
     host = (parsed.hostname or "").casefold()
     path = (parsed.path or "").rstrip("/").casefold()
-    is_ashby_graphql = (
-        (host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"))
-        and path == "/api/non-user-graphql"
-    )
-    return host in GREENHOUSE_HOSTS or is_ashby_graphql
+    if host in GREENHOUSE_HOSTS:
+        return True
+    if not ((host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")) and path == "/api/non-user-graphql"):
+        return False
+    query = parse_qs(parsed.query or "")
+    operation = normalize(str((query.get("op") or [""])[0]))
+    if operation in {"submitapplicationform", "apisubmitapplicationform"}:
+        return True
+    return operation.startswith("apisubmit") and "form" in operation and "action" in operation
+
+
+def _hosted_ats_name(url: str) -> str:
+    try:
+        host = (urlparse(str(url or "")).hostname or "").casefold()
+    except Exception:
+        return "ATS"
+    if host in GREENHOUSE_HOSTS:
+        return "Greenhouse"
+    if host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"):
+        return "Ashby"
+    return "ATS"
 
 
 def _is_hosted_ats_apply_url(url: str) -> bool:
@@ -2250,8 +2314,16 @@ def _visible_submission_error(page: Page) -> str:
                 .map(el => {
                   const id = el.id || '';
                   const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
-                  const group = el.closest('label, .application-question, [role="group"], fieldset');
-                  return clean(label?.innerText || group?.innerText || el.getAttribute('aria-label') || el.name || el.placeholder);
+                  const group = el.closest('.application-question, [role="radiogroup"], [role="group"], fieldset');
+                  if ((el.type || '').toLowerCase() === 'radio' && group) {
+                    const optionLabels = new Set([...group.querySelectorAll('label')].map(node => clean(node.innerText)));
+                    const question = (group.innerText || '').split(/\n+/).map(clean).find(text =>
+                      text && text.length >= 4 && !optionLabels.has(text) && !/^(yes|no|required|optional)$/i.test(text)
+                    );
+                    if (question) return question;
+                  }
+                  const fallbackGroup = el.closest('label, .application-question, [role="group"], fieldset');
+                  return clean(label?.innerText || fallbackGroup?.innerText || el.getAttribute('aria-label') || el.name || el.placeholder);
                 }).filter(Boolean);
               if (invalid.length) return `שדה שלא עבר ולידציה: ${invalid[0]}`;
               const messages = [...document.querySelectorAll('p.error-message, .error-message, [role="alert"], .field-error')]

@@ -187,7 +187,7 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["full name", "name", "שם מלא"], profile.get("full_name", ""), "profile"),
         (["email", "e mail", "דוא ל", "מייל"], profile.get("email", ""), "profile"),
         (["phone", "mobile", "telephone", "טלפון", "נייד"], profile.get("phone", ""), "profile"),
-        (["location", "city", "current location", "מיקום", "עיר"], extra.get("employment_location", "") or profile.get("location", ""), "profile"),
+        (["location", "city", "current location", "מיקום", "עיר"], extra.get("city", "") or extra.get("employment_location", "") or profile.get("location", ""), "profile"),
         (["linkedin", "linked in"], profile.get("linkedin_url", ""), "profile"),
         (["github", "git hub"], profile.get("github_url", ""), "profile"),
         (["portfolio", "website", "personal site", "אתר אישי"], profile.get("portfolio_url", ""), "profile"),

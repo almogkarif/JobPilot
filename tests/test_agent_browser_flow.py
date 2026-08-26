@@ -128,6 +128,18 @@ def test_greenhouse_submission_response_requires_explicit_success_evidence():
     assert _hosted_ats_submission_response_result("https://analytics.example/collect", 200, '{"success":true}') == ("", "", "")
 
 
+def test_ashby_field_autosave_is_not_mistaken_for_application_submit():
+    assert _is_hosted_ats_submission_endpoint(
+        "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiSetFormValue"
+    ) is False
+    assert _is_hosted_ats_submission_endpoint(
+        "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiSetFormValueToFile"
+    ) is False
+    assert _is_hosted_ats_submission_endpoint(
+        "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiSubmitMultipleFormsAction"
+    ) is True
+
+
 def test_ashby_graphql_submission_requires_form_submit_success_typename():
     url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=submitApplicationForm"
     assert _is_hosted_ats_submission_endpoint(url) is True
@@ -199,6 +211,26 @@ def test_radio_question_uses_common_group_context_instead_of_yes_option_label():
         fields = [field for field in _extract_fields(page) if field["type"] == "radio"]
         assert len(fields) == 2
         assert all("3+ years" in _display_field_label(field) for field in fields)
+        browser.close()
+
+
+def test_hidden_native_radio_with_visible_label_remains_actionable():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('''
+          <section class="application-question">
+            <p>Would you be comfortable commuting to Jerusalem?</p>
+            <input id="commute-yes" style="display:none" type="radio" name="commute" value="yes" required>
+            <label for="commute-yes">Yes</label>
+            <input id="commute-no" style="display:none" type="radio" name="commute" value="no" required>
+            <label for="commute-no">No</label>
+          </section>
+        ''')
+        fields = [field for field in _extract_fields(page) if field["type"] == "radio"]
+        assert len(fields) == 2
+        assert all(field["visible"] is True for field in fields)
+        assert all("commuting to Jerusalem" in _display_field_label(field) for field in fields)
         browser.close()
 
 
@@ -363,6 +395,28 @@ def test_greenhouse_security_code_is_detected_and_filled_without_opening_another
         _fill_greenhouse_security_code(inputs, "2TXo8FkJ")
         assert page.locator("#security").input_value() == "2TXo8FkJ"
         assert len(page.context.pages) == 1
+        browser.close()
+
+
+def test_greenhouse_split_security_code_uses_keyboard_events():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('''
+          <div id="otp">
+            <input aria-label="Security code 1" maxlength="1"><input aria-label="Security code 2" maxlength="1">
+            <input aria-label="Security code 3" maxlength="1"><input aria-label="Security code 4" maxlength="1">
+          </div>
+          <script>
+            window.keydowns = 0;
+            document.querySelectorAll('#otp input').forEach(el => el.addEventListener('keydown', () => window.keydowns++));
+          </script>
+        ''')
+        group = page.locator("#otp input")
+        inputs = [group.nth(index) for index in range(group.count())]
+        _fill_greenhouse_security_code(inputs, "2TX8")
+        assert [item.input_value() for item in inputs] == ["2", "T", "X", "8"]
+        assert page.evaluate("window.keydowns") >= 4
         browser.close()
 
 

@@ -105,6 +105,13 @@ def test_short_company_and_location_labels_do_not_use_unrelated_memories():
     assert known_value("Location", "text", location_profile, {}, memories).value == "Haifa"
 
 
+def test_application_profile_city_is_preferred_for_location_fields():
+    profile = {**PROFILE, "location": "Israel", "application_profile": {**PROFILE["application_profile"], "city": "Haifa"}}
+    candidate = known_value("Location (City)*", "select", profile, {}, [])
+    assert candidate is not None
+    assert candidate.value == "Haifa"
+
+
 def test_work_experience_from_and_to_use_employment_dates():
     profile = {**PROFILE, "application_profile": {**PROFILE["application_profile"],
         "employment_start_date": "2024-08", "employment_end_date": "2025-08"}}
