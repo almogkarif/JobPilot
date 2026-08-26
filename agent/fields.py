@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 from app.utils import split_name
 from app.application_questions import match_question_category
+from app.services.degree_requirements import normalize_degree_level
 
 
 @dataclass(slots=True)
@@ -45,6 +46,57 @@ def month_for_form(value: str) -> str:
     return f"{match.group(2)}/{match.group(1)}" if match else str(value or "")
 
 
+def _degree_yes_no_answer(label: str, extra: dict) -> CandidateValue | None:
+    """Answer factual degree yes/no gates only when the profile proves the answer.
+
+    A degree profile value such as ``B.Sc.`` must not be passed verbatim to a
+    Yes/No radio group. When the question also names a discipline, require the
+    saved field of study to match; otherwise ask the user instead of guessing.
+    """
+    key = normalize(label)
+    academic_terms = ("degree", "b sc", "bachelor", "m sc", "master", "ph d", "doctorate")
+    question_terms = ("do you hold", "do you have", "have you", "did you earn", "have a", "hold a")
+    if not any(term in key for term in academic_terms) or not any(term in key for term in question_terms):
+        return None
+
+    profile_level = normalize_degree_level(extra.get("degree_level") or extra.get("education_degree"))
+    if not profile_level:
+        return None
+    requested_level = ""
+    if any(term in key for term in ("ph d", "doctorate", "doctoral")):
+        requested_level = "phd"
+    elif any(term in key for term in ("m sc", "master")):
+        requested_level = "master"
+    elif any(term in key for term in ("b sc", "bachelor")) or "degree" in key:
+        requested_level = "bachelor"
+    ranks = {"bachelor": 1, "master": 2, "phd": 3}
+    if requested_level and ranks.get(profile_level, 0) < ranks.get(requested_level, 0):
+        return CandidateValue("No", "profile_degree")
+
+    field = normalize(str(extra.get("education_field") or ""))
+    discipline_checks: list[bool] = []
+    if "computer science" in key:
+        discipline_checks.append("computer science" in field)
+    # Treat any explicit engineering family as matching the broad word
+    # "Engineering"; narrower questions still require their named discipline.
+    named_engineering = [
+        term for term in ("software engineering", "computer engineering", "electrical engineering",
+                          "electronics engineering", "industrial engineering", "mechanical engineering")
+        if term in key
+    ]
+    if named_engineering:
+        discipline_checks.extend(term in field for term in named_engineering)
+    elif "engineering" in key:
+        discipline_checks.append("engineering" in field)
+    if discipline_checks:
+        if not field:
+            return None
+        if not any(discipline_checks):
+            return CandidateValue("No", "profile_degree_field")
+
+    return CandidateValue("Yes", "profile_degree")
+
+
 def known_value(label: str, field_type: str, profile: dict, explicit_answers: dict, memories: list[dict]) -> CandidateValue | None:
     key = normalize(label)
     first_name, last_name = split_name(profile.get("full_name", ""))
@@ -74,6 +126,18 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         return CandidateValue(profile["email"], "profile")
     if field_type == "tel" and str(profile.get("phone", "")).strip():
         return CandidateValue(profile["phone"], "profile")
+
+    if field_type in {"radio", "checkbox"}:
+        degree_answer = _degree_yes_no_answer(label, extra)
+        if degree_answer is not None:
+            return degree_answer
+        # A factual degree question that cannot be proven from the profile must
+        # become a normal choice blocker. Do not fall through to the generic
+        # education mapping and try to select a radio option named "B.Sc.".
+        degree_key = normalize(label)
+        if any(term in degree_key for term in ("degree", "b sc", "bachelor", "m sc", "master", "ph d", "doctorate")) \
+                and any(term in degree_key for term in ("do you hold", "do you have", "have you", "did you earn", "have a", "hold a")):
+            return None
 
     if key in {
         "how did you hear about us", "how did you hear about this job",

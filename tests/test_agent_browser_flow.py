@@ -5,12 +5,13 @@ from playwright.sync_api import sync_playwright
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _attach_file_to_field,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
-                           _field_diagnostics,
+                           _field_diagnostics, _field_is_actionable,
                            _fill_text_field,
                            _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
@@ -140,6 +141,42 @@ def test_ashby_field_autosave_is_not_mistaken_for_application_submit():
     ) is True
 
 
+def test_current_ashby_submit_shape_is_classified_without_typename():
+    url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiSubmitMultipleFormsAction"
+    success_body = (
+        '{"data":{"submitMultipleFormsAction":{'
+        '"applicationFormResult":{"_":null},"surveyFormResults":[],'
+        '"messages":{"blockMessageForCandidateHtml":null}}}}'
+    )
+    evidence, application_id, error = _hosted_ats_submission_response_result(url, 200, success_body)
+    assert evidence == "Ashby accepted the application"
+    assert application_id == ""
+    assert error == ""
+
+    failure_body = (
+        '{"data":{"submitMultipleFormsAction":{'
+        '"applicationFormResult":{"id":"render-123","errorMessages":["Required"],'
+        '"formErrors":[{"message":"Required","fieldEntryId":"field-1"}]},'
+        '"surveyFormResults":[],"messages":{"blockMessageForCandidateHtml":null}}}}'
+    )
+    evidence, _, error = _hosted_ats_submission_response_result(url, 200, failure_body)
+    assert evidence == ""
+    assert "form validation failed" in error
+
+    diagnostics = _safe_hosted_response_diagnostics({"url": url, "status": 200, "text": success_body})
+    assert diagnostics["ashby_result_keys"] == ["_"]
+
+    survey_validation_body = (
+        '{"data":{"submitMultipleFormsAction":{"applicationFormResult":{"_":null},'
+        '"surveyFormResults":[{"id":"survey-form","errorMessages":["Required"]}],'
+        '"messages":{"blockMessageForCandidateHtml":null}}}}'
+    )
+    assert _hosted_ats_submission_response_result(url, 200, survey_validation_body)[2] == (
+        "Ashby rejected the application (survey validation failed)"
+    )
+    assert diagnostics["graphql_error_count"] == 0
+
+
 def test_ashby_graphql_submission_requires_form_submit_success_typename():
     url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=submitApplicationForm"
     assert _is_hosted_ats_submission_endpoint(url) is True
@@ -212,6 +249,24 @@ def test_radio_question_uses_common_group_context_instead_of_yes_option_label():
         assert len(fields) == 2
         assert all("3+ years" in _display_field_label(field) for field in fields)
         browser.close()
+
+
+def test_required_hidden_lever_choice_is_actionable_even_without_a_visible_native_box():
+    field = {"type": "radio", "required": True, "visible": False, "disabled": False}
+    assert _field_is_actionable(
+        field, page_url="https://jobs.eu.lever.co/mobileye/job-123/apply", is_application_path=True
+    ) is True
+    assert _field_is_actionable(
+        field, page_url="https://example.com/apply", is_application_path=True
+    ) is False
+
+
+def test_closed_choice_rejects_unrelated_profile_text():
+    field = {"type": "radio", "options": ["Yes", "No"]}
+    assert _choice_candidate_is_compatible(field, "Yes") is True
+    assert _choice_candidate_is_compatible(field, False) is True
+    assert _choice_candidate_is_compatible(field, "Tel Aviv") is False
+    assert _choice_candidate_is_compatible(field, "B.Sc.") is False
 
 
 def test_hidden_native_radio_with_visible_label_remains_actionable():

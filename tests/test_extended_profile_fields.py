@@ -89,6 +89,34 @@ def test_privacy_acknowledgements_are_approved_but_marketing_opt_ins_are_not():
     assert marketing is None
 
 
+def test_degree_yes_no_gate_uses_degree_level_and_field_of_study():
+    cs_profile = {
+        **PROFILE,
+        "application_profile": {
+            **PROFILE["application_profile"],
+            "degree_level": "bachelor",
+            "education_field": "Computer Science",
+        },
+    }
+    question = "Do you hold a B.Sc. degree in Engineering or Computer Science?"
+    answer = known_value(question, "radio", cs_profile, {}, [])
+    assert answer is not None and answer.value == "Yes"
+    assert answer.source == "profile_degree"
+
+    physics_profile = {
+        **cs_profile,
+        "application_profile": {**cs_profile["application_profile"], "education_field": "Physics"},
+    }
+    answer = known_value(question, "radio", physics_profile, {}, [])
+    assert answer is not None and answer.value == "No"
+
+    unknown_field_profile = {
+        **cs_profile,
+        "application_profile": {**cs_profile["application_profile"], "education_field": ""},
+    }
+    assert known_value(question, "radio", unknown_field_profile, {}, []) is None
+
+
 def test_missing_job_title_gets_professional_profile_error():
     section, explanation = missing_profile_context("Job Title*")
     assert section == "ניסיון תעסוקתי"

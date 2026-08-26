@@ -74,6 +74,28 @@ class ApplicationBlocked(Exception):
         self.diagnostics = diagnostics or {}
 
 
+def _field_is_actionable(field: dict, *, page_url: str, is_application_path: bool) -> bool:
+    if field.get("disabled"):
+        return False
+    if field.get("visible"):
+        return True
+    if field.get("type") == "file" and is_application_path:
+        return True
+    # Lever's current application renderer can keep the native required choice
+    # input fully hidden (including an aria-hidden/native-control wrapper) while
+    # the clickable Yes/No UI is rendered elsewhere. These controls still take
+    # part in native form validation. If we drop them from the fill pass, Submit
+    # is blocked client-side and the user sees only a late validation error. Keep
+    # required Lever choices actionable even when the native element has no box;
+    # Playwright's forced check targets the real input safely. Optional hidden
+    # marketing/EEO choices remain excluded.
+    return bool(
+        _is_lever_apply_url(page_url)
+        and field.get("required")
+        and field.get("type") in {"radio", "checkbox"}
+    )
+
+
 def ensure_supported(url: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -152,9 +174,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             )
         actionable_fields = [
             field for field in fields
-            if not field.get("disabled") and (
-                field.get("visible") or (field.get("type") == "file" and is_application_path)
-            )
+            if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
         ]
         if actionable_fields and progress:
             progress("form_detected", "טופס המועמדות זוהה", page.url)
@@ -195,9 +215,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         fields = _extract_fields(page)
         actionable_fields = [
             field for field in fields
-            if not field.get("disabled") and (
-                field.get("visible") or (field.get("type") == "file" and is_application_path)
-            )
+            if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
         ]
         filled.extend(_fill_tokenized_skills(page, profile))
         anonymous_month_index = 0
@@ -251,10 +269,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 continue
 
             if field_type in {"checkbox", "radio"}:
+                if candidate is not None and not _choice_candidate_is_compatible(field, candidate.value):
+                    candidate = None
                 if candidate is not None:
                     _set_boolean(locator, candidate.value, field)
                     filled.append({"label": label, "source": candidate.source})
-                elif field.get("required") and not field.get("checked"):
+                elif field.get("required") and not _choice_group_has_selection(locator, field):
                     unknown.append(field)
                 continue
 
@@ -918,6 +938,38 @@ def _extract_fields(page: Page) -> list[dict]:
         }
         """
     )
+
+
+def _choice_candidate_is_compatible(field: dict, desired: str | bool) -> bool:
+    """Reject profile text accidentally mapped into a closed Yes/No/choice field."""
+    if isinstance(desired, bool):
+        return True
+    desired_key = normalize(str(desired))
+    if not desired_key:
+        return False
+    options = [normalize(option) for option in field.get("options", []) or [] if normalize(option)]
+    if not options:
+        # A single checkbox can legitimately use a textual Yes/No value even
+        # without an exposed option list. Other arbitrary text is unsafe.
+        return desired_key in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
+    if desired_key in {"true", "yes", "כן", "1"}:
+        return any(option in {"true", "yes", "כן", "1"} or option.endswith(" yes") for option in options)
+    if desired_key in {"false", "no", "לא", "0"}:
+        return any(option in {"false", "no", "לא", "0"} or option.endswith(" no") for option in options)
+    return any(option == desired_key or option.endswith(" " + desired_key) for option in options)
+
+
+def _choice_group_has_selection(locator: Locator, field: dict) -> bool:
+    try:
+        if field.get("type") == "radio":
+            return bool(locator.evaluate(
+                """el => el.name
+                    ? [...document.querySelectorAll('input[type=radio]')].some(peer => peer.name === el.name && peer.checked)
+                    : !!el.checked"""
+            ))
+        return bool(locator.is_checked(timeout=1_000))
+    except Exception:
+        return bool(field.get("checked"))
 
 
 def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
@@ -2118,6 +2170,25 @@ def _is_hosted_ats_apply_url(url: str) -> bool:
         return False
 
 
+def _ashby_submit_action_payload(text: str) -> tuple[dict, list]:
+    """Return Ashby's submit action payload plus any top-level GraphQL errors."""
+    try:
+        payload = json.loads(str(text or ""))
+    except Exception:
+        return {}, []
+    if not isinstance(payload, dict):
+        return {}, []
+    errors = payload.get("errors") if isinstance(payload.get("errors"), list) else []
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return {}, errors
+    for key, value in data.items():
+        key_norm = normalize(str(key))
+        if isinstance(value, dict) and "submit" in key_norm and "form" in key_norm:
+            return value, errors
+    return {}, errors
+
+
 def _hosted_ats_submission_response_result(
     url: str, status: int, text: str = "", location: str = ""
 ) -> tuple[str, str, str]:
@@ -2134,15 +2205,52 @@ def _hosted_ats_submission_response_result(
     compact = re.sub(r"\s+", "", str(text or "")).casefold()
     is_ashby = host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
     if is_ashby:
-        is_application_action = any(token in compact for token in (
+        if code >= 400:
+            return "", "", f"Ashby rejected the application (HTTP {code})"
+
+        action, graphql_errors = _ashby_submit_action_payload(text)
+        if graphql_errors:
+            return "", "", "Ashby rejected the application (GraphQL error)"
+        if action:
+            result = action.get("applicationFormResult")
+            messages = action.get("messages")
+            block_message = ""
+            if isinstance(messages, dict):
+                block_message = str(messages.get("blockMessageForCandidateHtml") or "").strip()
+            if block_message:
+                return "", "", "Ashby rejected the application (candidate block message)"
+            # Current Ashby does not necessarily request __typename in this
+            # mutation. FormSubmitSuccess contains an ``_`` sentinel; a
+            # validation failure is a FormRender and carries id/formErrors or
+            # errorMessages. Recognize the shape instead of requiring typename.
+            def ashby_form_result_failed(form_result: object) -> bool:
+                if not isinstance(form_result, dict):
+                    return False
+                return bool(
+                    form_result.get("id")
+                    or form_result.get("formErrors")
+                    or form_result.get("errorMessages")
+                )
+
+            if ashby_form_result_failed(result):
+                return "", "", "Ashby rejected the application (form validation failed)"
+            surveys = action.get("surveyFormResults")
+            if isinstance(surveys, list) and any(ashby_form_result_failed(item) for item in surveys):
+                return "", "", "Ashby rejected the application (survey validation failed)"
+            if isinstance(result, dict) and "_" in result and not result.get("id"):
+                return "Ashby accepted the application", "", ""
+
+        # Compatibility with older/current variants that include GraphQL
+        # typenames explicitly. Keep this scoped to the actual submit response.
+        is_application_action = bool(action) or any(token in compact for token in (
             '"submitapplicationformaction"', '"submitsingleapplicationformaction"',
             '"submitmultipleformsaction"',
         ))
         if 200 <= code < 300 and is_application_action and '"__typename":"formsubmitsuccess"' in compact:
             return "Ashby accepted the application", "", ""
-        if code >= 400 or (is_application_action and any(token in compact for token in (
-            '"__typename":"formsubmitfailure"', '"errors":[',
-        ))):
+        if is_application_action and any(token in compact for token in (
+            '"__typename":"formsubmitfailure"', '"formerrors":[', '"errormessages":[',
+        )):
             return "", "", f"Ashby rejected the application (HTTP {code})"
         return "", "", ""
     explicit_json_success = any(token in compact for token in ('"success":true', '"submitted":true'))
@@ -2179,10 +2287,15 @@ def _safe_hosted_response_diagnostics(response: dict) -> dict:
     action_keys = list(dict.fromkeys(re.findall(
         r'"(submit[A-Za-z0-9_]{1,80}Action)"\s*:', text
     )))[:8]
+    ashby_result_keys: list[str] = []
+    action, graphql_errors = _ashby_submit_action_payload(text)
+    if action and isinstance(action.get("applicationFormResult"), dict):
+        ashby_result_keys = sorted(str(key) for key in action["applicationFormResult"].keys())[:12]
     return {
         "url": response.get("url"), "status": response.get("status"),
         "location": response.get("location"), "body_length": len(text),
         "typenames": typenames, "submit_action_keys": action_keys,
+        "ashby_result_keys": ashby_result_keys, "graphql_error_count": len(graphql_errors),
     }
 
 
