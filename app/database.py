@@ -166,6 +166,7 @@ def _sqlite_additive_migrations(connection) -> None:
             "career_track": "VARCHAR(40) NOT NULL DEFAULT 'computer_science'",
             "match_breakdown_json": "TEXT NOT NULL DEFAULT '{}'",
             "alternate_links_json": "TEXT NOT NULL DEFAULT '[]'",
+            "source_fingerprint": "VARCHAR(64) NOT NULL DEFAULT ''",
             "removed_at": "DATETIME",
             "degree_requirement": "VARCHAR(20) NOT NULL DEFAULT ''",
             "degree_required": "BOOLEAN NOT NULL DEFAULT 0",
@@ -199,6 +200,7 @@ def _sqlite_additive_migrations(connection) -> None:
                 connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}"))
     if "jobs" in existing_tables:
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_removed_at ON jobs(removed_at)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_source_fingerprint ON jobs(source_fingerprint)"))
 
     # Local mode remains a single-account installation, but the same schema is used
     # so backup/migration behavior matches cloud mode.
@@ -574,8 +576,12 @@ def _postgres_multiuser_migration(connection) -> bool:
             connection.execute(text("ALTER TABLE jobs ADD COLUMN degree_required BOOLEAN NOT NULL DEFAULT FALSE"))
         if "degree_experience_alternative" not in job_columns:
             connection.execute(text("ALTER TABLE jobs ADD COLUMN degree_experience_alternative BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "source_fingerprint" not in job_columns:
+            connection.execute(text("ALTER TABLE jobs ADD COLUMN source_fingerprint VARCHAR(64) NOT NULL DEFAULT ''"))
         if "ix_jobs_removed_at" not in _postgres_index_names(connection, "jobs"):
             connection.execute(text("CREATE INDEX ix_jobs_removed_at ON jobs(removed_at)"))
+        if "ix_jobs_source_fingerprint" not in _postgres_index_names(connection, "jobs"):
+            connection.execute(text("CREATE INDEX ix_jobs_source_fingerprint ON jobs(source_fingerprint)"))
 
     if "profiles" in tables:
         # ``salary_expectation`` existed before v0.3.2 and was intentionally removed
@@ -687,6 +693,33 @@ def ensure_compatibility_columns() -> None:
             run_followup_migrations = _postgres_multiuser_migration(connection)
         if run_followup_migrations:
             _migrate_plaintext_application_passwords(connection)
+
+
+def ensure_job_source_fingerprint_column() -> None:
+    """Ensure the small egress-optimization column exists for external workers.
+
+    GitHub Actions can start from the newly pushed revision before Render finishes its
+    deploy/lifespan migration. Keep this worker-side guard deliberately narrow instead
+    of running the full compatibility migration on every hourly scan.
+    """
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "jobs" not in set(inspector.get_table_names()):
+            return
+        columns = {column["name"] for column in inspector.get_columns("jobs")}
+        if "source_fingerprint" not in columns:
+            if engine.dialect.name == "postgresql":
+                connection.execute(text(
+                    "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_fingerprint VARCHAR(64) NOT NULL DEFAULT ''"
+                ))
+            else:
+                connection.execute(text(
+                    "ALTER TABLE jobs ADD COLUMN source_fingerprint VARCHAR(64) NOT NULL DEFAULT ''"
+                ))
+        if engine.dialect.name == "postgresql":
+            connection.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_jobs_source_fingerprint ON jobs(source_fingerprint)"
+            ))
 
 
 def get_db(request: Request):

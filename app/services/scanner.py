@@ -4,12 +4,12 @@ from datetime import datetime, timedelta, timezone
 import asyncio
 import re
 from collections.abc import Callable
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session, joinedload, load_only
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
 from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
-from ..database import get_user_profile
+from ..database import SessionLocal, get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
@@ -18,7 +18,8 @@ from .matching import build_match_context, extract_experience, extract_skills, h
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
 from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
-from .ranking.service import get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result
+from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
+                              job_fingerprint_values, persist_v2_result)
 from .job_text import clean_job_text
 from .user_job_state import set_job_status
 
@@ -124,11 +125,17 @@ async def scan_all_sources(
     total_removed = 0
     total_merged = 0
     total_auto_queued = 0
+    stale_ranking_job_ids: set[int] = set()
     errors: list[dict] = []
     per_source: list[dict] = []
     fingerprint_index = {
         _job_fingerprint(job.title, job.company, job.location): job
-        for job in db.scalars(select(Job).where(Job.is_active.is_(True), Job.career_track == career_track)).all()
+        for job in db.scalars(
+            select(Job).options(load_only(
+                Job.id, Job.source_id, Job.title, Job.company, Job.location,
+                Job.apply_url, Job.alternate_links_json,
+            )).where(Job.is_active.is_(True), Job.career_track == career_track)
+        ).all()
     }
 
     # Four concurrent network collectors are enough to cut scan time dramatically
@@ -279,22 +286,42 @@ async def scan_all_sources(
                 # in Israel, not only roles matching this user's preferences.
                 # Otherwise a present-but-filtered role could look deleted upstream.
                 seen_external_ids = {item.external_id for item in israel_items}
+                eligible_external_ids = {item.external_id for item in eligible_items}
                 seen_at = datetime.now(timezone.utc)
-                source_jobs = db.scalars(
-                    select(Job)
-                    .options(joinedload(Job.application).selectinload(Application.blockers))
-                    .where(Job.source_id == source.id)
-                ).all()
+                source_jobs_statement = select(Job).where(Job.source_id == source.id)
+                if catalog_only:
+                    # The external hourly worker only needs lightweight catalogue
+                    # metadata for reconciliation. Defer the long description body;
+                    # unchanged listings are recognized via source_fingerprint and
+                    # therefore never download that text from Supabase.
+                    source_jobs_statement = source_jobs_statement.options(load_only(
+                        Job.id, Job.source_id, Job.career_track, Job.external_id,
+                        Job.title, Job.company, Job.location, Job.workplace,
+                        Job.apply_url, Job.source_url, Job.source_fingerprint,
+                        Job.published_at, Job.is_active, Job.removed_at,
+                        Job.alternate_links_json,
+                    ))
+                else:
+                    source_jobs_statement = source_jobs_statement.options(
+                        joinedload(Job.application).selectinload(Application.blockers)
+                    )
+                source_jobs = db.scalars(source_jobs_statement).all()
                 jobs_by_external_id = {job.external_id: job for job in source_jobs}
 
                 for item_index, item in enumerate(eligible_items, start=1):
+                    incoming_source_fingerprint = job_fingerprint_values(
+                        career_track, item.title, item.description, item.location,
+                        item.workplace, item.published_at,
+                    )
                     job = jobs_by_external_id.get(item.external_id)
+                    source_content_changed = True
                     if not job:
                         fingerprint = _job_fingerprint(item.title, item.company, item.location)
                         job = fingerprint_index.get(fingerprint)
                         if job and job.source_id == source.id:
                             job = None
                         if job:
+                            source_content_changed = False
                             links = loads(job.alternate_links_json, [])
                             candidate_link = {
                                 "source_id": source.id, "source": source.name,
@@ -310,7 +337,8 @@ async def scan_all_sources(
                                 source_id=source.id, career_track=career_track, external_id=item.external_id, title=item.title,
                                 company=item.company, location=item.location, workplace=item.workplace,
                                 description=item.description, apply_url=item.apply_url,
-                                source_url=item.source_url, published_at=item.published_at,
+                                source_url=item.source_url, source_fingerprint=incoming_source_fingerprint,
+                                published_at=item.published_at,
                                 discovered_at=seen_at, updated_at=seen_at,
                             )
                             db.add(job)
@@ -320,29 +348,44 @@ async def scan_all_sources(
                             total_new += 1
                             source_new += 1
                     else:
-                        job.career_track = career_track
-                        job.title = item.title
-                        job.company = item.company
-                        job.location = item.location
-                        job.workplace = item.workplace
-                        job.description = item.description
-                        job.apply_url = item.apply_url
-                        job.source_url = item.source_url
-                        job.published_at = item.published_at
-                        job.is_active = True
-                        job.removed_at = None
-                        job.updated_at = seen_at
+                        source_content_changed = (
+                            not catalog_only
+                            or str(getattr(job, "source_fingerprint", "") or "") != incoming_source_fingerprint
+                        )
+                        if source_content_changed:
+                            job.career_track = career_track
+                            job.title = item.title
+                            job.company = item.company
+                            job.location = item.location
+                            job.workplace = item.workplace
+                            job.description = item.description
+                            job.apply_url = item.apply_url
+                            job.source_url = item.source_url
+                            job.published_at = item.published_at
+                            job.source_fingerprint = incoming_source_fingerprint
+                            if catalog_only:
+                                if job.id is not None:
+                                    stale_ranking_job_ids.add(int(job.id))
+                            job.updated_at = seen_at
+                        if not job.is_active or job.removed_at is not None:
+                            job.is_active = True
+                            job.removed_at = None
+                            job.updated_at = seen_at
                         total_updated += 1
                         source_updated += 1
 
                     if catalog_only:
-                        text = f"{job.title} {job.description} {job.location}"
-                        job.skills_json = dumps(extract_skills(text))
-                        job.experience_min, job.experience_max = extract_experience(text)
-                        degree = extract_degree_requirement_details(text)
-                        job.degree_requirement = degree.level
-                        job.degree_required = degree.required
-                        job.degree_experience_alternative = degree.experience_alternative
+                        if source_content_changed:
+                            # Reuse the freshly collected text instead of touching a
+                            # deferred Job.description attribute and forcing remote
+                            # database egress for an unchanged row.
+                            text = f"{item.title} {item.description} {item.location}"
+                            job.skills_json = dumps(extract_skills(text))
+                            job.experience_min, job.experience_max = extract_experience(text)
+                            degree = extract_degree_requirement_details(text)
+                            job.degree_requirement = degree.level
+                            job.degree_required = degree.required
+                            job.degree_experience_alternative = degree.experience_alternative
                     else:
                         if job.id is None:
                             db.flush()
@@ -380,7 +423,12 @@ async def scan_all_sources(
                         removal_reason = "outside_israel"
                     elif (not catalog_only) and hard_exclusion_reason(old, profile, match_context.excluded):
                         removal_reason = "hard_exclusion"
-                    elif not track_job_relevance(old, career_track)[0]:
+                    elif catalog_only and old.external_id in seen_external_ids and old.external_id not in eligible_external_ids:
+                        # The fresh collector payload was already classified above;
+                        # reuse that result instead of lazy-loading every persisted
+                        # description solely to classify it a second time.
+                        removal_reason = "track_mismatch"
+                    elif (not catalog_only) and not track_job_relevance(old, career_track)[0]:
                         # Reconcile jobs saved under older/broader track rules too.
                         removal_reason = "track_mismatch"
                     elif old.external_id not in seen_external_ids:
@@ -497,6 +545,17 @@ async def scan_all_sources(
             "phase": "finalizing", "current": total_sources, "completed": total_sources,
             "total": total_sources, "current_source": None, "active_sources": [],
         })
+    if catalog_only and stale_ranking_job_ids:
+        # JobRanking is user-owned, while this scanner session intentionally uses the
+        # shared-catalog scope. Mark changed listings stale with an unscoped session so
+        # every account refreshes only those rows after the catalogue commit.
+        with SessionLocal() as ranking_db:
+            ranking_db.execute(
+                update(JobRanking)
+                .where(JobRanking.job_id.in_(sorted(stale_ranking_job_ids)), JobRanking.engine == "v2")
+                .values(stale=True)
+            )
+            ranking_db.commit()
     if not catalog_only:
         stale_deleted += purge_stale_jobs(db, days=2)
         # Final pass is cheap and catches any eligible job that was already present before
@@ -540,7 +599,9 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
 
     career_track = active_track(profile)
     ranking_settings = get_ranking_settings(db)
-    query = select(Job).options(joinedload(Job.application)).outerjoin(
+    query = select(Job).options(load_only(
+        Job.id, Job.career_track, Job.skills_json, Job.apply_url, Job.source_id,
+    ), joinedload(Job.application)).outerjoin(
         UserJobState, UserJobState.job_id == Job.id
     ).where(
         Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", Job.career_track == career_track,

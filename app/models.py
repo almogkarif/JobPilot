@@ -126,6 +126,7 @@ class Job(SharedCatalogMixin, Base):
     description: Mapped[str] = mapped_column(Text, default="")
     apply_url: Mapped[str] = mapped_column(String(1200))
     source_url: Mapped[str] = mapped_column(String(1200), default="")
+    source_fingerprint: Mapped[str] = mapped_column(String(64), default="", index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     experience_min: Mapped[float | None] = mapped_column(Float, nullable=True)
     experience_max: Mapped[float | None] = mapped_column(Float, nullable=True)

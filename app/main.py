@@ -27,7 +27,7 @@ from fastapi.responses import RedirectResponse
 import httpx
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import asc, case, desc, func, literal, or_, select, update
-from sqlalchemy.orm import Session, joinedload, load_only, selectinload
+from sqlalchemy.orm import Session, defer, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
 from app.utils import split_name
@@ -66,7 +66,8 @@ from .services.degree_requirements import (allowed_job_degree_levels, applicatio
                                            normalize_degree_level, profile_degree_level)
 from .services.matching import build_match_context, extract_experience, extract_skills
 from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
-from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings, persist_v2_result,
+from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
+                                       job_fingerprint_values, persist_v2_result,
                                        rank_job as run_ranking, result_is_stale, v2_config)
 from .services.career_tracks import (
     CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
@@ -1714,7 +1715,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # Dashboard recommendations are the strongest active opportunities in the
         # entire catalog. Recency is only a tie-breaker; an excellent older role
         # should not disappear just because it was discovered before today.
-        top_jobs_statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+        top_jobs_statement = select(Job).options(
+            defer(Job.description), joinedload(Job.source), joinedload(Job.application)
+        ).where(
             Job.is_active.is_(True), Job.career_track == career_track,
             Job.source.has(Source.kind != "demo"),
         )
@@ -2518,7 +2521,9 @@ def list_jobs(
     with _job_catalog_session(request, db) as catalog_db:
         ranking_settings = get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
-        statement = select(Job).options(joinedload(Job.source), joinedload(Job.application)).where(
+        statement = select(Job).options(
+            defer(Job.description), joinedload(Job.source), joinedload(Job.application)
+        ).where(
             Job.career_track == career_track, Job.source.has(Source.kind != "demo"),
         )
         count_statement = select(func.count()).select_from(Job).where(
@@ -2536,7 +2541,7 @@ def list_jobs(
                 & (JobRanking.error == "")
             )
             statement = select(Job, UserJobState, JobRanking).options(
-                joinedload(Job.source), joinedload(Job.application)
+                defer(Job.description), joinedload(Job.source), joinedload(Job.application)
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).outerjoin(
                 JobRanking, valid_ranking_join
             ).where(Job.career_track == career_track, Job.source.has(Source.kind != "demo"))
@@ -2669,6 +2674,9 @@ def import_job(payload: ImportJobRequest, request: Request, db: Session = Depend
     job = Job(source_id=source.id, career_track=career_track, external_id=external_id, title=payload.title, company=payload.company,
               location=payload.location, description=payload.description, apply_url=payload.apply_url,
               source_url=payload.apply_url, workplace="unknown", published_at=utcnow())
+    job.source_fingerprint = job_fingerprint_values(
+        job.career_track, job.title, job.description, job.location, job.workplace, job.published_at,
+    )
     default_resume = db.scalar(select(ResumeProfile).where(ResumeProfile.is_default.is_(True), ResumeProfile.career_track == career_track))
     resume_skills = loads(default_resume.skills_json, []) if default_resume else []
     job.skills_json = dumps(extract_skills(f"{job.title} {job.description} {job.location}"))

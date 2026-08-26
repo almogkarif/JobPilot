@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
 from ..utils import dumps, loads
 from .career_tracks import active_track, normalize_track
 from .matching import build_match_context
-from .ranking.service import get_settings as get_ranking_settings, persist_v2_result, result_is_stale
+from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
+                              persist_v2_result, profile_fingerprint, result_is_stale)
 
 
 def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only: bool = False) -> dict:
@@ -23,15 +24,27 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         resume_skills = loads(default_resume.skills_json, []) if default_resume else []
         context = build_match_context(profile, resume_skills, career_track=track)
         settings = get_ranking_settings(db)
-        jobs = db.scalars(select(Job).where(Job.career_track == track, Job.is_active.is_(True))).all()
-        existing = {
-            row.job_id: row for row in db.scalars(select(JobRanking).where(
-                JobRanking.engine == "v2", JobRanking.job_id.in_([job.id for job in jobs] or [-1]),
-            )).all()
-        }
+        current_profile_fingerprint = profile_fingerprint(profile, track)
+        ranking_join = (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
+        statement = select(Job, JobRanking).outerjoin(JobRanking, ranking_join).where(
+            Job.career_track == track, Job.is_active.is_(True),
+        )
+        if stale_only:
+            # source_fingerprint is updated by the shared scan from the freshly
+            # collected payload. Comparing compact digests in PostgreSQL lets the
+            # hourly worker fetch long descriptions only for new/changed jobs.
+            statement = statement.where(or_(
+                JobRanking.id.is_(None),
+                JobRanking.stale.is_(True),
+                JobRanking.error != "",
+                JobRanking.engine_version != get_ranking_engine().version,
+                JobRanking.config_version != settings.config_version,
+                JobRanking.profile_fingerprint != current_profile_fingerprint,
+                JobRanking.job_fingerprint != Job.source_fingerprint,
+            ))
+        rows = db.execute(statement).unique().all()
         ranked = 0
-        for job in jobs:
-            row = existing.get(job.id)
+        for job, row in rows:
             if not stale_only or result_is_stale(row, job, profile, settings):
                 try:
                     persist_v2_result(db, job, profile, settings, context=context, existing_row=row)

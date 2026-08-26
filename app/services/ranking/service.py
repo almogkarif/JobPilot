@@ -49,11 +49,30 @@ def profile_fingerprint(profile, track: str | None = None) -> str:
     ])
 
 
+def job_fingerprint_values(
+    career_track: str,
+    title: str,
+    description: str,
+    location: str,
+    workplace: str,
+    published_at,
+) -> str:
+    """Fingerprint only the source fields that can change ranking output.
+
+    The shared scanner persists this compact digest on ``jobs`` so hourly workers can
+    identify unchanged listings without downloading every long job description from
+    Supabase first.
+    """
+    return _digest([career_track, title, description, location, workplace, published_at])
+
+
 def job_fingerprint(job) -> str:
     # Do not include the ORM's generic updated_at value. Ranking refreshes may update
     # extracted requirement fields in the same transaction; source fields below are
     # the actual inputs that determine whether a persisted ranking is still current.
-    return _digest([job.career_track, job.title, job.description, job.location, job.workplace, job.published_at])
+    return job_fingerprint_values(
+        job.career_track, job.title, job.description, job.location, job.workplace, job.published_at,
+    )
 
 
 def rank_job(job, profile, config=None, *, context=None):
