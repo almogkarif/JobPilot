@@ -78,6 +78,7 @@ from .services.resume_analysis import analyze_resume, extract_resume_bytes, extr
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
 from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
 from .services.github_actions import dispatch_application_workflow, dispatch_scan_workflow
+from .services.application_queue_recovery import queue_health
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
@@ -3338,6 +3339,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
     profile_extra = loads(profile.application_profile_json, {}) if profile else {}
     if not isinstance(profile_extra, dict):
         profile_extra = {}
+    health_by_id = queue_health(db, track)
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
@@ -3345,10 +3347,18 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         .where(
             Job.career_track == track,
             Application.mode == "auto",
-            Application.status.in_(("applying", "needs_input", "verification_pending", "failed")),
+            Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed")),
         )
         .order_by(Application.id)
     ).unique().all()
+    # Normal queued rows are not failures. Include only queue rows whose worker was
+    # never dispatched or whose latest dispatch remained unclaimed past the safe
+    # recovery window. Applying rows remain visible as before, with an explicit
+    # stuck flag when activity has gone stale.
+    rows = [
+        row for row in rows
+        if row.status != "queued" or bool(health_by_id.get(row.id, {}).get("stuck"))
+    ]
     application_ids = [row.id for row in rows]
     attempts_by_application: dict[int, list[ApplicationAttempt]] = {item: [] for item in application_ids}
     events_by_application: dict[int, list[ApplicationEvent]] = {item: [] for item in application_ids}
@@ -3411,6 +3421,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
                 "last_error": application.last_error,
             },
             "blocker_diagnostics": blocker_diagnostics,
+            "queue_health": health_by_id.get(application.id, {}),
             "saved_answers": answers,
             "attempts": [_attempt_dict(item) for item in recent_attempts],
             "events": [{
@@ -3419,8 +3430,17 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
                 "created_at": item.created_at,
             } for item in recent_events],
         })
+    status_summary = {
+        "incomplete": len(diagnostics),
+        "stuck_queued": sum(1 for item in diagnostics if item["status"] == "queued" and item.get("queue_health", {}).get("stuck")),
+        "stuck_applying": sum(1 for item in diagnostics if item["status"] == "applying" and item.get("queue_health", {}).get("stuck")),
+        "needs_input": sum(1 for item in diagnostics if item["status"] == "needs_input"),
+        "verification_pending": sum(1 for item in diagnostics if item["status"] == "verification_pending"),
+        "failed": sum(1 for item in diagnostics if item["status"] == "failed"),
+    }
     return {
         "generated_at": utcnow(), "career_track": track, "count": len(diagnostics),
+        "status_summary": status_summary,
         "profile_readiness": {
             "email": bool(profile and str(profile.email or "").strip()),
             "phone": bool(profile and str(profile.phone or "").strip()),

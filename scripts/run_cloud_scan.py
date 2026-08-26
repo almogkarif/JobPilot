@@ -77,7 +77,9 @@ def rank_users_for_track(career_track: str) -> None:
             result = rank_shared_catalog_for_user(user_id, track, stale_only=True)
             print(
                 f"[ranking] account={account_label(user_id)} track={track} "
-                f"ranked={result.get('ranked', 0)} auto_queued={result.get('auto_queued', 0)}",
+                f"ranked={result.get('ranked', 0)} auto_queued={result.get('auto_queued', 0)} "
+                f"workers_recovered={result.get('workers_recovered', 0)} "
+                f"worker_dispatch_errors={result.get('worker_dispatch_errors', 0)}",
                 flush=True,
             )
         except Exception as exc:  # noqa: BLE001

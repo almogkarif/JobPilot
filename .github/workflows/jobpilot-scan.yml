@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: jobpilot-scan-worker
@@ -36,6 +37,13 @@ jobs:
       JOBPILOT_SCAN_CONCURRENCY: '2'
       JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS: '45'
       JOBPILOT_TIMEZONE: Asia/Jerusalem
+      # The hourly scan also repairs automatic applications that were queued but
+      # never claimed by a GitHub worker. The repository-scoped token is enough
+      # to dispatch the per-application workflow; no extra PAT secret is needed.
+      JOBPILOT_GITHUB_ACTIONS_TOKEN: ${{ github.token }}
+      JOBPILOT_GITHUB_REPOSITORY: ${{ github.repository }}
+      JOBPILOT_GITHUB_REF: main
+      JOBPILOT_GITHUB_APPLICATION_WORKFLOW: jobpilot-application.yml
     steps:
       - name: Checkout JobPilot
         uses: actions/checkout@v7

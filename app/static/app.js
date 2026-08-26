@@ -1356,8 +1356,6 @@ function renderReadiness(readiness) {
     { ok: readiness.resume_uploaded, label: 'קורות חיים', action: "switchView('profile')" },
     { ok: readiness.sources_enabled > 0, label: 'מקורות פעילים', successLabel: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
   ];
-  const showAgentToken = Boolean(readiness.agent_required) && authState.capabilities?.developer_tools === true && applicationAgentAllowed();
-  if (showAgentToken) checks.push({ ok: readiness.agent_token_secure, label: 'Token מאובטח ל־Agent', action: null });
   const missingChecks = checks.filter((check) => !check.ok);
   if (!missingChecks.length) {
     root.hidden = true;
@@ -3513,6 +3511,7 @@ function applicationDiagnosticText(item,index){
     `RED_ERROR explanation: ${error.explanation||'—'}`,
     `RED_ERROR raw: ${error.last_error||'—'}`,
     `blocker_diagnostics: ${compactDiagnosticValue(item.blocker_diagnostics||{})}`,
+    `queue_health: ${compactDiagnosticValue(item.queue_health||{})}`,
     `saved_answers: ${compactDiagnosticValue(item.saved_answers||{})}`,
     `latest_attempt: number=${latest.attempt_number||'—'} | id=${latest.id||'—'} | status=${latest.status||'—'} | verification=${latest.verification_state||'—'} | worker_type=${latest.worker_type||'—'}`,
     `latest_attempt timing: ${latest.started_at||'—'} → ${latest.finished_at||'—'}`,
@@ -3526,7 +3525,7 @@ function applicationDiagnosticText(item,index){
   ];
   return lines.join('\n');
 }
-async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],header=[`JobPilot auto-apply diagnostics v3`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק — כולל מבנה שדות, שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
+async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],summary=payload.status_summary||{},header=[`JobPilot auto-apply diagnostics v4`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length} | stuck_queued: ${Number(summary.stuck_queued||0)} | stuck_applying: ${Number(summary.stuck_applying||0)} | verification_pending: ${Number(summary.verification_pending||0)}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק — כולל תור/worker, מבנה שדות, שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;window.copyApplicationFailureDiagnostics=copyApplicationFailureDiagnostics;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,running:Array.isArray(snapshot?.running)?snapshot.running:(snapshot?.current?.status==='applying'?[snapshot.current]:[]),running_count:Number(snapshot?.running_count??(snapshot?.current?.status==='applying'?1:0)),waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),attention:Array.isArray(snapshot?.attention)?snapshot.attention:[],attention_count:Number(snapshot?.attention_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
 function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}

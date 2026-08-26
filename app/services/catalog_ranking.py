@@ -6,6 +6,7 @@ from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
 from ..utils import dumps, loads
 from .career_tracks import active_track, normalize_track
+from .application_queue_recovery import recover_stuck_auto_applications
 from .matching import build_match_context
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
                               persist_v2_result, profile_fingerprint, result_is_stale)
@@ -61,4 +62,12 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
 
         from .scanner import auto_queue_jobs
         auto_queued = auto_queue_jobs(db, profile)
-        return {"status": "ok", "career_track": track, "ranked": ranked, "auto_queued": auto_queued}
+        # Ranking is the common path used by the hourly shared scan and by
+        # profile-triggered refreshes. Recovering here closes the old gap where
+        # auto_queue_jobs() persisted rows as queued but never launched a worker.
+        recovery = recover_stuck_auto_applications(db, track)
+        return {
+            "status": "ok", "career_track": track, "ranked": ranked, "auto_queued": auto_queued,
+            "workers_recovered": len(recovery.get("recovered") or []),
+            "worker_dispatch_errors": len(recovery.get("failed") or []),
+        }
