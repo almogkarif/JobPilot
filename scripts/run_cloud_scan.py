@@ -19,6 +19,7 @@ from app.database import (SHARED_CATALOG_USER_ID, SessionLocal, ensure_job_sourc
 from app.models import AppIdentity, Job, Source  # noqa: E402
 from app.services.career_tracks import CAREER_TRACKS, active_track, normalize_track  # noqa: E402
 from app.services.catalog_ranking import rank_shared_catalog_for_user  # noqa: E402
+from app.services.application_queue_recovery import recover_stuck_auto_applications  # noqa: E402
 from app.services.source_catalog import install_recommended_sources  # noqa: E402
 from app.services.scan_runtime import (  # noqa: E402
     create_scan_run,
@@ -41,6 +42,55 @@ def known_user_ids() -> list[str]:
 def account_label(user_id: str) -> str:
     return hashlib.sha256(user_id.encode()).hexdigest()[:10]
 
+
+
+def recover_known_user_queues() -> int:
+    """Recover stuck auto-apply queues without requiring a catalogue scan.
+
+    This deliberately runs in the lightweight preflight phase of the hourly
+    GitHub workflow. Queue recovery only needs PostgreSQL + GitHub's workflow
+    dispatch API, so it must not wait for Chromium/collector installation or for
+    a track scan to be due.
+    """
+    recovered_total = 0
+    failed_total = 0
+    checked = 0
+    for user_id in known_user_ids():
+        try:
+            with user_session(user_id) as db:
+                profile = get_user_profile(db)
+                if not profile:
+                    continue
+                track = active_track(profile)
+                result = recover_stuck_auto_applications(db, track)
+            recovered = list(result.get("recovered") or [])
+            failed = list(result.get("failed") or [])
+            checked += 1
+            recovered_total += len(recovered)
+            failed_total += len(failed)
+            print(
+                f"[queue-recovery] account={account_label(user_id)} track={track} "
+                f"recovered={len(recovered)} failed={len(failed)} "
+                f"application_ids={','.join(str(value) for value in recovered) or '-'}",
+                flush=True,
+            )
+            for item in failed:
+                print(
+                    f"[queue-recovery] account={account_label(user_id)} track={track} "
+                    f"application_id={item.get('application_id')} error={str(item.get('error') or '')[:300]}",
+                    flush=True,
+                )
+        except Exception as exc:  # noqa: BLE001
+            failed_total += 1
+            print(
+                f"[queue-recovery] account={account_label(user_id)} error={type(exc).__name__}: {exc}",
+                flush=True,
+            )
+    print(
+        f"[queue-recovery] complete accounts={checked} recovered={recovered_total} failed={failed_total}",
+        flush=True,
+    )
+    return recovered_total
 
 def progress_writer(run_id: str, career_track: str):
     def write(progress: dict) -> None:
@@ -271,7 +321,7 @@ async def reconcile_catalog_tracks() -> int:
 
 
 def work_available(mode: str) -> bool:
-    if mode in {"diagnose", "audit", "reconcile"}:
+    if mode in {"diagnose", "audit", "reconcile", "recover"}:
         return True
     if mode == "all":
         return True
@@ -287,7 +337,7 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "diagnose", "audit", "reconcile"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     ensure_job_source_fingerprint_column()
@@ -295,7 +345,9 @@ async def main() -> int:
         available = work_available(args.mode)
         print(f"[scan] work_available={str(available).lower()} mode={args.mode}", flush=True)
         return 0 if available else 3
-    if args.mode == "diagnose":
+    if args.mode == "recover":
+        count = recover_known_user_queues()
+    elif args.mode == "diagnose":
         count = await diagnose_official_sources()
     elif args.mode == "audit":
         count = await audit_catalog_tracks()

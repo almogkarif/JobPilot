@@ -14,6 +14,7 @@ on:
           - queued
           - scheduled
           - all
+          - recover
           - diagnose
           - audit
           - reconcile
@@ -62,6 +63,10 @@ jobs:
           pydantic-settings==2.15.0
           psycopg[binary]==3.2.9
           beautifulsoup4==4.14.3
+          httpx==0.28.1
+
+      - name: Recover stuck auto-apply queue
+        run: python scripts/run_cloud_scan.py --mode recover
 
       - name: Resolve requested scan mode
         id: mode

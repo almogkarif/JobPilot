@@ -553,8 +553,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "submit_rejected", "שליחת המועמדות",
                     (f"{hosted_name} לא קיבל את המועמדות" if hosted_error else "Lever לא קיבל את המועמדות"),
                     network_error, page.url, diagnostics={
-                        "hosted_responses": [{"url": item.get("url"), "status": item.get("status"),
-                                              "location": item.get("location"), "body_length": len(item.get("text") or "")}
+                        "hosted_responses": [_safe_hosted_response_diagnostics(item)
                                              for item in hosted_submit_responses[-3:]],
                         "lever_responses": [{"url": item.get("url"), "status": item.get("status"),
                                              "location": item.get("location")}
@@ -2210,7 +2209,12 @@ def _hosted_ats_submission_response_result(
 
         action, graphql_errors = _ashby_submit_action_payload(text)
         if graphql_errors:
-            return "", "", "Ashby rejected the application (GraphQL error)"
+            first_message = next((
+                re.sub(r"\s+", " ", str(item.get("message") or "")).strip()
+                for item in graphql_errors if isinstance(item, dict) and str(item.get("message") or "").strip()
+            ), "")
+            suffix = f": {first_message[:300]}" if first_message else ""
+            return "", "", f"Ashby rejected the application (GraphQL error){suffix}"
         if action:
             result = action.get("applicationFormResult")
             messages = action.get("messages")
@@ -2291,11 +2295,17 @@ def _safe_hosted_response_diagnostics(response: dict) -> dict:
     action, graphql_errors = _ashby_submit_action_payload(text)
     if action and isinstance(action.get("applicationFormResult"), dict):
         ashby_result_keys = sorted(str(key) for key in action["applicationFormResult"].keys())[:12]
+    graphql_error_messages = [
+        re.sub(r"\s+", " ", str(item.get("message") or "")).strip()[:300]
+        for item in graphql_errors[:5]
+        if isinstance(item, dict) and str(item.get("message") or "").strip()
+    ]
     return {
         "url": response.get("url"), "status": response.get("status"),
         "location": response.get("location"), "body_length": len(text),
         "typenames": typenames, "submit_action_keys": action_keys,
         "ashby_result_keys": ashby_result_keys, "graphql_error_count": len(graphql_errors),
+        "graphql_error_messages": graphql_error_messages,
     }
 
 

@@ -175,6 +175,25 @@ def test_current_ashby_submit_shape_is_classified_without_typename():
         "Ashby rejected the application (survey validation failed)"
     )
     assert diagnostics["graphql_error_count"] == 0
+    assert diagnostics["graphql_error_messages"] == []
+
+
+def test_ashby_graphql_error_message_is_preserved_without_response_body_leak():
+    url = "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiSubmitMultipleFormsAction"
+    body = (
+        '{"errors":[{"message":"Candidate location is required",'
+        '"extensions":{"privateEmail":"private@example.com"}}],'
+        '"data":null}'
+    )
+    evidence, application_id, error = _hosted_ats_submission_response_result(url, 200, body)
+    assert evidence == ""
+    assert application_id == ""
+    assert "Candidate location is required" in error
+
+    diagnostics = _safe_hosted_response_diagnostics({"url": url, "status": 200, "text": body})
+    assert diagnostics["graphql_error_count"] == 1
+    assert diagnostics["graphql_error_messages"] == ["Candidate location is required"]
+    assert "private@example.com" not in str(diagnostics)
 
 
 def test_ashby_graphql_submission_requires_form_submit_success_typename():

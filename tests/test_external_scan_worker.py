@@ -115,6 +115,9 @@ def test_github_workflow_runs_worker_directly_and_render_image_has_no_chromium_i
     assert "scripts/run_cloud_scan.py" in workflow
     assert "secrets.JOBPILOT_DATABASE_URL" in workflow
     assert "--check-only" in workflow
+    assert "--mode recover" in workflow
+    assert workflow.index("--mode recover") < workflow.index("--check-only")
+    assert "httpx==0.28.1" in workflow
     assert "steps.work.outputs.needed == 'true'" in workflow
     assert "playwright install --with-deps chromium" in workflow
     assert "/api/cron/scan" not in workflow
