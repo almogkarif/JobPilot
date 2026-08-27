@@ -38,6 +38,11 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
     assert "const autoQueueCount=autoQueue.total_active_count" in js
+    assert "items.push({ view:'applications', count:autoQueueCount, queue:true, persistent:true })" in js
+    assert "משרות ממתינות בתור" in js
+    assert "אין כרגע משרות בתור — לחץ כדי לפתוח את התור" in js
+    assert "התור ריק" in js
+    assert "actionableItems=items.filter(item=>!item.queue||Number(item.count)>0)" in js
     assert "ירוק מציין הגשה שרצה" in js
     assert "צהוב מציין המתנה או שאלה" in js
     assert "attention:Array.isArray" in js

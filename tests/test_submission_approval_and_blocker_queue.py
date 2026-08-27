@@ -348,6 +348,48 @@ def test_resolving_cloud_auto_blocker_dispatches_next_worker(monkeypatch):
     assert dispatched == [application_id]
 
 
+def test_missing_profile_detail_with_options_requires_a_real_choice_and_uses_question_key(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    question = "Which university or college do you attend? ✱"
+    with TestClient(app) as client:
+        job = _make_job(client, "Education choice engineer")
+        application_id, _ = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "kind": "missing_profile_detail", "field_label": "השכלה",
+                "question": question, "explanation": "Education profile detail required",
+                "options": ["HUJI", "BGU", "Technion", "TAU", "Other"],
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        blocker_id = blocked.json()["id"]
+
+        invalid = client.post(
+            f"/api/blockers/{blocker_id}/resolve", json={"answer": "Technion campus", "remember": False},
+        )
+        assert invalid.status_code == 400
+
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            db.commit()
+
+        resolved = client.post(
+            f"/api/blockers/{blocker_id}/resolve", json={"answer": "technion", "remember": False},
+        )
+        assert resolved.status_code == 200, resolved.text
+        assert resolved.json()["answer"] == "Technion"
+
+        with SessionLocal() as db:
+            answers = loads(db.get(Application, application_id).answers_json, {})
+            assert answers[question] == "Technion"
+            assert "השכלה" not in answers
+
+    assert dispatched == [application_id]
+
+
 def test_auto_email_blocker_is_resolved_from_saved_profile_without_user_input(monkeypatch):
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))

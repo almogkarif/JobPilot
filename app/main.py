@@ -4234,7 +4234,10 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
 
     application = blocker.application
     answers = loads(application.answers_json, {})
-    answer_key = blocker.field_label or blocker.question
+    selectable_options = [
+        str(option).strip() for option in loads(blocker.options_json, []) if str(option).strip()
+    ] if blocker.kind in {"choice_required", "unknown_field", "missing_profile_detail"} else []
+    answer_key = (blocker.question or blocker.field_label) if selectable_options else (blocker.field_label or blocker.question)
     action = (payload.action or "").strip().lower()
 
     if action == "rediscover_question":
@@ -4334,11 +4337,10 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     answer = payload.answer.strip()
     if not answer:
         raise HTTPException(400, "Answer is required")
-    if blocker.kind == "choice_required":
-        options = [str(option).strip() for option in loads(blocker.options_json, []) if str(option).strip()]
+    if selectable_options:
         answer_key_normalized = " ".join(answer.split()).casefold()
         matched_option = next(
-            (option for option in options if " ".join(option.split()).casefold() == answer_key_normalized),
+            (option for option in selectable_options if " ".join(option.split()).casefold() == answer_key_normalized),
             None,
         )
         if matched_option is None:

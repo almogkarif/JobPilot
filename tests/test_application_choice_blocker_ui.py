@@ -33,7 +33,12 @@ def test_short_unknown_field_has_inline_text_answer_and_auto_resume():
 
 def test_legacy_unknown_field_with_options_is_rendered_as_choice_and_text_draft_survives_polling():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
-    assert "choiceOptions=Array.isArray(blocker?.options)?blocker.options.filter(Boolean):[]" in js
+    assert "choiceOptions=blockerChoiceOptions(blocker),choiceWaiting=status==='needs_input'&&choiceOptions.length>0" in js
+    assert "CHOICE_BLOCKER_KINDS=new Set(['choice_required','unknown_field','missing_profile_detail'])" in js
+    assert "blockerChoiceControlMarkup" in js
+    assert "data-choice-select" in js
+    assert "data-choice-select-submit" in js
+    assert "options.length<=8" in js
     assert "applicationTextAnswerDrafts=new Map()" in js
     assert "applicationTextAnswerDrafts.set(blockerId,input.value)" in js
     assert "value=\"${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}\"" in js
