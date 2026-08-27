@@ -549,15 +549,23 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if network_error:
                 hosted_error = bool(hosted_submit_responses or hosted_submit_failures)
                 hosted_name = _hosted_ats_name(page.url)
+                anti_automation_blocked = hosted_name == "Ashby" and _is_ashby_spam_rejection(network_error)
                 raise ApplicationBlocked(
-                    "submit_rejected", "שליחת המועמדות",
-                    (f"{hosted_name} לא קיבל את המועמדות" if hosted_error else "Lever לא קיבל את המועמדות"),
+                    "anti_automation_blocked" if anti_automation_blocked else "submit_rejected",
+                    "הגשה ידנית" if anti_automation_blocked else "שליחת המועמדות",
+                    (
+                        "Ashby חסם את ההגשה האוטומטית"
+                        if anti_automation_blocked
+                        else f"{hosted_name} לא קיבל את המועמדות" if hosted_error
+                        else "Lever לא קיבל את המועמדות"
+                    ),
                     network_error, page.url, diagnostics={
                         "hosted_responses": [_safe_hosted_response_diagnostics(item)
                                              for item in hosted_submit_responses[-3:]],
                         "lever_responses": [{"url": item.get("url"), "status": item.get("status"),
                                              "location": item.get("location")}
                                             for item in lever_submit_responses[-3:]],
+                        "anti_automation_blocked": anti_automation_blocked,
                     },
                 )
             if confirmation_text:
@@ -2168,6 +2176,12 @@ def _is_hosted_ats_apply_url(url: str) -> bool:
     except Exception:
         return False
 
+
+
+
+def _is_ashby_spam_rejection(value: str) -> bool:
+    normalized = " ".join(str(value or "").casefold().split())
+    return "flagged as possible spam" in normalized
 
 def _ashby_submit_action_payload(text: str) -> tuple[dict, list]:
     """Return Ashby's submit action payload plus any top-level GraphQL errors."""

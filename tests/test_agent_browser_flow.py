@@ -11,6 +11,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _is_ashby_spam_rejection,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate,
@@ -194,6 +195,13 @@ def test_ashby_graphql_error_message_is_preserved_without_response_body_leak():
     assert diagnostics["graphql_error_count"] == 1
     assert diagnostics["graphql_error_messages"] == ["Candidate location is required"]
     assert "private@example.com" not in str(diagnostics)
+
+
+def test_ashby_spam_rejection_is_identified_as_an_anti_automation_signal():
+    assert _is_ashby_spam_rejection(
+        "Ashby rejected the application (GraphQL error): Your application submission was flagged as possible spam."
+    )
+    assert not _is_ashby_spam_rejection("Ashby rejected the application (form validation failed)")
 
 
 def test_ashby_graphql_submission_requires_form_submit_success_typename():

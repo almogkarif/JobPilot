@@ -13,6 +13,8 @@ from ..database import SessionLocal, get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
+from .application_anti_automation import automatic_submission_pause
+from .application_submission import detect_adapter
 from .location_filter import is_israel_location
 from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
@@ -601,7 +603,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     ranking_settings = get_ranking_settings(db)
     query = select(Job).options(load_only(
         Job.id, Job.career_track, Job.skills_json, Job.apply_url, Job.source_id,
-    ), joinedload(Job.application)).outerjoin(
+    ), joinedload(Job.application), joinedload(Job.source)).outerjoin(
         UserJobState, UserJobState.job_id == Job.id
     ).where(
         Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", Job.career_track == career_track,
@@ -621,6 +623,11 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     ]
     for job in jobs:
         if job.application:
+            continue
+        source_kind = job.source.kind if job.source else ""
+        if not detect_adapter(job.apply_url, source_kind).supports_automatic_submit:
+            continue
+        if automatic_submission_pause(db, job):
             continue
         required = {skill.casefold() for skill in loads(job.skills_json, [])}
         selected = max(resume_candidates, key=lambda candidate: (

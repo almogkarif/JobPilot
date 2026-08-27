@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..models import Application, ApplicationAttempt, ApplicationEvent, Job, utcnow
 from ..utils import dumps
 from .application_submission import detect_adapter
+from .application_anti_automation import automatic_submission_pause
 from .github_actions import dispatch_application_workflow
 
 # A GitHub application worker normally starts within a few minutes, even when it
@@ -55,11 +56,13 @@ def _seconds_since(now: datetime, value: datetime | None) -> int | None:
     return max(0, int((now - value).total_seconds()))
 
 
-def _supported(application: Application) -> bool:
+def _supported(db: Session, application: Application) -> bool:
     if not application.job or not application.job.is_active or application.mode != "auto":
         return False
     source_kind = application.job.source.kind if application.job.source else ""
-    return detect_adapter(application.job.apply_url, source_kind).key in CLOUD_ADAPTERS
+    if detect_adapter(application.job.apply_url, source_kind).key not in CLOUD_ADAPTERS:
+        return False
+    return automatic_submission_pause(db, application.job) is None
 
 
 def queue_health(db: Session, career_track: str, *, now: datetime | None = None) -> dict[int, dict]:
@@ -133,7 +136,7 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
 
         needs_dispatch = False
         stuck_kind = ""
-        if application.status == "queued" and _supported(application):
+        if application.status == "queued" and _supported(db, application):
             if latest_dispatch is None:
                 # This is the important auto-queue hole: scanner-created automatic
                 # rows used to be persisted without ever launching a worker.

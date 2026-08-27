@@ -78,11 +78,15 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "startApplicationTracking(trackingApplications[next].id,false,true)" in js
     assert "(index+Number(direction||0)+total)%total" in js
     assert "index===total-1?'disabled'" not in js
-    assert "if(!trackingPinnedByUser&&['verification_pending','failed','needs_input']" in js
+    assert "if(!trackingPinnedByUser&&['verification_pending','failed','needs_input','manual_required']" in js
     assert "trackingNavigatorMarkup(applicationTrackingData?.application?.status" in js
     assert "משרה ${index+1} מתוך ${total}" in js
     assert "title=\"הגשה מחדש\"" in js
     assert "['failed','needs_input','verification_pending'].includes(status)" in js
+    assert "manual_required" in js
+    assert "anti_automation_blocked" in js
+    assert "פתח להגשה ידנית" in js
+    assert "JobPilot לא יבצע retry אוטומטי נוסף" in js
     assert "status==='queued'&&attemptCount>0" in js
     assert "/retry?auto_submit=true" in js
     assert "application-list-number" in js
