@@ -3660,11 +3660,13 @@ function renderNotificationCenter() {
   $('#notification-count').hidden = !actionableItems.length;
   $('#notification-count').textContent = actionableItems.length;
   const tracker=applicationProgressMarkup();
-  const notices=items.length ? items.map((item) => {
+  const notificationMarkup=(item)=>{
     const meta = item.queue ? {icon:'↻',title:'משרות ממתינות בתור',copy:Number(item.count)>0?'המשימות שמורות בתור ויופעלו ברצף':'אין כרגע משרות בתור — לחץ כדי לפתוח את התור'} : item.reminder ? {icon:'◷',title:'תזכורות שהגיע זמנן',copy:'מעקב אחרי הגשה, ראיון או מגייס'} : NOTIFICATION_VIEWS[item.view];
-    return `<button class="notification-item" type="button" ${item.queue?'data-auto-queue-list="true"':`data-notification-view="${item.view}"`}><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
-  }).join('') : (!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
-  root.innerHTML=tracker+notices;
+    return `<button class="notification-item${item.queue?' notification-queue-shortcut':''}" type="button" ${item.queue?'data-auto-queue-list="true"':`data-notification-view="${item.view}"`}><i>${meta.icon}</i><span><strong>${meta.title}</strong><small>${meta.copy}</small></span><b>${item.count}</b></button>`;
+  };
+  const queueNotices=items.filter(item=>item.queue).map(notificationMarkup).join('');
+  const otherNotices=items.filter(item=>!item.queue).map(notificationMarkup).join('');
+  root.innerHTML=queueNotices+tracker+otherNotices||(!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
   const liveTracker=root.querySelector('.application-live-tracker');
   if(liveTracker){liveTracker.insertAdjacentHTML('afterbegin',trackingNavigatorMarkup(applicationTrackingData?.application?.status||''));liveTracker.insertAdjacentHTML('beforeend','<button class="application-diagnostics-copy" type="button" onclick="copyApplicationFailureDiagnostics()">העתק אבחון של ההגשות שלא הושלמו</button>')}
   bindChoiceBlockerButtons(root);
