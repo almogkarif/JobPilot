@@ -59,6 +59,9 @@ from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PRE
 from .services.job_cleanup import application_history_visible
 from .services.application_submission import (automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
+from .services.application_anti_automation import (
+    ASHBY_SPAM_BLOCKER_KIND, automatic_submission_pause, classify_ashby_spam_block,
+)
 from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value,
@@ -875,6 +878,97 @@ def _application_auto_submit_supported(application: Application) -> bool:
         return False
     source_kind = job.source.kind if job.source else ""
     return detect_adapter(job.apply_url, source_kind).supports_automatic_submit
+
+
+def _repair_existing_ashby_spam_blocks(
+    db: Session, applications: list[Application] | None = None,
+) -> int:
+    """Migrate already-observed Ashby spam rejections to manual-only state.
+
+    The detailed GraphQL message was added before the manual-fallback state existed,
+    so production may already contain retryable ``needs_input`` rows with the exact
+    spam text. Repair them on the next normal API request instead of requiring one
+    more risky submission just to learn the new state.
+
+    ``applications`` lets read endpoints reuse rows they already loaded instead of
+    paying an extra SELECT on every notification-center refresh.
+    """
+    if applications is None:
+        rows = db.scalars(
+            select(Application)
+            .join(Job, Application.job_id == Job.id)
+            .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
+            .where(
+                Application.mode == "auto",
+                Application.status.in_(("needs_input", "failed")),
+                func.lower(func.coalesce(Application.last_error, "")).like("%flagged as possible spam%"),
+            )
+        ).unique().all()
+    else:
+        rows = [
+            application for application in applications
+            if application.mode == "auto"
+            and application.status in {"needs_input", "failed"}
+            and "flagged as possible spam" in str(application.last_error or "").casefold()
+        ]
+    repaired = 0
+    now = utcnow()
+    for application in rows:
+        if not classify_ashby_spam_block(
+            job=application.job, kind="submit_rejected", explanation=application.last_error,
+        ):
+            continue
+        blocker = max(
+            (item for item in application.blockers if item.status == "open"),
+            key=lambda item: (item.created_at, item.id),
+            default=None,
+        )
+        if blocker is None:
+            blocker = Blocker(
+                application_id=application.id, kind=ASHBY_SPAM_BLOCKER_KIND, field_label="הגשה ידנית",
+                question="Ashby חסם את ההגשה האוטומטית",
+                explanation=(
+                    "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
+                    "יש לפתוח את הטופס ולהגיש ידנית."
+                ),
+                page_url=application.job.apply_url,
+                created_at=now,
+            )
+            db.add(blocker)
+        else:
+            blocker.kind = ASHBY_SPAM_BLOCKER_KIND
+            blocker.field_label = blocker.field_label or "הגשה ידנית"
+            blocker.question = "Ashby חסם את ההגשה האוטומטית"
+            if "JobPilot לא ינסה שוב אוטומטית" not in str(blocker.explanation or ""):
+                blocker.explanation = (
+                    "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
+                    "יש לפתוח את הטופס ולהגיש ידנית. " + str(blocker.explanation or application.last_error or "").strip()
+                ).strip()
+            blocker.created_at = now
+        previous_status = application.status
+        application.status = "manual_required"
+        set_job_status(db, application.job, "manual_required")
+        answers = loads(application.answers_json, {})
+        answers.pop(ONE_TIME_SUBMIT_KEY, None)
+        application.answers_json = dumps(answers)
+        application.last_error = (
+            f"[blocked:{ASHBY_SPAM_BLOCKER_KIND}] "
+            "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. יש להגיש ידנית."
+        )
+        db.add(ApplicationEvent(
+            application_id=application.id, event_type="anti_automation_blocked",
+            from_status=previous_status, to_status="manual_required", actor="system",
+            message="Ashby anti-spam זוהה מהניסיון האחרון; Auto Apply הושבת עבור ההגשה",
+            details_json=dumps({"reason": "existing_spam_rejection_repaired", "adapter": "ashby"}),
+        ))
+        repaired += 1
+    if repaired:
+        db.add(AuditLog(
+            event_type="ashby_spam_manual_fallback_repaired",
+            message=f"Moved {repaired} Ashby spam-blocked applications to manual fallback",
+        ))
+        db.commit()
+    return repaired
 
 
 def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
@@ -1701,6 +1795,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     career_track = active_track(profile)
     guest_catalog = _request_is_guest(request)
+    if not guest_catalog:
+        _repair_existing_ashby_spam_blocks(db)
     ranking_refresh = {"running": False, "message": ""} if guest_catalog else _ranking_refresh_status(
         current_user_id(db), career_track,
     )
@@ -2909,6 +3005,7 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/jobs/{job_id}/queue")
 async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
+    _repair_existing_ashby_spam_blocks(db)
     if payload.mode not in {"review", "batch", "auto"}:
         raise HTTPException(400, "Invalid mode")
     job = _active_job_or_404(db, job_id)
@@ -2917,6 +3014,9 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
     if selected_resume and selected_resume.career_track != job.career_track:
         raise HTTPException(404, "Resume not found")
     preview = build_submission_preview(job, get_user_profile(db), selected_resume)
+    pause = automatic_submission_pause(db, job)
+    if (payload.approve_submit or payload.mode == "auto") and pause:
+        raise HTTPException(409, pause["message"])
     if payload.approve_submit:
         approved = verify_preview_token(
             payload.preview_token, user_id=current_user_id(db), job_id=job.id,
@@ -2987,11 +3087,20 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
 
 @app.get("/api/jobs/{job_id}/application-preview")
 def application_preview(job_id: int, resume_id: int | None = None, db: Session = Depends(get_db)):
+    _repair_existing_ashby_spam_blocks(db)
     job = _active_job_or_404(db, job_id)
     selected_resume = db.get(ResumeProfile, resume_id) if resume_id else _best_resume_for_job(db, job)
     if selected_resume and selected_resume.career_track != job.career_track:
         raise HTTPException(404, "Resume not found")
     preview = build_submission_preview(job, get_user_profile(db), selected_resume)
+    pause = automatic_submission_pause(db, job)
+    if pause:
+        preview["ready"] = False
+        preview["warnings"] = [pause["message"], *preview.get("warnings", [])]
+        preview["automatic_pause"] = {
+            "kind": pause["kind"], "adapter": pause["adapter"], "until": pause["until"],
+            "manual_fallback": True,
+        }
     preview["preview_token"] = issue_preview_token(
         user_id=current_user_id(db), job_id=job.id,
         resume_id=selected_resume.id if selected_resume else None, ready=preview["ready"],
@@ -3075,6 +3184,11 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
             continue
         resume = _best_resume_for_job(db, job)
         preview = build_submission_preview(job, profile, resume)
+        pause = automatic_submission_pause(db, job)
+        if pause:
+            skipped.append({"job_id": job.id, "reason": "anti_automation_cooldown", "adapter": pause["adapter"],
+                            "until": pause["until"]})
+            continue
         if not preview["ready"]:
             skipped.append({"job_id": job.id, "reason": "profile_incomplete", "missing": preview["missing"]})
             continue
@@ -3125,6 +3239,8 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
         if not job or not job.is_active or effective_status(job, db) not in {"new", "saved", "failed"}:
             continue
         resume = db.get(ResumeProfile, item.get("resume_id")) if item.get("resume_id") else _best_resume_for_job(db, job)
+        if automatic_submission_pause(db, job):
+            continue
         if not build_submission_preview(job, profile, resume)["ready"]:
             continue
         application = job.application
@@ -3251,6 +3367,10 @@ def mark_job_submitted(job_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/applications")
 def list_applications(status: str | None = None, db: Session = Depends(get_db)):
+    # Filtered reads need repair-before-filter semantics. The common unfiltered
+    # notification-center read repairs from the rows it already loads, saving a query.
+    if status:
+        _repair_existing_ashby_spam_blocks(db)
     track = active_track(get_user_profile(db))
     statement = (
         select(Application)
@@ -3270,6 +3390,8 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
         application for application in db.scalars(statement).unique().all()
         if application.job and application_history_visible(application.job, application)
     ]
+    if not status:
+        _repair_existing_ashby_spam_blocks(db, applications)
     repaired_existing = False
     for application in applications:
         duplicate_blocker = next(
@@ -3310,7 +3432,7 @@ def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = De
             Job.career_track == track,
             Job.is_active.is_(True),
             Application.mode == "auto",
-            Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "queued")),
+            Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "manual_required", "queued")),
         )
         .order_by(Application.id)
     ).all()
@@ -3334,6 +3456,7 @@ def automatic_application_queue(db: Session = Depends(get_db)):
 @app.get("/api/applications/failure-diagnostics")
 def application_failure_diagnostics(db: Session = Depends(get_db)):
     """Return one bounded, high-signal snapshot for troubleshooting auto-apply."""
+    _repair_existing_ashby_spam_blocks(db)
     profile = get_user_profile(db)
     track = active_track(profile)
     profile_extra = loads(profile.application_profile_json, {}) if profile else {}
@@ -3347,7 +3470,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         .where(
             Job.career_track == track,
             Application.mode == "auto",
-            Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed")),
+            Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")),
         )
         .order_by(Application.id)
     ).unique().all()
@@ -3437,6 +3560,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         "needs_input": sum(1 for item in diagnostics if item["status"] == "needs_input"),
         "verification_pending": sum(1 for item in diagnostics if item["status"] == "verification_pending"),
         "failed": sum(1 for item in diagnostics if item["status"] == "failed"),
+        "manual_required": sum(1 for item in diagnostics if item["status"] == "manual_required"),
     }
     return {
         "generated_at": utcnow(), "career_track": track, "count": len(diagnostics),
@@ -3681,9 +3805,17 @@ async def retry_application(
     application_id: int, auto_submit: bool = False, confirm_not_submitted: bool = False,
     db: Session = Depends(get_db),
 ):
+    _repair_existing_ashby_spam_blocks(db)
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
+    if application.status == "manual_required" or any(
+        blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
+    ):
+        raise HTTPException(409, "Ashby חסם את ההגשה האוטומטית כחשודה בספאם. יש לפתוח את הטופס ולהגיש ידנית.")
+    pause = automatic_submission_pause(db, application.job)
+    if auto_submit and pause:
+        raise HTTPException(409, pause["message"])
     # The same circular-arrow action is exposed in more than one UI surface.
     # A second click that arrives after the first request queued/claimed the job
     # must be a no-op, otherwise it dispatches a duplicate GitHub worker.
@@ -4233,6 +4365,8 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         raise HTTPException(409, "Blocker is already resolved")
 
     application = blocker.application
+    if blocker.kind == ASHBY_SPAM_BLOCKER_KIND or application.status == "manual_required":
+        raise HTTPException(409, "ההגשה הזו דורשת השלמה ידנית; לא ניתן להחזיר אותה ל-Auto Apply")
     answers = loads(application.answers_json, {})
     selectable_options = [
         str(option).strip() for option in loads(blocker.options_json, []) if str(option).strip()
@@ -5117,6 +5251,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             and anchor.job.is_active
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
             in cloud_adapters
+            and not automatic_submission_pause(db, anchor.job)
         ):
             application = anchor
     else:
@@ -5230,22 +5365,40 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    anti_automation_blocked = classify_ashby_spam_block(
+        job=application.job, kind=payload.kind, question=payload.question, explanation=payload.explanation,
+    )
+    effective_kind = ASHBY_SPAM_BLOCKER_KIND if anti_automation_blocked else payload.kind
     existing = db.scalar(select(Blocker).where(Blocker.application_id == application_id, Blocker.status == "open"))
     if existing:
-        existing.kind = payload.kind
+        existing.kind = effective_kind
         existing.field_label = payload.field_label
-        existing.question = payload.question
-        existing.explanation = payload.explanation
+        existing.question = (
+            "Ashby חסם את ההגשה האוטומטית" if anti_automation_blocked else payload.question
+        )
+        existing.explanation = (
+            "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
+            "יש לפתוח את הטופס ולהגיש ידנית. " + str(payload.explanation or "").strip()
+            if anti_automation_blocked else payload.explanation
+        ).strip()
         existing.options_json = dumps(payload.options)
         existing.screenshot_path = payload.screenshot_path
         existing.page_url = payload.page_url
         blocker = existing
     else:
-        blocker = Blocker(application_id=application_id, kind=payload.kind, field_label=payload.field_label,
-                          question=payload.question, explanation=payload.explanation,
-                          options_json=dumps(payload.options), screenshot_path=payload.screenshot_path,
-                          page_url=payload.page_url)
+        blocker = Blocker(
+            application_id=application_id, kind=effective_kind, field_label=payload.field_label,
+            question="Ashby חסם את ההגשה האוטומטית" if anti_automation_blocked else payload.question,
+            explanation=(
+                "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
+                "יש לפתוח את הטופס ולהגיש ידנית. " + str(payload.explanation or "").strip()
+                if anti_automation_blocked else payload.explanation
+            ).strip(),
+            options_json=dumps(payload.options), screenshot_path=payload.screenshot_path, page_url=payload.page_url,
+        )
         db.add(blocker)
+    if anti_automation_blocked:
+        blocker.created_at = utcnow()
     db.flush()
     attempt = _result_attempt(db, application_id, payload.attempt_id)
     if payload.kind == "duplicate_submission":
@@ -5276,10 +5429,18 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         return payload_out
 
     previous_status = application.status
-    uncertain_submission = payload.kind == "confirmation_missing"
-    application.status = "verification_pending" if uncertain_submission else "needs_input"
+    uncertain_submission = effective_kind == "confirmation_missing"
+    application.status = (
+        "manual_required" if anti_automation_blocked
+        else "verification_pending" if uncertain_submission
+        else "needs_input"
+    )
     set_job_status(db, application.job, application.status)
-    compact_error = f"[blocked:{payload.kind}] {payload.explanation or payload.question or payload.field_label}".strip()
+    if anti_automation_blocked:
+        answers = loads(application.answers_json, {})
+        answers.pop(ONE_TIME_SUBMIT_KEY, None)
+        application.answers_json = dumps(answers)
+    compact_error = f"[blocked:{effective_kind}] {blocker.explanation or blocker.question or blocker.field_label}".strip()
     application.last_error = compact_error[:2000]
     if attempt:
         attempt.status = "pending_verification" if uncertain_submission else "blocked"
@@ -5288,12 +5449,19 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         attempt.screenshot_path = payload.screenshot_path
         attempt.error = compact_error[:2000]
         attempt.finished_at = utcnow()
+    event_type = (
+        "anti_automation_blocked" if anti_automation_blocked
+        else "verification_pending" if uncertain_submission
+        else "blocked"
+    )
+    details = {"attempt_id": attempt.id if attempt else None, "kind": effective_kind,
+               "page_url": payload.page_url, "diagnostics": payload.diagnostics}
+    pause = automatic_submission_pause(db, application.job) if anti_automation_blocked else None
+    if pause:
+        details["automatic_pause_until"] = pause["until"].isoformat()
     _record_application_event(
-        db, application, "verification_pending" if uncertain_submission else "blocked",
-        from_status=previous_status, to_status=application.status, actor="agent",
-        message=payload.explanation or payload.question,
-        details={"attempt_id": attempt.id if attempt else None, "kind": payload.kind,
-                 "page_url": payload.page_url, "diagnostics": payload.diagnostics},
+        db, application, event_type, from_status=previous_status, to_status=application.status, actor="agent",
+        message=blocker.explanation or blocker.question, details=details,
     )
     db.add(AuditLog(event_type="application_blocked", entity_type="application", entity_id=str(application_id),
                     message=payload.question or payload.explanation))
@@ -5389,6 +5557,12 @@ def agent_retry_stopped_application(
         raise HTTPException(404, "Application not found")
     if application.mode != "auto" or not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
+    if application.status == "manual_required" or any(
+        blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
+    ):
+        raise HTTPException(409, "Ashby anti-spam requires manual submission")
+    if automatic_submission_pause(db, application.job):
+        raise HTTPException(409, "Ashby automatic submissions are temporarily paused after an anti-spam rejection")
     if application.status not in {"needs_input", "failed"}:
         raise HTTPException(409, f"Application cannot be safely retried from status {application.status}")
     previous_status = application.status
@@ -5866,6 +6040,13 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
         stage = "לא בתור האוטומטי"
         waiting_for = "טיפול ידני / Agent מקומי"
         detail = "הרשומה קיימת בהיסטוריית ההגשות, אבל אינה ממתינה ל-worker של ההגשה האוטומטית"
+    elif status == "manual_required":
+        stage = "נדרשת הגשה ידנית"
+        waiting_for = "הגשה ידנית באתר החברה"
+        detail = (
+            blocker_summary.get("explanation") if blocker_summary and blocker_summary.get("explanation")
+            else a.last_error or "מערכת הגיוס חסמה את האוטומציה. JobPilot לא ינסה שוב אוטומטית."
+        )
     elif status == "needs_input":
         stage = "נעצר"
         waiting_for = f"תשובה לשאלה: {blocker_summary.get('question')}" if blocker_summary and blocker_summary.get("question") else "תשובה/המשך מהמשתמש"

@@ -36,6 +36,10 @@ def test_two_cloud_users_share_catalog_but_keep_personal_state_isolated(monkeypa
     monkeypatch.setattr(settings, "allowed_emails", "a@example.com,b@example.com")
     monkeypatch.setattr(settings, "max_users", 10)
     monkeypatch.setattr(auth_module, "verify_supabase_token", lambda token: USERS[token])
+    # This test verifies tenant isolation, not background ranking. Letting the
+    # daemon ranking worker write the same local SQLite file makes the result depend
+    # on timing and can produce unrelated ``database is locked`` failures.
+    monkeypatch.setattr("app.main._queue_profile_derived_refresh", lambda *_args, **_kwargs: None)
     test_external_id = "shared-catalog-multiuser-test"
     shared_job_id = None
 
