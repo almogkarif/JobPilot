@@ -55,11 +55,13 @@ def test_negative_experience_preferences_are_semantically_clear_not_red_selected
     assert ".preference-exclude .negative-x { color:var(--danger)" in CSS
 
 
-def test_readiness_agent_token_is_admin_only_and_missing_contact_fields_are_named():
+def test_readiness_excludes_agent_token_and_names_missing_contact_fields():
     assert "missing_profile_fields" in JS
-    assert "Boolean(readiness.agent_required)" in JS
-    assert "authState.capabilities?.developer_tools === true" in JS
-    assert "פרטי קשר — חסר" in JS
+    readiness_js = JS[JS.index("function renderReadiness(readiness)"):JS.index("function renderRecent(jobs)")]
+    assert "agent_required" not in readiness_js
+    assert "agent_token_secure" not in readiness_js
+    assert "Token מאובטח ל־Agent" not in readiness_js
+    assert "פרטי קשר — חסר" in readiness_js
 
 
 def test_iem_final_guardrails_cover_tabs_theme_switch_inputs_and_preferences_in_day_and_night():

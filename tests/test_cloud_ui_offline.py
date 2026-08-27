@@ -95,7 +95,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
         assert page.locator("#agent-state").inner_text() == "מחובר · 1"
         page.wait_for_function("!document.querySelector('#admin-worker-setting').hidden")
         assert page.locator('#admin-worker-setting').evaluate('(el) => !el.hidden')
-        assert 'Token מאובטח ל־Agent' in page.locator('#readiness').inner_text()
+        assert page.locator('#readiness').is_hidden()
+        assert 'Token מאובטח ל־Agent' not in page.locator('#readiness').inner_text()
         page.locator("#account-chip").click()
         page.wait_for_function("document.body.innerText.includes('משתמשים 2/10')")
         assert "friend@example.com" in page.locator("#modal").inner_text()
@@ -119,7 +120,8 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
         page.wait_for_function("document.querySelector('#admin-preview-exit').hidden")
         assert page.locator('.admin-only-nav').is_visible()
         assert page.locator('#admin-worker-setting').evaluate('(el) => !el.hidden')
-        assert 'Token מאובטח ל־Agent' in page.locator('#readiness').inner_text()
+        assert page.locator('#readiness').is_hidden()
+        assert 'Token מאובטח ל־Agent' not in page.locator('#readiness').inner_text()
         assert errors == []
         browser.close()
 
