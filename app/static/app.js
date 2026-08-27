@@ -2474,12 +2474,38 @@ async function resolveBlockerAction(id, action, applicationId = null) {
   }
 }
 
+function clearApplicationTracking() {
+  trackedApplicationId = null;
+  trackingPinnedByUser = false;
+  applicationTrackingData = null;
+  applicationTrackingVersion = '';
+  clearTimeout(applicationTrackingAdvanceTimer);
+  stopApplicationTrackingPoll();
+  localStorage.removeItem('jobpilot-tracked-application');
+}
+
+async function reconcileTrackingAfterSubmitted(applicationId) {
+  await Promise.all([refreshTrackingApplications(), refreshAutoApplyQueue()]);
+  if (Number(applicationId) !== Number(trackedApplicationId)) {
+    renderNotificationCenter();
+    return;
+  }
+  const next = trackingApplications.find((item) => Number(item.id) !== Number(applicationId));
+  if (next) {
+    startApplicationTracking(next.id, false, false);
+    return;
+  }
+  clearApplicationTracking();
+  renderNotificationCenter();
+}
+
 async function markApplicationSubmitted(id) {
   if (!confirm('לסמן שהמועמדות הוגשה ידנית?')) return;
   try {
     await api(`/api/applications/${id}/mark-submitted`, { method: 'POST' });
     toast('המועמדות סומנה כהוגשה');
     await Promise.all([loadBlockers(), loadApplications(), loadDashboard()]);
+    await reconcileTrackingAfterSubmitted(id);
   } catch (error) {
     toast(error.message);
   }

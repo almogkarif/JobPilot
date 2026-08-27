@@ -115,6 +115,10 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "הפעל מחדש את כולן" in js
     assert "application-tracker-retry auto-queue-retry" in js
     assert ".auto-queue-row-actions .auto-queue-retry" in css
+    assert "function clearApplicationTracking()" in js
+    assert "async function reconcileTrackingAfterSubmitted(applicationId)" in js
+    assert "localStorage.removeItem('jobpilot-tracked-application')" in js
+    assert "await reconcileTrackingAfterSubmitted(id)" in js
 
 
 def test_tracking_list_is_a_compact_payload_not_full_application_history():
