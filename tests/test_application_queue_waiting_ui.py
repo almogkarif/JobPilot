@@ -126,6 +126,22 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "await reconcileTrackingAfterSubmitted(id)" in js
 
 
+def test_verified_submission_tracker_is_cleared_but_attention_states_remain_trackable():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+
+    # A verified/finished submission should not remain as the live tracker when
+    # there is no next queued or attention item.
+    assert "async function advanceTrackingToNextAutoQueue()" in js
+    assert "refreshTrackingApplications()" in js
+    assert "if(currentStatus==='submitted'){clearApplicationTracking();renderNotificationCenter();return}" in js
+
+    # States that are still waiting for user feedback/action stay in the
+    # tracking list and therefore can become the next tracker instead of being
+    # discarded as completed.
+    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','manual_required','verification_pending','failed'])" in js
+    assert "const feedbackNext=trackingApplications.find(item=>Number(item.id)!==finishedId)" in js
+
+
 def test_tracking_list_is_a_compact_payload_not_full_application_history():
     with TestClient(app) as client:
         response = client.get("/api/applications/tracking-list", params={"current_id": 0})

@@ -3635,7 +3635,17 @@ async function pollApplicationTrackingStatus(){if(!trackedApplicationId||applica
 async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{const statusData=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(statusData.auto_apply_queue)setAutoApplyQueue(statusData.auto_apply_queue);const version=String(statusData.timeline_version||'');await loadApplicationTimeline(version);const status=applicationTrackingData?.application?.status||statusData.status||'',nextActiveId=Number(statusData.auto_apply_queue?.current?.id||0);if(!trackingPinnedByUser&&['verification_pending','failed','needs_input','manual_required'].includes(status)&&nextActiveId&&nextActiveId!==Number(trackedApplicationId)){startApplicationTracking(nextActiveId,false);return}if(status==='submitted'){clearTimeout(applicationTrackingAdvanceTimer);applicationTrackingAdvanceTimer=setTimeout(advanceTrackingToNextAutoQueue,2200)}scheduleApplicationTrackingPoll(status)}catch{stopApplicationTrackingPoll()}}
 function startApplicationTracking(id,autoOpen=false,pin=false){trackedApplicationId=Number(id);trackingPinnedByUser=Boolean(pin);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;applicationTrackingVersion='';clearTimeout(applicationTrackingAdvanceTimer);stopApplicationTrackingPoll();refreshApplicationTracking();if(autoOpen)openNotifications()}
 async function syncPrimaryApplicationTracking(newApplicationId,autoOpen=false){const queue=await refreshAutoApplyQueue();let trackedStatus=applicationTrackingData?.application?.status||'';if(trackedApplicationId&&!applicationTrackingData){try{const tracking=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(tracking.auto_apply_queue)setAutoApplyQueue(tracking.auto_apply_queue);trackedStatus=tracking.status||''}catch{trackedStatus=''}}const preserveCurrent=Boolean(trackedApplicationId&&trackedStatus==='applying');if(!preserveCurrent){const primaryId=Number(queue.current?.id||newApplicationId||0);if(primaryId)startApplicationTracking(primaryId,false)}else{renderNotificationCenter()}if(autoOpen)openNotifications()}
-async function advanceTrackingToNextAutoQueue(){const queue=await refreshAutoApplyQueue(),nextId=Number(queue.current?.id||0);if(nextId&&nextId!==Number(trackedApplicationId))startApplicationTracking(nextId,false);else renderNotificationCenter()}
+async function advanceTrackingToNextAutoQueue(){
+  const finishedId=Number(trackedApplicationId||0);
+  const [queue]=await Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()]);
+  const queueNextId=Number(queue.current?.id||0);
+  const feedbackNext=trackingApplications.find(item=>Number(item.id)!==finishedId);
+  const nextId=queueNextId&&queueNextId!==finishedId?queueNextId:Number(feedbackNext?.id||0);
+  if(nextId){startApplicationTracking(nextId,false);return}
+  const currentStatus=applicationTrackingData?.application?.status||'';
+  if(currentStatus==='submitted'){clearApplicationTracking();renderNotificationCenter();return}
+  renderNotificationCenter();
+}
 function notificationItems() {
   const dashboard = state.dashboard || {};
   const items = [];
