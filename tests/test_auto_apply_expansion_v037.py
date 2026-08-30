@@ -103,7 +103,6 @@ def test_new_smartrecruiters_and_comeet_sources_are_present_and_auto_routable():
         "Paragon": "paragon",
         "Legit Security": "legitsecurity",
         "Voyantis": "voyantis",
-        "Arbe Robotics": "arbe",
     }
     for company, identifier in expected_comeet_presets.items():
         assert _company(CS_RECOMMENDED_SOURCES, company)["identifier"] == identifier
@@ -111,6 +110,10 @@ def test_new_smartrecruiters_and_comeet_sources_are_present_and_auto_routable():
         assert "comeet.com/jobs/" in preset["url"]
         assert preset["hydrate_details"] is True
         assert preset["preserve_on_empty"] is True
+
+    arbe = _company(CS_RECOMMENDED_SOURCES, "Arbe Robotics")
+    assert arbe["identifier"] == "arbe"
+    assert PRESETS["arbe"]["url"] == "https://arberobotics.com/career/"
 
     assert detect_adapter(
         "https://www.comeet.com/jobs/vastdata/43.001/software-engineer/AA.BBB",

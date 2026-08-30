@@ -124,6 +124,22 @@ def test_proteantecs_positions_keep_distinct_careerinfo_links():
     assert "https://www.proteantecs.com/careerinfo?pi=F1.365-BE.103" in hrefs
 
 
+def test_comeet_api_uses_its_canonical_hosted_url_and_nested_locations():
+    payload = json.dumps([{
+        "uid": "38.10A",
+        "name": "Backend Engineer",
+        "location": [{"name": "Tel Aviv"}, {"name": "Hybrid"}],
+        "department": "Engineering",
+        "url_comeet_hosted_page": (
+            "https://www.comeet.com/jobs/Claroty/F2.004/backend-engineer/38.10A"
+        ),
+    }])
+    row, href, external_id = _one("claroty", payload)
+    assert external_id == "38.10A"
+    assert href.endswith("/backend-engineer/38.10A")
+    assert "Tel Aviv, Hybrid" in row["text"]
+
+
 def test_structured_adapter_rejects_unrelated_numeric_objects_without_job_title():
     payload = '{"analytics":{"id":76048939,"name":""},"page":{"id":76040000,"label":"Jobs"}}'
     assert _extract_structured_job_rows(payload, PRESETS["iai"]) == []

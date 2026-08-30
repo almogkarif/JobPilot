@@ -27,6 +27,15 @@ def test_salesforce_detail_hydration_stays_within_hourly_worker_budget():
     assert preset["selector_timeout_ms"] <= 15_000
 
 
+def test_blocked_official_sources_use_bounded_structured_fallbacks():
+    assert PRESETS["claroty"]["data_only"] is True
+    assert "careers-api" in PRESETS["claroty"]["data_url"]
+    assert PRESETS["gloat"]["data_only"] is True
+    assert "careers-api" in PRESETS["gloat"]["data_url"]
+    assert PRESETS["arbe"]["http_first"] is True
+    assert PRESETS["arbe"]["max_detail_jobs"] <= 30
+
+
 def test_mobileye_title_uses_role_slug_before_uuid_when_card_title_is_missing():
     assert _resolve_title(
         {"title": ""},

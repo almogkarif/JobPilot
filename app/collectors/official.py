@@ -31,6 +31,16 @@ def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
         "hydrate_details": True,
         "max_detail_jobs": 160,
         "preserve_on_empty": True,
+        "network_id_keys": ("uid", "position_uid", "positionId", "id"),
+        "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}",
+        "network_title_keys": ("name", "title", "positionTitle", "jobTitle"),
+        "network_location_keys": ("location", "locations", "city"),
+        "network_description_keys": (
+            "department", "employment_type", "experience_level", "workplace_type",
+        ),
+        "network_url_keys": (
+            "url_comeet_hosted_page", "url_recruit_hosted_page", "url_active_page",
+        ),
     }
 
 
@@ -55,7 +65,7 @@ PRESETS = {
     "dustphotonics": {"url": "https://www.dustphotonics.com/careers/", "selector": 'a[href*="career"], a[href*="job"], a[href*="position"]', "id_pattern": r"(?:careers?|jobs?|positions?)[^/?#]*/([^/?#]+)", "company": "DustPhotonics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True, "preserve_on_empty": True},
-    "arbe": _comeet_preset("arbe", "C6.001", "Arbe Robotics"),
+    "arbe": {"url": "https://arberobotics.com/career/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 30, "preserve_on_empty": True},
     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "proteantecs": {"url": "https://www.proteantecs.com/careers", "data_url": "https://www.comeet.co/careers-api/2.0/company/D5.00E/positions?token=5DE23340029121D562912029122334&details=false", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "href_template": "https://www.proteantecs.com/careerinfo?pi={id}", "network_id_keys": ("uid", "pi", "positionId", "position_id", "jobId", "job_id", "id"), "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}", "network_title_keys": ("title", "name", "positionTitle", "jobTitle"), "network_description_keys": ("department", "employment_type", "experience_level", "workplace_type")},
@@ -111,9 +121,9 @@ PRESETS = {
     "orca": {"url": "https://orca.security/about/careers/", "selector": 'a[href*="/about/careers/"]', "id_pattern": r"/about/careers/(\d+)/", "company": "Orca Security"},
     "sentinelone": {"url": "https://www.sentinelone.com/jobs/?location=Israel", "selector": 'a[href*="job"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SentinelOne"},
     "aqua": {"url": "https://www.aquasec.com/about-us/careers/", "selector": 'a[href*="/about-us/careers/co/"]', "id_pattern": r"/careers/co/[^/]+/([^/]+)/", "company": "Aqua Security"},
-    "claroty": _comeet_preset("Claroty", "F2.004", "Claroty"),
+    "claroty": {**_comeet_preset("Claroty", "F2.004", "Claroty"), "data_url": "https://www.comeet.co/careers-api/2.0/company/F2.004/positions?token=2F4EC42F42F45E814AC1A945E814AC5E8&details=false", "data_only": True},
     "vastdata": _comeet_preset("vastdata", "43.001", "VAST Data"),
-    "gloat": _comeet_preset("gloat", "E5.000", "Gloat"),
+    "gloat": {**_comeet_preset("gloat", "E5.000", "Gloat"), "data_url": "https://www.comeet.co/careers-api/2.0/company/E5.000/positions?token=5E02340002F0017800234011A01780&details=false", "data_only": True},
     "silverfort": _comeet_preset("silverfort", "54.007", "Silverfort"),
     "4manalytics": _comeet_preset("4Manalytics", "B6.00F", "4M Analytics"),
     "exodigo": _comeet_preset("exodigo", "89.005", "Exodigo"),
@@ -650,7 +660,8 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
     """Extract jobs from official JSON APIs that expose IDs but no detail links."""
     id_keys = tuple(preset.get("network_id_keys", ()))
     template = str(preset.get("href_template") or "")
-    if not id_keys or not template:
+    url_keys = tuple(preset.get("network_url_keys", ()))
+    if not id_keys or not (template or url_keys):
         return []
     try:
         payload = json.loads(raw_payload)
@@ -674,6 +685,8 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                 result = scalar(value.get(key)) if key in value else ""
                 if result:
                     return result
+        if isinstance(value, list):
+            return ", ".join(part for item in value if (part := scalar(item)))
         return ""
 
     def rich_text(value) -> str:
@@ -692,6 +705,11 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
             external_id = next((scalar(node.get(key)) for key in id_keys if scalar(node.get(key))), "")
             title = next((scalar(node.get(key)) for key in title_keys if scalar(node.get(key))), "")
             if external_id and title and id_re.fullmatch(external_id) and _row_has_human_title({"title": title}):
+                href = next((scalar(node.get(key)) for key in url_keys if scalar(node.get(key))), "")
+                if not href and template:
+                    href = template.format(id=external_id)
+                if not href:
+                    return
                 location = next((scalar(node.get(key)) for key in location_keys if scalar(node.get(key))), "")
                 text_parts = [title, location]
                 for key in description_keys:
@@ -699,7 +717,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                     if value_text:
                         text_parts.append(value_text)
                 rows.append({
-                    "href": template.format(id=external_id), "onclick": "",
+                    "href": href, "onclick": "",
                     "title": title, "linkText": title, "text": clean_job_text("\n".join(text_parts))[:12000],
                 })
             for value in node.values():
