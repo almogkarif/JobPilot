@@ -183,8 +183,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # safe Workday recovery. Reusing the same email cannot silently create
             # a duplicate account: Workday validates uniqueness before proceeding.
             if create_action and (
-                any(normalize(term) in body_text for term in NO_ACCOUNT_TERMS + AUTH_FAILURE_TERMS)
-                or "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+                any(normalize(term) in body_text for term in NO_ACCOUNT_TERMS)
             ):
                 _click_action(page, create_action)
                 sign_in_submitted = False
@@ -429,8 +428,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         if has_password and not sign_in_submitted:
             account_button = _find_action(page, CREATE_ACCOUNT_TERMS) if creating_account else _find_action(page, SIGN_IN_TERMS)
             if account_button:
-                if not creating_account:
-                    sign_in_submitted = True
+                # Mark both sign-in and create-account submissions. If Workday
+                # leaves the password form visible, the next pass must classify
+                # the response instead of submitting the same form indefinitely.
+                sign_in_submitted = True
                 _click_action(page, account_button)
                 continue
 
