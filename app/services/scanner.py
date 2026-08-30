@@ -14,7 +14,7 @@ from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .application_anti_automation import automatic_submission_pause
-from .application_submission import detect_adapter
+from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .location_filter import is_israel_location
 from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, track_job_relevance
 from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
@@ -625,7 +625,8 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
         if job.application:
             continue
         source_kind = job.source.kind if job.source else ""
-        if not detect_adapter(job.apply_url, source_kind).supports_automatic_submit:
+        adapter = detect_adapter(job.apply_url, source_kind)
+        if not automatic_submit_ready_for_profile(adapter, profile):
             continue
         if automatic_submission_pause(db, job):
             continue

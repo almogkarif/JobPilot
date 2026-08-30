@@ -6,9 +6,10 @@ from typing import Callable
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, joinedload
 
+from ..database import get_user_profile
 from ..models import Application, ApplicationAttempt, ApplicationEvent, Job, utcnow
 from ..utils import dumps
-from .application_submission import detect_adapter
+from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .application_anti_automation import automatic_submission_pause
 from .github_actions import dispatch_application_workflow
 
@@ -22,7 +23,7 @@ QUEUE_REDISPATCH_AFTER = timedelta(minutes=12)
 # crash, so an automatic retry could create a duplicate application.
 APPLYING_STUCK_AFTER = timedelta(minutes=15)
 
-CLOUD_ADAPTERS = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
+CLOUD_ADAPTERS = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
 QUEUE_EVENT_TYPES = {
     "auto_submit_approved",
     "campaign_queued",
@@ -185,6 +186,7 @@ def recover_stuck_auto_applications(
 ) -> dict:
     """Dispatch missing/stale *queued* workers, never resubmit an applying job."""
     health = queue_health(db, career_track, now=now)
+    profile = get_user_profile(db)
     recovered: list[int] = []
     failed: list[dict] = []
     for application_id, item in health.items():
@@ -192,6 +194,10 @@ def recover_stuck_auto_applications(
             continue
         application = db.get(Application, application_id)
         if not application or application.status != "queued" or application.mode != "auto":
+            continue
+        source_kind = application.job.source.kind if application.job and application.job.source else ""
+        adapter = detect_adapter(application.job.apply_url if application.job else "", source_kind)
+        if not profile or not automatic_submit_ready_for_profile(adapter, profile):
             continue
         try:
             dispatcher(application_id)

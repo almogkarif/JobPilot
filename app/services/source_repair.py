@@ -40,6 +40,36 @@ ATS_MIGRATIONS: dict[str, SourceMigration] = {
         identifier="Cyberark1",
         reason="migrated to CyberArk's public SmartRecruiters Posting API",
     ),
+    "checkpoint": SourceMigration(
+        kind="smartrecruiters",
+        identifier="CheckPointSoftwareTechnologies2",
+        reason="migrated to Check Point's public SmartRecruiters Posting API",
+    ),
+    "appsflyer": SourceMigration(
+        kind="greenhouse",
+        identifier="appsflyer",
+        reason="migrated from branded careers HTML to AppsFlyer's public Greenhouse board",
+    ),
+    "cato": SourceMigration(
+        kind="greenhouse",
+        identifier="catonetworks",
+        reason="migrated from branded careers HTML to Cato Networks' public Greenhouse board",
+    ),
+    "wiz": SourceMigration(
+        kind="greenhouse",
+        identifier="wizinc",
+        reason="migrated from branded careers HTML to Wiz's public Greenhouse board",
+    ),
+    "sentinelone": SourceMigration(
+        kind="greenhouse",
+        identifier="sentinellabs",
+        reason="migrated from branded careers HTML to SentinelOne's public Greenhouse board",
+    ),
+    "connecteam": SourceMigration(
+        kind="greenhouse",
+        identifier="connecteam",
+        reason="migrated from branded careers HTML to Connecteam's public Greenhouse board",
+    ),
     "mobileye": SourceMigration(
         kind="lever",
         identifier="eu:mobileye",

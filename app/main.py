@@ -57,7 +57,7 @@ from .schemas import (
 )
 from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
 from .services.job_cleanup import application_history_visible
-from .services.application_submission import (automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
+from .services.application_submission import (automatic_submit_ready_for_profile, automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.application_anti_automation import (
     ASHBY_SPAM_BLOCKER_KIND, automatic_submission_pause, classify_ashby_spam_block,
@@ -868,6 +868,7 @@ def _automatic_submit_sort_order():
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
         | apply_url.like("%smartrecruiters.com%") | source_kind.like("%smartrecruiters%")
+        | apply_url.like("%myworkdayjobs.com%") | source_kind.like("%workday%")
     )
     return case((supported, 1), else_=0)
 
@@ -5237,9 +5238,10 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
                        application_id=application_id if worker_type == "cloud" else None)
     if worker_type == "cloud" and application_id == 0:
         return {"task": None}
-    track = active_track(get_user_profile(db))
+    profile = get_user_profile(db)
+    track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters"}
+        cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -5251,6 +5253,9 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             and anchor.job.is_active
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
             in cloud_adapters
+            and automatic_submit_ready_for_profile(
+                detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else ""), profile
+            )
             and not automatic_submission_pause(db, anchor.job)
         ):
             application = anchor

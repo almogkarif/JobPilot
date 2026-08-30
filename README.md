@@ -49,7 +49,7 @@ The project combines product work, backend engineering, browser automation, data
 
 ## Engineering highlights
 
-- **Multi-source job ingestion** from Greenhouse, Ashby, Lever, Google Careers, Workday, and company-specific career pages.
+- **Multi-source job ingestion** from Greenhouse, Ashby, Lever, SmartRecruiters, Google Careers, Workday, and company-specific career pages.
 - **Deterministic matching engine** with explainable 0–100 scoring based on titles, seniority, skills, experience, location, work mode, keywords, exclusions, company, and freshness.
 - **Multi-user cloud architecture** with Supabase Auth, PostgreSQL, per-user workspaces, and tenant isolation enforced in the application data layer.
 - **Human-in-the-loop browser automation** using a persistent local Playwright agent for application preparation.
@@ -361,7 +361,7 @@ For the complete setup, see:
 
 ### Background submission worker
 
-`Dockerfile.worker` runs the Playwright worker separately from the web service. Supply `JOBPILOT_BASE_URL`, a paired `JOBPILOT_AGENT_TOKEN`, and `JOBPILOT_WORKER_TYPE=cloud`. The worker accepts only Greenhouse, Comeet, Lever, Ashby, and SmartRecruiters tasks that carry a consumed one-time approval. Workday, custom sites, CAPTCHA, and uncertain pages remain local/manual. Keep one replica while using the beta queue.
+`Dockerfile.worker` runs the Playwright worker separately from the web service. Supply `JOBPILOT_BASE_URL`, a paired `JOBPILOT_AGENT_TOKEN`, and `JOBPILOT_WORKER_TYPE=cloud`. The worker accepts Greenhouse, Comeet, Lever, Ashby, SmartRecruiters, and Workday tasks that carry a consumed one-time approval. Workday additionally requires a saved application-site password; CAPTCHA, email/MFA challenges, custom sites, and uncertain pages still stop safely for user input. Keep one replica while using the beta queue.
 
 For a no-cost public-repository deployment, `.github/workflows/jobpilot-application.yml` runs one isolated headless worker on demand. The web server dispatches it immediately after one-time approval. An administrator adds `JOBPILOT_AGENT_TOKEN` and `JOBPILOT_BASE_URL` as GitHub Actions repository secrets once. The credential-management card is admin-only; regular users can request background submissions but never receive or manage worker credentials. Each workflow is restricted to its dispatched application and is tenant-scoped to that application's owner before any profile, resume, or result access.
 

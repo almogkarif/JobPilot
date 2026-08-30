@@ -28,8 +28,10 @@ ADAPTERS = {
     "comeet": ATSAdapter("comeet", "Comeet", notes="טופס ישראלי נפוץ עם שאלות מותאמות לפי חברה."),
     "lever": ATSAdapter("lever", "Lever", notes="טופס מועמדות ציבורי עם מבנה עקבי יחסית."),
     "ashby": ATSAdapter("ashby", "Ashby", notes="טופס מועמדות דינמי; נדרש אימות הצלחה אחרי השליחה."),
-    "workday": ATSAdapter("workday", "Workday", execution="manual_only", supports_automatic_submit=False,
-                           notes="דורש בדרך כלל סשן משתמש או יצירת חשבון ולכן אינו נשלח אוטומטית ברקע."),
+    "workday": ATSAdapter(
+        "workday", "Workday",
+        notes="נתמך בענן כאשר נשמרה סיסמה לאתרי הגשה; CAPTCHA, אימות מייל או MFA עדיין מועברים למשתמש.",
+    ),
     "smartrecruiters": ATSAdapter("smartrecruiters", "SmartRecruiters"),
     "custom": ATSAdapter("custom", "אתר קריירה מותאם", execution="manual_only", supports_automatic_submit=False,
                          notes="נדרש adapter מאומת לפני שהאתר יורשה לרוץ אוטומטית ברקע."),
@@ -111,6 +113,20 @@ def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     return ADAPTERS["custom"]
 
 
+def automatic_submit_ready_for_profile(adapter: ATSAdapter, profile) -> bool:
+    """Return whether this ATS can safely run unattended for this profile.
+
+    Workday is browser-automatable, but its account/login flow needs the user's
+    application-site password. Keep it out of background queues until that
+    credential is configured; MFA/CAPTCHA still stops in the normal human loop.
+    """
+    if not adapter.supports_automatic_submit:
+        return False
+    if adapter.key == "workday" and not bool(getattr(profile, "application_password", "")):
+        return False
+    return True
+
+
 def build_submission_preview(job, profile, resume=None) -> dict:
     adapter = detect_adapter(job.apply_url, getattr(getattr(job, "source", None), "kind", ""))
     missing: list[dict[str, str]] = []
@@ -130,12 +146,16 @@ def build_submission_preview(job, profile, resume=None) -> dict:
         missing.append({"field": "apply_url", "label": "קישור הגשה תקין"})
     if not str(profile.linkedin_url or "").strip():
         warnings.append("LinkedIn לא הוגדר; אם הוא שדה חובה ה-Agent יעצור ויבקש השלמה.")
-    if adapter.key == "workday" and not bool(profile.application_password):
-        warnings.append("ב-Workday ייתכן שתידרש סיסמה או יצירת חשבון במהלך ההגשה.")
+    if adapter.key == "workday":
+        require("application_password", "סיסמה לאתרי הגשה", profile.application_password)
+        if not bool(profile.application_password):
+            warnings.append("Workday דורש סיסמה שמורה כדי שה-Agent יוכל להיכנס או ליצור חשבון מועמד בצורה בטוחה.")
+        else:
+            warnings.append("ב-Workday ה-Agent ישתמש בסיסמה השמורה; CAPTCHA, אימות מייל או MFA יעצרו להשלמה ידנית.")
     if not adapter.supports_automatic_submit:
         warnings.append("המקור הזה עדיין לא מורשה להגשה אוטומטית ברקע; JobPilot לא יפתח עבורך חלון דפדפן.")
     warnings.append("שאלות ייחודיות ו-CAPTCHA נבדקים בזמן אמת; המערכת לא תנחש תשובה ולא תעקוף אימות אנושי.")
-    ready = not missing and adapter.supports_automatic_submit
+    ready = not missing and automatic_submit_ready_for_profile(adapter, profile)
     return {
         "job": {"id": job.id, "title": job.title, "company": job.company, "apply_url": job.apply_url},
         "adapter": asdict(adapter),

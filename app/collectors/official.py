@@ -16,6 +16,24 @@ from .base import NormalizedJob, PreserveExistingJobs
 from ..services.job_text import clean_job_text, job_text_quality
 
 
+def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
+    """Preset for a public Comeet board whose job URLs are auto-routable."""
+    base = f"https://www.comeet.com/jobs/{company_slug}/{board_id}"
+    escaped_slug = re.escape(company_slug)
+    escaped_board = re.escape(board_id)
+    return {
+        "url": base,
+        "selector": f'a[href*="/jobs/{company_slug}/{board_id}/"]',
+        "id_pattern": rf"/jobs/{escaped_slug}/{escaped_board}/[^/?#\s]+/([^/?#\s]+)",
+        "company": company,
+        "prefer_link_text": True,
+        "http_first": True,
+        "hydrate_details": True,
+        "max_detail_jobs": 160,
+        "preserve_on_empty": True,
+    }
+
+
 PRESETS = {
     # Electrical-engineering expansion. These presets intentionally use each
     # employer's own careers surface; the track filter later keeps Israel/EE roles.
@@ -37,7 +55,7 @@ PRESETS = {
     "dustphotonics": {"url": "https://www.dustphotonics.com/careers/", "selector": 'a[href*="career"], a[href*="job"], a[href*="position"]', "id_pattern": r"(?:careers?|jobs?|positions?)[^/?#]*/([^/?#]+)", "company": "DustPhotonics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True, "preserve_on_empty": True},
-    "arbe": {"url": "https://arberobotics.com/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+    "arbe": _comeet_preset("arbe", "C6.001", "Arbe Robotics"),
     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "proteantecs": {"url": "https://www.proteantecs.com/careers", "data_url": "https://www.comeet.co/careers-api/2.0/company/D5.00E/positions?token=5DE23340029121D562912029122334&details=false", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "href_template": "https://www.proteantecs.com/careerinfo?pi={id}", "network_id_keys": ("uid", "pi", "positionId", "position_id", "jobId", "job_id", "id"), "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}", "network_title_keys": ("title", "name", "positionTitle", "jobTitle"), "network_description_keys": ("department", "employment_type", "experience_level", "workplace_type")},
@@ -90,6 +108,15 @@ PRESETS = {
     "orca": {"url": "https://orca.security/about/careers/", "selector": 'a[href*="/about/careers/"]', "id_pattern": r"/about/careers/(\d+)/", "company": "Orca Security"},
     "sentinelone": {"url": "https://www.sentinelone.com/jobs/?location=Israel", "selector": 'a[href*="job"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SentinelOne"},
     "aqua": {"url": "https://www.aquasec.com/about-us/careers/", "selector": 'a[href*="/about-us/careers/co/"]', "id_pattern": r"/careers/co/[^/]+/([^/]+)/", "company": "Aqua Security"},
+    "claroty": _comeet_preset("Claroty", "F2.004", "Claroty"),
+    "vastdata": _comeet_preset("vastdata", "43.001", "VAST Data"),
+    "gloat": _comeet_preset("gloat", "E5.000", "Gloat"),
+    "silverfort": _comeet_preset("silverfort", "54.007", "Silverfort"),
+    "4manalytics": _comeet_preset("4Manalytics", "B6.00F", "4M Analytics"),
+    "exodigo": _comeet_preset("exodigo", "89.005", "Exodigo"),
+    "paragon": _comeet_preset("paragon", "76.006", "Paragon"),
+    "legitsecurity": _comeet_preset("legitsecurity.com", "37.004", "Legit Security"),
+    "voyantis": _comeet_preset("voyantis", "86.00B", "Voyantis"),
     "sunflower": {"url": "https://www.comeet.com/jobs/sunflower/AA.009", "selector": 'a[href*="/jobs/sunflower/AA.009/"]', "id_pattern": r"/jobs/sunflower/AA\.009/[^/?#\s]+/([^/?#\s]+)", "company": "Sunflower", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "preserve_on_empty": True},
     "moonactive": {"url": "https://www.moonactive.com/careers/", "selector": 'a[href*="moonactive-position"], a[href*="/careers/"][href*="uid="]', "id_pattern": r"[?&]uid=([^&#\s]+)", "company": "Moon Active", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "dynamic_scroll": True, "preserve_on_empty": True},
     "connecteam": {"url": "https://connecteam.com/careers/", "selector": 'a[href*="/careers/"][href*="gh_jid="], a[href*="/careers/"]', "id_pattern": r"(?:[?&]gh_jid=|/careers/)(\d+)", "company": "Connecteam", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "preserve_on_empty": True},

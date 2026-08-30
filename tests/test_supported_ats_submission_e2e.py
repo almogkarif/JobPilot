@@ -14,6 +14,7 @@ SUPPORTED_ATS_CASES = [
     ("lever", "https://jobs.lever.co/example/1003/apply"),
     ("ashby", "https://jobs.ashbyhq.com/example/1004/application"),
     ("smartrecruiters", "https://jobs.smartrecruiters.com/Example/1005-test-role"),
+    ("workday", "https://example.wd5.myworkdayjobs.com/en-US/External/job/Israel/Test_R1"),
 ]
 
 
