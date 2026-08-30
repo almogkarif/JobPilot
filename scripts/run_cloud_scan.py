@@ -340,14 +340,16 @@ async def main() -> int:
     parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
-    ensure_job_source_fingerprint_column()
     if args.check_only:
         available = work_available(args.mode)
         print(f"[scan] work_available={str(available).lower()} mode={args.mode}", flush=True)
         return 0 if available else 3
     if args.mode == "recover":
         count = recover_known_user_queues()
-    elif args.mode == "diagnose":
+        print(f"[scan] worker complete runs={count}", flush=True)
+        return 0
+    ensure_job_source_fingerprint_column()
+    if args.mode == "diagnose":
         count = await diagnose_official_sources()
     elif args.mode == "audit":
         count = await audit_catalog_tracks()

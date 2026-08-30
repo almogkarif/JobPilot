@@ -104,11 +104,11 @@ jobs:
           fi
 
       - name: Install scanner dependencies
-        if: steps.work.outputs.needed == 'true'
+        if: steps.work.outputs.needed == 'true' && steps.mode.outputs.mode != 'recover'
         run: python -m pip install -r requirements.txt
 
       - name: Install Chromium for collectors
-        if: steps.work.outputs.needed == 'true'
+        if: steps.work.outputs.needed == 'true' && steps.mode.outputs.mode != 'recover'
         run: python -m playwright install --with-deps chromium
 
       - name: Run scans outside Render
