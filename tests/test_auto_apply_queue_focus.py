@@ -127,6 +127,7 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     assert 'cancelAutoQueueApplication' in js
     assert 'nextActiveId' in js
     assert '.application-running-badge' in css
+    assert '.application-live-head>.application-running-badge{display:inline-flex' in css
     assert 'grid-template-columns:repeat(8,minmax(180px,1fr))' in css
     assert "['needs_input','failed','verification_pending'].includes(application.status)" in js
     assert 'loadApplications({ silent: true })' in js
