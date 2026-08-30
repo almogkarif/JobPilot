@@ -87,6 +87,34 @@ def test_agent_blocker_diagnostics_are_saved_in_timeline_without_field_values():
         }
 
 
+def test_failure_diagnostics_do_not_mix_resolved_blocker_details_into_current_blocker():
+    with TestClient(app) as client:
+        job = _make_job(client, "Current blocker diagnostics engineer")
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.mode = "auto"
+            stored.status = "needs_input"
+            db.add(Blocker(
+                application_id=stored.id, kind="sign_in_failed", field_label="Sign in",
+                question="Manual sign in required", explanation="Sign in was not accepted",
+            ))
+            db.add(ApplicationEvent(
+                application_id=stored.id, event_type="blocked", actor="agent",
+                details_json='{"kind":"choice_required","diagnostics":{"context":"State","option_count":6}}',
+            ))
+            db.add(ApplicationEvent(
+                application_id=stored.id, event_type="blocked", actor="agent",
+                details_json='{"kind":"sign_in_failed","diagnostics":{}}',
+            ))
+            db.commit()
+
+        payload = client.get("/api/applications/failure-diagnostics").json()
+        row = next(item for item in payload["applications"] if item["application_id"] == application["id"])
+        assert row["yellow_question"]["kind"] == "sign_in_failed"
+        assert row["blocker_diagnostics"] == {}
+
+
 def _isolate_queue(application_id: int) -> None:
     with SessionLocal() as db:
         for application in db.scalars(select(Application)).all():

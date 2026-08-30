@@ -3548,11 +3548,27 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         recent_attempts = attempts_by_application.get(application.id, [])[:3]
         recent_events = events_by_application.get(application.id, [])[:10]
         blocker_diagnostics = {}
+        matched_current_blocker = False
         for item in recent_events:
-            candidate = loads(item.details_json, {}).get("diagnostics")
-            if isinstance(candidate, dict) and candidate:
-                blocker_diagnostics = candidate
+            details = loads(item.details_json, {})
+            if blocker and details.get("kind") == blocker.get("kind"):
+                candidate = details.get("diagnostics")
+                blocker_diagnostics = candidate if isinstance(candidate, dict) else {}
+                matched_current_blocker = True
                 break
+        if not matched_current_blocker:
+            # Old event rows predate the blocker-kind marker. Retain their useful
+            # diagnostics only when no newer, explicitly matching blocker event
+            # exists; otherwise a resolved State error can leak into a later
+            # sign-in handoff and make the report internally contradictory.
+            for item in recent_events:
+                details = loads(item.details_json, {})
+                if details.get("kind"):
+                    continue
+                candidate = details.get("diagnostics")
+                if isinstance(candidate, dict) and candidate:
+                    blocker_diagnostics = candidate
+                    break
         diagnostics.append({
             "application_id": application.id,
             "job_id": application.job_id,
