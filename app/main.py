@@ -3503,13 +3503,14 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         )
         .order_by(Application.id)
     ).unique().all()
-    unsupported_queued = [
-        item for item in all_rows
-        if item.status == "queued" and not _application_auto_submit_supported(item)
-    ]
     inactive_queued = [
         item for item in all_rows
         if item.status == "queued" and item.job and not item.job.is_active
+    ]
+    unsupported_queued = [
+        item for item in all_rows
+        if item.status == "queued" and item.job and item.job.is_active
+        and not _application_auto_submit_supported(item)
     ]
     excluded_queued_ids = {item.id for item in unsupported_queued + inactive_queued}
     rows = [item for item in all_rows if item.id not in excluded_queued_ids]

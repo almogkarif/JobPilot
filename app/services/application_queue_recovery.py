@@ -102,7 +102,6 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
         .options(joinedload(Application.job).joinedload(Job.source))
         .where(
             Job.career_track == career_track,
-            Job.is_active.is_(True),
             Application.mode == "auto",
             Application.status.in_(("queued", "applying")),
         )

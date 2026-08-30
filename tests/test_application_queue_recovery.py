@@ -283,6 +283,35 @@ def test_stale_applying_after_submit_requires_verification_and_is_never_retried(
             assert calls == []
 
 
+def test_stale_applying_is_reconciled_even_after_job_becomes_inactive():
+    with TestClient(app) as client:
+        job = _job(client, 'Inactive job with dead worker')
+        now = utcnow()
+        with SessionLocal() as db:
+            row = Application(
+                job_id=job['id'], status='applying', mode='auto', agent_id='github-actions-dead',
+                started_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+                updated_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+            )
+            db.add(row)
+            row_job = db.get(Job, job['id'])
+            row_job.status = 'applying'
+            row_job.is_active = False
+            db.flush()
+            db.add(ApplicationAttempt(
+                application_id=row.id, attempt_number=1, idempotency_key=f'inactive-stale-{uuid4().hex}',
+                adapter='workday', worker_type='cloud', status='running', verification_state='none',
+                started_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+            ))
+            db.commit()
+            application_id = row.id
+            result = recover_stuck_auto_applications(
+                db, 'computer_science', now=now, dispatcher=lambda _value: None,
+            )
+            assert result['reconciled_applying'][0]['application_id'] == application_id
+            assert db.get(Application, application_id).status == 'needs_input'
+
+
 def test_failure_diagnostics_includes_stuck_queued_worker_with_summary():
     with TestClient(app) as client:
         job = _job(client, 'Diagnostics stuck queue')
