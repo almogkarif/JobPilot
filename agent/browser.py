@@ -336,6 +336,16 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     candidate_value = str(candidate.value)
                     if (
                         "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+                        and normalize(label) in {"country phone code", "phone country code"}
+                    ):
+                        phone_country = normalize(candidate_value)
+                        if phone_country in {"972", "+972", "israel", "il", "ישראל"}:
+                            candidate_value = "Israel"
+                        if _fill_workday_search_choice(page, locator, candidate_value):
+                            filled.append({"label": label, "source": candidate.source})
+                            continue
+                    if (
+                        "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
                         and any(term in normalize(label) for term in ("how did you hear", "source", "referral"))
                         and normalize(field.get("placeholder", "")) == "search"
                     ):
