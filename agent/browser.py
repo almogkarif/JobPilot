@@ -249,6 +249,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
+        workday_resume = _attach_workday_resume_chooser(page, profile)
+        if workday_resume:
+            filled.append(workday_resume)
         # Opening a custom combobox can reveal its closed set of choices and can
         # also re-render its hidden required input. Re-snapshot before validation.
         fields = _extract_fields(page)
@@ -341,7 +344,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                         phone_country = normalize(candidate_value)
                         if phone_country in {"972", "+972", "israel", "il", "ישראל"}:
                             candidate_value = "Israel"
-                        if _fill_workday_search_choice(page, locator, candidate_value):
+                        if (
+                            _fill_workday_nearby_button_choice(page, locator, candidate_value)
+                            or _fill_workday_search_choice(page, locator, candidate_value)
+                        ):
                             filled.append({"label": label, "source": candidate.source})
                             continue
                     if (
@@ -1477,6 +1483,49 @@ def _fill_workday_search_choice(page: Page, locator: Locator, value: str) -> boo
         return (locator.get_attribute("aria-invalid") or "false").casefold() != "true"
     except Exception:
         return False
+
+
+def _fill_workday_nearby_button_choice(page: Page, locator: Locator, value: str) -> bool:
+    """Choose from a Workday prompt whose visible control is a sibling button."""
+    try:
+        button = locator.locator("xpath=ancestor::*[.//button][1]//button").first
+        if not button.count() or not button.is_visible(timeout=1_000):
+            return False
+        button.click(timeout=2_000)
+        for _ in range(8):
+            option = _best_visible_option(page, value)
+            if option:
+                option.click(timeout=2_000)
+                page.wait_for_timeout(250)
+                return True
+            page.wait_for_timeout(250)
+        button.press("Escape")
+    except Exception:
+        pass
+    return False
+
+
+def _attach_workday_resume_chooser(page: Page, profile: dict) -> dict | None:
+    """Upload a resume through Workday's custom Select files button."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return None
+    resume = Path(str(profile.get("cv_path") or ""))
+    if not resume.is_file():
+        return None
+    chooser_button = page.locator('[data-automation-id="select-files"]:visible').first
+    try:
+        if not chooser_button.count():
+            return None
+        # Do not upload repeatedly after Workday already rendered the filename.
+        if normalize(resume.name) in normalize(page.locator("body").inner_text(timeout=1_000)):
+            return {"label": "Resume/CV", "source": "existing_upload", "document": "resume"}
+        with page.expect_file_chooser(timeout=3_000) as chooser_info:
+            chooser_button.click(timeout=2_000)
+        chooser_info.value.set_files(str(resume))
+        page.wait_for_timeout(1_000)
+        return {"label": "Resume/CV", "source": "profile", "document": "resume"}
+    except Exception:
+        return None
 
 
 def _workday_national_phone(value: str, profile: dict) -> str:
