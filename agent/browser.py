@@ -716,6 +716,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
     _diagnose_workday_date_controls(page)
     _diagnose_workday_profile_controls(page)
+    unresolved_workday_choice = _workday_unresolved_button_choice(page)
+    if unresolved_workday_choice:
+        raise ApplicationBlocked(
+            "choice_required", unresolved_workday_choice["label"], unresolved_workday_choice["label"],
+            "Workday דורש בחירה מאושרת בשאלת המועמדות. בחר אחת מהאפשרויות וה־Agent ימשיך אוטומטית.",
+            page.url, unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
+        )
     raise ApplicationBlocked(
         "submit_button_missing", "כפתור הגשה", "איפה נמצא כפתור ההגשה?",
         f"מולאו {len(filled)} שדות, אך לא זוהה כפתור המשך או שליחה סופית.", page.url,
@@ -739,6 +746,41 @@ def _stalled_flow_diagnostics(page: Page, filled: list[dict]) -> dict:
     except Exception:
         diagnostics["visible_actions"] = []
     return diagnostics
+
+
+def _workday_unresolved_button_choice(page: Page) -> dict | None:
+    """Turn Workday's button-based Select One prompts into an actionable handoff."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return None
+    buttons = page.get_by_text("Select One", exact=True)
+    for index in range(min(buttons.count(), 20)):
+        button = buttons.nth(index)
+        try:
+            if not button.is_visible(timeout=500):
+                continue
+            context = button.locator(
+                "xpath=ancestor::*[self::div or self::fieldset][normalize-space(string(.)) != ''][1]"
+            ).inner_text(timeout=1_000)
+            lines = [re.sub(r"\s+", " ", line).strip() for line in context.splitlines() if line.strip()]
+            label = next((line for line in lines if normalize(line) != "select one"), "בחירה נדרשת ב־Workday")
+            button.click(timeout=2_000)
+            page.wait_for_timeout(300)
+            options = []
+            visible_options = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
+            for option_index in range(min(visible_options.count(), SMALL_CHOICE_MAX_OPTIONS + 1)):
+                value = re.sub(r"\s+", " ", visible_options.nth(option_index).inner_text(timeout=500)).strip()
+                if value and value not in options:
+                    options.append(value)
+            button.press("Escape")
+            return {
+                "label": label[:300],
+                "options": options if len(options) <= SMALL_CHOICE_MAX_OPTIONS else [],
+                "diagnostics": {"control": "workday_select_one", "context": " | ".join(lines[:5])[:500],
+                                "option_count": len(options)},
+            }
+        except Exception:
+            continue
+    return None
 
 
 def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, width: float = 0, height: float = 0) -> bool:
