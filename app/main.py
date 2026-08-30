@@ -119,6 +119,7 @@ ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
+SMARTRECRUITERS_CAPTCHA_RECHECK_KEY = "__jobpilot_smartrecruiters_captcha_recheck_v1__"
 COMPANY_ANSWER_PREFIX = "company:"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
@@ -973,7 +974,7 @@ def _repair_existing_ashby_spam_blocks(
     return repaired
 
 
-def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
+def _auto_apply_queue_snapshot(db: Session, career_track: str, *, include_health: bool = False) -> dict:
     """Return only real cloud-auto submissions, never review/manual queue rows."""
     def chronological_key(value: datetime | None) -> float:
         if value is None:
@@ -995,6 +996,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
         .order_by(Application.updated_at, Application.id)
     ).unique().all()
     eligible = [item for item in rows if _application_auto_submit_supported(item)]
+    health_by_id = queue_health(db, career_track) if include_health else {}
     applying = sorted(
         (item for item in eligible if item.status == "applying"),
         key=lambda item: (chronological_key(item.started_at or item.updated_at), item.id),
@@ -1040,6 +1042,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str) -> dict:
             "attempt_count": int(application.attempt_count or 0),
             "last_error": application.last_error,
             "duplicate_of": duplicate_of.get(application.id),
+            "queue_health": health_by_id.get(application.id, {}),
             "blocker": _blocker_dict(open_blocker) if open_blocker else None,
             "job": {
                 "id": application.job.id,
@@ -3452,7 +3455,7 @@ def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = De
 @app.get("/api/applications/auto-queue")
 def automatic_application_queue(db: Session = Depends(get_db)):
     track = active_track(get_user_profile(db))
-    return _auto_apply_queue_snapshot(db, track)
+    return _auto_apply_queue_snapshot(db, track, include_health=True)
 
 
 @app.post("/api/applications/auto-queue/recover")
@@ -3470,7 +3473,7 @@ def recover_automatic_application_queue(db: Session = Depends(get_db)):
         "repair_requeued": repaired,
         "recovered": result.get("recovered", []),
         "failed": result.get("failed", []),
-        "auto_apply_queue": _auto_apply_queue_snapshot(db, track),
+        "auto_apply_queue": _auto_apply_queue_snapshot(db, track, include_health=True),
     }
 
 
@@ -3495,14 +3498,11 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         )
         .order_by(Application.id)
     ).unique().all()
-    # Normal queued rows are not failures. Include only queue rows whose worker was
-    # never dispatched or whose latest dispatch remained unclaimed past the safe
-    # recovery window. Applying rows remain visible as before, with an explicit
-    # stuck flag when activity has gone stale.
-    rows = [
-        row for row in rows
-        if row.status != "queued" or bool(health_by_id.get(row.id, {}).get("stuck"))
-    ]
+    # Diagnostics must mirror the queue UI, not only failures. A fresh queued row
+    # may already have been dispatched to GitHub and simply be waiting for a runner;
+    # hiding it made a 13-row queue look like only four applications existed. Keep
+    # every active auto-application and let queue_health explain its exact worker
+    # state (never dispatched, dispatch sent, stale/unclaimed, or not dispatchable).
     application_ids = [row.id for row in rows]
     attempts_by_application: dict[int, list[ApplicationAttempt]] = {item: [] for item in application_ids}
     events_by_application: dict[int, list[ApplicationEvent]] = {item: [] for item in application_ids}
@@ -3576,6 +3576,22 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         })
     status_summary = {
         "incomplete": len(diagnostics),
+        "queued_total": sum(1 for item in diagnostics if item["status"] == "queued"),
+        "queued_needs_dispatch": sum(
+            1 for item in diagnostics
+            if item["status"] == "queued" and item.get("queue_health", {}).get("needs_dispatch")
+        ),
+        "queued_dispatch_sent": sum(
+            1 for item in diagnostics
+            if item["status"] == "queued"
+            and item.get("queue_health", {}).get("dispatch_state") == "dispatch_sent_waiting"
+        ),
+        "queued_not_dispatchable": sum(
+            1 for item in diagnostics
+            if item["status"] == "queued"
+            and item.get("queue_health", {}).get("dispatch_state")
+            in {"profile_not_ready", "ats_paused", "unsupported_adapter", "inactive_or_manual"}
+        ),
         "stuck_queued": sum(1 for item in diagnostics if item["status"] == "queued" and item.get("queue_health", {}).get("stuck")),
         "stuck_applying": sum(1 for item in diagnostics if item["status"] == "applying" and item.get("queue_health", {}).get("stuck")),
         "needs_input": sum(1 for item in diagnostics if item["status"] == "needs_input"),
@@ -4194,6 +4210,21 @@ def _requeue_agent_form_repairs(db: Session, career_track: str) -> list[int]:
             application.job.source.kind if application.job.source else "",
         ).key
         label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+        latest_blocked_event = db.scalar(select(ApplicationEvent).where(
+            ApplicationEvent.application_id == application.id,
+            ApplicationEvent.event_type == "blocked",
+        ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id)).limit(1))
+        blocked_details = loads(latest_blocked_event.details_json, {}) if latest_blocked_event else {}
+        blocker_diagnostics = blocked_details.get("diagnostics") if isinstance(blocked_details, dict) else None
+        # v0.3.8 treated the mere presence of DataDome JavaScript as a CAPTCHA.
+        # Existing SmartRecruiters blockers from that detector have no evidence
+        # diagnostics at all. Re-run those once with the stricter detector; a real
+        # challenge will stop again immediately and now carry explicit evidence.
+        smartrecruiters_legacy_captcha = (
+            adapter == "smartrecruiters"
+            and blocker.kind == "captcha"
+            and not blocker_diagnostics
+        )
         retryable = (
             adapter == "workday" and (
                 blocker.kind in {"sign_in_failed", "submit_button_missing"}
@@ -4204,27 +4235,38 @@ def _requeue_agent_form_repairs(db: Session, career_track: str) -> list[int]:
             and "gdpr" in _normalize_company_memory_text(
                 " ".join((blocker.field_label or "", blocker.question or "", blocker.explanation or ""))
             )
-        )
+        ) or smartrecruiters_legacy_captcha
         if not retryable:
             continue
         answers = loads(application.answers_json, {})
-        if answers.get(AGENT_FORM_REPAIR_AUTO_RETRY_KEY):
+        repair_key = SMARTRECRUITERS_CAPTCHA_RECHECK_KEY if smartrecruiters_legacy_captcha else AGENT_FORM_REPAIR_AUTO_RETRY_KEY
+        if answers.get(repair_key):
             continue
-        answers[AGENT_FORM_REPAIR_AUTO_RETRY_KEY] = True
+        answers[repair_key] = True
         application.answers_json = dumps(answers)
         previous_status = application.status
         application.status = "queued"
         application.last_error = ""
         set_job_status(db, application.job, "queued")
         blocker.status = "resolved"
-        blocker.answer = "auto_retry_agent_form_repair_v1"
+        blocker.answer = (
+            "auto_retry_smartrecruiters_captcha_recheck_v1"
+            if smartrecruiters_legacy_captcha else "auto_retry_agent_form_repair_v1"
+        )
         blocker.remember_answer = False
         blocker.resolved_at = utcnow()
         _record_application_event(
-            db, application, "agent_form_repair_requeued",
+            db, application,
+            "smartrecruiters_captcha_recheck" if smartrecruiters_legacy_captcha else "agent_form_repair_requeued",
             from_status=previous_status, to_status="queued", actor="system",
-            message="ההגשה הוחזרה לתור לאחר תיקון מנוע הטפסים",
-            details={"blocker_id": blocker.id, "adapter": adapter, "repair_version": "v1"},
+            message=(
+                "הגשת SmartRecruiters הוחזרה פעם אחת לבדיקה מחדש לאחר תיקון זיהוי CAPTCHA"
+                if smartrecruiters_legacy_captcha else "ההגשה הוחזרה לתור לאחר תיקון מנוע הטפסים"
+            ),
+            details={
+                "blocker_id": blocker.id, "adapter": adapter,
+                "repair_version": "smartrecruiters_captcha_v1" if smartrecruiters_legacy_captcha else "v1",
+            },
         )
         repaired.append(application.id)
     if repaired:

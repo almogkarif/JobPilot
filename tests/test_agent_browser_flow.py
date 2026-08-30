@@ -7,7 +7,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _field_diagnostics, _field_is_actionable,
                            _fill_text_field,
-                           _captcha_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
+                           _captcha_frame_requires_user_action, _datadome_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
@@ -82,6 +82,21 @@ def test_workday_account_settings_phone_popover_is_not_an_application_question()
         78,
     ) is True
 
+
+
+
+def test_passive_datadome_bootstrap_is_not_itself_a_captcha_blocker():
+    # SmartRecruiters may load DataDome on normal pages. Only a visible challenge
+    # frame should stop the agent; a passive integration must not be treated as proof.
+    assert _datadome_frame_requires_user_action(
+        "https://js.datadome.co/tags.js", "", True, 320, 80,
+    ) is False
+    assert _datadome_frame_requires_user_action(
+        "https://geo.captcha-delivery.com/captcha/", "Human verification challenge", True, 420, 640,
+    ) is True
+    assert _datadome_frame_requires_user_action(
+        "https://geo.captcha-delivery.com/captcha/", "Human verification challenge", False, 0, 0,
+    ) is False
 
 def test_cybersecurity_job_description_is_not_mistaken_for_captcha():
     description = (

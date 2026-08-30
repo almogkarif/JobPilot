@@ -9,8 +9,12 @@ def test_agent_token_readiness_chip_is_removed_from_ui():
     assert 'Token מאובטח ל־Agent' not in JS
 
 
-def test_diagnostics_v4_exposes_stuck_queue_summary_and_queue_health():
-    assert 'JobPilot auto-apply diagnostics v4' in JS
+def test_diagnostics_v5_exposes_every_queue_state_and_queue_health():
+    assert 'JobPilot auto-apply diagnostics v5' in JS
+    assert 'queued:' in JS
+    assert 'dispatch_sent:' in JS
+    assert 'needs_dispatch:' in JS
+    assert 'not_dispatchable:' in JS
     assert 'stuck_queued:' in JS
     assert 'stuck_applying:' in JS
     assert 'queue_health:' in JS

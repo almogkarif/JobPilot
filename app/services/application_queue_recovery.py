@@ -57,13 +57,39 @@ def _seconds_since(now: datetime, value: datetime | None) -> int | None:
     return max(0, int((now - value).total_seconds()))
 
 
-def _supported(db: Session, application: Application) -> bool:
-    if not application.job or not application.job.is_active or application.mode != "auto":
-        return False
-    source_kind = application.job.source.kind if application.job.source else ""
-    if detect_adapter(application.job.apply_url, source_kind).key not in CLOUD_ADAPTERS:
-        return False
-    return automatic_submission_pause(db, application.job) is None
+def _queue_support_state(db: Session, application: Application, profile) -> dict:
+    """Explain whether a queued row is currently dispatchable, without guessing."""
+    job = application.job
+    if not job or not job.is_active or application.mode != "auto":
+        return {
+            "adapter": "", "auto_supported": False, "profile_ready": False,
+            "dispatchable": False, "pause_kind": "", "pause_until": None,
+            "pause_message": "", "not_dispatchable_reason": "inactive_or_manual",
+        }
+    source_kind = job.source.kind if job.source else ""
+    adapter = detect_adapter(job.apply_url, source_kind)
+    auto_supported = adapter.key in CLOUD_ADAPTERS and adapter.supports_automatic_submit
+    profile_ready = bool(profile and automatic_submit_ready_for_profile(adapter, profile))
+    pause = automatic_submission_pause(db, job) if auto_supported else None
+    dispatchable = bool(auto_supported and profile_ready and pause is None)
+    if not auto_supported:
+        reason = "unsupported_adapter"
+    elif not profile_ready:
+        reason = "profile_not_ready"
+    elif pause:
+        reason = "ats_paused"
+    else:
+        reason = ""
+    return {
+        "adapter": adapter.key,
+        "auto_supported": auto_supported,
+        "profile_ready": profile_ready,
+        "dispatchable": dispatchable,
+        "pause_kind": str((pause or {}).get("kind") or ""),
+        "pause_until": (pause or {}).get("until"),
+        "pause_message": str((pause or {}).get("message") or ""),
+        "not_dispatchable_reason": reason,
+    }
 
 
 def queue_health(db: Session, career_track: str, *, now: datetime | None = None) -> dict[int, dict]:
@@ -106,6 +132,7 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
     for attempt in attempts:
         attempts_by_app[attempt.application_id].append(attempt)
 
+    profile = get_user_profile(db)
     result: dict[int, dict] = {}
     for application in rows:
         app_events = events_by_app.get(application.id, [])
@@ -135,14 +162,21 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
             default=None,
         )
 
+        support = _queue_support_state(db, application, profile)
         needs_dispatch = False
         stuck_kind = ""
-        if application.status == "queued" and _supported(db, application):
-            if latest_dispatch is None:
-                # This is the important auto-queue hole: scanner-created automatic
-                # rows used to be persisted without ever launching a worker.
+        dispatch_state = ""
+        dispatch_age_seconds = _seconds_since(now, last_dispatch_at)
+        if application.status == "queued":
+            if not support["dispatchable"]:
+                dispatch_state = support["not_dispatchable_reason"] or "not_dispatchable"
+            elif latest_dispatch is None:
+                # A real queued automatic application with no dispatch record should
+                # be recovered immediately. Keep this visible even before it becomes
+                # "old" so diagnostics can explain every row shown in the queue UI.
                 needs_dispatch = True
                 stuck_kind = "queued_never_dispatched"
+                dispatch_state = "needs_dispatch"
             else:
                 dispatch_claimed = bool(
                     last_attempt_started_at
@@ -150,9 +184,14 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
                     and last_attempt_started_at >= last_dispatch_at
                 )
                 dispatch_age = now - last_dispatch_at if last_dispatch_at else timedelta.max
-                if not dispatch_claimed and dispatch_age >= QUEUE_REDISPATCH_AFTER:
+                if dispatch_claimed:
+                    dispatch_state = "claimed"
+                elif dispatch_age >= QUEUE_REDISPATCH_AFTER:
                     needs_dispatch = True
                     stuck_kind = "queued_worker_unclaimed"
+                    dispatch_state = "needs_redispatch"
+                else:
+                    dispatch_state = "dispatch_sent_waiting"
 
         stuck = needs_dispatch
         if application.status == "applying":
@@ -173,6 +212,17 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
             "last_activity_at": last_activity_at,
             "latest_event": latest_activity_event.event_type if latest_activity_event else "",
             "latest_attempt_status": latest_attempt.status if latest_attempt else "",
+            "dispatch_state": dispatch_state,
+            "dispatch_age_seconds": dispatch_age_seconds,
+            "redispatch_after_seconds": int(QUEUE_REDISPATCH_AFTER.total_seconds()),
+            "adapter": support["adapter"],
+            "auto_supported": support["auto_supported"],
+            "profile_ready": support["profile_ready"],
+            "dispatchable": support["dispatchable"],
+            "pause_kind": support["pause_kind"],
+            "pause_until": support["pause_until"],
+            "pause_message": support["pause_message"],
+            "not_dispatchable_reason": support["not_dispatchable_reason"],
         }
     return result
 

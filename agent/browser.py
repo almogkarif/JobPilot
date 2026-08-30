@@ -705,6 +705,46 @@ def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, wid
     return False
 
 
+def _datadome_frame_requires_user_action(src: str, title: str, visible: bool, width: float = 0, height: float = 0) -> bool:
+    """Treat DataDome as a blocker only when its actual challenge UI is visible.
+
+    SmartRecruiters and other sites can load DataDome bootstrap scripts on every
+    page. Script presence is telemetry/integration, not proof that a human challenge
+    was presented. A sizeable visible captcha-delivery challenge frame is proof.
+    """
+    if not visible or width <= 8 or height <= 8:
+        return False
+    try:
+        parsed = urlparse(str(src or ""))
+        host = (parsed.hostname or "").casefold()
+        path = (parsed.path or "").casefold()
+    except Exception:
+        host = ""
+        path = ""
+    signal = f"{src} {title}".casefold()
+    if "captcha-delivery.com" in host:
+        return "captcha" in path or "challenge" in path or "challenge" in signal
+    if "datadome" in host or "datadome" in signal:
+        return any(marker in signal for marker in ("captcha", "challenge", "verify", "human"))
+    return False
+
+
+def _safe_captcha_frame_diagnostics(src: str, title: str, visible: bool, width: float, height: float, requires_action: bool) -> dict:
+    try:
+        parsed = urlparse(str(src or ""))
+        src_shape = f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.netloc else str(src or "")[:180]
+    except Exception:
+        src_shape = str(src or "")[:180]
+    return {
+        "src": src_shape[:220],
+        "title": str(title or "")[:160],
+        "visible": bool(visible),
+        "width": int(width or 0),
+        "height": int(height or 0),
+        "requires_action": bool(requires_action),
+    }
+
+
 def _body_text_requires_captcha_action(text: str) -> bool:
     """Match explicit human-action messages, never job-description vocabulary."""
     normalized = str(text or "").casefold()
@@ -719,39 +759,59 @@ def _detect_captcha(page: Page) -> None:
         pass
 
     body_requires_action = _body_text_requires_captcha_action(text)
+    matched_body_term = next(
+        (term for term in CAPTCHA_ACTION_TERMS if term.casefold() in text),
+        "",
+    )
     try:
-        datadome_challenge = bool(page.locator(
-            'script[src*="captcha-delivery.com"], iframe[src*="captcha-delivery.com"], '
-            'script[src*="datadome"], iframe[src*="datadome"]'
-        ).count())
+        passive_datadome_scripts = page.locator(
+            'script[src*="captcha-delivery.com"], script[src*="datadome"]'
+        ).count()
     except Exception:
-        datadome_challenge = False
+        passive_datadome_scripts = 0
+
     frame_requires_action = False
+    frame_diagnostics: list[dict] = []
     try:
         frames = page.locator("iframe")
-        for index in range(frames.count()):
+        for index in range(min(frames.count(), 20)):
             frame = frames.nth(index)
             src = frame.get_attribute("src") or ""
             title = frame.get_attribute("title") or ""
             signal = f"{src} {title}".casefold()
-            if not any(term in signal for term in ("captcha", "recaptcha", "hcaptcha", "turnstile")):
+            if not any(term in signal for term in ("captcha", "recaptcha", "hcaptcha", "turnstile", "datadome")):
                 continue
             visible = frame.is_visible()
             box = frame.bounding_box() or {}
-            if _captcha_frame_requires_user_action(
-                src, title, visible, float(box.get("width") or 0), float(box.get("height") or 0)
-            ):
+            width = float(box.get("width") or 0)
+            height = float(box.get("height") or 0)
+            requires_action = (
+                _captcha_frame_requires_user_action(src, title, visible, width, height)
+                or _datadome_frame_requires_user_action(src, title, visible, width, height)
+            )
+            frame_diagnostics.append(_safe_captcha_frame_diagnostics(
+                src, title, visible, width, height, requires_action,
+            ))
+            if requires_action:
                 frame_requires_action = True
-                break
     except Exception:
         # CAPTCHA detection is a safety gate, but a DOM inspection failure should
         # not turn every page containing a passive integration into a false blocker.
         frame_requires_action = False
 
-    if body_requires_action or frame_requires_action or datadome_challenge:
+    # Do *not* block merely because DataDome JavaScript is present. SmartRecruiters
+    # loads that integration on normal application pages too. Only explicit page
+    # copy or a visible challenge frame is a safe handoff signal.
+    if body_requires_action or frame_requires_action:
         raise ApplicationBlocked(
             "captcha", "CAPTCHA", "נדרש אימות אנושי",
-            "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה.", page.url,
+            "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה.",
+            page.url, diagnostics={
+                "body_action_term": matched_body_term,
+                "passive_datadome_scripts": int(passive_datadome_scripts or 0),
+                "captcha_frames": frame_diagnostics[:8],
+                "evidence": "body_text" if body_requires_action else "visible_challenge_frame",
+            },
         )
 
 

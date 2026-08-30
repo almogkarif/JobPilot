@@ -112,6 +112,10 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "applicationSecurityCodeDrafts" in js
     assert ".auto-queue-current.is-active" in css
     assert "ממתינה להפעלת worker ברקע" in js
+    assert "worker נשלח" in js
+    assert "GitHub קיבל את בקשת ה־worker" in js
+    assert "dispatch_sent_waiting" in js
+    assert "needs_redispatch" in js
     assert "ירוק מציין הגשה שרצה" in js
     assert "autoQueueAttentionMarkup" in js
     assert "retryAutomaticApplication" in js

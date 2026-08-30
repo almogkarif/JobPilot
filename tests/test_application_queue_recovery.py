@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.main import app
-from app.models import Application, ApplicationAttempt, ApplicationEvent, Job, utcnow
+from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker, Job, utcnow
 from app.services.application_queue_recovery import (
     APPLYING_STUCK_AFTER,
     QUEUE_REDISPATCH_AFTER,
@@ -116,7 +116,10 @@ def test_stale_unclaimed_dispatch_is_redispatched_but_recent_dispatch_is_not():
             db.commit()
             health = queue_health(db, 'computer_science', now=now)
             assert health[stale_id]['stuck_kind'] == 'queued_worker_unclaimed'
+            assert health[stale_id]['dispatch_state'] == 'needs_redispatch'
             assert health[recent_id]['stuck'] is False
+            assert health[recent_id]['dispatch_state'] == 'dispatch_sent_waiting'
+            assert health[recent_id]['last_dispatch_at'] is not None
             calls: list[int] = []
             result = recover_stuck_auto_applications(
                 db, 'computer_science', now=now, dispatcher=lambda value: calls.append(value),
@@ -189,3 +192,90 @@ def test_failure_diagnostics_includes_stuck_queued_worker_with_summary():
         assert row['queue_health']['stuck'] is True
         assert row['queue_health']['stuck_kind'] == 'queued_never_dispatched'
         assert payload['status_summary']['stuck_queued'] >= 1
+
+
+def test_failure_diagnostics_includes_fresh_dispatched_queue_rows_not_only_failures():
+    with TestClient(app) as client:
+        job = _job(client, 'Diagnostics fresh dispatch')
+        application_id = _queued_auto(job['id'], updated_at=utcnow() - timedelta(minutes=2))
+        now = utcnow()
+        with SessionLocal() as db:
+            db.add(ApplicationEvent(
+                application_id=application_id, event_type='worker_dispatched',
+                from_status='queued', to_status='queued', actor='system',
+                message='fresh dispatch', created_at=now - timedelta(minutes=1),
+            ))
+            db.commit()
+
+        response = client.get('/api/applications/failure-diagnostics')
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        row = next(item for item in payload['applications'] if item['application_id'] == application_id)
+        assert row['status'] == 'queued'
+        assert row['queue_health']['dispatch_state'] == 'dispatch_sent_waiting'
+        assert row['queue_health']['stuck'] is False
+        assert payload['status_summary']['queued_total'] >= 1
+        assert payload['status_summary']['queued_dispatch_sent'] >= 1
+
+
+def test_auto_queue_snapshot_exposes_dispatch_health_for_waiting_rows():
+    with TestClient(app) as client:
+        job = _job(client, 'Queue UI dispatch health')
+        application_id = _queued_auto(job['id'])
+        response = client.get('/api/applications/auto-queue')
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        candidates = ([payload['current']] if payload.get('current') else []) + payload.get('waiting', [])
+        row = next(item for item in candidates if item and item['id'] == application_id)
+        assert row['queue_health']['dispatch_state'] == 'needs_dispatch'
+        assert row['queue_health']['needs_dispatch'] is True
+
+
+def test_legacy_smartrecruiters_captcha_without_evidence_is_rechecked_once(monkeypatch):
+    calls: list[int] = []
+    monkeypatch.setattr(
+        "app.services.application_queue_recovery.dispatch_application_workflow",
+        lambda application_id: calls.append(application_id),
+    )
+    with TestClient(app) as client:
+        job = _job(client, 'Legacy SmartRecruiters captcha')
+        with SessionLocal() as db:
+            row_job = db.get(Job, job['id'])
+            row_job.apply_url = 'https://jobs.smartrecruiters.com/Example/744000000000001-test-role'
+            application = Application(
+                job_id=row_job.id, status='needs_input', mode='auto', attempt_count=1,
+                last_error='[blocked:captcha] legacy detector',
+            )
+            db.add(application)
+            db.flush()
+            blocker = Blocker(
+                application_id=application.id, kind='captcha', field_label='CAPTCHA',
+                question='נדרש אימות אנושי', explanation='legacy detector',
+                page_url=row_job.apply_url, status='open',
+            )
+            db.add(blocker)
+            db.add(ApplicationEvent(
+                application_id=application.id, event_type='blocked', from_status='applying',
+                to_status='needs_input', actor='agent', message='legacy captcha', details_json='{}',
+            ))
+            db.commit()
+            application_id = application.id
+
+        response = client.post('/api/applications/auto-queue/recover')
+        assert response.status_code == 200, response.text
+        assert application_id in response.json()['repair_requeued']
+        assert application_id in response.json()['recovered']
+        assert application_id in calls
+        assert calls.count(application_id) == 1
+
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            blocker = db.scalar(select(Blocker).where(Blocker.application_id == application_id).order_by(Blocker.id.desc()))
+            assert application.status == 'queued'
+            assert blocker.status == 'resolved'
+            assert 'smartrecruiters_captcha_recheck_v1' in application.answers_json
+
+        # The repair key prevents an endless rediscovery loop.
+        second = client.post('/api/applications/auto-queue/recover')
+        assert second.status_code == 200
+        assert application_id not in second.json()['repair_requeued']
