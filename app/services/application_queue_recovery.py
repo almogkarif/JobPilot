@@ -178,13 +178,26 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
                 stuck_kind = "queued_never_dispatched"
                 dispatch_state = "needs_dispatch"
             else:
+                latest_attempt_finished_at = _aware(latest_attempt.finished_at) if latest_attempt else None
+                dispatch_consumed = bool(
+                    last_dispatch_at and latest_attempt_finished_at
+                    and latest_attempt_finished_at >= last_dispatch_at
+                )
                 dispatch_claimed = bool(
                     last_attempt_started_at
                     and last_dispatch_at
                     and last_attempt_started_at >= last_dispatch_at
+                    and not latest_attempt_finished_at
                 )
                 dispatch_age = now - last_dispatch_at if last_dispatch_at else timedelta.max
-                if dispatch_claimed:
+                if dispatch_consumed:
+                    # The latest worker already finished an attempt, and the row
+                    # was subsequently returned to `queued`. That old dispatch
+                    # cannot represent a worker for the current queue epoch.
+                    needs_dispatch = True
+                    stuck_kind = "queued_after_finished_attempt"
+                    dispatch_state = "needs_dispatch"
+                elif dispatch_claimed:
                     dispatch_state = "claimed"
                 elif dispatch_age >= QUEUE_REDISPATCH_AFTER:
                     needs_dispatch = True

@@ -149,6 +149,32 @@ def test_claimed_dispatch_is_not_redispatched_even_if_original_dispatch_is_old()
             assert health[application_id]['needs_dispatch'] is False
 
 
+def test_requeued_application_does_not_treat_a_finished_attempt_as_a_live_worker():
+    with TestClient(app) as client:
+        job = _job(client, 'Requeued after finished worker')
+        now = utcnow()
+        application_id = _queued_auto(job['id'], updated_at=now)
+        with SessionLocal() as db:
+            dispatch_at = now - timedelta(minutes=5)
+            db.add(ApplicationEvent(
+                application_id=application_id, event_type='worker_dispatched',
+                from_status='queued', to_status='queued', actor='system', message='old dispatch',
+                created_at=dispatch_at,
+            ))
+            db.add(ApplicationAttempt(
+                application_id=application_id, attempt_number=1,
+                idempotency_key=f'finished-{uuid4().hex}', adapter='workday', worker_type='cloud',
+                status='blocked', verification_state='none', started_at=dispatch_at + timedelta(seconds=5),
+                finished_at=dispatch_at + timedelta(minutes=1),
+            ))
+            db.commit()
+            health = queue_health(db, 'computer_science', now=now)
+            assert health[application_id]['needs_dispatch'] is True
+            assert health[application_id]['stuck_kind'] == 'queued_after_finished_attempt'
+            db.get(Application, application_id).status = 'needs_input'
+            db.commit()
+
+
 def test_stale_applying_is_diagnosed_but_never_automatically_requeued():
     with TestClient(app) as client:
         job = _job(client, 'Stale applying worker')
