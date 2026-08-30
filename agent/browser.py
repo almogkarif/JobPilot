@@ -334,13 +334,27 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 # log the entered value (which can be contact data or an answer).
                 field["candidate_source"] = candidate.source
                 try:
+                    candidate_value = str(candidate.value)
+                    if (
+                        "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+                        and any(term in normalize(label) for term in ("how did you hear", "source", "referral"))
+                        and normalize(field.get("placeholder", "")) == "search"
+                    ):
+                        if _fill_workday_search_choice(page, locator, candidate_value):
+                            filled.append({"label": label, "source": candidate.source})
+                            continue
+                    if (
+                        "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+                        and normalize(label) in {"phone number", "phone number *"}
+                    ):
+                        candidate_value = _workday_national_phone(candidate_value, profile)
                     if normalize(field.get("placeholder", "")) in {"mm/yyyy", "mm yyyy"}:
-                        if not _fill_masked_month(locator, str(candidate.value)):
+                        if not _fill_masked_month(locator, candidate_value):
                             if field.get("required"):
                                 unknown.append(field)
                             continue
                     else:
-                        _fill_text_field(page, locator, field, str(candidate.value))
+                        _fill_text_field(page, locator, field, candidate_value)
                     filled.append({"label": label, "source": candidate.source})
                 except Exception as exc:
                     field["fill_error"] = f"{type(exc).__name__}: {exc}"[:500]
@@ -1425,6 +1439,44 @@ def _fill_text_field(page: Page, locator: Locator, field: dict, value: str) -> N
             except Exception:
                 continue
         raise original_exc
+
+
+def _fill_workday_search_choice(page: Page, locator: Locator, value: str) -> bool:
+    """Commit a Workday searchable prompt value instead of leaving raw text."""
+    try:
+        locator.click(timeout=2_000)
+        locator.fill(value, timeout=2_000)
+        for _ in range(8):
+            option = _best_visible_option(page, value)
+            if option:
+                option.click(timeout=2_000)
+                page.wait_for_timeout(250)
+                return True
+            page.wait_for_timeout(250)
+        locator.press("ArrowDown", timeout=1_000)
+        page.wait_for_timeout(150)
+        locator.press("Enter", timeout=1_000)
+        page.wait_for_timeout(250)
+        return (locator.get_attribute("aria-invalid") or "false").casefold() != "true"
+    except Exception:
+        return False
+
+
+def _workday_national_phone(value: str, profile: dict) -> str:
+    """Workday splits the country calling code from the national phone field."""
+    raw = str(value or "").strip()
+    digits = re.sub(r"\D", "", raw)
+    application_profile = profile.get("application_profile") or {}
+    country = normalize(str(application_profile.get("country") or profile.get("country") or ""))
+    if country in {"israel", "il", "ישראל"}:
+        if digits.startswith("00972"):
+            digits = digits[5:]
+        elif digits.startswith("972"):
+            digits = digits[3:]
+        elif digits.startswith("0"):
+            digits = digits[1:]
+        return digits
+    return raw
 
 
 def _action_text(candidate: Locator) -> str:

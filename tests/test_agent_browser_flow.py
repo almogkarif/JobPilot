@@ -14,6 +14,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _enter_comeet_embedded_form, _toggle_custom_checkbox,
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
+                           _workday_national_phone,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate,
@@ -874,6 +875,12 @@ def test_workday_custom_checkbox_falls_back_to_clickable_wrapper():
         _toggle_custom_checkbox(page.locator("#choice"), True)
         assert page.locator("#choice").is_checked()
         browser.close()
+
+
+def test_workday_phone_uses_national_number_when_country_code_is_separate():
+    profile = {"application_profile": {"country": "Israel"}}
+    assert _workday_national_phone("+972-50-123-4567", profile) == "501234567"
+    assert _workday_national_phone("050-123-4567", profile) == "501234567"
 
 
 def test_long_multi_step_application_reaches_review_after_more_than_ten_passes():
