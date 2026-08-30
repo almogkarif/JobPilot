@@ -8,7 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload, load_only
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
-from ..models import Application, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
+from ..models import Application, ApplicationEvent, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
 from ..database import SessionLocal, get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
@@ -23,6 +23,7 @@ from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
                               job_fingerprint_values, persist_v2_result)
 from .job_text import clean_job_text
+from .github_actions import dispatch_application_workflow
 from .user_job_state import set_job_status
 
 
@@ -616,6 +617,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     )
     jobs = db.scalars(query).all()
     count = 0
+    queued_application_ids: list[int] = []
     resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all()
     resume_candidates = [
         (resume, {skill.casefold() for skill in loads(resume.skills_json, [])})
@@ -636,12 +638,38 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
             bool(candidate[0].is_default),
         ), default=None)
         selected_resume = selected[0] if selected else None
-        db.add(Application(job_id=job.id, mode="auto",
-                           resume_id=selected_resume.id if selected_resume else None,
-                           resume_path=selected_resume.path if selected_resume else profile.cv_path))
+        application = Application(job_id=job.id, mode="auto",
+                                  resume_id=selected_resume.id if selected_resume else None,
+                                  resume_path=selected_resume.path if selected_resume else profile.cv_path)
+        db.add(application)
         set_job_status(db, job, "queued")
+        db.flush()
+        queued_application_ids.append(application.id)
         count += 1
     if count:
         db.add(AuditLog(event_type="jobs_auto_queued", message=f"Queued {count} jobs automatically"))
         db.commit()
+        for application_id in queued_application_ids:
+            try:
+                dispatch_application_workflow(application_id)
+                db.add(ApplicationEvent(
+                    application_id=application_id, event_type="worker_dispatched",
+                    from_status="queued", to_status="queued", actor="system",
+                    message="GitHub Actions worker הופעל אוטומטית לאחר הסריקה",
+                    details_json=dumps({"application_id": application_id, "trigger": "scanner_auto_queue"}),
+                ))
+                db.commit()
+            except Exception as exc:  # noqa: BLE001
+                db.rollback()
+                application = db.get(Application, application_id)
+                if application and application.status == "queued":
+                    application.last_error = f"ה-worker לא הופעל לאחר הסריקה: {exc}"[:2000]
+                    db.add(ApplicationEvent(
+                        application_id=application_id, event_type="worker_dispatch_failed",
+                        from_status="queued", to_status="queued", actor="system",
+                        message="הפעלת worker אוטומטי לאחר הסריקה נכשלה",
+                        details_json=dumps({"application_id": application_id, "trigger": "scanner_auto_queue",
+                                            "error": str(exc)[:500]}),
+                    ))
+                    db.commit()
     return count
