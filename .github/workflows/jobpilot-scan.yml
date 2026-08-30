@@ -18,6 +18,7 @@ on:
           - diagnose
           - audit
           - reconcile
+          - applications
 
 permissions:
   contents: read

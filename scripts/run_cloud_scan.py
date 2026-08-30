@@ -98,6 +98,61 @@ def recover_known_user_queues() -> int:
     )
     return recovered_total
 
+
+def audit_known_user_applications() -> int:
+    """Print a bounded, non-secret auto-apply snapshot for every admitted account."""
+    from app.main import application_failure_diagnostics
+
+    checked = 0
+    for user_id in known_user_ids():
+        try:
+            with user_session(user_id) as db:
+                payload = application_failure_diagnostics(db=db)
+            summary = payload.get("status_summary") or {}
+            print(
+                f"[application-audit] account={account_label(user_id)} "
+                f"track={payload.get('career_track')} incomplete={int(summary.get('incomplete') or 0)} "
+                f"queued={int(summary.get('queued_total') or 0)} "
+                f"stuck_queued={int(summary.get('stuck_queued') or 0)} "
+                f"stuck_applying={int(summary.get('stuck_applying') or 0)} "
+                f"verification_pending={int(summary.get('verification_pending') or 0)}",
+                flush=True,
+            )
+            for item in payload.get("applications") or []:
+                question = item.get("yellow_question") or {}
+                latest = (item.get("attempts") or [{}])[0]
+                health = item.get("queue_health") or {}
+                diagnostics = item.get("blocker_diagnostics") or {}
+                row = {
+                    "application_id": item.get("application_id"),
+                    "company": item.get("company"),
+                    "title": item.get("title"),
+                    "status": item.get("status"),
+                    "adapter": (item.get("adapter") or {}).get("key"),
+                    "blocker_kind": question.get("kind"),
+                    "field": question.get("field_label"),
+                    "question": question.get("question"),
+                    "options": question.get("options") or [],
+                    "latest_attempt_status": latest.get("status"),
+                    "latest_verification": latest.get("verification_state"),
+                    "queue_stuck": bool(health.get("stuck")),
+                    "queue_state": health.get("dispatch_state") or "",
+                    "diagnostics": diagnostics,
+                }
+                print(
+                    f"[application-audit-row] account={account_label(user_id)} "
+                    f"data={json.dumps(row, ensure_ascii=False, separators=(',', ':'), default=str)}",
+                    flush=True,
+                )
+            checked += 1
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"[application-audit] account={account_label(user_id)} error={type(exc).__name__}: {exc}",
+                flush=True,
+            )
+    print(f"[application-audit] complete accounts={checked}", flush=True)
+    return checked
+
 def progress_writer(run_id: str, career_track: str):
     def write(progress: dict) -> None:
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
@@ -327,7 +382,7 @@ async def reconcile_catalog_tracks() -> int:
 
 
 def work_available(mode: str) -> bool:
-    if mode in {"diagnose", "audit", "reconcile", "recover"}:
+    if mode in {"diagnose", "audit", "reconcile", "recover", "applications"}:
         return True
     if mode == "all":
         return True
@@ -343,7 +398,7 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile", "applications"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
@@ -352,6 +407,10 @@ async def main() -> int:
         return 0 if available else 3
     if args.mode == "recover":
         count = recover_known_user_queues()
+        print(f"[scan] worker complete runs={count}", flush=True)
+        return 0
+    if args.mode == "applications":
+        count = audit_known_user_applications()
         print(f"[scan] worker complete runs={count}", flush=True)
         return 0
     ensure_job_source_fingerprint_column()
