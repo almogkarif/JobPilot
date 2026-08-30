@@ -718,11 +718,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
     _diagnose_workday_date_controls(page)
     _diagnose_workday_profile_controls(page)
-    unresolved_workday_choice = _workday_unresolved_button_choice(page)
+    unresolved_workday_choice = _workday_unresolved_button_choice(page, profile)
     if unresolved_workday_choice:
         raise ApplicationBlocked(
-            "choice_required", unresolved_workday_choice["label"], unresolved_workday_choice["label"],
-            "Workday דורש בחירה מאושרת בשאלת המועמדות. בחר אחת מהאפשרויות וה־Agent ימשיך אוטומטית.",
+            "choice_required", unresolved_workday_choice["label"], unresolved_workday_choice["question"],
+            unresolved_workday_choice["explanation"],
             page.url, unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
         )
     raise ApplicationBlocked(
@@ -750,7 +750,7 @@ def _stalled_flow_diagnostics(page: Page, filled: list[dict]) -> dict:
     return diagnostics
 
 
-def _workday_unresolved_button_choice(page: Page) -> dict | None:
+def _workday_unresolved_button_choice(page: Page, profile: dict | None = None) -> dict | None:
     """Turn Workday's button-based Select One prompts into an actionable handoff."""
     if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
         return None
@@ -801,11 +801,29 @@ def _workday_unresolved_button_choice(page: Page) -> dict | None:
                 if value and normalize(value) != "select one" and value not in options:
                     options.append(value)
             button.press("Escape")
+            diagnostics = {"control": "workday_select_one", "context": " | ".join(lines[:5])[:500],
+                           "option_count": len(options)}
+            profile_country = normalize(str(((profile or {}).get("application_profile") or {}).get("country") or ""))
+            us_state_options = {"alabama", "alaska", "american samoa", "arizona", "arkansas"}
+            if profile_country in {"israel", "il", "ישראל"} and normalize(label) in {"state", "state required"} \
+                    and len(us_state_options.intersection({normalize(value) for value in options})) >= 3:
+                diagnostics["profile_country"] = "Israel"
+                diagnostics["visible_region_type"] = "us_state_list"
+                return {
+                    "label": "מדינת הכתובת בחשבון Workday",
+                    "question": "חשבון Workday מוגדר לארה״ב, אבל מדינת הפרופיל ב־JobPilot היא Israel",
+                    "explanation": "נדרשת כניסה ידנית ל־Workday ועדכון Country/Region ל־Israel. "
+                                   "JobPilot לא יבחר State אמריקאית שגויה.",
+                    "options": [],
+                    "diagnostics": diagnostics,
+                }
             return {
                 "label": label[:300],
+                "question": label[:300],
+                "explanation": "Workday דורש בחירה מאושרת בשאלת המועמדות. "
+                               "בחר אחת מהאפשרויות וה־Agent ימשיך אוטומטית.",
                 "options": options if len(options) <= SMALL_CHOICE_MAX_OPTIONS else [],
-                "diagnostics": {"control": "workday_select_one", "context": " | ".join(lines[:5])[:500],
-                                "option_count": len(options)},
+                "diagnostics": diagnostics,
             }
         except Exception:
             continue

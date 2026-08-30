@@ -925,6 +925,34 @@ def test_workday_button_choice_uses_question_context_not_generic_required_label(
         browser.close()
 
 
+def test_workday_us_state_list_is_a_precise_country_mismatch_for_israeli_profile():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div>State
+                <button aria-label="State Select One" aria-controls="states"
+                        onclick="states.hidden=false">Select One</button>
+              </div>
+              <div id="states" role="listbox" hidden>
+                <div role="option">Alabama</div><div role="option">Alaska</div>
+                <div role="option">American Samoa</div><div role="option">Arizona</div>
+                <div role="option">Arkansas</div>
+              </div>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply")
+        result = _workday_unresolved_button_choice(
+            page, {"application_profile": {"country": "Israel"}},
+        )
+        assert result["label"] == "מדינת הכתובת בחשבון Workday"
+        assert "מוגדר לארה״ב" in result["question"]
+        assert result["options"] == []
+        assert result["diagnostics"]["visible_region_type"] == "us_state_list"
+        browser.close()
+
+
 def test_long_multi_step_application_reaches_review_after_more_than_ten_passes():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
