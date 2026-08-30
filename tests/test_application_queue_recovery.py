@@ -95,6 +95,23 @@ def test_opening_queue_recovery_endpoint_dispatches_never_started_rows(monkeypat
         assert calls == [application_id]
 
 
+def test_legacy_unsupported_auto_rows_are_removed_from_automatic_queue():
+    with TestClient(app) as client:
+        job = _job(client, 'Unsupported legacy queue')
+        with SessionLocal() as db:
+            db.get(Job, job['id']).apply_url = 'https://jobs.apple.com/en-il/details/123/example'
+            db.commit()
+        application_id = _queued_auto(job['id'])
+        with SessionLocal() as db:
+            result = recover_stuck_auto_applications(
+                db, 'computer_science', dispatcher=lambda _value: None,
+            )
+            assert application_id in result['repaired_unsupported']
+            application = db.get(Application, application_id)
+            assert application.status == 'manual_required'
+            assert application.mode == 'manual'
+            assert application_id not in result['recovered']
+
 def test_stale_unclaimed_dispatch_is_redispatched_but_recent_dispatch_is_not():
     with TestClient(app) as client:
         stale_job = _job(client, 'Stale dispatch')
@@ -242,6 +259,21 @@ def test_failure_diagnostics_includes_fresh_dispatched_queue_rows_not_only_failu
         assert row['queue_health']['stuck'] is False
         assert payload['status_summary']['queued_total'] >= 1
         assert payload['status_summary']['queued_dispatch_sent'] >= 1
+
+
+def test_failure_diagnostics_excludes_legacy_unsupported_rows_from_queue_total():
+    with TestClient(app) as client:
+        job = _job(client, 'Diagnostics unsupported legacy queue')
+        with SessionLocal() as db:
+            db.get(Job, job['id']).apply_url = 'https://jobs.apple.com/en-il/details/456/example'
+            db.commit()
+        application_id = _queued_auto(job['id'])
+
+        response = client.get('/api/applications/failure-diagnostics')
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert all(item['application_id'] != application_id for item in payload['applications'])
+        assert payload['status_summary']['excluded_unsupported_queued'] >= 1
 
 
 def test_auto_queue_snapshot_exposes_dispatch_health_for_waiting_rows():

@@ -1960,8 +1960,27 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     for ref in labelled_by if page.locator(f"#{ref}").count()
                 )
             if not label:
-                label = control.locator("xpath=ancestor::*[self::fieldset or @role='group' or @data-automation-id][1]").inner_text(timeout=1_000)
+                try:
+                    label = control.locator(
+                        "xpath=ancestor::*[self::fieldset or @role='group' or @data-automation-id][1]"
+                    ).inner_text(timeout=1_000)
+                except Exception:
+                    label = ""
+            if not label:
+                control_id = control.get_attribute("data-jobpilot-id") or ""
+                matching = next(
+                    (field for field in _extract_fields(page)
+                     if control_id and control_id in str(field.get("selector") or "")),
+                    None,
+                )
+                if matching:
+                    label = _display_field_label(matching)
             key = normalize(label)
+            if (
+                "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+                and key in {"settings", "account settings"}
+            ):
+                continue
             if "skill" in key:
                 continue
             candidate = None

@@ -65,12 +65,14 @@ def recover_known_user_queues() -> int:
                 result = recover_stuck_auto_applications(db, track)
             recovered = list(result.get("recovered") or [])
             failed = list(result.get("failed") or [])
+            repaired_unsupported = list(result.get("repaired_unsupported") or [])
             checked += 1
             recovered_total += len(recovered)
             failed_total += len(failed)
             print(
                 f"[queue-recovery] account={account_label(user_id)} track={track} "
                 f"recovered={len(recovered)} failed={len(failed)} "
+                f"unsupported_removed={len(repaired_unsupported)} "
                 f"application_ids={','.join(str(value) for value in recovered) or '-'}",
                 flush=True,
             )

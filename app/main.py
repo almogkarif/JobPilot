@@ -3487,7 +3487,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
     if not isinstance(profile_extra, dict):
         profile_extra = {}
     health_by_id = queue_health(db, track)
-    rows = db.scalars(
+    all_rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
         .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
@@ -3498,11 +3498,17 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         )
         .order_by(Application.id)
     ).unique().all()
+    unsupported_queued = [
+        item for item in all_rows
+        if item.status == "queued" and not _application_auto_submit_supported(item)
+    ]
+    rows = [item for item in all_rows if item not in unsupported_queued]
     # Diagnostics must mirror the queue UI, not only failures. A fresh queued row
     # may already have been dispatched to GitHub and simply be waiting for a runner;
     # hiding it made a 13-row queue look like only four applications existed. Keep
-    # every active auto-application and let queue_health explain its exact worker
-    # state (never dispatched, dispatch sent, stale/unclaimed, or not dispatchable).
+    # every supported active auto-application and let queue_health explain its exact
+    # worker state. Legacy unsupported rows are reported as an excluded count until
+    # queue recovery migrates them to manual_required; they are not an auto queue.
     application_ids = [row.id for row in rows]
     attempts_by_application: dict[int, list[ApplicationAttempt]] = {item: [] for item in application_ids}
     events_by_application: dict[int, list[ApplicationEvent]] = {item: [] for item in application_ids}
@@ -3592,6 +3598,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
             and item.get("queue_health", {}).get("dispatch_state")
             in {"profile_not_ready", "ats_paused", "unsupported_adapter", "inactive_or_manual"}
         ),
+        "excluded_unsupported_queued": len(unsupported_queued),
         "stuck_queued": sum(1 for item in diagnostics if item["status"] == "queued" and item.get("queue_health", {}).get("stuck")),
         "stuck_applying": sum(1 for item in diagnostics if item["status"] == "applying" and item.get("queue_health", {}).get("stuck")),
         "needs_input": sum(1 for item in diagnostics if item["status"] == "needs_input"),

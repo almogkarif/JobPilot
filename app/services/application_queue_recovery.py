@@ -12,6 +12,7 @@ from ..utils import dumps
 from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .application_anti_automation import automatic_submission_pause
 from .github_actions import dispatch_application_workflow
+from .user_job_state import set_job_status
 
 # A GitHub application worker normally starts within a few minutes, even when it
 # has to install Python dependencies and Chromium.  Twelve minutes gives Actions
@@ -249,8 +250,35 @@ def recover_stuck_auto_applications(
 ) -> dict:
     """Dispatch missing/stale *queued* workers, never resubmit an applying job."""
     dispatcher = dispatcher or dispatch_application_workflow
-    health = queue_health(db, career_track, now=now)
+    repaired_unsupported: list[int] = []
     profile = get_user_profile(db)
+    legacy_rows = db.scalars(
+        select(Application)
+        .join(Job, Application.job_id == Job.id)
+        .options(joinedload(Application.job).joinedload(Job.source))
+        .where(
+            Job.career_track == career_track,
+            Application.mode == "auto", Application.status == "queued",
+        )
+    ).unique().all()
+    for application in legacy_rows:
+        support = _queue_support_state(db, application, profile)
+        if support["not_dispatchable_reason"] != "unsupported_adapter":
+            continue
+        application.status = "manual_required"
+        application.mode = "manual"
+        application.last_error = "האתר אינו נתמך כרגע בהגשה אוטומטית; נדרשת הגשה ידנית."
+        set_job_status(db, application.job, "manual_required")
+        db.add(ApplicationEvent(
+            application_id=application.id, event_type="unsupported_auto_queue_repaired",
+            from_status="queued", to_status="manual_required", actor="system",
+            message="משרה ללא adapter הוסרה מתור ההגשות האוטומטי",
+            details_json=dumps({"adapter": support["adapter"], "reason": "unsupported_adapter"}),
+        ))
+        repaired_unsupported.append(application.id)
+    if repaired_unsupported:
+        db.commit()
+    health = queue_health(db, career_track, now=now)
     recovered: list[int] = []
     failed: list[dict] = []
     for application_id, item in health.items():
@@ -301,4 +329,5 @@ def recover_stuck_auto_applications(
                 ))
                 db.commit()
             failed.append({"application_id": application_id, "error": str(exc)[:300]})
-    return {"recovered": recovered, "failed": failed, "health": health}
+    return {"recovered": recovered, "failed": failed, "health": health,
+            "repaired_unsupported": repaired_unsupported}

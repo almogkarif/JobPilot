@@ -15,6 +15,7 @@ def test_diagnostics_v5_exposes_every_queue_state_and_queue_health():
     assert 'dispatch_sent:' in JS
     assert 'needs_dispatch:' in JS
     assert 'not_dispatchable:' in JS
+    assert 'excluded_unsupported:' in JS
     assert 'stuck_queued:' in JS
     assert 'stuck_applying:' in JS
     assert 'queue_health:' in JS
