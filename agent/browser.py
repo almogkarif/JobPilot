@@ -1146,7 +1146,10 @@ def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
         option = normalize(" ".join([field.get("value", ""), field.get("label", "")]))
         selected = bool(desired_key and (option == desired_key or option.endswith(" " + desired_key)))
         if selected and not field.get("checked"):
-            locator.check(force=True, timeout=2_000)
+            try:
+                locator.check(force=True, timeout=2_000)
+            except Exception:
+                _toggle_custom_checkbox(locator, True)
         elif not selected and field.get("checked"):
             locator.uncheck(force=True, timeout=2_000)
         return
@@ -1158,7 +1161,10 @@ def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
         else:
             wanted_terms.update({"no", "false", "לא", "0"})
         if any(term and (option == term or option.endswith(" " + term)) for term in wanted_terms):
-            locator.check(force=True, timeout=2_000)
+            try:
+                locator.check(force=True, timeout=2_000)
+            except Exception:
+                _toggle_custom_checkbox(locator, True)
         return
     if desired_bool and not field.get("checked"):
         try:
