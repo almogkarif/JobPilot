@@ -758,11 +758,27 @@ def _workday_unresolved_button_choice(page: Page) -> dict | None:
         try:
             if not button.is_visible(timeout=500):
                 continue
-            context = button.locator(
-                "xpath=ancestor::*[self::div or self::fieldset][normalize-space(string(.)) != ''][1]"
-            ).inner_text(timeout=1_000)
-            lines = [re.sub(r"\s+", " ", line).strip() for line in context.splitlines() if line.strip()]
-            label = next((line for line in lines if normalize(line) != "select one"), "בחירה נדרשת ב־Workday")
+            aria_label = re.sub(r"\s+", " ", button.get_attribute("aria-label") or "").strip()
+            context = ""
+            lines = []
+            for depth in range(1, 9):
+                try:
+                    candidate_context = button.locator(f"xpath=ancestor::*[{depth}]").inner_text(timeout=500)
+                except Exception:
+                    continue
+                candidate_lines = [
+                    re.sub(r"\s+", " ", line).strip()
+                    for line in candidate_context.splitlines() if line.strip()
+                ]
+                meaningful = [line for line in candidate_lines if normalize(line) != "select one"]
+                if meaningful:
+                    context, lines = candidate_context, candidate_lines
+                    break
+            aria_question = re.sub(r"\bselect one\b", "", aria_label, flags=re.I).strip(" -:")
+            label = aria_question or next(
+                (line for line in lines if normalize(line) != "select one"),
+                "בחירה נדרשת ב־Workday",
+            )
             button.click(timeout=2_000)
             page.wait_for_timeout(300)
             options = []
