@@ -1,4 +1,4 @@
-from app.collectors.official import _resolve_title
+from app.collectors.official import PRESETS, _resolve_title
 
 
 def test_apple_cta_is_replaced_by_title_from_job_url():
@@ -19,6 +19,12 @@ def test_amazon_read_more_is_replaced_by_title_from_job_url():
 
 def test_real_heading_is_preserved_for_other_official_sources():
     assert _resolve_title({"title": "Senior Backend Engineer"}, "https://example.com/jobs/123") == "Senior Backend Engineer"
+
+
+def test_salesforce_detail_hydration_stays_within_hourly_worker_budget():
+    preset = PRESETS["salesforce"]
+    assert preset["max_detail_jobs"] <= 12
+    assert preset["selector_timeout_ms"] <= 15_000
 
 
 def test_mobileye_title_uses_role_slug_before_uuid_when_card_title_is_missing():

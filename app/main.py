@@ -81,7 +81,7 @@ from .services.resume_analysis import analyze_resume, extract_resume_bytes, extr
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
 from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
 from .services.github_actions import dispatch_application_workflow, dispatch_scan_workflow
-from .services.application_queue_recovery import queue_health
+from .services.application_queue_recovery import queue_health, recover_stuck_auto_applications
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_repair import repair_error_sources
@@ -3452,6 +3452,23 @@ def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = De
 def automatic_application_queue(db: Session = Depends(get_db)):
     track = active_track(get_user_profile(db))
     return _auto_apply_queue_snapshot(db, track)
+
+
+@app.post("/api/applications/auto-queue/recover")
+def recover_automatic_application_queue(db: Session = Depends(get_db)):
+    """Dispatch approved queue rows whose worker was never started or claimed.
+
+    Recovery is safe to call repeatedly: a recent dispatch is recorded before the
+    response and therefore will not be dispatched again. Applying rows are never
+    retried here because their last submit state may be uncertain.
+    """
+    track = active_track(get_user_profile(db))
+    result = recover_stuck_auto_applications(db, track)
+    return {
+        "recovered": result.get("recovered", []),
+        "failed": result.get("failed", []),
+        "auto_apply_queue": _auto_apply_queue_snapshot(db, track),
+    }
 
 
 @app.get("/api/applications/failure-diagnostics")

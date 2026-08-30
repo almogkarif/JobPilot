@@ -74,6 +74,27 @@ def test_never_dispatched_auto_queue_is_recovered_once_and_recorded():
         assert calls == [application_id]
 
 
+def test_opening_queue_recovery_endpoint_dispatches_never_started_rows(monkeypatch):
+    calls: list[int] = []
+    monkeypatch.setattr(
+        "app.services.application_queue_recovery.dispatch_application_workflow",
+        lambda application_id: calls.append(application_id),
+    )
+    with TestClient(app) as client:
+        job = _job(client, 'Queue endpoint recovery')
+        application_id = _queued_auto(job['id'])
+
+        first = client.post('/api/applications/auto-queue/recover')
+        assert first.status_code == 200, first.text
+        assert application_id in first.json()['recovered']
+        assert calls == [application_id]
+
+        second = client.post('/api/applications/auto-queue/recover')
+        assert second.status_code == 200, second.text
+        assert second.json()['recovered'] == []
+        assert calls == [application_id]
+
+
 def test_stale_unclaimed_dispatch_is_redispatched_but_recent_dispatch_is_not():
     with TestClient(app) as client:
         stale_job = _job(client, 'Stale dispatch')

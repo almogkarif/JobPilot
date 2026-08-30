@@ -182,9 +182,10 @@ def recover_stuck_auto_applications(
     career_track: str,
     *,
     now: datetime | None = None,
-    dispatcher: Callable[[int], None] = dispatch_application_workflow,
+    dispatcher: Callable[[int], None] | None = None,
 ) -> dict:
     """Dispatch missing/stale *queued* workers, never resubmit an applying job."""
+    dispatcher = dispatcher or dispatch_application_workflow
     health = queue_health(db, career_track, now=now)
     profile = get_user_profile(db)
     recovered: list[int] = []

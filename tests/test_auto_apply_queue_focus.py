@@ -112,13 +112,12 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     assert "trackedStatus==='applying'" in js
     assert 'otherAutoQueueItems' in js
     assert 'showAutoApplyQueue' in js
-    assert 'המשרות שממתינות בתור להגשה' in js or 'משרות ממתינות בתור להגשה' in js
-    assert 'בלי להחליף את המשרה שרצה עכשיו' in js
+    assert 'משרות ממתינות בתור' in js
     assert 'בתור אוטומטי' in js
     assert 'לא ממתינה ל־Auto Apply' in js
-    assert '.application-live-queue-summary' in css
+    assert '.notification-queue-shortcut' in css
     assert '.auto-apply-queue-list' in css
-    assert 'autoQueueWaitingCount' in js
+    assert 'application-live-queue-summary' not in js
     assert 'רץ עכשיו' in js
     assert 'הבאה בתור' in js
     assert 'הגש הבא בתור' in js
@@ -128,6 +127,10 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     assert 'cancelAutoQueueApplication' in js
     assert 'nextActiveId' in js
     assert '.application-running-badge' in css
+    assert 'grid-template-columns:repeat(8,minmax(180px,1fr))' in css
+    assert "['needs_input','failed','verification_pending'].includes(application.status)" in js
+    assert 'loadApplications({ silent: true })' in js
+    assert 'applicationsRefreshTimer' in js
     assert '.auto-queue-current' in css
 
 
