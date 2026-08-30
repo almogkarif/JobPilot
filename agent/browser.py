@@ -2255,6 +2255,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 )
                 if matching:
                     label = _display_field_label(matching)
+            if "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold():
+                label = _workday_custom_control_label(control, label)
             key = normalize(label)
             if (
                 "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
@@ -2366,6 +2368,34 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
         except Exception:
             continue
     return filled
+
+
+def _workday_custom_control_label(control: Locator, fallback: str = "") -> str:
+    """Recover the field name when Workday exposes the selected value as aria-label.
+
+    Workday's country buttons can announce ``United States of America`` instead
+    of ``Country``. Treating that selected value as the question means the
+    profile country is never applied, which subsequently exposes a US-only
+    State prompt and can invalidate an otherwise correct international phone.
+    """
+    try:
+        identity = normalize(" ".join(filter(None, [
+            control.get_attribute("id"), control.get_attribute("name"),
+            control.get_attribute("data-automation-id"),
+        ])))
+        context = normalize(control.evaluate(
+            "el => (el.closest('fieldset, [role=group], [data-automation-id*=formField]') || el.parentElement)?.innerText || ''"
+        ))
+        combined = f"{identity} {context}"
+        if "country phone" in combined or "phone country" in combined:
+            return "Country Phone Code"
+        if re.search(r"(?:^|\s)(?:state|province)(?:\s|$)", context):
+            return "State"
+        if "country" in combined:
+            return "Country"
+    except Exception:
+        pass
+    return fallback
 
 
 def _fill_workday_segmented_dates(page: Page, profile: dict, answers: dict, memories: list) -> list[dict]:
