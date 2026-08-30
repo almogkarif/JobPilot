@@ -187,6 +187,7 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
                     last_attempt_started_at
                     and last_dispatch_at
                     and last_attempt_started_at >= last_dispatch_at
+                    and (not queued_since or last_attempt_started_at >= queued_since)
                     and not latest_attempt_finished_at
                 )
                 dispatch_age = now - last_dispatch_at if last_dispatch_at else timedelta.max

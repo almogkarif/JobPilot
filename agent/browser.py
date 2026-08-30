@@ -138,7 +138,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     sign_in_opened = False
     sign_in_submitted = False
     creating_account = False
-    for _step in range(10):
+    # Workday commonly needs an account/sign-in round trip plus six application
+    # pages. React re-renders can consume an extra pass between pages, so ten
+    # iterations can stop a healthy application immediately before Review.
+    for _step in range(24):
         _detect_captcha(page)
         current_host = (urlparse(page.url).hostname or "").casefold()
         if current_host in {"accounts.google.com", "login.microsoftonline.com", "appleid.apple.com"}:
@@ -2121,6 +2124,20 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     control.press("Enter", timeout=1_000)
                     page.wait_for_timeout(250)
                     filled.append({"label": label or "בחירה", "source": "profile_city_keyboard"})
+                except Exception:
+                    control.press("Escape")
+            elif field.get("required") and normalize(candidate) in {
+                "true", "yes", "כן", "1", "false", "no", "לא", "0",
+            }:
+                # Greenhouse consent/GDPR questions use React Select but often do
+                # not expose option text to Playwright. The approved boolean answer
+                # maps safely to the first/last option after opening the list.
+                try:
+                    control.press("Home" if normalize(candidate) in {"true", "yes", "כן", "1"} else "End", timeout=1_000)
+                    page.wait_for_timeout(150)
+                    control.press("Enter", timeout=1_000)
+                    page.wait_for_timeout(250)
+                    filled.append({"label": label or "בחירה", "source": "profile_boolean_keyboard"})
                 except Exception:
                     control.press("Escape")
             else:

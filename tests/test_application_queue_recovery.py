@@ -350,6 +350,39 @@ def test_failure_diagnostics_includes_fresh_dispatched_queue_rows_not_only_failu
         assert payload['status_summary']['queued_dispatch_sent'] >= 1
 
 
+def test_old_running_attempt_does_not_claim_a_newer_queue_epoch():
+    with TestClient(app) as client:
+        job = _job(client, 'Requeued after dead running attempt')
+        now = utcnow()
+        with SessionLocal() as db:
+            row = Application(
+                job_id=job['id'], status='queued', mode='auto',
+                updated_at=now - timedelta(minutes=2),
+            )
+            db.add(row)
+            db.flush()
+            db.add(ApplicationAttempt(
+                application_id=row.id, attempt_number=1,
+                idempotency_key=f'old-running-{uuid4().hex}', adapter='lever',
+                worker_type='cloud', status='running', verification_state='none',
+                started_at=now - timedelta(hours=1),
+            ))
+            db.add(ApplicationEvent(
+                application_id=row.id, event_type='worker_dispatched',
+                from_status='queued', to_status='queued', actor='system',
+                message='old dispatch', created_at=now - timedelta(hours=1, minutes=1),
+            ))
+            db.add(ApplicationEvent(
+                application_id=row.id, event_type='stale_worker_recovered',
+                from_status='applying', to_status='queued', actor='system',
+                message='new queue epoch', created_at=now - timedelta(minutes=2),
+            ))
+            db.commit()
+            health = queue_health(db, 'computer_science', now=now)[row.id]
+            assert health['dispatch_state'] == 'needs_redispatch'
+            assert health['needs_dispatch'] is True
+
+
 def test_failure_diagnostics_excludes_legacy_unsupported_rows_from_queue_total():
     with TestClient(app) as client:
         job = _job(client, 'Diagnostics unsupported legacy queue')

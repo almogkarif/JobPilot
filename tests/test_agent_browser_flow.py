@@ -876,6 +876,34 @@ def test_workday_custom_checkbox_falls_back_to_clickable_wrapper():
         browser.close()
 
 
+def test_long_multi_step_application_reaches_review_after_more_than_ten_passes():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <input aria-label="Optional note">
+              <button id="next" type="button">Next</button>
+              <script>
+                let step = 0;
+                next.onclick = () => {
+                  step += 1;
+                  document.querySelector('input').setAttribute('aria-label', `step-${step}`);
+                  if (step === 12) next.textContent = 'Submit Application';
+                };
+              </script>
+            """,
+        ))
+        task = {"job": {"apply_url": "https://careers.example.test/apply"}, "profile": {}}
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected the final review handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+        finally:
+            browser.close()
+
+
 def test_external_identity_redirect_becomes_blocker_instead_of_stale_worker():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
