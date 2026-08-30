@@ -168,12 +168,12 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
     # Required privacy/data-processing acknowledgements are part of the
     # application the user already approved. Never extend this to marketing,
     # newsletters, talent communities, or future-opportunity subscriptions.
-    consent_action = any(term in key for term in ("consent", "agree", "acknowledge", "accept"))
+    consent_action = any(term in key for term in ("consent", "agree", "acknowledge", "accept", "gdpr"))
     submission_context = any(term in key for term in (
         "hiring process", "recruitment process", "application process",
         "process my personal", "processing of my personal", "process your personal",
         "share my information", "sharing your information", "share my data", "sharing your data",
-        "privacy policy", "privacy notice", "data protection", "terms and conditions",
+        "privacy policy", "privacy notice", "data protection", "terms and conditions", "gdpr",
     ))
     promotional_context = any(term in key for term in (
         "marketing", "newsletter", "promotional", "talent community", "talent network",

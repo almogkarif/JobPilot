@@ -12,6 +12,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
                            _is_ashby_spam_rejection,
+                           _is_workday_account_chrome_field,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate,
@@ -55,6 +56,17 @@ def test_visible_captcha_checkbox_or_challenge_requires_handoff():
         304,
         78,
     ) is True
+
+
+def test_workday_account_settings_phone_popover_is_not_an_application_question():
+    field = {
+        "label": "Settings", "type": "radio",
+        "options": ["Change Email", "United States of America (+1)"],
+    }
+    assert _is_workday_account_chrome_field(
+        field, "https://intel.wd1.myworkdayjobs.com/External/job/Test/apply/applyManually"
+    ) is True
+    assert _is_workday_account_chrome_field(field, "https://example.com/apply") is False
     assert _captcha_frame_requires_user_action(
         "https://www.google.com/recaptcha/api2/bframe?hl=en&v=123",
         "recaptcha challenge expires in two minutes",

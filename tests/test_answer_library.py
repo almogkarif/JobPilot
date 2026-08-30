@@ -16,6 +16,13 @@ def test_intel_previous_employment_question_matches_saved_category():
     assert candidate.value == "No"
 
 
+def test_required_gdpr_acknowledgement_is_safe_submission_consent():
+    candidate = known_value("GDPR*", "select", {}, {}, [])
+    assert candidate is not None
+    assert candidate.value == "Yes"
+    assert candidate.source == "submission_consent"
+
+
 def test_answer_library_api():
     with TestClient(app) as client:
         items = client.get("/api/answer-library").json()

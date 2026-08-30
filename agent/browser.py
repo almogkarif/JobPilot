@@ -34,6 +34,11 @@ NO_ACCOUNT_TERMS = [
     "account does not exist", "account not found", "no account found", "couldn't find your account",
     "could not find your account", "no account associated", "email is not registered", "משתמש לא קיים",
 ]
+AUTH_FAILURE_TERMS = [
+    "invalid username or password", "incorrect username or password", "incorrect email or password",
+    "unable to sign in", "couldn t sign in", "could not sign in", "authentication failed",
+    "שם המשתמש או הסיסמה שגויים", "לא ניתן להתחבר",
+]
 SUBMIT_TERMS = [
     "submit application", "submit my application", "send application", "final submit",
     "שלח מועמדות", "שליחה סופית",
@@ -132,6 +137,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     visited_steps = set()
     sign_in_opened = False
     sign_in_submitted = False
+    creating_account = False
     for _step in range(10):
         _detect_captcha(page)
         _dismiss_cookie_banner(page)
@@ -161,12 +167,18 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
         if sign_in_submitted and has_password:
             body_text = _body_text(page)
-            if any(normalize(term) in body_text for term in NO_ACCOUNT_TERMS):
-                create_action = _find_action(page, CREATE_ACCOUNT_TERMS)
-                if create_action:
-                    _click_action(page, create_action)
-                    sign_in_submitted = False
-                    continue
+            create_action = _find_action(page, CREATE_ACCOUNT_TERMS)
+            # A failed login followed by an explicit Create Account action is a
+            # safe Workday recovery. Reusing the same email cannot silently create
+            # a duplicate account: Workday validates uniqueness before proceeding.
+            if create_action and (
+                any(normalize(term) in body_text for term in NO_ACCOUNT_TERMS + AUTH_FAILURE_TERMS)
+                or "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+            ):
+                _click_action(page, create_action)
+                sign_in_submitted = False
+                creating_account = True
+                continue
             raise ApplicationBlocked(
                 "sign_in_failed", "כניסה לחשבון", "לא הצלחנו להיכנס לחשבון הקיים",
                 "הסוכן ניסה קודם Sign In. האתר לא אישר שאין חשבון, ולכן הוא לא יצר חשבון חדש ללא אישורך.",
@@ -175,6 +187,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         actionable_fields = [
             field for field in fields
             if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
+            and not _is_workday_account_chrome_field(field, page.url)
         ]
         if actionable_fields and progress:
             progress("form_detected", "טופס המועמדות זוהה", page.url)
@@ -182,6 +195,22 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
         if not actionable_fields:
+            # A Workday `/apply` URL is a start-method chooser, not yet the
+            # account form. Its header also contains a global Sign In button;
+            # choosing that first bypasses the job application and can leave the
+            # agent cycling on an empty shell. Enter Apply Manually first.
+            parsed_page = urlparse(page.url)
+            if (
+                "myworkdayjobs.com" in (parsed_page.hostname or "").casefold()
+                and parsed_page.path.rstrip("/").casefold().endswith("/apply")
+            ):
+                apply_manually = page.locator('[data-automation-id="applyManually"]').first
+                try:
+                    if apply_manually.count() and apply_manually.is_visible(timeout=1_000):
+                        _click_action(page, apply_manually)
+                        continue
+                except Exception:
+                    pass
             # Workday can leave the application shell on a loader while its
             # global Sign In control is already usable. Enter the existing
             # account flow instead of treating the empty shell as a dead end.
@@ -216,6 +245,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         actionable_fields = [
             field for field in fields
             if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
+            and not _is_workday_account_chrome_field(field, page.url)
         ]
         filled.extend(_fill_tokenized_skills(page, profile))
         anonymous_month_index = 0
@@ -369,13 +399,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 details_message = f"הפרטים הידועים מולאו ({len(filled)} שדות)"
             progress("details_filled", details_message, page.url)
 
-        # Submit the existing-account form first. Account creation is only
-        # allowed above after the site explicitly says that no account exists.
+        # Submit the existing-account form first. After a failed Workday login,
+        # the explicit Create Account route is allowed and uses the same profile.
         if has_password and not sign_in_submitted:
-            sign_in_button = _find_action(page, SIGN_IN_TERMS)
-            if sign_in_button:
-                sign_in_submitted = True
-                _click_action(page, sign_in_button)
+            account_button = _find_action(page, CREATE_ACCOUNT_TERMS) if creating_account else _find_action(page, SIGN_IN_TERMS)
+            if account_button:
+                if not creating_account:
+                    sign_in_submitted = True
+                _click_action(page, account_button)
                 continue
 
         # A visible final submission control takes precedence over stale or
@@ -688,6 +719,13 @@ def _detect_captcha(page: Page) -> None:
         pass
 
     body_requires_action = _body_text_requires_captcha_action(text)
+    try:
+        datadome_challenge = bool(page.locator(
+            'script[src*="captcha-delivery.com"], iframe[src*="captcha-delivery.com"], '
+            'script[src*="datadome"], iframe[src*="datadome"]'
+        ).count())
+    except Exception:
+        datadome_challenge = False
     frame_requires_action = False
     try:
         frames = page.locator("iframe")
@@ -710,7 +748,7 @@ def _detect_captcha(page: Page) -> None:
         # not turn every page containing a passive integration into a false blocker.
         frame_requires_action = False
 
-    if body_requires_action or frame_requires_action:
+    if body_requires_action or frame_requires_action or datadome_challenge:
         raise ApplicationBlocked(
             "captcha", "CAPTCHA", "נדרש אימות אנושי",
             "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה.", page.url,
@@ -722,6 +760,22 @@ def _body_text(page: Page) -> str:
         return normalize(page.locator("body").inner_text(timeout=3_000))
     except Exception:
         return ""
+
+
+def _is_workday_account_chrome_field(field: dict, page_url: str) -> bool:
+    """Ignore Workday account/phone popover controls that are not application questions."""
+    try:
+        if "myworkdayjobs.com" not in (urlparse(page_url).hostname or "").casefold():
+            return False
+    except Exception:
+        return False
+    label = normalize(_display_field_label(field))
+    options = {normalize(value) for value in field.get("options", []) if normalize(value)}
+    if label not in {"settings", "account settings"}:
+        return False
+    return "change email" in options or any(
+        re.search(r"(?:^|\s)\+?\d{1,4}(?:$|\s)", option) for option in options
+    )
 
 
 def _greenhouse_security_code_inputs(page: Page) -> list[Locator]:

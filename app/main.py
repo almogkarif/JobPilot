@@ -118,6 +118,7 @@ startup_retry_tasks: set[asyncio.Task] = set()
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
+AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
 COMPANY_ANSWER_PREFIX = "company:"
 REVIEW_APPROVE_ACTION = "approve_submit"
 REVIEW_SKIP_ACTION = "skip"
@@ -3463,8 +3464,10 @@ def recover_automatic_application_queue(db: Session = Depends(get_db)):
     retried here because their last submit state may be uncertain.
     """
     track = active_track(get_user_profile(db))
+    repaired = _requeue_agent_form_repairs(db, track)
     result = recover_stuck_auto_applications(db, track)
     return {
+        "repair_requeued": repaired,
         "recovered": result.get("recovered", []),
         "failed": result.get("failed", []),
         "auto_apply_queue": _auto_apply_queue_snapshot(db, track),
@@ -4170,6 +4173,63 @@ def _auto_requeue_profile_identity(
     db.refresh(blocker)
     db.refresh(application)
     return True
+
+
+def _requeue_agent_form_repairs(db: Session, career_track: str) -> list[int]:
+    """Retry blockers fixed by the current Agent release exactly once."""
+    repaired: list[int] = []
+    applications = db.scalars(select(Application).where(
+        Application.mode == "auto", Application.status == "needs_input"
+    ).order_by(Application.id)).all()
+    for application in applications:
+        if not application.job or application.job.career_track != career_track:
+            continue
+        blocker = db.scalar(select(Blocker).where(
+            Blocker.application_id == application.id, Blocker.status == "open"
+        ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
+        if not blocker:
+            continue
+        adapter = detect_adapter(
+            application.job.apply_url,
+            application.job.source.kind if application.job.source else "",
+        ).key
+        label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+        retryable = (
+            adapter == "workday" and (
+                blocker.kind in {"sign_in_failed", "submit_button_missing"}
+                or (blocker.kind == "choice_required" and label in {"settings", "account settings"})
+            )
+        ) or (
+            adapter == "greenhouse" and blocker.kind == "submit_not_sent"
+            and "gdpr" in _normalize_company_memory_text(
+                " ".join((blocker.field_label or "", blocker.question or "", blocker.explanation or ""))
+            )
+        )
+        if not retryable:
+            continue
+        answers = loads(application.answers_json, {})
+        if answers.get(AGENT_FORM_REPAIR_AUTO_RETRY_KEY):
+            continue
+        answers[AGENT_FORM_REPAIR_AUTO_RETRY_KEY] = True
+        application.answers_json = dumps(answers)
+        previous_status = application.status
+        application.status = "queued"
+        application.last_error = ""
+        set_job_status(db, application.job, "queued")
+        blocker.status = "resolved"
+        blocker.answer = "auto_retry_agent_form_repair_v1"
+        blocker.remember_answer = False
+        blocker.resolved_at = utcnow()
+        _record_application_event(
+            db, application, "agent_form_repair_requeued",
+            from_status=previous_status, to_status="queued", actor="system",
+            message="ההגשה הוחזרה לתור לאחר תיקון מנוע הטפסים",
+            details={"blocker_id": blocker.id, "adapter": adapter, "repair_version": "v1"},
+        )
+        repaired.append(application.id)
+    if repaired:
+        db.commit()
+    return repaired
 
 
 def _auto_requeue_greenhouse_native_url(
