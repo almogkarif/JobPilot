@@ -688,7 +688,26 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     raise ApplicationBlocked(
         "submit_button_missing", "כפתור הגשה", "איפה נמצא כפתור ההגשה?",
         f"מולאו {len(filled)} שדות, אך לא זוהה כפתור המשך או שליחה סופית.", page.url,
+        diagnostics=_stalled_flow_diagnostics(page, filled),
     )
+
+
+def _stalled_flow_diagnostics(page: Page, filled: list[dict]) -> dict:
+    """Capture safe structural evidence when an ATS cannot advance."""
+    diagnostics = _submission_diagnostics(page, filled)
+    try:
+        diagnostics["visible_actions"] = page.evaluate(
+            """() => [...document.querySelectorAll('button, a[role="button"], input[type="submit"]')]
+              .filter(el => { const r=el.getBoundingClientRect(); const s=getComputedStyle(el); return r.width && r.height && s.visibility !== 'hidden'; })
+              .slice(0, 30).map(el => ({
+                text: String(el.innerText || el.value || el.getAttribute('aria-label') || '').replace(/\\s+/g,' ').trim().slice(0,120),
+                automation: String(el.getAttribute('data-automation-id') || '').slice(0,100),
+                disabled: Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true')
+              }))"""
+        )
+    except Exception:
+        diagnostics["visible_actions"] = []
+    return diagnostics
 
 
 def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, width: float = 0, height: float = 0) -> bool:
