@@ -112,6 +112,23 @@ def test_legacy_unsupported_auto_rows_are_removed_from_automatic_queue():
             assert application.mode == 'manual'
             assert application_id not in result['recovered']
 
+
+def test_inactive_job_is_removed_from_automatic_queue():
+    with TestClient(app) as client:
+        job = _job(client, 'Inactive legacy queue')
+        application_id = _queued_auto(job['id'])
+        with SessionLocal() as db:
+            db.get(Job, job['id']).is_active = False
+            db.commit()
+            result = recover_stuck_auto_applications(
+                db, 'computer_science', dispatcher=lambda _value: None,
+            )
+            assert application_id in result['repaired_inactive']
+            application = db.get(Application, application_id)
+            assert application.status == 'failed'
+            assert application.mode == 'manual'
+            assert application_id not in result['recovered']
+
 def test_stale_unclaimed_dispatch_is_redispatched_but_recent_dispatch_is_not():
     with TestClient(app) as client:
         stale_job = _job(client, 'Stale dispatch')
@@ -192,7 +209,7 @@ def test_requeued_application_does_not_treat_a_finished_attempt_as_a_live_worker
             db.commit()
 
 
-def test_stale_applying_is_diagnosed_but_never_automatically_requeued():
+def test_stale_applying_without_submit_is_closed_for_safe_retry():
     with TestClient(app) as client:
         job = _job(client, 'Stale applying worker')
         now = utcnow()
@@ -220,6 +237,49 @@ def test_stale_applying_is_diagnosed_but_never_automatically_requeued():
                 db, 'computer_science', now=now, dispatcher=lambda value: calls.append(value),
             )
             assert result['recovered'] == []
+            assert result['reconciled_applying'] == [{
+                'application_id': application_id, 'status': 'needs_input', 'submit_seen': False,
+            }]
+            assert db.get(Application, application_id).status == 'needs_input'
+            assert calls == []
+
+
+def test_stale_applying_after_submit_requires_verification_and_is_never_retried():
+    with TestClient(app) as client:
+        job = _job(client, 'Stale worker after submit')
+        now = utcnow()
+        with SessionLocal() as db:
+            row = Application(
+                job_id=job['id'], status='applying', mode='auto', agent_id='github-actions-dead',
+                started_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+                updated_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+            )
+            db.add(row)
+            db.get(Job, job['id']).status = 'applying'
+            db.flush()
+            attempt = ApplicationAttempt(
+                application_id=row.id, attempt_number=1, idempotency_key=f'submit-stale-{uuid4().hex}',
+                adapter='lever', worker_type='cloud', status='running', verification_state='none',
+                started_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=2),
+            )
+            db.add(attempt)
+            db.flush()
+            db.add(ApplicationEvent(
+                application_id=row.id, event_type='submit_clicked', from_status='applying',
+                to_status='applying', actor='cloud', message='submit',
+                details_json='{}', created_at=now - APPLYING_STUCK_AFTER - timedelta(minutes=1),
+            ))
+            db.commit()
+            application_id = row.id
+            calls: list[int] = []
+            result = recover_stuck_auto_applications(
+                db, 'computer_science', now=now, dispatcher=lambda value: calls.append(value),
+            )
+            assert result['reconciled_applying'] == [{
+                'application_id': application_id, 'status': 'verification_pending', 'submit_seen': True,
+            }]
+            assert db.get(Application, application_id).status == 'verification_pending'
+            assert db.get(ApplicationAttempt, attempt.id).status == 'pending_verification'
             assert calls == []
 
 

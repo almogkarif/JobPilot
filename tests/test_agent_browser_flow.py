@@ -11,6 +11,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
                            _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _enter_comeet_embedded_form, _toggle_custom_checkbox,
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
                            _choice_candidate_is_compatible,
@@ -837,6 +838,65 @@ def test_comeet_generated_field_name_uses_plain_text_ancestor_question():
         assert _display_field_label(field) == "האם עבדת בעבר בחברה?"
         assert "cards[" not in _display_field_label(field)
         browser.close()
+
+
+def test_comeet_embedded_apply_iframe_is_promoted_to_active_page():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://www.comeet.com/jobs/test", lambda route: route.fulfill(
+            content_type="text/html",
+            body='<div id="applyFormWrapper"><iframe src="https://www.comeet.co/jobs/test/apply"></iframe></div>',
+        ))
+        page.route("https://www.comeet.co/jobs/test/apply", lambda route: route.fulfill(
+            content_type="text/html", body='<input name="first_name" required>',
+        ))
+        page.goto("https://www.comeet.com/jobs/test")
+        assert _enter_comeet_embedded_form(page) is True
+        assert page.url == "https://www.comeet.co/jobs/test/apply"
+        assert page.locator('input[name="first_name"]').count() == 1
+        browser.close()
+
+
+def test_workday_custom_checkbox_falls_back_to_clickable_wrapper():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div id="wrapper"><input id="choice" type="checkbox"><span>Accept</span></div>
+          <script>
+            choice.addEventListener('click', event => event.preventDefault());
+            wrapper.addEventListener('click', event => {
+              if (event.target !== choice) choice.checked = true;
+            });
+          </script>
+        """)
+        _toggle_custom_checkbox(page.locator("#choice"), True)
+        assert page.locator("#choice").is_checked()
+        browser.close()
+
+
+def test_external_identity_redirect_becomes_blocker_instead_of_stale_worker():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/apply", lambda route: route.fulfill(
+            status=302, headers={"Location": "https://accounts.google.com/v3/signin/identifier"},
+        ))
+        page.route("https://accounts.google.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="<h1>Sign in</h1>",
+        ))
+        task = {
+            "job": {"apply_url": "https://careers.example.test/apply"},
+            "profile": {}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("External identity must stop safely")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "external_auth_required"
+        finally:
+            browser.close()
 
 
 def test_generated_field_name_is_never_presented_as_the_question():

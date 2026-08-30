@@ -66,6 +66,8 @@ def recover_known_user_queues() -> int:
             recovered = list(result.get("recovered") or [])
             failed = list(result.get("failed") or [])
             repaired_unsupported = list(result.get("repaired_unsupported") or [])
+            repaired_inactive = list(result.get("repaired_inactive") or [])
+            reconciled_applying = list(result.get("reconciled_applying") or [])
             checked += 1
             recovered_total += len(recovered)
             failed_total += len(failed)
@@ -73,6 +75,8 @@ def recover_known_user_queues() -> int:
                 f"[queue-recovery] account={account_label(user_id)} track={track} "
                 f"recovered={len(recovered)} failed={len(failed)} "
                 f"unsupported_removed={len(repaired_unsupported)} "
+                f"inactive_removed={len(repaired_inactive)} "
+                f"stale_applying_closed={len(reconciled_applying)} "
                 f"application_ids={','.join(str(value) for value in recovered) or '-'}",
                 flush=True,
             )

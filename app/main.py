@@ -3022,6 +3022,10 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
     pause = automatic_submission_pause(db, job)
     if (payload.approve_submit or payload.mode == "auto") and pause:
         raise HTTPException(409, pause["message"])
+    if payload.mode == "auto" and not payload.approve_submit:
+        raise HTTPException(409, "הגשה אוטומטית דורשת אישור תקף ממסך התצוגה המקדימה.")
+    if payload.mode == "auto" and not preview["ready"]:
+        raise HTTPException(409, "המשרה או הפרופיל אינם מוכנים להגשה אוטומטית. יש להשתמש בהגשה ידנית.")
     if payload.approve_submit:
         approved = verify_preview_token(
             payload.preview_token, user_id=current_user_id(db), job_id=job.id,
@@ -3473,6 +3477,7 @@ def recover_automatic_application_queue(db: Session = Depends(get_db)):
         "repair_requeued": repaired,
         "recovered": result.get("recovered", []),
         "failed": result.get("failed", []),
+        "reconciled_applying": result.get("reconciled_applying", []),
         "auto_apply_queue": _auto_apply_queue_snapshot(db, track, include_health=True),
     }
 
@@ -3502,7 +3507,12 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         item for item in all_rows
         if item.status == "queued" and not _application_auto_submit_supported(item)
     ]
-    rows = [item for item in all_rows if item not in unsupported_queued]
+    inactive_queued = [
+        item for item in all_rows
+        if item.status == "queued" and item.job and not item.job.is_active
+    ]
+    excluded_queued_ids = {item.id for item in unsupported_queued + inactive_queued}
+    rows = [item for item in all_rows if item.id not in excluded_queued_ids]
     # Diagnostics must mirror the queue UI, not only failures. A fresh queued row
     # may already have been dispatched to GitHub and simply be waiting for a runner;
     # hiding it made a 13-row queue look like only four applications existed. Keep
@@ -3599,6 +3609,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
             in {"profile_not_ready", "ats_paused", "unsupported_adapter", "inactive_or_manual"}
         ),
         "excluded_unsupported_queued": len(unsupported_queued),
+        "excluded_inactive_queued": len(inactive_queued),
         "stuck_queued": sum(1 for item in diagnostics if item["status"] == "queued" and item.get("queue_health", {}).get("stuck")),
         "stuck_applying": sum(1 for item in diagnostics if item["status"] == "applying" and item.get("queue_health", {}).get("stuck")),
         "needs_input": sum(1 for item in diagnostics if item["status"] == "needs_input"),
@@ -5493,6 +5504,8 @@ def skill_suggestions(text: str = Query("", max_length=20_000), db: Session = De
 @app.post("/api/agent/tasks/{application_id}/blocked")
 async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    payload.page_url = str(payload.page_url or "")[:1200]
+    payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -5604,6 +5617,7 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
 @app.post("/api/agent/tasks/{application_id}/progress")
 def agent_progress(application_id: int, payload: AgentProgressRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    payload.page_url = str(payload.page_url or "")[:1200]
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -5734,6 +5748,8 @@ def submit_application_security_code(
 @app.post("/api/agent/tasks/{application_id}/submitted")
 def agent_submitted(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    payload.page_url = str(payload.page_url or "")[:1200]
+    payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -5783,6 +5799,8 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
 @app.post("/api/agent/tasks/{application_id}/failed")
 def agent_failed(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    payload.page_url = str(payload.page_url or "")[:1200]
+    payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
@@ -5811,6 +5829,8 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
 @app.post("/api/agent/tasks/{application_id}/recover")
 def agent_recover(application_id: int, payload: AgentResultRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    payload.page_url = str(payload.page_url or "")[:1200]
+    payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = db.get(Application, application_id)
     if not application: raise HTTPException(404, "Application not found")
     previous_status = application.status

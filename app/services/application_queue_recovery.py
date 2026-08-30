@@ -7,8 +7,8 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_user_profile
-from ..models import Application, ApplicationAttempt, ApplicationEvent, Job, utcnow
-from ..utils import dumps
+from ..models import Application, ApplicationAttempt, ApplicationEvent, Blocker, Job, utcnow
+from ..utils import dumps, loads
 from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .application_anti_automation import automatic_submission_pause
 from .github_actions import dispatch_application_workflow
@@ -241,6 +241,87 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
     return result
 
 
+def _reconcile_stale_applying(
+    db: Session, health: dict[int, dict], *, now: datetime,
+) -> list[dict]:
+    """Close dead workers without risking an automatic duplicate submission."""
+    reconciled: list[dict] = []
+    for application_id, item in health.items():
+        if item.get("stuck_kind") != "applying_worker_stale":
+            continue
+        application = db.get(Application, application_id)
+        if not application or application.status != "applying":
+            continue
+        attempt = db.scalar(
+            select(ApplicationAttempt)
+            .where(ApplicationAttempt.application_id == application_id)
+            .order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))
+            .limit(1)
+        )
+        attempt_started = _aware(attempt.started_at) if attempt else None
+        event_query = select(ApplicationEvent).where(ApplicationEvent.application_id == application_id)
+        if attempt_started:
+            event_query = event_query.where(ApplicationEvent.created_at >= attempt_started)
+        events = db.scalars(event_query.order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
+        submit_seen = any(event.event_type == "submit_clicked" for event in events)
+        latest_url = ""
+        for event in events:
+            details = loads(event.details_json, {})
+            candidate = str(details.get("page_url") or "") if isinstance(details, dict) else ""
+            if candidate:
+                latest_url = candidate[:1200]
+                break
+
+        previous_status = application.status
+        if submit_seen:
+            application.status = "verification_pending"
+            message = (
+                "ה-worker הפסיק לדווח לאחר לחיצה על Submit. כדי למנוע כפילות, "
+                "ההגשה ממתינה לאימות ולא תישלח שוב אוטומטית."
+            )
+            if attempt:
+                attempt.status = "pending_verification"
+                attempt.verification_state = "uncertain"
+            event_type = "stale_worker_after_submit"
+        else:
+            application.status = "needs_input"
+            message = (
+                "ה-worker הסתיים לפני שנלחץ Submit. ההגשה הוצאה ממצב ריצה וניתן לבדוק או להפעיל אותה מחדש."
+            )
+            if attempt:
+                attempt.status = "failed"
+                attempt.verification_state = "none"
+            blocker = db.scalar(select(Blocker).where(
+                Blocker.application_id == application_id, Blocker.status == "open",
+            ))
+            if blocker is None:
+                blocker = Blocker(application_id=application_id, status="open")
+                db.add(blocker)
+            blocker.kind = "worker_stopped"
+            blocker.field_label = "Worker"
+            blocker.question = "ה-worker נעצר לפני סיום ההגשה"
+            blocker.explanation = message
+            blocker.page_url = latest_url
+            event_type = "stale_worker_recovered"
+        application.last_error = message
+        set_job_status(db, application.job, application.status)
+        if attempt:
+            attempt.error = message
+            attempt.finished_at = now
+        db.add(ApplicationEvent(
+            application_id=application_id, event_type=event_type,
+            from_status=previous_status, to_status=application.status, actor="system",
+            message=message,
+            details_json=dumps({"attempt_id": attempt.id if attempt else None,
+                                "submit_seen": submit_seen, "page_url": latest_url}),
+        ))
+        reconciled.append({"application_id": application_id, "status": application.status,
+                           "submit_seen": submit_seen})
+    if reconciled:
+        db.commit()
+    return reconciled
+
+
 def recover_stuck_auto_applications(
     db: Session,
     career_track: str,
@@ -251,6 +332,7 @@ def recover_stuck_auto_applications(
     """Dispatch missing/stale *queued* workers, never resubmit an applying job."""
     dispatcher = dispatcher or dispatch_application_workflow
     repaired_unsupported: list[int] = []
+    repaired_inactive: list[int] = []
     profile = get_user_profile(db)
     legacy_rows = db.scalars(
         select(Application)
@@ -263,22 +345,35 @@ def recover_stuck_auto_applications(
     ).unique().all()
     for application in legacy_rows:
         support = _queue_support_state(db, application, profile)
-        if support["not_dispatchable_reason"] != "unsupported_adapter":
+        reason = support["not_dispatchable_reason"]
+        if reason not in {"unsupported_adapter", "inactive_or_manual"}:
             continue
-        application.status = "manual_required"
+        target_status = "manual_required" if reason == "unsupported_adapter" else "failed"
+        application.status = target_status
         application.mode = "manual"
-        application.last_error = "האתר אינו נתמך כרגע בהגשה אוטומטית; נדרשת הגשה ידנית."
-        set_job_status(db, application.job, "manual_required")
+        application.last_error = (
+            "האתר אינו נתמך כרגע בהגשה אוטומטית; נדרשת הגשה ידנית."
+            if reason == "unsupported_adapter"
+            else "המשרה כבר אינה פעילה במקור ולכן הוסרה מתור ההגשה."
+        )
+        set_job_status(db, application.job, target_status)
         db.add(ApplicationEvent(
-            application_id=application.id, event_type="unsupported_auto_queue_repaired",
-            from_status="queued", to_status="manual_required", actor="system",
-            message="משרה ללא adapter הוסרה מתור ההגשות האוטומטי",
-            details_json=dumps({"adapter": support["adapter"], "reason": "unsupported_adapter"}),
+            application_id=application.id,
+            event_type=("unsupported_auto_queue_repaired" if reason == "unsupported_adapter"
+                        else "inactive_auto_queue_repaired"),
+            from_status="queued", to_status=target_status, actor="system",
+            message=("משרה ללא adapter הוסרה מתור ההגשות האוטומטי"
+                     if reason == "unsupported_adapter" else "משרה לא פעילה הוסרה מתור ההגשות האוטומטי"),
+            details_json=dumps({"adapter": support["adapter"], "reason": reason}),
         ))
-        repaired_unsupported.append(application.id)
-    if repaired_unsupported:
+        (repaired_unsupported if reason == "unsupported_adapter" else repaired_inactive).append(application.id)
+    if repaired_unsupported or repaired_inactive:
         db.commit()
-    health = queue_health(db, career_track, now=now)
+    effective_now = _aware(now) or utcnow()
+    health = queue_health(db, career_track, now=effective_now)
+    reconciled_applying = _reconcile_stale_applying(db, health, now=effective_now)
+    if reconciled_applying:
+        health = queue_health(db, career_track, now=effective_now)
     recovered: list[int] = []
     failed: list[dict] = []
     for application_id, item in health.items():
@@ -330,4 +425,6 @@ def recover_stuck_auto_applications(
                 db.commit()
             failed.append({"application_id": application_id, "error": str(exc)[:300]})
     return {"recovered": recovered, "failed": failed, "health": health,
-            "repaired_unsupported": repaired_unsupported}
+            "repaired_unsupported": repaired_unsupported,
+            "repaired_inactive": repaired_inactive,
+            "reconciled_applying": reconciled_applying}

@@ -6,7 +6,7 @@ import signal
 import inspect
 import re
 import json
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit, urlunsplit
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +20,19 @@ from .config import (AGENT_CACHE_DIR, AGENT_ID, APPLICATION_ID, AUTO_SUBMIT, BAS
 
 class AgentTaskTimeout(TimeoutError):
     pass
+
+
+def bounded_page_url(value: str, limit: int = 1200) -> str:
+    """Keep transient OAuth URLs out of bounded DB columns and diagnostics."""
+    raw = str(value or "")
+    if len(raw) <= limit:
+        return raw
+    try:
+        parsed = urlsplit(raw)
+        origin_path = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+        return origin_path[:limit]
+    except Exception:
+        return raw[:limit]
 
 
 @contextmanager
@@ -44,6 +57,9 @@ def task_deadline(seconds: int):
 
 def api(method: str, path: str, **kwargs):
     headers = {"X-JobPilot-Agent-Token": TOKEN, **(kwargs.pop("headers", {}) or {})}
+    payload = kwargs.get("json")
+    if isinstance(payload, dict) and "page_url" in payload:
+        payload["page_url"] = bounded_page_url(payload.get("page_url", ""))
     with httpx.Client(timeout=60) as client:
         response = client.request(method, f"{BASE_URL}{path}", headers=headers, **kwargs)
         response.raise_for_status()
@@ -231,7 +247,17 @@ def run_task(context, task: dict):
         except Exception as upload_exc:  # noqa: BLE001
             print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
         blocker.attempt_id = attempt_id
-        report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
+        try:
+            report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
+        except Exception as report_exc:  # noqa: BLE001
+            # A reporting failure must never leave an application permanently in
+            # `applying`. Persist a terminal failure through the simpler endpoint.
+            api(
+                "POST", f"/api/agent/tasks/{application_id}/failed",
+                json={"token": TOKEN, "attempt_id": attempt_id,
+                      "message": f"Blocker report failed: {report_exc}", "page_url": page.url},
+            )
+            print(f"[blocker report fallback] {report_exc}", file=sys.stderr)
         print(f"[blocked:{blocker.kind}] {blocker.explanation}")
         if blocker.diagnostics:
             print(f"[diagnostics] {json.dumps(blocker.diagnostics, ensure_ascii=False, separators=(',', ':'))}")

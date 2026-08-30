@@ -140,6 +140,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     creating_account = False
     for _step in range(10):
         _detect_captcha(page)
+        current_host = (urlparse(page.url).hostname or "").casefold()
+        if current_host in {"accounts.google.com", "login.microsoftonline.com", "appleid.apple.com"}:
+            raise ApplicationBlocked(
+                "external_auth_required", "כניסה חיצונית", "נדרשת כניסה ידנית לחשבון חיצוני",
+                "אתר הקריירה העביר את ההגשה למסך התחברות חיצוני. ה-worker נעצר בבטחה ולא ישאיר את המשרה במצב ריצה.",
+                page.url,
+            )
         _dismiss_cookie_banner(page)
         _expand_workday_profile_sections(page, profile)
         fields = _wait_for_application_ui(page)
@@ -153,6 +160,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     break
                 visited_steps.add(step_key)
                 _click_action(page, apply_button)
+                _enter_comeet_embedded_form(page)
                 continue
 
         # Some ATSs show account creation first. Always switch to the existing
@@ -1117,9 +1125,37 @@ def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
             locator.check(force=True, timeout=2_000)
         return
     if desired_bool and not field.get("checked"):
-        locator.check(force=True, timeout=2_000)
+        try:
+            locator.check(force=True, timeout=2_000)
+        except Exception:
+            _toggle_custom_checkbox(locator, True)
     elif not desired_bool and field.get("checked"):
-        locator.uncheck(force=True, timeout=2_000)
+        try:
+            locator.uncheck(force=True, timeout=2_000)
+        except Exception:
+            _toggle_custom_checkbox(locator, False)
+
+
+def _toggle_custom_checkbox(locator: Locator, desired: bool) -> None:
+    """Toggle React/Workday checkboxes whose hidden input rejects `check()`."""
+    for target in (
+        locator.locator("xpath=ancestor::label[1]"),
+        locator.locator("xpath=parent::*"),
+    ):
+        try:
+            if target.count() and target.is_visible(timeout=500):
+                target.click(timeout=2_000)
+                if locator.is_checked(timeout=500) is desired:
+                    return
+        except Exception:
+            continue
+    try:
+        locator.evaluate("el => el.click()")
+        if locator.is_checked(timeout=500) is desired:
+            return
+    except Exception:
+        pass
+    raise RuntimeError("Custom checkbox did not change its state")
 
 
 def _safe_referral_group_option(options: list[str]) -> str:
@@ -1424,7 +1460,10 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
             '[data-automation-id="createAccountSubmitButton"]',
         ])
     if "apply" in normalized_terms or "apply now" in normalized_terms:
-        workday_selectors.append('[data-automation-id="applyButton"]')
+        workday_selectors.extend([
+            '[data-automation-id="applyButton"]',
+            '[data-qa="applyButton"]',
+        ])
     if "continue" in normalized_terms or "next" in normalized_terms:
         workday_selectors.extend([
             '[data-automation-id="bottom-navigation-next-button"]',
@@ -1514,6 +1553,26 @@ def _click_action(page: Page, candidate: Locator) -> None:
         except PlaywrightTimeoutError:
             pass
     page.wait_for_timeout(1000)
+
+
+def _enter_comeet_embedded_form(page: Page) -> bool:
+    """Promote Comeet's cross-origin application iframe into the active page."""
+    host = (urlparse(page.url).hostname or "").casefold()
+    if host not in {"comeet.com", "www.comeet.com"}:
+        return False
+    iframe = page.locator('#applyFormWrapper iframe[src*="/apply"]')
+    for _ in range(20):
+        try:
+            if iframe.count():
+                src = str(iframe.first.get_attribute("src") or "").strip()
+                if src:
+                    page.goto(urljoin(page.url, src), wait_until="domcontentloaded", timeout=60_000)
+                    page.wait_for_timeout(1_000)
+                    return True
+        except Exception:
+            pass
+        page.wait_for_timeout(250)
+    return False
 
 
 def _show_agent_pointer(page: Page, target: Locator, message: str) -> None:
@@ -2023,6 +2082,12 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             _show_agent_pointer(page, control, f"בוחר: {candidate}")
             control.click(timeout=2_000)
             page.wait_for_timeout(300)
+            if not page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible').count():
+                try:
+                    control.press("ArrowDown", timeout=1_000)
+                    page.wait_for_timeout(300)
+                except Exception:
+                    pass
             # Current Greenhouse React Select country/city lists can be remote and
             # contain hundreds of entries. Filter first, then allow the portal-backed
             # option list time to arrive instead of checking a single 250 ms snapshot.
