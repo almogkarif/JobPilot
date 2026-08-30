@@ -134,7 +134,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     _detect_captcha(page)
 
     filled = []
-    visited_steps = set()
+    visited_steps: dict[tuple, int] = {}
     sign_in_opened = False
     sign_in_submitted = False
     creating_account = False
@@ -159,9 +159,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             apply_button = _wait_for_action(page, APPLY_START_TERMS)
             if apply_button:
                 step_key = (page.url, "apply", _page_step_signature(page, fields))
-                if step_key in visited_steps:
+                if visited_steps.get(step_key, 0) >= 2:
                     break
-                visited_steps.add(step_key)
+                visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
                 _click_action(page, apply_button)
                 _enter_comeet_embedded_form(page)
                 continue
@@ -237,9 +237,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             progression_button = _find_action(page, APPLY_START_TERMS) or _find_action(page, NAVIGATION_TERMS)
             if progression_button:
                 step_key = (page.url, normalize(_action_text(progression_button)), _page_step_signature(page, fields))
-                if step_key in visited_steps:
+                if visited_steps.get(step_key, 0) >= 2:
                     break
-                visited_steps.add(step_key)
+                visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
                 _click_action(page, progression_button)
                 continue
             raise ApplicationBlocked(
@@ -675,9 +675,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         next_button = _find_action(page, NAVIGATION_TERMS)
         if next_button:
             step_key = (page.url, normalize(_action_text(next_button)), _page_step_signature(page, fields))
-            if step_key in visited_steps:
+            if visited_steps.get(step_key, 0) >= 2:
                 break
-            visited_steps.add(step_key)
+            visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
             _click_action(page, next_button)
             continue
 
@@ -1384,17 +1384,27 @@ def _fill_text_field(page: Page, locator: Locator, field: dict, value: str) -> N
     except Exception as original_exc:
         tag = str(field.get("tag") or "input").strip().lower()
         name = str(field.get("name") or "").strip()
-        if tag not in {"input", "textarea"} or not name:
+        if tag not in {"input", "textarea"}:
             raise original_exc
-        # JSON string escaping is valid inside a CSS attribute selector and keeps
-        # Ashby/Greenhouse-generated brackets and underscores literal.
-        fresh = page.locator(f'{tag}[name={json.dumps(name)}]').first
-        try:
-            if fresh.count() and fresh.is_visible(timeout=1_000):
-                fresh.fill(value, timeout=3_000)
-                return
-        except Exception:
-            pass
+        selectors = []
+        if name:
+            # JSON string escaping is valid inside a CSS attribute selector and
+            # keeps Ashby/Greenhouse-generated brackets and underscores literal.
+            selectors.append(f'{tag}[name={json.dumps(name)}]')
+        automation = str(field.get("automation") or "").strip()
+        autocomplete = str(field.get("autocomplete") or "").strip()
+        if automation:
+            selectors.append(f'{tag}[data-automation-id={json.dumps(automation)}]')
+        if autocomplete:
+            selectors.append(f'{tag}[autocomplete={json.dumps(autocomplete)}]')
+        for selector in selectors:
+            fresh = page.locator(selector).first
+            try:
+                if fresh.count() and fresh.is_visible(timeout=1_000):
+                    fresh.fill(value, timeout=3_000)
+                    return
+            except Exception:
+                continue
         raise original_exc
 
 
@@ -2126,9 +2136,10 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     filled.append({"label": label or "בחירה", "source": "profile_city_keyboard"})
                 except Exception:
                     control.press("Escape")
-            elif field.get("required") and normalize(candidate) in {
-                "true", "yes", "כן", "1", "false", "no", "לא", "0",
-            }:
+            elif (
+                normalize(candidate) in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
+                and any(term in key for term in ("gdpr", "consent", "privacy", "data processing"))
+            ):
                 # Greenhouse consent/GDPR questions use React Select but often do
                 # not expose option text to Playwright. The approved boolean answer
                 # maps safely to the first/last option after opening the list.
