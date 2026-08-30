@@ -331,6 +331,8 @@ def recover_stuck_auto_applications(
 ) -> dict:
     """Dispatch missing/stale *queued* workers, never resubmit an applying job."""
     dispatcher = dispatcher or dispatch_application_workflow
+    effective_now = _aware(now) or utcnow()
+    superseded_attempts = _close_superseded_running_attempts(db, career_track, now=effective_now)
     repaired_unsupported: list[int] = []
     repaired_inactive: list[int] = []
     profile = get_user_profile(db)
@@ -369,7 +371,6 @@ def recover_stuck_auto_applications(
         (repaired_unsupported if reason == "unsupported_adapter" else repaired_inactive).append(application.id)
     if repaired_unsupported or repaired_inactive:
         db.commit()
-    effective_now = _aware(now) or utcnow()
     health = queue_health(db, career_track, now=effective_now)
     reconciled_applying = _reconcile_stale_applying(db, health, now=effective_now)
     if reconciled_applying:
@@ -427,4 +428,32 @@ def recover_stuck_auto_applications(
     return {"recovered": recovered, "failed": failed, "health": health,
             "repaired_unsupported": repaired_unsupported,
             "repaired_inactive": repaired_inactive,
-            "reconciled_applying": reconciled_applying}
+            "reconciled_applying": reconciled_applying,
+            "superseded_attempts": superseded_attempts}
+
+
+def _close_superseded_running_attempts(db: Session, career_track: str, *, now: datetime) -> list[int]:
+    """Close historical running attempts when a newer attempt already exists."""
+    attempts = db.scalars(
+        select(ApplicationAttempt)
+        .join(Application, ApplicationAttempt.application_id == Application.id)
+        .join(Job, Application.job_id == Job.id)
+        .where(Job.career_track == career_track, ApplicationAttempt.status == "running")
+        .order_by(ApplicationAttempt.application_id, desc(ApplicationAttempt.id))
+    ).all()
+    closed: list[int] = []
+    for attempt in attempts:
+        newer_exists = db.scalar(select(ApplicationAttempt.id).where(
+            ApplicationAttempt.application_id == attempt.application_id,
+            ApplicationAttempt.id > attempt.id,
+        ).limit(1))
+        if not newer_exists:
+            continue
+        attempt.status = "failed"
+        attempt.verification_state = "none"
+        attempt.finished_at = now
+        attempt.error = "Superseded by a newer application attempt"
+        closed.append(attempt.id)
+    if closed:
+        db.commit()
+    return closed

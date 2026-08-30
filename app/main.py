@@ -5448,6 +5448,15 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         application.answers_json = dumps(answers)
 
     application.started_at = application.started_at or utcnow()
+    superseded_attempts = db.scalars(select(ApplicationAttempt).where(
+        ApplicationAttempt.application_id == application.id,
+        ApplicationAttempt.status == "running",
+    )).all()
+    for superseded in superseded_attempts:
+        superseded.status = "failed"
+        superseded.verification_state = "none"
+        superseded.finished_at = utcnow()
+        superseded.error = "Superseded by a newer application attempt"
     application.attempt_count += 1
     set_job_status(db, application.job, "applying")
     application.last_error = ""

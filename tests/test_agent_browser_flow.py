@@ -15,6 +15,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
                            _workday_national_phone,
+                           _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate,
@@ -881,6 +882,25 @@ def test_workday_phone_uses_national_number_when_country_code_is_separate():
     profile = {"application_profile": {"country": "Israel"}}
     assert _workday_national_phone("+972-50-123-4567", profile) == "501234567"
     assert _workday_national_phone("050-123-4567", profile) == "501234567"
+
+
+def test_workday_button_choice_uses_question_context_not_generic_required_label():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div>Are you a former employee?*
+                <button aria-label="Required" aria-controls="answers" onclick="answers.hidden=false">Select One</button>
+              </div>
+              <div id="answers" role="listbox" hidden><div role="option">Yes</div><div role="option">No</div></div>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply")
+        result = _workday_unresolved_button_choice(page)
+        assert result["label"] == "Are you a former employee?*"
+        assert result["options"] == ["Yes", "No"]
+        browser.close()
 
 
 def test_long_multi_step_application_reaches_review_after_more_than_ten_passes():

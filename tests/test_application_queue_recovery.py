@@ -383,6 +383,36 @@ def test_old_running_attempt_does_not_claim_a_newer_queue_epoch():
             assert health['needs_dispatch'] is True
 
 
+def test_recovery_closes_running_attempt_superseded_by_newer_attempt():
+    with TestClient(app) as client:
+        job = _job(client, 'Superseded running attempt')
+        now = utcnow()
+        with SessionLocal() as db:
+            row = Application(job_id=job['id'], status='needs_input', mode='auto')
+            db.add(row)
+            db.flush()
+            old = ApplicationAttempt(
+                application_id=row.id, attempt_number=1,
+                idempotency_key=f'superseded-{uuid4().hex}', adapter='lever',
+                worker_type='cloud', status='running', verification_state='none',
+                started_at=now - timedelta(hours=2),
+            )
+            db.add(old)
+            db.flush()
+            db.add(ApplicationAttempt(
+                application_id=row.id, attempt_number=2,
+                idempotency_key=f'newer-{uuid4().hex}', adapter='lever',
+                worker_type='cloud', status='blocked', verification_state='none',
+                started_at=now - timedelta(hours=1), finished_at=now - timedelta(minutes=59),
+            ))
+            db.commit()
+            old_id = old.id
+            result = recover_stuck_auto_applications(db, 'computer_science', now=now, dispatcher=lambda _value: None)
+            assert result['superseded_attempts'] == [old_id]
+            assert db.get(ApplicationAttempt, old_id).status == 'failed'
+            assert db.get(ApplicationAttempt, old_id).finished_at is not None
+
+
 def test_failure_diagnostics_excludes_legacy_unsupported_rows_from_queue_total():
     with TestClient(app) as client:
         job = _job(client, 'Diagnostics unsupported legacy queue')

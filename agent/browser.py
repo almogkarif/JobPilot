@@ -339,7 +339,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     candidate_value = str(candidate.value)
                     if (
                         "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
-                        and normalize(label) in {"country phone code", "phone country code"}
+                        and normalize(label) in {
+                            "country phone code", "phone country code", "country region phone code",
+                        }
                     ):
                         phone_country = normalize(candidate_value)
                         if phone_country in {"972", "+972", "israel", "il", "ישראל"}:
@@ -775,17 +777,28 @@ def _workday_unresolved_button_choice(page: Page) -> dict | None:
                     context, lines = candidate_context, candidate_lines
                     break
             aria_question = re.sub(r"\bselect one\b", "", aria_label, flags=re.I).strip(" -:")
+            if normalize(aria_question) in {"required", "selection required", "choose", "choice required"}:
+                aria_question = ""
             label = aria_question or next(
                 (line for line in lines if normalize(line) != "select one"),
                 "בחירה נדרשת ב־Workday",
             )
+            label = re.sub(r"\bselect one\b", "", label, flags=re.I).strip(" -:")
             button.click(timeout=2_000)
             page.wait_for_timeout(300)
             options = []
-            visible_options = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
+            controlled_id = str(button.get_attribute("aria-controls") or button.get_attribute("aria-owns") or "").strip()
+            if controlled_id:
+                option_scope = page.locator(f'#{controlled_id}')
+            else:
+                visible_lists = page.locator('[role="listbox"]:visible')
+                option_scope = visible_lists.last if visible_lists.count() else page
+            visible_options = option_scope.locator(
+                '[role="option"]:visible, [data-automation-id*="promptOption"]:visible'
+            )
             for option_index in range(min(visible_options.count(), SMALL_CHOICE_MAX_OPTIONS + 1)):
                 value = re.sub(r"\s+", " ", visible_options.nth(option_index).inner_text(timeout=500)).strip()
-                if value and value not in options:
+                if value and normalize(value) != "select one" and value not in options:
                     options.append(value)
             button.press("Escape")
             return {
