@@ -830,7 +830,7 @@ def _workday_application_context_lost(page: Page) -> bool:
         return False
     return not any(_find_action(page, terms) for terms in (
         APPLY_START_TERMS, NAVIGATION_TERMS, SUBMIT_TERMS,
-    )) and not page.locator('[data-automation-id="backToJobPosting"]:visible').count()
+    ))
 
 
 def _workday_unresolved_button_choice(

@@ -1065,6 +1065,11 @@ def test_workday_candidate_home_without_job_actions_is_context_lost():
         assert _workday_application_context_lost(page) is True
         page.set_content("""
           <button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>
+          <button data-automation-id="backToJobPosting">Back to Job Posting</button>
+        """)
+        assert _workday_application_context_lost(page) is True
+        page.set_content("""
+          <button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>
           <button data-automation-id="applyButton">Apply</button>
         """)
         assert _workday_application_context_lost(page) is False
