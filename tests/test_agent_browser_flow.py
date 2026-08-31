@@ -7,6 +7,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _detect_captcha,
                            _field_diagnostics, _field_is_actionable,
+                           _fill_custom_comboboxes,
                            _fill_text_field,
                            _captcha_frame_requires_user_action, _datadome_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
@@ -18,6 +19,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _is_workday_account_chrome_field,
                            _workday_national_phone,
                            _workday_custom_control_label,
+                           _ensure_workday_profile_country,
                            _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
@@ -947,6 +949,67 @@ def test_workday_country_button_uses_field_context_instead_of_selected_country()
         """)
         assert _workday_custom_control_label(page.locator("#address--country"), "United States of America") == "Country"
         assert _workday_custom_control_label(page.locator("#address--countryRegion"), "State Select One") == "State"
+        browser.close()
+
+
+def test_workday_selected_us_country_is_changed_to_profile_country():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div role="group">Country*
+                <button id="address--country" data-automation-id="countryDropdown"
+                        aria-haspopup="listbox" aria-controls="countries"
+                        onclick="countries.hidden=false">United States of America</button>
+                <div id="countries" role="listbox" hidden>
+                  <div role="option" onclick="setCountry(this.textContent)">United States of America</div>
+                  <div role="option" onclick="setCountry(this.textContent)">Israel</div>
+                </div>
+              </div>
+              <script>
+                function setCountry(value) {
+                  document.querySelector('button').textContent=value;
+                  countries.hidden=true;
+                }
+              </script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        filled = _fill_custom_comboboxes(
+            page, {"application_profile": {"country": "Israel"}}, {}, [],
+        )
+        assert page.locator("#address--country").inner_text() == "Israel"
+        assert filled == [{"label": "Country", "source": "profile"}]
+        browser.close()
+
+
+def test_workday_profile_country_is_restored_after_rerender():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div role="group">Country*
+                <button id="address--country" data-automation-id="countryDropdown"
+                        aria-haspopup="listbox" onclick="countries.hidden=false">United States of America</button>
+                <div id="countries" role="listbox" hidden>
+                  <div role="option" onclick="country(this.textContent)">United States of America</div>
+                  <div role="option" onclick="country(this.textContent)">Israel</div>
+                </div>
+              </div>
+              <script>function country(value){document.querySelector('button').textContent=value;countries.hidden=true}</script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        changed = _ensure_workday_profile_country(
+            page, {"application_profile": {"country": "Israel"}},
+        )
+        assert changed is True
+        assert page.locator("#address--country").inner_text() == "Israel"
+        assert _ensure_workday_profile_country(
+            page, {"application_profile": {"country": "Israel"}},
+        ) is False
         browser.close()
 
 

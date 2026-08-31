@@ -393,6 +393,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         filled.extend(_ensure_profile_documents_attached(
             page, refreshed_fields, profile, answers, memories
         ))
+        # Workday may restore the account's saved US country after another
+        # address input fires. Correct it at the end of the mutation phase and
+        # restart this page so State/Region fields are extracted for Israel,
+        # rather than reporting a stale US-state blocker.
+        if _ensure_workday_profile_country(page, profile):
+            page.wait_for_timeout(500)
+            continue
         # Filling another Workday control can re-render the questionnaire and
         # reset an already selected button-based answer back to `Select One`.
         # Reapply approved answers only after every other field mutation, just
@@ -2485,6 +2492,40 @@ def _workday_custom_control_label(control: Locator, fallback: str = "") -> str:
     except Exception:
         pass
     return fallback
+
+
+def _ensure_workday_profile_country(page: Page, profile: dict) -> bool:
+    """Restore the approved profile country if Workday reverts to an account default."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return False
+    desired = str(((profile.get("application_profile") or {}).get("country") or "")).strip()
+    if not desired:
+        return False
+    controls = page.locator('[role="combobox"]:visible, button[aria-haspopup="listbox"]:visible')
+    for index in range(controls.count()):
+        control = controls.nth(index)
+        try:
+            fallback = control.get_attribute("aria-label") or control.inner_text(timeout=500)
+            if normalize(_workday_custom_control_label(control, fallback)) != "country":
+                continue
+            current = re.sub(r"\s+", " ", control.inner_text(timeout=500)).strip()
+            if normalize(current) == normalize(desired):
+                return False
+            control.click(timeout=2_000)
+            page.wait_for_timeout(300)
+            option = None
+            for _ in range(8):
+                option = _best_visible_option(page, desired)
+                if option:
+                    break
+                page.wait_for_timeout(250)
+            if option:
+                option.click(timeout=2_000)
+                return True
+            control.press("Escape")
+        except Exception:
+            continue
+    return False
 
 
 def _fill_workday_segmented_dates(page: Page, profile: dict, answers: dict, memories: list) -> list[dict]:
