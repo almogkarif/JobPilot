@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -191,14 +192,19 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
 
     # Exact answers from a previously resolved blocker always win.
     for question, answer in explicit_answers.items():
-        if normalize(question) == key and str(answer).strip():
+        normalized_question = normalize(question)
+        exact_or_legacy_truncated = normalized_question == key or (
+            len(normalized_question) == 300 and key.startswith(normalized_question)
+        )
+        if exact_or_legacy_truncated and str(answer).strip():
             return CandidateValue(str(answer), "resolved_answer")
 
     for memory in memories:
         category = memory.get("category", "")
         if category and match_question_category(label) == category and str(memory.get("answer", "")).strip():
             return CandidateValue(str(memory["answer"]), "answer_library")
-        pattern = normalize(memory.get("pattern", ""))
+        raw_pattern = str(memory.get("pattern", "") or "").strip().casefold()
+        pattern = normalize(raw_pattern)
         # Short labels such as "Company" or "Location" must never inherit an
         # answer from a longer, unrelated remembered question (for example a
         # previous-employment or relocation question).
@@ -206,7 +212,11 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
             # Company-scoped answers are automatic, so keep them deliberately strict:
             # normalized punctuation/whitespace may differ, but a merely similar
             # question must not inherit an answer without the user seeing it.
-            if pattern and pattern == key:
+            hashed_pattern = "sha256:" + hashlib.sha256(key.encode("utf-8")).hexdigest()
+            exact_or_legacy_truncated = pattern == key or (
+                len(pattern) == 300 and key.startswith(pattern)
+            )
+            if pattern and (exact_or_legacy_truncated or raw_pattern == hashed_pattern):
                 return CandidateValue(str(memory.get("answer", "")), "company_answer_memory")
             continue
         fuzzy_safe = len(pattern) >= 12 and len(key) >= 12

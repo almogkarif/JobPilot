@@ -901,7 +901,7 @@ def _workday_unresolved_button_choice(
                     if selected is not None:
                         selected.click(timeout=2_000)
                         return {
-                            "resolved": True, "label": label[:300],
+                            "resolved": True, "label": label[:500],
                             "source": candidate.source, "options": options,
                         }
             button.press("Escape")
@@ -923,8 +923,8 @@ def _workday_unresolved_button_choice(
                     "diagnostics": diagnostics,
                 }
             return {
-                "label": label[:300],
-                "question": label[:300],
+                "label": label[:500],
+                "question": label[:2_000],
                 "explanation": "Workday דורש בחירה מאושרת בשאלת המועמדות. "
                                "בחר אחת מהאפשרויות וה־Agent ימשיך אוטומטית.",
                 "options": options if len(options) <= SMALL_CHOICE_MAX_OPTIONS else [],

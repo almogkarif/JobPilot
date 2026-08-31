@@ -151,9 +151,13 @@ def _company_answer_pattern(job: Job | None, question: str) -> str:
     normalized_question = _normalize_company_memory_text(question)
     if not prefix or not normalized_question:
         return ""
-    # AnswerMemory.question_pattern is capped at 500 chars. Keep the company identity
-    # stable and trim only the normalized question tail when an ATS emits a very long label.
-    return prefix + normalized_question[: max(1, 500 - len(prefix))]
+    available = max(1, 500 - len(prefix))
+    # A prefix-truncated question cannot equal the full ATS label on retry. Use a
+    # deterministic digest for long questions so exact reuse remains exact and
+    # cannot collide with another merely similar question from the same company.
+    if len(normalized_question) > available:
+        return prefix + "sha256:" + hashlib.sha256(normalized_question.encode("utf-8")).hexdigest()
+    return prefix + normalized_question
 
 
 def _upsert_answer_memory(db: Session, pattern: str, answer: str, *, auto_use: bool = True) -> AnswerMemory | None:

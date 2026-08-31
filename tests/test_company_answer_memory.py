@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from uuid import uuid4
 
@@ -106,6 +107,42 @@ def test_resolved_answer_is_reused_automatically_only_for_same_company():
             for item in other_company_task["answer_memories"]
         )
         assert known_value(question, "radio", {}, {}, other_company_task["answer_memories"]) is None
+
+
+def test_long_company_question_uses_exact_digest_and_legacy_truncated_answer_is_reused():
+    question = "Do you have a contractual restriction that could affect this employment? " + ("x" * 700)
+    normalized = normalize(question)
+    digest_pattern = "sha256:" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    with TestClient(app) as client:
+        company = f"Long Question Company {uuid4().hex[:8]}"
+        first_job = _make_job(client, company, "First long-question engineer")
+        first_application_id, _ = _claim(client, first_job)
+        blocked = client.post(
+            f"/api/agent/tasks/{first_application_id}/blocked",
+            json={"token": "change-me", "kind": "choice_required", "field_label": question[:500],
+                  "question": question, "explanation": "Required", "options": ["Yes", "No"]},
+        )
+        assert blocked.status_code == 200, blocked.text
+        resolved = client.post(
+            f"/api/blockers/{blocked.json()['id']}/resolve", json={"answer": "No", "remember": False},
+        )
+        assert resolved.status_code == 200, resolved.text
+        assert client.post(f"/api/applications/{first_application_id}/mark-submitted").status_code == 200
+
+        second_job = _make_job(client, company, "Second long-question engineer")
+        _, task = _claim(client, second_job)
+        company_items = [item for item in task["answer_memories"] if item.get("scope") == "company"]
+        assert any(item["pattern"] == digest_pattern and item["answer"] == "No" for item in company_items)
+        hashed = known_value(question, "select", {}, {}, company_items)
+        assert hashed is not None
+        assert hashed.value == "No"
+        assert hashed.source == "company_answer_memory"
+
+    legacy = known_value(question, "select", {}, {normalized[:300]: "No"}, [])
+    assert legacy is not None
+    assert legacy.value == "No"
+    assert legacy.source == "resolved_answer"
 
 
 def test_company_specific_answer_is_updated_when_user_changes_the_answer():
