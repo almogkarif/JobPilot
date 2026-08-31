@@ -205,17 +205,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         # A Workday page can consist only of button-based Select One questions,
         # with no input/select elements at all. Resolve known answers before the
         # empty-field branch decides to click Continue or leave the page.
-        for _ in range(20):
-            known_button_choice = _workday_unresolved_button_choice(
-                page, profile, answers=answers, memories=memories, apply_known=True,
-            )
-            if not known_button_choice or not known_button_choice.get("resolved"):
-                break
-            filled.append({
-                "label": known_button_choice["label"],
-                "source": known_button_choice["source"],
-            })
-            page.wait_for_timeout(250)
+        filled.extend(_fill_known_workday_button_choices(page, profile, answers, memories))
 
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
@@ -403,6 +393,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         filled.extend(_ensure_profile_documents_attached(
             page, refreshed_fields, profile, answers, memories
         ))
+        # Filling another Workday control can re-render the questionnaire and
+        # reset an already selected button-based answer back to `Select One`.
+        # Reapply approved answers only after every other field mutation, just
+        # before validation and navigation.
+        filled.extend(_fill_known_workday_button_choices(page, profile, answers, memories))
         unresolved = []
         for field in unknown:
             if field.get("type") == "file":
@@ -863,6 +858,22 @@ def _workday_unresolved_button_choice(
         except Exception:
             continue
     return None
+
+
+def _fill_known_workday_button_choices(
+    page: Page, profile: dict, answers: dict, memories: list[dict],
+) -> list[dict]:
+    """Apply approved Workday button choices until none remain unresolved."""
+    filled = []
+    for _ in range(20):
+        choice = _workday_unresolved_button_choice(
+            page, profile, answers=answers, memories=memories, apply_known=True,
+        )
+        if not choice or not choice.get("resolved"):
+            break
+        filled.append({"label": choice["label"], "source": choice["source"]})
+        page.wait_for_timeout(250)
+    return filled
 
 
 def _captcha_frame_requires_user_action(src: str, title: str, visible: bool, width: float = 0, height: float = 0) -> bool:

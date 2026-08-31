@@ -1054,6 +1054,48 @@ def test_button_only_workday_page_reuses_answer_before_clicking_continue():
         browser.close()
 
 
+def test_workday_reapplies_saved_button_answer_after_other_field_rerender():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main id="step">
+                <label>Email <input type="email" required aria-label="Email"
+                  oninput="question.textContent='Select One'"></label>
+                <div>Have you worked here before?
+                  <button id="question" aria-controls="answers"
+                          onclick="answers.hidden=false">Select One</button>
+                </div>
+                <div id="answers" role="listbox" hidden>
+                  <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">Yes</div>
+                  <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">No</div>
+                </div>
+                <button data-automation-id="pageFooterNextButton" onclick="advance()">Save and Continue</button>
+              </main>
+              <script>
+                function advance() {
+                  if (!document.querySelector('input').value || question.textContent.trim() !== 'No') return;
+                  step.innerHTML = '<input aria-label="Optional note"><button type="submit">Submit Application</button>';
+                }
+              </script>
+            """,
+        ))
+        task = {
+            "job": {"apply_url": "https://example.wd1.myworkdayjobs.com/apply/applyManually"},
+            "profile": {"email": "candidate@example.com"},
+            "answers": {"Have you worked here before?": "No"},
+            "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected final review handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.get_by_text("Submit Application", exact=True).count() == 1
+        browser.close()
+
+
 def test_workday_us_state_list_is_a_precise_country_mismatch_for_israeli_profile():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
