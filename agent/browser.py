@@ -202,6 +202,21 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         if actionable_fields and progress:
             progress("form_detected", "טופס המועמדות זוהה", page.url)
 
+        # A Workday page can consist only of button-based Select One questions,
+        # with no input/select elements at all. Resolve known answers before the
+        # empty-field branch decides to click Continue or leave the page.
+        for _ in range(20):
+            known_button_choice = _workday_unresolved_button_choice(
+                page, profile, answers=answers, memories=memories, apply_known=True,
+            )
+            if not known_button_choice or not known_button_choice.get("resolved"):
+                break
+            filled.append({
+                "label": known_button_choice["label"],
+                "source": known_button_choice["source"],
+            })
+            page.wait_for_timeout(250)
+
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
         if not actionable_fields:
@@ -249,20 +264,6 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
-        # Workday renders many application questions as plain ``Select One``
-        # buttons rather than inputs/comboboxes. Apply saved answers before
-        # deciding that the question still needs user input.
-        for _ in range(20):
-            known_button_choice = _workday_unresolved_button_choice(
-                page, profile, answers=answers, memories=memories, apply_known=True,
-            )
-            if not known_button_choice or not known_button_choice.get("resolved"):
-                break
-            filled.append({
-                "label": known_button_choice["label"],
-                "source": known_button_choice["source"],
-            })
-            page.wait_for_timeout(250)
         workday_resume = _attach_workday_resume_chooser(page, profile)
         if workday_resume:
             filled.append(workday_resume)
