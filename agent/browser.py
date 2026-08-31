@@ -238,6 +238,16 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if active_application:
                 _click_action(page, active_application)
                 continue
+            back_to_posting = page.locator('[data-automation-id="backToJobPosting"]:visible').first
+            try:
+                if back_to_posting.count():
+                    step_key = (page.url, "backToJobPosting", _page_step_signature(page, fields))
+                    if visited_steps.get(step_key, 0) < 2:
+                        visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
+                        _click_action(page, back_to_posting)
+                        continue
+            except Exception:
+                pass
             progression_button = _find_action(page, APPLY_START_TERMS) or _find_action(page, NAVIGATION_TERMS)
             if progression_button:
                 step_key = (page.url, normalize(_action_text(progression_button)), _page_step_signature(page, fields))
@@ -743,6 +753,21 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
             _click_action(page, next_button)
             continue
+
+        # Some Workday tenants finish authentication on Candidate Home and lose
+        # the active application route. Return to the posting once, where the
+        # normal Apply discovery can re-enter the correct job-specific flow.
+        if "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold():
+            back_to_posting = page.locator('[data-automation-id="backToJobPosting"]:visible').first
+            try:
+                if back_to_posting.count():
+                    step_key = (page.url, "backToJobPosting", _page_step_signature(page, fields))
+                    if visited_steps.get(step_key, 0) < 2:
+                        visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
+                        _click_action(page, back_to_posting)
+                        continue
+            except Exception:
+                pass
 
         break
 
