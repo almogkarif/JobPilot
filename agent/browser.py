@@ -249,6 +249,20 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
+        # Workday renders many application questions as plain ``Select One``
+        # buttons rather than inputs/comboboxes. Apply saved answers before
+        # deciding that the question still needs user input.
+        for _ in range(20):
+            known_button_choice = _workday_unresolved_button_choice(
+                page, profile, answers=answers, memories=memories, apply_known=True,
+            )
+            if not known_button_choice or not known_button_choice.get("resolved"):
+                break
+            filled.append({
+                "label": known_button_choice["label"],
+                "source": known_button_choice["source"],
+            })
+            page.wait_for_timeout(250)
         workday_resume = _attach_workday_resume_chooser(page, profile)
         if workday_resume:
             filled.append(workday_resume)
@@ -750,7 +764,10 @@ def _stalled_flow_diagnostics(page: Page, filled: list[dict]) -> dict:
     return diagnostics
 
 
-def _workday_unresolved_button_choice(page: Page, profile: dict | None = None) -> dict | None:
+def _workday_unresolved_button_choice(
+    page: Page, profile: dict | None = None, *, answers: dict | None = None,
+    memories: list[dict] | None = None, apply_known: bool = False,
+) -> dict | None:
     """Turn Workday's button-based Select One prompts into an actionable handoff."""
     if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
         return None
@@ -800,6 +817,23 @@ def _workday_unresolved_button_choice(page: Page, profile: dict | None = None) -
                 value = re.sub(r"\s+", " ", visible_options.nth(option_index).inner_text(timeout=500)).strip()
                 if value and normalize(value) != "select one" and value not in options:
                     options.append(value)
+            if apply_known:
+                candidate = known_value(label, "select", profile or {}, answers or {}, memories or [])
+                if candidate is not None and _choice_candidate_is_compatible(
+                    {"type": "select", "options": options}, candidate.value,
+                ):
+                    wanted = normalize(str(candidate.value))
+                    selected = next(
+                        (visible_options.nth(i) for i in range(visible_options.count())
+                         if normalize(visible_options.nth(i).inner_text(timeout=500)) == wanted),
+                        None,
+                    )
+                    if selected is not None:
+                        selected.click(timeout=2_000)
+                        return {
+                            "resolved": True, "label": label[:300],
+                            "source": candidate.source, "options": options,
+                        }
             button.press("Escape")
             diagnostics = {"control": "workday_select_one", "context": " | ".join(lines[:5])[:500],
                            "option_count": len(options)}
@@ -953,9 +987,21 @@ def _detect_captcha(page: Page) -> None:
     # loads that integration on normal application pages too. Only explicit page
     # copy or a visible challenge frame is a safe handoff signal.
     if body_requires_action or frame_requires_action:
+        host = (urlparse(page.url).hostname or "").casefold()
+        if host == "jobs.smartrecruiters.com" and any(
+            "captcha-delivery.com" in str(item.get("src") or "") and item.get("requires_action")
+            for item in frame_diagnostics
+        ):
+            explanation = (
+                "SmartRecruiters/DataDome חסם את דפדפן ה-worker האוטומטי. "
+                "בדפדפן רגיל הטופס עשוי להיפתח בלי CAPTCHA; זו חסימת anti-bot של האוטומציה, "
+                "לא שגיאת הרשמה ולא שדה חסר. יש להשלים את ההגשה ידנית בדפדפן רגיל."
+            )
+        else:
+            explanation = "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה."
         raise ApplicationBlocked(
             "captcha", "CAPTCHA", "נדרש אימות אנושי",
-            "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה.",
+            explanation,
             page.url, diagnostics={
                 "body_action_term": matched_body_term,
                 "passive_datadome_scripts": int(passive_datadome_scripts or 0),
@@ -2628,6 +2674,10 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
         return False
     host = (parsed.hostname or "").casefold()
     path = (parsed.path or "").rstrip("/").casefold()
+    if host in {"comeet.co", "www.comeet.co"}:
+        return bool(re.fullmatch(
+            r"/careers-api/1\.0/company/[^/]+/positions/[^/]+/apply", path,
+        ))
     if host in GREENHOUSE_HOSTS:
         return True
     if not ((host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")) and path == "/api/non-user-graphql"):
@@ -2646,6 +2696,8 @@ def _hosted_ats_name(url: str) -> str:
         return "ATS"
     if host in GREENHOUSE_HOSTS:
         return "Greenhouse"
+    if host in {"comeet.co", "www.comeet.co"}:
+        return "Comeet"
     if host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"):
         return "Ashby"
     return "ATS"
@@ -2654,7 +2706,11 @@ def _hosted_ats_name(url: str) -> str:
 def _is_hosted_ats_apply_url(url: str) -> bool:
     try:
         host = (urlparse(str(url or "")).hostname or "").casefold()
-        return host in GREENHOUSE_HOSTS or host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
+        return (
+            host in GREENHOUSE_HOSTS
+            or host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
+            or host in {"comeet.co", "www.comeet.co"}
+        )
     except Exception:
         return False
 
@@ -2698,6 +2754,12 @@ def _hosted_ats_submission_response_result(
     if not evidence_term and redirect:
         evidence_term = next((term for term in SUCCESS_TERMS if normalize(term) in redirect), "")
     compact = re.sub(r"\s+", "", str(text or "")).casefold()
+    if host in {"comeet.co", "www.comeet.co"}:
+        if 200 <= code < 300:
+            return "Comeet accepted the application", "", ""
+        if code >= 400:
+            return "", "", f"Comeet rejected the application (HTTP {code})"
+        return "", "", ""
     is_ashby = host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
     if is_ashby:
         if code >= 400:

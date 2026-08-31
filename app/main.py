@@ -55,7 +55,9 @@ from .schemas import (
     SourceCreate,
     SourceUpdate,
 )
-from .application_questions import CATALOG_BY_KEY, PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG
+from .application_questions import (CATALOG_BY_KEY, GLOBAL_AUTO_MEMORY_CATEGORIES,
+                                    PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG,
+                                    match_question_category)
 from .services.job_cleanup import application_history_visible
 from .services.application_submission import (automatic_submit_ready_for_profile, automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
@@ -4653,6 +4655,9 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     company_pattern = _company_answer_pattern(application.job, company_question)
     if company_pattern:
         _upsert_answer_memory(db, company_pattern, answer, auto_use=True)
+    category = match_question_category(company_question)
+    if category in GLOBAL_AUTO_MEMORY_CATEGORIES:
+        _upsert_answer_memory(db, f"{ANSWER_CATEGORY_PREFIX}{category}", answer, auto_use=True)
     if payload.remember and answer_key:
         _upsert_answer_memory(db, answer_key.lower().strip(), answer, auto_use=True)
     db.add(AuditLog(event_type="blocker_resolved", entity_type="blocker", entity_id=str(blocker.id), message=answer_key))

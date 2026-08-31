@@ -147,6 +147,37 @@ def test_company_specific_answer_is_updated_when_user_changes_the_answer():
         assert matching[0]["answer"] == "No"
 
 
+def test_stable_work_authorization_answer_is_remembered_across_companies_automatically():
+    question = "Are you legally authorized to work in Israel?"
+    with TestClient(app) as client:
+        first_job = _make_job(client, f"Authorization Company {uuid4().hex[:8]}", "First authorization role")
+        application_id, _ = _claim(client, first_job)
+        blocker = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={"token": "change-me", "kind": "choice_required", "field_label": question,
+                  "question": question, "explanation": "Required", "options": ["Yes", "No"]},
+        ).json()
+        assert client.post(
+            f"/api/blockers/{blocker['id']}/resolve", json={"answer": "Yes", "remember": False}
+        ).status_code == 200
+
+        with SessionLocal() as db:
+            memory = db.scalar(select(AnswerMemory).where(
+                AnswerMemory.question_pattern == "category:work_authorization_israel"
+            ))
+            assert memory is not None
+            assert memory.answer == "Yes"
+            assert memory.auto_use is True
+
+        assert client.post(f"/api/applications/{application_id}/mark-submitted").status_code == 200
+        second_job = _make_job(client, f"Different Authorization Company {uuid4().hex[:8]}", "Second authorization role")
+        _, task = _claim(client, second_job)
+        candidate = known_value(question, "radio", {}, {}, task["answer_memories"])
+        assert candidate is not None
+        assert candidate.value == "Yes"
+        assert candidate.source == "answer_library"
+
+
 
 def test_company_memory_requires_the_same_normalized_question_not_a_fuzzy_subset():
     memory = [{

@@ -5,12 +5,14 @@ from playwright.sync_api import sync_playwright
 from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _attach_file_to_field,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
+                           _detect_captcha,
                            _field_diagnostics, _field_is_actionable,
                            _fill_text_field,
                            _captcha_frame_requires_user_action, _datadome_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
                            _greenhouse_security_code_delivery_confirmed,
-                           _hosted_ats_submission_response_result, _is_hosted_ats_submission_endpoint,
+                           _hosted_ats_submission_response_result, _is_hosted_ats_apply_url,
+                           _is_hosted_ats_submission_endpoint,
                            _enter_comeet_embedded_form, _toggle_custom_checkbox,
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
@@ -102,6 +104,30 @@ def test_passive_datadome_bootstrap_is_not_itself_a_captcha_blocker():
         "https://geo.captcha-delivery.com/captcha/", "Human verification challenge", False, 0, 0,
     ) is False
 
+
+def test_smartrecruiters_datadome_handoff_explains_worker_only_antibot_block():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.smartrecruiters.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <iframe title="DataDome CAPTCHA" src="https://geo.captcha-delivery.com/captcha/"
+                      style="width:1000px;height:700px"></iframe>
+            """,
+        ))
+        page.route("https://geo.captcha-delivery.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="challenge",
+        ))
+        page.goto("https://jobs.smartrecruiters.com/oneclick-ui/company/test/publication/test")
+        try:
+            _detect_captcha(page)
+            raise AssertionError("Expected a DataDome handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "captcha"
+            assert "חסם את דפדפן ה-worker האוטומטי" in blocker.explanation
+            assert "בדפדפן רגיל" in blocker.explanation
+        browser.close()
+
 def test_cybersecurity_job_description_is_not_mistaken_for_captcha():
     description = (
         "Staff Cyber Defense Engineer. Own complex security challenges and "
@@ -118,7 +144,6 @@ def test_lever_success_urls_are_strong_submission_evidence():
     )
     assert "Lever confirmation" in evidence
     assert application_id == ""
-
     evidence, application_id = lever_confirmation_from_url(
         "https://www.lever.co/hp-b?LeverAppId=6aa4d8f7-1111-2222-3333-abcdefabcdef"
     )
@@ -127,6 +152,21 @@ def test_lever_success_urls_are_strong_submission_evidence():
     assert _external_application_id_from_url(
         "https://www.lever.co/hp-b?LeverAppId=6aa4d8f7-1111-2222-3333-abcdefabcdef"
     ) == application_id
+
+
+def test_comeet_apply_post_is_tracked_and_its_response_is_authoritative():
+    url = "https://www.comeet.co/careers-api/1.0/company/F2.004/positions/FA.E52/apply"
+    assert _is_hosted_ats_submission_endpoint(url) is True
+    evidence, application_id, error = _hosted_ats_submission_response_result(url, 200, "{}")
+    assert evidence == "Comeet accepted the application"
+    assert application_id == ""
+    assert error == ""
+
+
+def test_comeet_apply_page_without_a_post_is_not_treated_as_uncertain_submission():
+    assert _is_hosted_ats_apply_url(
+        "https://www.comeet.co/jobs/F2.004/FA.E52/apply?embedded=true"
+    ) is True
 
 
 def test_lever_regular_apply_url_is_not_success_evidence():
@@ -922,6 +962,56 @@ def test_workday_button_choice_uses_question_context_not_generic_required_label(
         result = _workday_unresolved_button_choice(page)
         assert result["label"] == "Are you a former employee?*"
         assert result["options"] == ["Yes", "No"]
+        browser.close()
+
+
+def test_workday_button_choice_applies_answer_saved_on_the_same_application():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div>Are you a former employee?*
+                <button id="question" aria-controls="answers"
+                        onclick="answers.hidden=false">Select One</button>
+              </div>
+              <div id="answers" role="listbox" hidden>
+                <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">Yes</div>
+                <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">No</div>
+              </div>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply")
+        result = _workday_unresolved_button_choice(
+            page, answers={"Are you a former employee?*": "No"}, apply_known=True,
+        )
+        assert result["resolved"] is True
+        assert result["source"] == "resolved_answer"
+        assert page.locator("#question").inner_text() == "No"
+        browser.close()
+
+
+def test_workday_button_choice_applies_exact_company_memory():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div>Have you worked here before?
+                <button aria-controls="answers" onclick="answers.hidden=false">Select One</button>
+              </div>
+              <div id="answers" role="listbox" hidden>
+                <div role="option">Yes</div><div role="option">No</div>
+              </div>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply")
+        result = _workday_unresolved_button_choice(page, memories=[{
+            "pattern": "have you worked here before", "answer": "No",
+            "category": "", "scope": "company",
+        }], apply_known=True)
+        assert result["resolved"] is True
+        assert result["source"] == "company_answer_memory"
         browser.close()
 
 

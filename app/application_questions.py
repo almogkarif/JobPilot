@@ -6,6 +6,7 @@ PREFIX = "category:"
 
 QUESTION_CATALOG = [
     {"key": "previous_company_relationship", "title": "עבודה או התקשרות קודמת עם החברה", "example": "Are you currently or have you previously been directly employed, accepted an offer, or contracted with this company or a subsidiary?", "type": "boolean", "choices": ["No", "Yes"], "groups": [["previously", "currently", "ever"], ["employed", "worked", "contracted", "offer"], ["company", "subsidiary", "intel", "employer"]]},
+    {"key": "work_authorization_israel", "title": "אישור עבודה בישראל", "example": "Are you legally authorized to work in Israel?", "type": "boolean", "choices": ["Yes", "No"], "groups": [["authorized", "authorization", "eligible", "legally entitled", "permit"], ["work", "employment"], ["israel", "country where", "country in which", "country to which", "location of this job"]]},
     {"key": "adult", "title": "גיל 18 ומעלה", "example": "Are you at least 18 years of age?", "type": "boolean", "choices": ["Yes", "No"], "groups": [["18", "legal age", "age of majority"]]},
     {"key": "non_compete", "title": "התחייבות או ניגוד עניינים", "example": "Are you subject to a non-compete or other agreement that may restrict your employment?", "type": "boolean", "choices": ["No", "Yes"], "groups": [["non compete", "restrict", "conflict of interest"], ["agreement", "employment", "obligation"]]},
     {"key": "relative_at_company", "title": "קרוב משפחה בחברה", "example": "Do you have a relative currently employed by the company?", "type": "boolean", "choices": ["No", "Yes"], "groups": [["relative", "family member", "spouse"], ["company", "employed", "work"]]},
@@ -19,6 +20,11 @@ QUESTION_CATALOG = [
 ]
 
 CATALOG_BY_KEY = {item["key"]: item for item in QUESTION_CATALOG}
+
+# Stable candidate facts can be reused across employers without requiring the
+# user to opt into broad exact-text memory. Employer relationship stays scoped
+# to the company through the existing company-answer memory.
+GLOBAL_AUTO_MEMORY_CATEGORIES = {"work_authorization_israel", "adult"}
 
 
 def normalize_question(text: str) -> str:

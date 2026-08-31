@@ -23,6 +23,18 @@ def test_required_gdpr_acknowledgement_is_safe_submission_consent():
     assert candidate.source == "submission_consent"
 
 
+def test_israel_work_authorization_has_a_global_question_category():
+    assert match_question_category("Are you legally authorized to work in Israel?") == "work_authorization_israel"
+    assert match_question_category(
+        "Are you eligible for employment in the country to which you are applying?"
+    ) == "work_authorization_israel"
+    candidate = known_value("Are you eligible for employment in Israel?", "radio", {}, {}, [{
+        "pattern": "category:work_authorization_israel", "answer": "Yes",
+        "category": "work_authorization_israel", "scope": "global",
+    }])
+    assert candidate.value == "Yes"
+
+
 def test_answer_library_api():
     with TestClient(app) as client:
         items = client.get("/api/answer-library").json()
