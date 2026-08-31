@@ -209,6 +209,34 @@ Clearly distinguish:
 
 ---
 
+## Rule 13 — Supabase Egress Is a Hard Resource Budget
+
+Treat Supabase egress as a production safety constraint. The Free organization has
+a 5 GB uncached-egress quota per billing cycle; crossing it can make every project
+return HTTP 402 until the next cycle.
+
+Before changing startup tasks, scheduled jobs, polling, database queries, exports,
+file delivery, screenshots, or worker downloads:
+
+- Read `docs/SUPABASE_EGRESS.md` and complete its impact check.
+- Estimate calls per hour/day, rows per call, and worst-case bytes per row/file.
+- Never load the full job catalog or long `Job.description` values during startup,
+  health checks, polling, reconciliation, or unchanged-item scans.
+- Use SQL aggregates, pagination, `load_only`, or `defer` for bounded responses.
+- Do not use `SELECT *` semantics when a smaller projection answers the question.
+- Do not repeatedly download unchanged Storage objects; cache or reuse them when
+  the runtime persists long enough to make that effective.
+- Keep UI polling responses small and stop polling when the relevant UI is closed.
+- Make legacy backfills and repair passes explicit, versioned, one-time operations;
+  never run a whole-catalog repair on every process restart.
+
+For any change that can affect egress, add or update a regression test in
+`tests/test_supabase_egress_optimization.py`. Do not deploy if the worst-case
+estimate is unbounded or if the relevant egress tests fail. After deployment,
+compare the Supabase daily egress trend before triggering bulk retries or scans.
+
+---
+
 # Repository Safety Rules
 
 ## Preserve Existing User Work

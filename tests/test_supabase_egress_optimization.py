@@ -17,6 +17,7 @@ from app.services.ranking.service import (
     job_fingerprint_values,
     profile_fingerprint,
 )
+import app.main as main_module
 
 
 def _isolated_session_factory():
@@ -149,3 +150,34 @@ def test_hourly_ranking_stale_only_skips_unchanged_job(monkeypatch):
     result = catalog_ranking.rank_shared_catalog_for_user(user_id, "computer_science", stale_only=True)
     assert result["ranked"] == 1
     assert len(calls) == 1
+
+
+def test_shared_catalog_startup_never_selects_jobs(monkeypatch):
+    engine, Session = _isolated_session_factory()
+
+    @contextmanager
+    def isolated_user_session(_user_id: str):
+        db = Session()
+        set_user_scope(db, SHARED_CATALOG_USER_ID)
+        try:
+            yield db
+        finally:
+            db.close()
+
+    monkeypatch.setattr(main_module, "user_session", isolated_user_session)
+    monkeypatch.setattr(main_module, "install_recommended_sources", lambda _db, _track: None)
+
+    statements: list[str] = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement.lower())
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        result = main_module._prepare_shared_catalog()
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    assert set(result) == {track.key for track in main_module.CAREER_TRACKS}
+    job_selects = [statement for statement in statements if statement.lstrip().startswith("select") and " jobs" in statement]
+    assert job_selects == []
