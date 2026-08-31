@@ -209,6 +209,43 @@ def test_agent_operator_can_retry_only_a_stopped_auto_application(monkeypatch):
         assert denied.status_code == 409
 
 
+def test_agent_operator_requires_explicit_confirmation_to_retry_uncertain_submission(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: None)
+    with TestClient(app) as client:
+        job = _make_job(client, "Operator uncertain retry engineer")
+        application_id, _task = _queue_and_claim(client, job)
+        with SessionLocal() as db:
+            application = db.get(Application, application_id)
+            application.mode = "auto"
+            application.status = "verification_pending"
+            application.job.status = "verification_pending"
+            application.job.apply_url = "https://www.comeet.com/jobs/acme/position/operator-retry"
+            db.add(Blocker(
+                application_id=application_id, kind="confirmation_missing", status="open",
+                field_label="אישור שליחה", question="האם המועמדות נשלחה?",
+                explanation="לא התקבלה ראיה חד-משמעית",
+            ))
+            db.commit()
+
+        denied = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped", json={"token": "change-me"},
+        )
+        assert denied.status_code == 409
+        retried = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped",
+            json={"token": "change-me", "confirm_not_submitted": True},
+        )
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["status"] == "queued"
+        with SessionLocal() as db:
+            blocker = db.scalar(select(Blocker).where(
+                Blocker.application_id == application_id,
+                Blocker.kind == "confirmation_missing",
+            ))
+            assert blocker.status == "resolved"
+            assert blocker.answer == "operator_confirmed_no_submission_receipt"
+
+
 def test_final_review_approval_is_consumed_once_and_really_authorizes_next_attempt():
     with TestClient(app) as client:
         job = _make_job(client, "Junior One-Time Approval Engineer")

@@ -218,6 +218,7 @@ class AgentProgressRequest(BaseModel):
 class AgentSecurityCodeRequest(BaseModel):
     token: str
     attempt_id: int | None = None
+    confirm_not_submitted: bool = False
 
 
 class SecurityCodeSubmitRequest(BaseModel):

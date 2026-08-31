@@ -5724,8 +5724,9 @@ def agent_retry_stopped_application(
 ):
     """Explicit operator retry for one stopped auto application.
 
-    This endpoint is agent-token protected and deliberately excludes submitted,
-    active, queued and verification-pending rows to prevent duplicate submissions.
+    This endpoint is agent-token protected. An uncertain submission can only be
+    retried when the operator explicitly confirms that no receipt was received;
+    submitted, active and queued rows are always excluded.
     """
     _check_agent_token(db, payload.token, application_id=application_id)
     application = db.get(Application, application_id)
@@ -5739,16 +5740,28 @@ def agent_retry_stopped_application(
         raise HTTPException(409, "Ashby anti-spam requires manual submission")
     if automatic_submission_pause(db, application.job):
         raise HTTPException(409, "Ashby automatic submissions are temporarily paused after an anti-spam rejection")
-    if application.status not in {"needs_input", "failed"}:
+    if application.status == "verification_pending" and not payload.confirm_not_submitted:
+        raise HTTPException(409, "Explicit confirmation of no submission receipt is required")
+    if application.status not in {"needs_input", "failed", "verification_pending"}:
         raise HTTPException(409, f"Application cannot be safely retried from status {application.status}")
     previous_status = application.status
+    if previous_status == "verification_pending":
+        for blocker in application.blockers:
+            if blocker.status == "open" and blocker.kind == "confirmation_missing":
+                blocker.status = "resolved"
+                blocker.answer = "operator_confirmed_no_submission_receipt"
+                blocker.remember_answer = False
+                blocker.resolved_at = utcnow()
     application.status = "queued"
     application.last_error = ""
     set_job_status(db, application.job, "queued")
     _record_application_event(
         db, application, "operator_retry_queued", from_status=previous_status, to_status="queued",
         actor="agent_operator", message="ההגשה הוחזרה לניסיון ממוקד על ידי מפעיל ה־worker",
-        details={"application_id": application.id},
+        details={
+            "application_id": application.id,
+            "confirmed_no_submission_receipt": bool(payload.confirm_not_submitted),
+        },
     )
     db.commit()
     return {"application_id": application.id, "status": application.status}

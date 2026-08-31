@@ -12,6 +12,11 @@ on:
         required: false
         default: false
         type: boolean
+      confirm_not_submitted:
+        description: Explicitly confirm no receipt before retrying an uncertain submission
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -67,10 +72,11 @@ jobs:
         if: ${{ inputs.retry_stopped }}
         env:
           REQUESTED_APPLICATION_ID: ${{ inputs.application_id }}
+          CONFIRM_NOT_SUBMITTED: ${{ inputs.confirm_not_submitted }}
         run: |
           curl --fail-with-body --silent --show-error \
             -H 'Content-Type: application/json' \
-            -d "{\"token\":\"$JOBPILOT_AGENT_TOKEN\"}" \
+            -d "{\"token\":\"$JOBPILOT_AGENT_TOKEN\",\"confirm_not_submitted\":$CONFIRM_NOT_SUBMITTED}" \
             "$JOBPILOT_BASE_URL/api/agent/tasks/$REQUESTED_APPLICATION_ID/retry-stopped"
 
       - name: Process one queued application in the background
