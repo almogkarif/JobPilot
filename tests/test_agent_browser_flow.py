@@ -161,6 +161,10 @@ def test_comeet_apply_post_is_tracked_and_its_response_is_authoritative():
     assert evidence == "Comeet accepted the application"
     assert application_id == ""
     assert error == ""
+    evidence, application_id, error = _hosted_ats_submission_response_result(url, 423, '{"code":423}')
+    assert evidence == ""
+    assert application_id == ""
+    assert error == "Comeet rejected the application (HTTP 423)"
 
 
 def test_comeet_apply_page_without_a_post_is_not_treated_as_uncertain_submission():

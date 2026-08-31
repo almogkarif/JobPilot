@@ -635,22 +635,35 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 hosted_error = bool(hosted_submit_responses or hosted_submit_failures)
                 hosted_name = _hosted_ats_name(page.url)
                 anti_automation_blocked = hosted_name == "Ashby" and _is_ashby_spam_rejection(network_error)
+                comeet_recaptcha_blocked = hosted_name == "Comeet" and any(
+                    int(item.get("status") or 0) == 423 for item in hosted_submit_responses
+                )
                 raise ApplicationBlocked(
+                    "captcha" if comeet_recaptcha_blocked else
                     "anti_automation_blocked" if anti_automation_blocked else "submit_rejected",
+                    "CAPTCHA" if comeet_recaptcha_blocked else
                     "הגשה ידנית" if anti_automation_blocked else "שליחת המועמדות",
                     (
-                        "Ashby חסם את ההגשה האוטומטית"
+                        "נדרש אימות אנושי בלתי־נראה של Comeet"
+                        if comeet_recaptcha_blocked
+                        else "Ashby חסם את ההגשה האוטומטית"
                         if anti_automation_blocked
                         else f"{hosted_name} לא קיבל את המועמדות" if hosted_error
                         else "Lever לא קיבל את המועמדות"
                     ),
-                    network_error, page.url, diagnostics={
+                    (
+                        "Comeet מפעיל Google reCAPTCHA v3 בלתי־נראה. ה־worker שלח את הטופס, "
+                        "אך Comeet דחה את אימות ה־anti-bot ב־HTTP 423; המועמדות לא התקבלה. "
+                        "בדפדפן רגיל ייתכן שלא יוצג CAPTCHA כלל."
+                        if comeet_recaptcha_blocked else network_error
+                    ), page.url, diagnostics={
                         "hosted_responses": [_safe_hosted_response_diagnostics(item)
                                              for item in hosted_submit_responses[-3:]],
                         "lever_responses": [{"url": item.get("url"), "status": item.get("status"),
                                              "location": item.get("location")}
                                             for item in lever_submit_responses[-3:]],
                         "anti_automation_blocked": anti_automation_blocked,
+                        "invisible_recaptcha_rejected": comeet_recaptcha_blocked,
                     },
                 )
             if confirmation_text:
