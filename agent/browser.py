@@ -256,6 +256,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
                 _click_action(page, progression_button)
                 continue
+            if _workday_application_context_lost(page):
+                raise ApplicationBlocked(
+                    "application_context_lost", "הקשר המשרה ב־Workday",
+                    "Workday החזיר את החשבון ל־Candidate Home",
+                    "הכניסה לחשבון הצליחה, אך Workday איבד את הקישור למשרה והציג רק Candidate Home. "
+                    "יש לפתוח את המשרה פעם אחת מתוך החשבון; לאחר מכן JobPilot יוכל להמשיך מהטיוטה.",
+                    page.url, diagnostics=_stalled_flow_diagnostics(page, filled),
+                )
             raise ApplicationBlocked(
                 "application_form_missing", "טופס הגשה", "איך מגיעים לטופס ההגשה?",
                 "עמוד המשרה נפתח, אך לא נמצאו בו טופס או כפתור Apply שניתן לזהות בבטחה.", page.url,
@@ -780,6 +788,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             unresolved_workday_choice["explanation"],
             page.url, unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
         )
+    if _workday_application_context_lost(page):
+        raise ApplicationBlocked(
+            "application_context_lost", "הקשר המשרה ב־Workday",
+            "Workday החזיר את החשבון ל־Candidate Home",
+            "הכניסה לחשבון הצליחה, אך Workday איבד את הקישור למשרה והציג רק Candidate Home. "
+            "יש לפתוח את המשרה פעם אחת מתוך החשבון; לאחר מכן JobPilot יוכל להמשיך מהטיוטה.",
+            page.url, diagnostics=_stalled_flow_diagnostics(page, filled),
+        )
     raise ApplicationBlocked(
         "submit_button_missing", "כפתור הגשה", "איפה נמצא כפתור ההגשה?",
         f"מולאו {len(filled)} שדות, אך לא זוהה כפתור המשך או שליחה סופית.", page.url,
@@ -803,6 +819,18 @@ def _stalled_flow_diagnostics(page: Page, filled: list[dict]) -> dict:
     except Exception:
         diagnostics["visible_actions"] = []
     return diagnostics
+
+
+def _workday_application_context_lost(page: Page) -> bool:
+    """Identify an authenticated Workday shell that no longer references the job."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return False
+    candidate_home = page.locator('[data-automation-id="navigationItem-Candidate Home"]:visible')
+    if not candidate_home.count():
+        return False
+    return not any(_find_action(page, terms) for terms in (
+        APPLY_START_TERMS, NAVIGATION_TERMS, SUBMIT_TERMS,
+    )) and not page.locator('[data-automation-id="backToJobPosting"]:visible').count()
 
 
 def _workday_unresolved_button_choice(

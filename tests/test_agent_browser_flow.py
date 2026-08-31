@@ -19,6 +19,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _is_workday_account_chrome_field,
                            _workday_national_phone,
                            _workday_custom_control_label,
+                           _workday_application_context_lost,
                            _ensure_workday_profile_country,
                            _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
@@ -1046,6 +1047,27 @@ def test_workday_candidate_home_returns_to_posting_and_reenters_apply_flow():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert page.get_by_text("Submit Application", exact=True).count() == 1
+        browser.close()
+
+
+def test_workday_candidate_home_without_job_actions_is_context_lost():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="<main></main>",
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        page.set_content("""
+          <button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>
+          <button data-automation-id="navigationItem-Search for Jobs">Search for Jobs</button>
+        """)
+        assert _workday_application_context_lost(page) is True
+        page.set_content("""
+          <button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>
+          <button data-automation-id="applyButton">Apply</button>
+        """)
+        assert _workday_application_context_lost(page) is False
         browser.close()
 
 
