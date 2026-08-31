@@ -47,6 +47,15 @@ def test_legacy_unknown_field_with_options_is_rendered_as_choice_and_text_draft_
     assert "if(activeTextAnswer)return" in js
 
 
+def test_system_choice_blocker_without_options_does_not_render_a_text_answer():
+    js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
+    assert "isChoice=needsInput&&options.length>0" in js
+    assert "isText=needsInput&&['unknown_field','missing_profile_detail'].includes(blocker.kind)&&!options.length" in js
+    assert "interaction=isChoice?" in js
+    assert ":isText?" in js
+    assert "headline=isQuestion?'מחכה לתשובה שלך':needsInput?'נדרשת פעולה'" in js
+
+
 def test_verification_pending_is_terminal_yellow_state_not_fake_live_progress():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")

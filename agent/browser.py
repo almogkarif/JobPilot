@@ -784,7 +784,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     unresolved_workday_choice = _workday_unresolved_button_choice(page, profile)
     if unresolved_workday_choice:
         raise ApplicationBlocked(
-            "choice_required", unresolved_workday_choice["label"], unresolved_workday_choice["question"],
+            unresolved_workday_choice.get("kind", "choice_required"),
+            unresolved_workday_choice["label"], unresolved_workday_choice["question"],
             unresolved_workday_choice["explanation"],
             page.url, unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
         )
@@ -913,6 +914,7 @@ def _workday_unresolved_button_choice(
                 diagnostics["profile_country"] = "Israel"
                 diagnostics["visible_region_type"] = "us_state_list"
                 return {
+                    "kind": "profile_country_mismatch",
                     "label": "מדינת הכתובת בחשבון Workday",
                     "question": "חשבון Workday מוגדר לארה״ב, אבל מדינת הפרופיל ב־JobPilot היא Israel",
                     "explanation": "נדרשת כניסה ידנית ל־Workday ועדכון Country/Region ל־Israel. "

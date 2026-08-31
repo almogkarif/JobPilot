@@ -1251,6 +1251,7 @@ def test_workday_us_state_list_is_a_precise_country_mismatch_for_israeli_profile
         assert "מוגדר לארה״ב" in result["question"]
         assert result["options"] == []
         assert result["diagnostics"]["visible_region_type"] == "us_state_list"
+        assert result["kind"] == "profile_country_mismatch"
         browser.close()
 
 
