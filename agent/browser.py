@@ -154,9 +154,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         _expand_workday_profile_sections(page, profile)
         fields = _wait_for_application_ui(page)
         is_application_path = "/apply" in urlparse(page.url).path.casefold()
-        page_has_fields = any(field.get("visible") and not field.get("disabled") for field in fields)
-        if not is_application_path and not page_has_fields:
-            apply_button = _wait_for_action(page, APPLY_START_TERMS)
+        # Authenticated Workday posting pages can expose account chrome fields
+        # (Email/Password) alongside the job-level Apply button. Those fields do
+        # not mean that the application form has started; always enter the
+        # job-specific flow before trying to fill them.
+        if not is_application_path:
+            apply_button = _find_action(page, APPLY_START_TERMS)
             if apply_button:
                 step_key = (page.url, "apply", _page_step_signature(page, fields))
                 if visited_steps.get(step_key, 0) >= 2:

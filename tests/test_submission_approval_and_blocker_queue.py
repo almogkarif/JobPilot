@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.main import ONE_TIME_SUBMIT_KEY, app
+from app.main import LOCAL_BROWSER_HANDOFF_KEY, ONE_TIME_SUBMIT_KEY, app
 from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker
 from app.utils import loads
 
@@ -335,6 +335,41 @@ def test_explicit_auto_retry_reapproves_and_dispatches_failed_application(monkey
         with SessionLocal() as db:
             stored = db.get(Application, application["id"])
             assert loads(stored.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
+
+
+def test_local_browser_handoff_is_claimed_only_by_local_agent(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Local CAPTCHA handoff", "company": "Local Handoff Co", "location": "Israel",
+            "apply_url": f"https://jobs.smartrecruiters.com/example/{uuid4().hex}",
+        }).json()
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "review"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.mode = "auto"
+            stored.status = "needs_input"
+            stored.job.status = "needs_input"
+            db.commit()
+
+        retried = client.post(
+            f"/api/applications/{application['id']}/retry?auto_submit=true&prefer_local=true"
+        )
+        assert retried.status_code == 200, retried.text
+        assert dispatched == []
+        cloud = client.get("/api/agent/tasks/next", params={
+            "agent_id": "cloud-test", "token": "change-me", "worker_type": "cloud",
+            "application_id": application["id"],
+        }).json()
+        assert cloud["task"] is None
+        local = client.get("/api/agent/tasks/next", params={
+            "agent_id": "local-test", "token": "change-me", "worker_type": "local",
+        }).json()["task"]
+        assert local["application"]["id"] == application["id"]
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            assert LOCAL_BROWSER_HANDOFF_KEY not in loads(stored.answers_json, {})
 
 
 def test_verification_pending_retry_requires_explicit_no_receipt_confirmation(monkeypatch):

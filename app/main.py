@@ -64,7 +64,6 @@ from .services.application_submission import (automatic_submit_ready_for_profile
 from .services.application_anti_automation import (
     ASHBY_SPAM_BLOCKER_KIND, automatic_submission_pause, classify_ashby_spam_block,
 )
-from .services.job_repair import repair_corrupted_official_jobs
 from .services.location_filter import is_israel_location
 from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value,
                                            degree_requirement_label, extract_degree_requirement_details,
@@ -86,7 +85,6 @@ from .services.github_actions import dispatch_application_workflow, dispatch_sca
 from .services.application_queue_recovery import queue_health, recover_stuck_auto_applications
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
-from .services.source_repair import repair_error_sources
 from .services.user_job_state import attach_user_job_states, effective_status, set_job_status
 from .utils import dumps, loads
 from .auth import (AuthIdentity, application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
@@ -118,6 +116,7 @@ scheduler_task: asyncio.Task | None = None
 startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
+LOCAL_BROWSER_HANDOFF_KEY = "__jobpilot_local_browser_handoff_v1__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
@@ -571,19 +570,18 @@ def _prepare_user_workspace(user_id: str) -> tuple[str, list[int], bool, bool]:
 
 
 def _prepare_shared_catalog() -> dict[str, list[int]]:
-    """Run source/job maintenance once for the global catalog, never per account."""
+    """Install source definitions without downloading the full catalog at startup.
+
+    Legacy repair passes inspect every stored job description. Running them on
+    every process restart causes large database egress and repeats deterministic
+    work that has already completed. New/changed rows are validated by the
+    scanner, while legacy repair remains available as an explicit maintenance
+    operation when a migration actually requires it.
+    """
     repaired_by_track: dict[str, list[int]] = {track.key: [] for track in CAREER_TRACKS}
     with user_session(SHARED_CATALOG_USER_ID) as db:
         for definition in CAREER_TRACKS:
             install_recommended_sources(db, definition.key)
-        repaired = list(repair_corrupted_official_jobs(db).get("source_ids") or [])
-        repaired.extend(repair_error_sources(db).get("source_ids") or [])
-        for definition in CAREER_TRACKS:
-            _refresh_persisted_experience_fields(db, definition.key)
-        for source_id in dict.fromkeys(repaired):
-            source = db.get(Source, source_id)
-            if source:
-                repaired_by_track.setdefault(source.career_track, []).append(source.id)
     return repaired_by_track
 
 
@@ -3881,6 +3879,7 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 @app.post("/api/applications/{application_id}/retry")
 async def retry_application(
     application_id: int, auto_submit: bool = False, confirm_not_submitted: bool = False,
+    prefer_local: bool = False,
     db: Session = Depends(get_db),
 ):
     _repair_existing_ashby_spam_blocks(db)
@@ -3914,10 +3913,13 @@ async def retry_application(
     application.last_error = ""
     answers = loads(application.answers_json, {})
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
+    answers.pop(LOCAL_BROWSER_HANDOFF_KEY, None)
     if auto_submit:
         if application.mode != "auto" or not _application_auto_submit_supported(application):
             raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
         answers[ONE_TIME_SUBMIT_KEY] = True
+        if prefer_local:
+            answers[LOCAL_BROWSER_HANDOFF_KEY] = True
     application.answers_json = dumps(answers)
     if previous_status == "verification_pending":
         _record_application_event(
@@ -3926,7 +3928,7 @@ async def retry_application(
             message="המשתמש אישר שלא התקבל אישור הגשה וביקש ניסיון חוזר",
         )
     db.commit()
-    if auto_submit:
+    if auto_submit and not prefer_local:
         try:
             await run_in_threadpool(dispatch_application_workflow, application.id)
             _record_application_event(
@@ -3939,6 +3941,13 @@ async def retry_application(
             application.last_error = f"ההגשה נשמרה בתור, אך הפעלת ה-worker נכשלה: {exc}"[:2000]
             db.commit()
             raise HTTPException(503, "ההגשה נשמרה בתור, אך לא ניתן היה להפעיל את ה-worker") from exc
+    elif auto_submit and prefer_local:
+        _record_application_event(
+            db, application, "local_browser_handoff", from_status=previous_status, to_status="queued",
+            actor="user", message="ההגשה ממתינה ל־Agent המקומי בדפדפן גלוי",
+            details={"application_id": application.id, "trigger": "local_browser_handoff"},
+        )
+        db.commit()
     return _application_dict(application, db)
 
 
@@ -5413,6 +5422,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         application = None
         if (
             anchor and anchor.job and anchor.status == "queued" and anchor.mode == "auto"
+            and not bool(loads(anchor.answers_json, {}).get(LOCAL_BROWSER_HANDOFF_KEY))
             and anchor.job.is_active
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
             in cloud_adapters
@@ -5423,12 +5433,16 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         ):
             application = anchor
     else:
-        # Automatic submissions are background-only. A visible local browser may
-        # claim review tasks, but must never pop open for an automatic campaign.
-        application = db.scalar(select(Application).join(Job, Application.job_id == Job.id).where(
-            Application.status == "queued", Application.mode != "auto", Job.career_track == track,
-            Job.is_active.is_(True),
-        ).order_by(Application.updated_at).limit(1))
+        # Normal automatic campaigns stay in the cloud. A stopped CAPTCHA/login
+        # application may be explicitly handed to the visible local browser so
+        # it can reuse a persistent human session without racing a cloud worker.
+        candidates = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
+            Application.status == "queued", Job.career_track == track, Job.is_active.is_(True),
+        ).order_by(Application.updated_at).limit(50)).all()
+        application = next((candidate for candidate in candidates if (
+            candidate.mode != "auto"
+            or bool(loads(candidate.answers_json, {}).get(LOCAL_BROWSER_HANDOFF_KEY))
+        )), None)
     if not application:
         return {"task": None}
     # Legacy/retried applications may predate resume selection. Hydrate the chosen
@@ -5456,6 +5470,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     db.refresh(application)
     answers = loads(application.answers_json, {})
     submit_approved_once = bool(answers.pop(ONE_TIME_SUBMIT_KEY, False))
+    local_handoff_requested = bool(answers.pop(LOCAL_BROWSER_HANDOFF_KEY, False))
     # Backward compatibility for approvals saved by v0.1.4 as a regular answer.
     if not submit_approved_once:
         for key, value in list(answers.items()):
@@ -5467,7 +5482,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
                 submit_approved_once = True
                 answers.pop(key, None)
                 break
-    if submit_approved_once:
+    if submit_approved_once or local_handoff_requested:
         # Consume the approval when the Agent claims the task. If the browser fails
         # before submission, a new explicit approval is required to avoid duplicates.
         application.answers_json = dumps(answers)

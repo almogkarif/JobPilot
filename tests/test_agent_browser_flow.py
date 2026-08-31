@@ -1050,6 +1050,38 @@ def test_workday_candidate_home_returns_to_posting_and_reenters_apply_flow():
         browser.close()
 
 
+def test_workday_posting_clicks_apply_even_when_account_fields_are_visible():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main id="screen">
+                <label>Email<input type="email"></label>
+                <label>Password<input type="password"></label>
+                <button data-automation-id="adventureButton" onclick="showForm()">Apply</button>
+              </main>
+              <script>
+                function showForm() {
+                  document.querySelector('#screen').innerHTML='<label>Phone Number<input type="tel"></label><button type="submit">Submit Application</button>';
+                }
+              </script>
+            """,
+        ))
+        task = {
+            "job": {"title": "Engineer", "apply_url": "https://example.wd1.myworkdayjobs.com/job/Engineer"},
+            "profile": {"email": "candidate@example.com", "phone": "0501234567"},
+            "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected final review handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.get_by_text("Submit Application", exact=True).count() == 1
+        browser.close()
+
+
 def test_workday_candidate_home_without_job_actions_is_context_lost():
     with sync_playwright() as playwright:
         browser = _launch(playwright)

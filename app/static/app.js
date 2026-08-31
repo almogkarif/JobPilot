@@ -923,6 +923,8 @@ function renderApplicationActions(application) {
   }
   if (blocker) {
     return `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח והמשך</a>
+      ${['captcha','sign_in_failed','external_auth_required'].includes(blocker.kind)
+        ? `<button class="btn secondary small" type="button" onclick="event.stopPropagation();handoffToLocalAgent(${application.id},this)">המשך בדפדפן המקומי</button>` : ''}
       ${['submit_not_sent','submit_button_missing','application_form_missing'].includes(blocker.kind)
         ? `<button class="btn secondary small" type="button" onclick="event.stopPropagation();retryApp(${application.id})">נסה שוב</button>`
         : blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing'
@@ -2375,6 +2377,7 @@ function renderBlockerCard(blocker) {
     </div>
     <div class="blocker-actions"><button class="btn secondary small" type="button" onclick="showJob(${blocker.job?.id})">פרטי משרה</button>
       <a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(target)}">${blocker.kind==='anti_automation_blocked'?'פתח להגשה ידנית':'פתח והמשך מהנקודה'}</a>
+      ${['captcha','sign_in_failed','external_auth_required'].includes(blocker.kind) ? `<button class="btn secondary small" type="button" onclick="handoffToLocalAgent(${blocker.application_id},this)">המשך בדפדפן המקומי</button>` : ''}
       ${(blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing' || blocker.kind === 'anti_automation_blocked') ? `<button class="btn secondary small" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש ידנית</button>` : ''}
       ${blocker.screenshot_url ? `<a class="btn secondary small" target="_blank" href="${esc(blocker.screenshot_url)}">צילום מסך</a>` : ''}</div>
   </article>`;
@@ -3585,6 +3588,7 @@ function trackingNavigatorMarkup(status=''){const {index,total}=trackedApplicati
 async function moveTrackedApplication(direction){await refreshTrackingApplications();const {index,total}=trackedApplicationPosition();if(index<0||!total){renderNotificationCenter();return}const next=(index+Number(direction||0)+total)%total;startApplicationTracking(trackingApplications[next].id,false,true)}
 const automaticRetryInFlight=new Set();
 async function retryAutomaticApplication(id,{status='',button=null,refreshQueue=false,batch=false}={}){id=Number(id);if(!id||automaticRetryInFlight.has(id))return false;const uncertain=status==='verification_pending'||(Number(id)===Number(trackedApplicationId)&&applicationTrackingData?.application?.status==='verification_pending');if(uncertain&&!confirm('לא התקבל אצלך אישור מהחברה? ניסיון חוזר עלול ליצור הגשה כפולה אם המועמדות כן נקלטה. להמשיך?'))return false;automaticRetryInFlight.add(id);const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='…'}try{const suffix=uncertain?'&confirm_not_submitted=true':'';await api(`/api/applications/${id}/retry?auto_submit=true${suffix}`,{method:'POST'});if(!batch){toast('ההגשה הוחזרה לתור ומופעלת מחדש');await Promise.all([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);if(refreshQueue&&$('#modal')?.classList.contains('open'))await showAutoApplyQueue();if(Number(id)===Number(trackedApplicationId))startApplicationTracking(id,false,true)}return true}catch(error){toast(error.message);return false}finally{automaticRetryInFlight.delete(id);if(button?.isConnected){button.disabled=false;button.textContent=original}}}
+async function handoffToLocalAgent(id,button=null){id=Number(id);if(!id||automaticRetryInFlight.has(id))return false;automaticRetryInFlight.add(id);const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='…'}try{await api(`/api/applications/${id}/retry?auto_submit=true&prefer_local=true`,{method:'POST'});toast('ממתין ל־JobPilot Agent המקומי; הדפדפן ייפתח עם הסשן השמור');await Promise.all([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);return true}catch(error){toast(error.message);return false}finally{automaticRetryInFlight.delete(id);if(button?.isConnected){button.disabled=false;button.textContent=original}}}
 async function retryTrackedApplication(id,button=null){return retryAutomaticApplication(id,{status:applicationTrackingData?.application?.status||'',button})}
 function compactDiagnosticValue(value){if(value===null||value===undefined||value==='')return '—';if(typeof value==='string')return value.replace(/\s+/g,' ').trim()||'—';try{return JSON.stringify(value)}catch{return String(value)}}
 function applicationDiagnosticText(item,index){
