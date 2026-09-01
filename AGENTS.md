@@ -382,6 +382,11 @@ For non-trivial tasks:
 
 The 4-agent value is a hard upper bound, not a target.
 
+- Prefer 1 agent for normal tasks.
+- Use 2 agents when independent investigation or verification is useful.
+- Use 3-4 agents only for genuinely complex, cross-cutting work.
+- Never spawn an agent merely for redundancy.
+
 ### Execution rules
 
 - Define success criteria before implementation.
