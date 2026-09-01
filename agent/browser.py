@@ -233,6 +233,16 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         # with no input/select elements at all. Resolve known answers before the
         # empty-field branch decides to click Continue or leave the page.
         filled.extend(_fill_known_workday_button_choices(page, profile, answers, memories))
+        unresolved_workday_choice = _workday_unresolved_button_choice(
+            page, profile, answers=answers, memories=memories,
+        )
+        if unresolved_workday_choice:
+            raise ApplicationBlocked(
+                unresolved_workday_choice.get("kind", "choice_required"),
+                unresolved_workday_choice["label"], unresolved_workday_choice["question"],
+                unresolved_workday_choice["explanation"], page.url,
+                unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
+            )
 
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
@@ -303,7 +313,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
+        filled.extend(_fill_workday_citizenships(page, profile))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
+        filled.extend(_clear_stale_workday_phone_extension(page, profile))
         workday_resume = _attach_workday_resume_chooser(page, profile)
         if workday_resume:
             filled.append(workday_resume)
@@ -315,7 +327,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
             and not _is_workday_account_chrome_field(field, page.url)
         ]
-        filled.extend(_fill_tokenized_skills(page, profile))
+        filled.extend(_fill_tokenized_skills(page, profile, job))
         anonymous_month_index = 0
         for field in actionable_fields:
             if field.get("automation") in {"dateSectionMonth-input", "dateSectionYear-input"}:
@@ -496,6 +508,23 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
                 missing[1] if missing else "זהו שדה חובה שאין עבורו תשובה מאושרת בפרופיל. ענה במערכת והסוכן ינסה שוב מההתחלה.",
                 page.url, field.get("options", []), _field_diagnostics(field),
+            )
+
+        # Workday renders many questionnaire choices as buttons backed by
+        # hidden React controls, so they are absent from ``actionable_fields``.
+        # Do not click Save and Continue while one of those choices is still
+        # unresolved: Workday will reject the navigation and can open a modal
+        # that obscures the real missing question, leaving only a misleading
+        # submit_button_missing blocker after the retry budget is exhausted.
+        unresolved_workday_choice = _workday_unresolved_button_choice(
+            page, profile, answers=answers, memories=memories,
+        )
+        if unresolved_workday_choice:
+            raise ApplicationBlocked(
+                unresolved_workday_choice.get("kind", "choice_required"),
+                unresolved_workday_choice["label"], unresolved_workday_choice["question"],
+                unresolved_workday_choice["explanation"], page.url,
+                unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
             )
 
         if progress:
@@ -903,7 +932,14 @@ def _workday_unresolved_button_choice(
                 "בחירה נדרשת ב־Workday",
             )
             label = re.sub(r"\bselect one\b", "", label, flags=re.I).strip(" -:")
-            button.click(timeout=2_000)
+            try:
+                button.click(timeout=2_000)
+            except Exception:
+                # Workday can leave a validation/modal backdrop mounted after a
+                # rejected Continue click. The visible Select One control is
+                # still the authoritative input, so use a bounded forced click
+                # to expose its closed option list for a precise handoff.
+                button.click(timeout=2_000, force=True)
             page.wait_for_timeout(300)
             options = []
             controlled_id = str(button.get_attribute("aria-controls") or button.get_attribute("aria-owns") or "").strip()
@@ -2342,9 +2378,26 @@ def _is_tokenized_skill_field(field: dict) -> bool:
     return "skill" in text and any(term in text for term in ("add", "type", "search", "skill"))
 
 
-def _fill_tokenized_skills(page: Page, profile: dict) -> list[dict]:
+def _fill_tokenized_skills(page: Page, profile: dict, job: dict | None = None) -> list[dict]:
     """Add skills one at a time to ATS token/search controls."""
     skills = [str(skill).strip() for skill in profile.get("skills", []) if str(skill).strip()]
+    job_skills = [str(skill).strip() for skill in (job or {}).get("skills", []) if str(skill).strip()]
+    if job_skills:
+        required = [normalize(skill) for skill in job_skills]
+        relevant = [
+            skill for skill in skills
+            if any(
+                normalize(skill) == wanted
+                or (len(normalize(skill)) >= 3 and normalize(skill) in wanted)
+                or (len(wanted) >= 3 and wanted in normalize(skill))
+                for wanted in required
+            )
+        ]
+        # A scanner can occasionally return broad categories that do not share
+        # literal names with the profile. Do not turn that weak signal into an
+        # empty Workday Skills section; fall back to the complete profile list.
+        if relevant:
+            skills = relevant
     if not skills:
         return []
     candidates = page.locator(
@@ -2371,11 +2424,20 @@ def _fill_tokenized_skills(page: Page, profile: dict) -> list[dict]:
                 else:
                     field.press("Enter")
                 page.wait_for_timeout(250)
-                filled.append({"label": f"Skills — {skill}", "source": "profile"})
                 try:
                     context = normalize(field.locator("xpath=ancestor::*[self::fieldset or @role='group' or @data-automation-id][1]").inner_text(timeout=1_000))
                 except Exception:
-                    pass
+                    context = ""
+                # Workday accepts a skill only after it becomes a token/chip.
+                # Typing text or pressing Enter without a matching suggestion
+                # must not be reported as a successful profile fill.
+                if normalize(skill) not in context:
+                    try:
+                        field.fill("")
+                    except Exception:
+                        pass
+                    continue
+                filled.append({"label": f"Skills — {skill}", "source": "profile"})
             except Exception:
                 try:
                     field.fill("")
@@ -2425,6 +2487,131 @@ def _job_city_candidate(profile: dict, job: dict | None) -> str:
     return ""
 
 
+def _workday_citizenship_values(profile: dict) -> list[str]:
+    raw = (profile.get("application_profile", {}) or {}).get("citizenships", [])
+    if isinstance(raw, str):
+        values = [part.strip() for part in raw.split(",")]
+    elif isinstance(raw, list):
+        values = [str(item.get("value") or item.get("name") or "").strip()
+                  if isinstance(item, dict) else str(item).strip() for item in raw]
+    else:
+        values = []
+    return list(dict.fromkeys(value for value in values if value))
+
+
+def _fill_workday_citizenships(page: Page, profile: dict) -> list[dict]:
+    """Select only explicitly saved Workday citizenship tokens, never infer them."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return []
+    controls = page.locator('[role="combobox"]:visible, button[aria-haspopup="listbox"]:visible')
+    citizenship_control = None
+    citizenship_label = ""
+    for index in range(controls.count()):
+        control = controls.nth(index)
+        try:
+            label = _workday_custom_control_label(control, control.get_attribute("aria-label") or "")
+            context = control.evaluate(
+                "el => (el.closest('fieldset, [role=group], [data-automation-id*=formField]') || el.parentElement)?.innerText || ''"
+            )
+            if "citizenship" in normalize(f"{label} {context}"):
+                citizenship_control, citizenship_label = control, re.sub(r"\s+", " ", context).strip()
+                break
+        except Exception:
+            continue
+    if citizenship_control is None:
+        return []
+
+    values = _workday_citizenship_values(profile)
+    if not values:
+        raise ApplicationBlocked(
+            "choice_required", "Citizenship", citizenship_label or "Please indicate your citizenship",
+            "נדרשת בחירת אזרחות מאושרת בפרופיל. JobPilot לא יסיק אזרחות מהכתובת או ממספר הטלפון.",
+            page.url, [], {"control": "workday_citizenship"},
+        )
+
+    filled = []
+    for value in values:
+        try:
+            context = normalize(citizenship_control.evaluate(
+                "el => (el.closest('fieldset, [role=group], [data-automation-id*=formField]') || el.parentElement)?.innerText || ''"
+            ))
+            if normalize(value) in context:
+                continue
+            citizenship_control.click(timeout=2_000)
+            page.wait_for_timeout(250)
+            search = citizenship_control
+            if (citizenship_control.get_attribute("role") or "").casefold() != "combobox" \
+                    or citizenship_control.evaluate("el => el.tagName") != "INPUT":
+                visible_search = page.locator('[role="combobox"]:visible').last
+                if visible_search.count():
+                    search = visible_search
+            try:
+                search.fill(value, timeout=2_000)
+            except Exception:
+                pass
+            page.wait_for_timeout(300)
+            options = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
+            selected = None
+            visible_values = []
+            for option_index in range(min(options.count(), 100)):
+                option = options.nth(option_index)
+                option_text = re.sub(r"\s+", " ", option.inner_text(timeout=500)).strip()
+                if option_text:
+                    visible_values.append(option_text)
+                if normalize(option_text) == normalize(value):
+                    selected = option
+                    break
+            if selected is None:
+                search.press("Escape")
+                raise ApplicationBlocked(
+                    "choice_required", "Citizenship", citizenship_label or "Please indicate your citizenship",
+                    "האזרחות השמורה לא נמצאה כאפשרות מדויקת ב־Workday. בחר אפשרות מאושרת כדי להמשיך.",
+                    page.url, visible_values[:SMALL_CHOICE_MAX_OPTIONS],
+                    {"control": "workday_citizenship", "requested": value},
+                )
+            selected.click(timeout=2_000)
+            page.wait_for_timeout(250)
+            context = normalize(citizenship_control.evaluate(
+                "el => (el.closest('fieldset, [role=group], [data-automation-id*=formField]') || el.parentElement)?.innerText || ''"
+            ))
+            if normalize(value) not in context:
+                raise ApplicationBlocked(
+                    "choice_required", "Citizenship", citizenship_label or "Please indicate your citizenship",
+                    "Workday לא שמר את בחירת האזרחות. נדרשת בחירה מאושרת כדי להמשיך.",
+                    page.url, [], {"control": "workday_citizenship", "requested": value},
+                )
+            filled.append({"label": f"Citizenship — {value}", "source": "profile"})
+        except ApplicationBlocked:
+            raise
+        except Exception:
+            continue
+    return filled
+
+
+def _clear_stale_workday_phone_extension(page: Page, profile: dict) -> list[dict]:
+    """Remove a Workday-saved extension unless the profile explicitly owns one."""
+    if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
+        return []
+    extra = profile.get("application_profile", {}) or {}
+    if str(extra.get("phone_extension") or "").strip():
+        return []
+    for field in _extract_fields(page):
+        if normalize(_display_field_label(field)) not in {"phone extension", "extension", "ext"}:
+            continue
+        locator = page.locator(field["selector"]).first
+        try:
+            if not locator.input_value(timeout=500):
+                return []
+            locator.fill("")
+            locator.press("Tab")
+            page.wait_for_timeout(150)
+            if locator.input_value(timeout=500) == "":
+                return [{"label": "Phone Extension", "source": "profile_clear"}]
+        except Exception:
+            return []
+    return []
+
+
 def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: list, job: dict | None = None) -> list[dict]:
     """Open custom ATS dropdowns, inspect their options, and choose the best match."""
     filled = []
@@ -2466,6 +2653,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             ):
                 continue
             if "skill" in key:
+                continue
+            if "citizenship" in key:
                 continue
             candidate = None
             if "language" in key and isinstance(languages, list) and languages:
@@ -2589,7 +2778,11 @@ def _workday_custom_control_label(control: Locator, fallback: str = "") -> str:
             "el => (el.closest('fieldset, [role=group], [data-automation-id*=formField]') || el.parentElement)?.innerText || ''"
         ))
         combined = f"{identity} {context}"
-        if "country phone" in combined or "phone country" in combined:
+        if (
+            "country phone" in combined
+            or "phone country" in combined
+            or "country region phone" in combined
+        ):
             return "Country Phone Code"
         if re.search(r"(?:^|\s)(?:state|province)(?:\s|$)", context):
             return "State"
@@ -2601,22 +2794,32 @@ def _workday_custom_control_label(control: Locator, fallback: str = "") -> str:
 
 
 def _ensure_workday_profile_country(page: Page, profile: dict) -> bool:
-    """Restore the approved profile country if Workday reverts to an account default."""
+    """Restore approved country controls if Workday reverts to account defaults."""
     if "myworkdayjobs.com" not in (urlparse(page.url).hostname or "").casefold():
         return False
-    desired = str(((profile.get("application_profile") or {}).get("country") or "")).strip()
-    if not desired:
+    application_profile = profile.get("application_profile") or {}
+    desired_country = str(application_profile.get("country") or "").strip()
+    phone_code = normalize(str(application_profile.get("phone_country_code") or ""))
+    desired_phone_country = "Israel" if phone_code in {"972", "+972", "israel", "il", "ישראל"} else ""
+    if not desired_country and not desired_phone_country:
         return False
     controls = page.locator('[role="combobox"]:visible, button[aria-haspopup="listbox"]:visible')
     for index in range(controls.count()):
         control = controls.nth(index)
         try:
             fallback = control.get_attribute("aria-label") or control.inner_text(timeout=500)
-            if normalize(_workday_custom_control_label(control, fallback)) != "country":
+            control_label = normalize(_workday_custom_control_label(control, fallback))
+            if control_label == "country":
+                desired = desired_country
+            elif control_label == "country phone code":
+                desired = desired_phone_country
+            else:
+                continue
+            if not desired:
                 continue
             current = re.sub(r"\s+", " ", control.inner_text(timeout=500)).strip()
-            if normalize(current) == normalize(desired):
-                return False
+            if normalize(desired) in normalize(current):
+                continue
             control.click(timeout=2_000)
             page.wait_for_timeout(300)
             option = None

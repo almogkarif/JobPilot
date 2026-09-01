@@ -228,6 +228,13 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         if password:
             return CandidateValue(password, "profile")
 
+    # A generic "phone" match must never copy the full subscriber number into
+    # Workday's optional extension field (which renders it later as x<phone>).
+    # Only an explicitly stored extension may satisfy this control.
+    if "phone extension" in key or key in {"extension", "ext"}:
+        extension = str(extra.get("phone_extension") or "").strip()
+        return CandidateValue(extension, "profile") if extension else None
+
     mapping: list[tuple[list[str], Any, str]] = [
         (["preferred name"], extra.get("preferred_name", ""), "profile"),
         (["pronouns"], extra.get("pronouns", ""), "profile"),
@@ -236,7 +243,8 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         (["postal code", "zip code", "zip"], extra.get("postal_code", ""), "profile"),
         (["state", "province", "region"], extra.get("state", ""), "profile"),
         (["country"], "Israel" if normalize(str(extra.get("country", ""))) in {"", "israel", "il", "972", "+972", "ישראל"} else extra.get("country", ""), "profile"),
-        (["phone country code", "country phone code"], extra.get("phone_country_code", ""), "profile"),
+        (["phone country code", "country phone code", "country region phone code"],
+         extra.get("phone_country_code", ""), "profile"),
         (["job title", "position title", "role title", "most recent title", "current title"], extra.get("current_job_title", ""), "profile"),
         (["company", "employer", "organization name"], extra.get("current_company", ""), "profile"),
         (["employment type"], extra.get("employment_type", ""), "profile"),

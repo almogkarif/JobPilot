@@ -2662,7 +2662,7 @@ const PROFILE_TEXT_FIELDS = [
 ];
 const APPLICATION_PROFILE_FIELDS = [
   'preferred_name', 'pronouns', 'country', 'city', 'address_line1', 'address_line2', 'state', 'postal_code',
-  'phone_country_code', 'website_url', 'work_experiences',
+  'phone_country_code', 'phone_extension', 'citizenships', 'website_url', 'work_experiences',
   'education_school', 'education_field', 'education_grade', 'education_start_date',
   'education_end_date', 'languages', 'certifications', 'notice_period', 'available_start_date',
 ];
@@ -2681,6 +2681,7 @@ function profileForm() {
 function savedProfileFormValue(name) {
   if (name === 'extra_languages') return JSON.stringify(normalizeLanguages(state.profile?.application_profile?.languages));
   if (name === 'extra_work_experiences') return JSON.stringify(normalizeWorkExperiences(state.profile?.application_profile));
+  if (name === 'extra_citizenships') return normalizeCitizenships(state.profile?.application_profile?.citizenships).join(', ');
   if (name.startsWith('extra_')) return String(state.profile?.application_profile?.[name.slice(6)] ?? '');
   if (name === 'application_password') return '';
   if (PROFILE_CHECK_FIELDS.includes(name)) return !!state.profile?.[name];
@@ -2693,6 +2694,7 @@ function currentProfileFormValue(name) {
   if (!control) return '';
   if (name === 'extra_languages') return JSON.stringify(collectLanguages());
   if (name === 'extra_work_experiences') return JSON.stringify(collectWorkExperiences());
+  if (name === 'extra_citizenships') return normalizeCitizenships(control.value).join(', ');
   if (PROFILE_ARRAY_FIELDS.has(name)) {
     const selected = $$(`[data-profile-option="${name}"]:checked`, profileForm()).map((item) => item.value);
     const custom = String(control.value || '').split(',').map((item) => item.trim()).filter(Boolean);
@@ -2711,7 +2713,13 @@ function normalizedProfileValue(name, value) {
   if (name === 'extra_languages') return normalizeLanguages(value)
     .sort((a, b) => a.name.localeCompare(b.name));
   if (name === 'extra_work_experiences') return normalizeWorkExperiences(value);
+  if (name === 'extra_citizenships') return normalizeCitizenships(value);
   return String(value ?? '');
+}
+
+function normalizeCitizenships(value) {
+  const items = Array.isArray(value) ? value : String(value || '').split(',');
+  return [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
 }
 
 function setFieldUnsaved(name, isUnsaved) {
@@ -2980,6 +2988,7 @@ function profileFieldLabel(name) {
     skills:'סקילים', desired_titles:'סוגי תפקידים', preferred_locations:'מיקומים', preferred_work_modes:'אופי עבודה',
     keywords:'רמות ניסיון רצויות', excluded_keywords:'רמות ניסיון שלא לחפש', auto_apply_threshold:'סף התאמה',
     auto_submit_enabled:'תור אוטומטי', extra_work_experiences:'ניסיון תעסוקתי', extra_languages:'שפות',
+    extra_phone_extension:'שלוחת טלפון', extra_citizenships:'אזרחויות',
   };
   if (explicit[name]) return explicit[name];
   const control = profileForm()?.elements?.[name];
@@ -3091,7 +3100,9 @@ function applyProfileToForm(profile) {
   }
   APPLICATION_PROFILE_FIELDS.forEach((name) => {
     if (name === 'work_experiences') return;
-    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name] ?? '';
+    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = name === 'citizenships'
+      ? normalizeCitizenships(profile.application_profile?.[name]).join(', ')
+      : profile.application_profile?.[name] ?? '';
   });
   renderWorkExperiences(profile.application_profile || {});
   renderLanguages(profile.application_profile?.languages);
@@ -3125,6 +3136,8 @@ function restoreProfileDraft() {
       renderLanguages(draft.values[name]);
     } else if (name === 'extra_work_experiences') {
       renderWorkExperiences(draft.values[name]);
+    } else if (name === 'extra_citizenships') {
+      control.value = normalizeCitizenships(draft.values[name]).join(', ');
     } else if (PROFILE_ARRAY_FIELDS.has(name)) {
       applyArrayFieldToControls(name, normalizedProfileValue(name, draft.values[name]));
     } else if (control.type === 'checkbox') control.checked = !!draft.values[name];
@@ -3245,6 +3258,7 @@ function buildProfilePayload(fields = PROFILE_FIELDS) {
       const name = field.slice(6);
       if (name === 'languages') return [name, collectLanguages()];
       if (name === 'work_experiences') return [name, collectWorkExperiences()];
+      if (name === 'citizenships') return [name, normalizeCitizenships(form.elements[field]?.value)];
       return [name, form.elements[field]?.value || ''];
     }));
   }

@@ -51,6 +51,17 @@ def test_country_defaults_to_israel_and_submission_processing_consent_is_approve
     assert consent is not None and consent.value is True
 
 
+def test_phone_number_is_not_reused_as_workday_phone_extension():
+    profile = {"phone": "052-662-1319", "application_profile": {"phone_country_code": "+972"}}
+    assert known_value("Phone Number*", "text", profile, {}, []).value == "052-662-1319"
+    assert known_value("Phone Extension", "text", profile, {}, []) is None
+
+    profile["application_profile"]["phone_extension"] = "123"
+    extension = known_value("Phone Extension", "text", profile, {}, [])
+    assert extension is not None
+    assert extension.value == "123"
+
+
 def test_legacy_country_phone_prefix_and_partial_identity_answers_cannot_override_profile():
     profile = {
         **PROFILE, "email": "candidate@example.com", "phone": "+972501234567",

@@ -41,10 +41,19 @@ def test_profile_contact_and_section_layout_is_compact_and_unambiguous():
     assert 'name="extra_phone_country_code"' in phone_group
     assert 'name="phone"' in phone_group
     assert HTML.count('name="extra_phone_country_code"') == 1
+    assert HTML.count('name="extra_phone_extension"') == 1
+    assert HTML.count('name="extra_citizenships"') == 1
     assert 'class="profile-section-index">09<' in HTML
     assert ".personal-profile-layout{grid-template-columns:minmax(0,1fr)" in CSS
     assert "personalProfileLayout.appendChild(section)" in JS
     assert ">שמור הכול</button>" in HTML
+
+
+def test_profile_citizenships_are_saved_as_a_normalized_list_without_duplicating_gender():
+    assert "'phone_country_code', 'phone_extension', 'citizenships'" in JS
+    assert "function normalizeCitizenships(value)" in JS
+    assert "return [name, normalizeCitizenships(form.elements[field]?.value)]" in JS
+    assert 'name="extra_gender"' not in HTML
 
 
 def test_negative_experience_preferences_are_semantically_clear_not_red_selected_cards():

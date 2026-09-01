@@ -1987,6 +1987,30 @@ def _normalize_application_contact_fields(application_profile: dict) -> dict:
 
     if str(normalized.get("phone_country_code") or "").strip() == "972":
         normalized["phone_country_code"] = "+972"
+
+    if "phone_extension" in normalized:
+        extension = normalized.get("phone_extension")
+        normalized["phone_extension"] = (
+            str(extension).strip()[:50] if isinstance(extension, (str, int, float)) else ""
+        )
+
+    if "citizenships" in normalized:
+        citizenships = normalized.get("citizenships")
+        clean_citizenships: list[str] = []
+        seen_citizenships: set[str] = set()
+        if isinstance(citizenships, list):
+            for citizenship in citizenships:
+                if not isinstance(citizenship, str):
+                    continue
+                value = citizenship.strip()[:160]
+                key = value.casefold()
+                if not value or key in seen_citizenships:
+                    continue
+                seen_citizenships.add(key)
+                clean_citizenships.append(value)
+                if len(clean_citizenships) >= 20:
+                    break
+        normalized["citizenships"] = clean_citizenships
     return normalized
 
 

@@ -8,6 +8,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _detect_captcha,
                            _field_diagnostics, _field_is_actionable,
                            _fill_custom_comboboxes,
+                           _fill_tokenized_skills,
                            _fill_text_field,
                            _captcha_frame_requires_user_action, _datadome_frame_requires_user_action, _file_already_uploaded, _find_submit_button,
                            _fill_greenhouse_security_code, _greenhouse_security_code_inputs,
@@ -22,6 +23,8 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _workday_custom_control_label,
                            _workday_application_context_lost,
                            _ensure_workday_profile_country,
+                           _fill_workday_citizenships,
+                           _clear_stale_workday_phone_extension,
                            _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
@@ -1016,6 +1019,183 @@ def test_workday_profile_country_is_restored_after_rerender():
         browser.close()
 
 
+def test_workday_phone_country_is_restored_when_address_country_is_already_correct():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div role="group">Country*
+                <button id="address--country" aria-haspopup="listbox">Israel</button>
+              </div>
+              <div role="group">Country/Region Phone Code*
+                <button id="phone--countryRegionPhoneCode" aria-haspopup="listbox"
+                        onclick="phoneCountries.hidden=false">United States of America (+1)</button>
+                <div id="phoneCountries" role="listbox" hidden>
+                  <div role="option" onclick="phoneCountry(this.textContent)">United States of America (+1)</div>
+                  <div role="option" onclick="phoneCountry(this.textContent)">Israel (+972)</div>
+                </div>
+              </div>
+              <script>
+                function phoneCountry(value) {
+                  document.querySelector('#phone--countryRegionPhoneCode').textContent=value;
+                  phoneCountries.hidden=true;
+                }
+              </script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        changed = _ensure_workday_profile_country(page, {
+            "application_profile": {"country": "Israel", "phone_country_code": "+972"},
+        })
+        assert changed is True
+        assert page.locator("#address--country").inner_text() == "Israel"
+        assert page.locator("#phone--countryRegionPhoneCode").inner_text() == "Israel (+972)"
+        browser.close()
+
+
+def test_workday_clears_saved_phone_extension_when_profile_has_none():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <label>Phone Extension<input aria-label="Phone Extension" value="0526621319"
+                onblur="this.dataset.committed=this.value"></label>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        filled = _clear_stale_workday_phone_extension(page, {
+            "phone": "0526621319", "application_profile": {"phone_country_code": "+972"},
+        })
+        assert page.get_by_label("Phone Extension").input_value() == ""
+        assert page.get_by_label("Phone Extension").get_attribute("data-committed") == ""
+        assert filled == [{"label": "Phone Extension", "source": "profile_clear"}]
+        browser.close()
+
+
+def test_workday_selects_exact_saved_citizenship_as_a_token():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div role="group" id="citizenship-group">Please indicate your citizenship*
+                <div id="tokens"></div>
+                <input role="combobox" aria-label="Please indicate your citizenship"
+                  oninput="showOptions(this.value)">
+                <div id="options" role="listbox"></div>
+              </div>
+              <script>
+                function showOptions(value) {
+                  options.innerHTML = value ?
+                    `<div role="option" onclick="selectCitizen(this.textContent)">Citizen (Israel)</div>
+                     <div role="option">Non-Citizen (Israel)</div>` : '';
+                }
+                function selectCitizen(value) {
+                  tokens.textContent = value;
+                  document.querySelector('input').value = '';
+                  options.innerHTML = '';
+                }
+              </script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        filled = _fill_workday_citizenships(page, {
+            "application_profile": {"country": "Israel", "citizenships": ["Citizen (Israel)"]},
+        })
+        assert page.locator("#tokens").inner_text() == "Citizen (Israel)"
+        assert filled == [{"label": "Citizenship — Citizen (Israel)", "source": "profile"}]
+        browser.close()
+
+
+def test_workday_citizenship_is_not_inferred_from_israeli_address():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <div role="group">Please indicate your citizenship*
+                <input role="combobox" aria-label="Please indicate your citizenship">
+              </div>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        try:
+            _fill_workday_citizenships(page, {"application_profile": {"country": "Israel"}})
+            raise AssertionError("Expected citizenship handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "choice_required"
+            assert blocker.label == "Citizenship"
+            assert blocker.diagnostics["control"] == "workday_citizenship"
+            assert page.get_by_role("combobox").input_value() == ""
+        browser.close()
+
+
+def test_workday_skills_are_selected_one_by_one_and_verified_as_tokens():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div role="group" id="skills-group">Skills
+            <div id="tokens"></div>
+            <input id="skills" placeholder="Type to Add Skills"
+                   oninput="showOption(this.value)">
+            <div id="options" role="listbox"></div>
+          </div>
+          <script>
+            function showOption(value) {
+              options.innerHTML = value
+                ? `<div role="option" onclick="addSkill(this.textContent)">${value}</div>`
+                : '';
+            }
+            function addSkill(value) {
+              const chip = document.createElement('span');
+              chip.dataset.skill = value;
+              chip.textContent = value;
+              tokens.appendChild(chip);
+              skills.value = '';
+              options.innerHTML = '';
+            }
+          </script>
+        """)
+        profile = {"skills": ["C++", "Python", "LLM", "PyTorch"]}
+        filled = _fill_tokenized_skills(page, profile)
+        assert page.locator("#tokens [data-skill]").all_text_contents() == profile["skills"]
+        assert [item["label"] for item in filled] == [f"Skills — {skill}" for skill in profile["skills"]]
+        browser.close()
+
+
+def test_workday_skills_use_every_relevant_profile_skill_not_a_fixed_sample():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div role="group">Skills<div id="tokens"></div>
+            <input placeholder="Type to Add Skills" oninput="showOption(this.value)">
+            <div id="options" role="listbox"></div>
+          </div>
+          <script>
+            function showOption(value) {
+              options.innerHTML = value
+                ? `<div role="option" onclick="addSkill(this.textContent)">${value}</div>` : '';
+            }
+            function addSkill(value) {
+              const chip = document.createElement('span');
+              chip.dataset.skill = value; chip.textContent = value; tokens.appendChild(chip);
+              document.querySelector('input').value = ''; options.innerHTML = '';
+            }
+          </script>
+        """)
+        profile = {"skills": ["C++", "Python", "LLM", "PyTorch", "React", "SQL"]}
+        job = {"skills": ["Python", "C++ development", "PyTorch", "SQL databases"]}
+        _fill_tokenized_skills(page, profile, job)
+        assert page.locator("#tokens [data-skill]").all_text_contents() == [
+            "C++", "Python", "PyTorch", "SQL",
+        ]
+        browser.close()
+
+
 def test_workday_candidate_home_returns_to_posting_and_reenters_apply_flow():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
@@ -1320,6 +1500,41 @@ def test_button_only_workday_page_reuses_answer_before_clicking_continue():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert page.get_by_text("Submit Application", exact=True).count() == 1
+        browser.close()
+
+
+def test_button_only_workday_page_reports_unresolved_choice_before_continue():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main>
+                <div>Are you currently employed by Intel?*
+                  <button id="question" aria-controls="answers"
+                          onclick="answers.hidden=false">Select One</button>
+                </div>
+                <div id="answers" role="listbox" hidden>
+                  <div role="option">Yes</div><div role="option">No</div>
+                </div>
+                <button data-automation-id="pageFooterNextButton"
+                        onclick="window.continueClicks += 1">Save and Continue</button>
+              </main>
+              <script>window.continueClicks = 0</script>
+            """,
+        ))
+        task = {
+            "job": {"apply_url": "https://example.wd1.myworkdayjobs.com/apply/applyManually"},
+            "profile": {}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected unresolved Workday choice")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "choice_required"
+            assert blocker.question == "Are you currently employed by Intel?*"
+            assert blocker.options == ["Yes", "No"]
+            assert page.evaluate("window.continueClicks") == 0
         browser.close()
 
 
