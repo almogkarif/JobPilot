@@ -3718,7 +3718,7 @@ function renderNotificationCenter() {
   };
   const queueNotices=items.filter(item=>item.queue).map(notificationMarkup).join('');
   const otherNotices=items.filter(item=>!item.queue).map(notificationMarkup).join('');
-  root.innerHTML=queueNotices+tracker+otherNotices||(!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
+  root.innerHTML=tracker+queueNotices+otherNotices||(!tracker?emptyState('✓','הכול מעודכן','אין כרגע פעולות שמחכות לך.'):'');
   const liveTracker=root.querySelector('.application-live-tracker');
   if(liveTracker){liveTracker.insertAdjacentHTML('afterbegin',trackingNavigatorMarkup(applicationTrackingData?.application?.status||''));liveTracker.insertAdjacentHTML('beforeend','<button class="application-diagnostics-copy" type="button" onclick="copyApplicationFailureDiagnostics()">העתק אבחון של ההגשות שלא הושלמו</button>')}
   bindChoiceBlockerButtons(root);

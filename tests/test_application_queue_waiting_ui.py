@@ -44,10 +44,10 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     assert "התור ריק" in js
     assert "actionableItems=items.filter(item=>!item.queue||Number(item.count)>0)" in js
     assert "queueNotices=items.filter(item=>item.queue).map(notificationMarkup).join('')" in js
-    assert "root.innerHTML=queueNotices+tracker+otherNotices" in js
+    assert "root.innerHTML=tracker+queueNotices+otherNotices" in js
     assert "notification-queue-shortcut" in js
     assert ".notification-queue-shortcut" in css
-    assert "position:sticky" in css
+    assert ".notification-queue-shortcut { position:relative" in css
     assert "ירוק מציין הגשה שרצה" in js
     assert "צהוב מציין המתנה או שאלה" in js
     assert "attention:Array.isArray" in js

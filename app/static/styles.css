@@ -2097,7 +2097,7 @@ body.theme-dark .auth-google:hover,body.theme-dark .auth-form input:hover { back
 .notification-center { top:auto; left:auto; right:94px; bottom:20px; max-height:min(620px,calc(100vh - 40px)); background:var(--notice-bg); border-color:var(--notice-border); transform:translate3d(14px,8px,0) scale(.98); transform-origin:bottom right; }
 .notification-center.open { transform:none; }
 .notification-item { background:var(--notice-item-bg); border-color:var(--notice-border); }
-.notification-queue-shortcut { position:sticky; top:-2px; z-index:8; box-shadow:0 8px 18px color-mix(in srgb,var(--ink) 9%,transparent); }
+.notification-queue-shortcut { position:relative; box-shadow:var(--shadow-soft); }
 .notification-item > i,.notification-head button { background:var(--notice-icon-bg); color:var(--notice-icon-ink); }
 .notification-item strong { color:var(--accent-heading); }
 .notification-item > b { color:var(--accent); }
