@@ -27,6 +27,19 @@ def _make_job(client: TestClient, title: str) -> dict:
     return response.json()
 
 
+def _make_ats_job(client: TestClient, title: str, apply_url: str) -> dict:
+    response = client.post(
+        "/api/jobs/import",
+        json={
+            "title": title, "company": f"ATS Test {uuid4().hex[:8]}",
+            "location": "Tel Aviv, Israel", "description": "Junior software role.",
+            "apply_url": apply_url,
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 def test_failure_diagnostics_contains_question_error_attempt_and_timeline():
     with TestClient(app) as client:
         job = _make_job(client, "Diagnostic snapshot engineer")
@@ -790,6 +803,64 @@ def test_captcha_is_exposed_compactly_with_exact_handoff_url_and_can_be_marked_s
         repeated = client.post(f"/api/applications/{application_id}/mark-submitted")
         assert repeated.status_code == 200
         assert repeated.json()["status"] == "submitted"
+
+
+def test_smartrecruiters_datadome_is_manual_required_and_cannot_auto_retry():
+    with TestClient(app) as client:
+        job = _make_ats_job(
+            client, "DataDome blocked engineer",
+            "https://jobs.smartrecruiters.com/oneclick-ui/company/test/publication/test",
+        )
+        application_id, task = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "attempt_id": task["attempt"]["id"],
+                "kind": "captcha", "field_label": "CAPTCHA", "question": "Human verification",
+                "explanation": "DataDome blocked the automated worker",
+                "page_url": job["apply_url"],
+                "diagnostics": {
+                    "evidence": "visible_challenge_frame",
+                    "captcha_frames": [{
+                        "src": "https://geo.captcha-delivery.com/captcha/",
+                        "requires_action": True,
+                    }],
+                },
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["kind"] == "anti_automation_blocked"
+        listed = next(item for item in client.get("/api/applications").json() if item["id"] == application_id)
+        assert listed["status"] == "manual_required"
+        assert listed["blocker"]["page_url"] == job["apply_url"]
+        retry = client.post(f"/api/applications/{application_id}/retry", params={"auto_submit": True})
+        assert retry.status_code == 409
+
+
+def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
+    with TestClient(app) as client:
+        job = _make_ats_job(client, "Comeet blocked engineer", "https://www.comeet.co/jobs/test/apply")
+        application_id, task = _queue_and_claim(client, job)
+        blocked = client.post(
+            f"/api/agent/tasks/{application_id}/blocked",
+            json={
+                "token": "change-me", "attempt_id": task["attempt"]["id"],
+                "kind": "captcha", "field_label": "CAPTCHA", "question": "Invisible reCAPTCHA",
+                "explanation": "Comeet rejected invisible reCAPTCHA with HTTP 423",
+                "page_url": job["apply_url"],
+                "diagnostics": {
+                    "invisible_recaptcha_rejected": True,
+                    "hosted_responses": [{"status": 423}],
+                },
+            },
+        )
+        assert blocked.status_code == 200, blocked.text
+        assert blocked.json()["kind"] == "anti_automation_blocked"
+        with SessionLocal() as db:
+            stored = db.get(Application, application_id)
+            assert stored.status == "manual_required"
+            assert stored.attempt_count == 1
+        assert client.post(f"/api/applications/{application_id}/retry", params={"auto_submit": True}).status_code == 409
 
 
 def test_final_review_can_be_skipped_without_returning_to_queue():

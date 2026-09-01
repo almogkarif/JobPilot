@@ -3889,7 +3889,7 @@ async def retry_application(
     if application.status == "manual_required" or any(
         blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
     ):
-        raise HTTPException(409, "Ashby חסם את ההגשה האוטומטית כחשודה בספאם. יש לפתוח את הטופס ולהגיש ידנית.")
+        raise HTTPException(409, "האתר חסם את ההגשה האוטומטית. יש לפתוח את הטופס ולהשלים ידנית.")
     pause = automatic_submission_pause(db, application.job)
     if auto_submit and pause:
         raise HTTPException(409, pause["message"])
@@ -5551,6 +5551,32 @@ def skill_suggestions(text: str = Query("", max_length=20_000), db: Session = De
     return {"suggestions": get_skill_suggestions(text, current)}
 
 
+def _deterministic_ats_anti_automation_block(application: Application, payload: AgentBlockerRequest) -> bool:
+    """Recognize proven ATS anti-bot outcomes, including reports from older workers."""
+    adapter = detect_adapter(
+        application.job.apply_url,
+        application.job.source.kind if application.job.source else "",
+    ).key
+    diagnostics = payload.diagnostics if isinstance(payload.diagnostics, dict) else {}
+    if payload.kind not in {"captcha", "anti_automation_blocked"}:
+        return False
+    if adapter == "comeet":
+        return bool(diagnostics.get("invisible_recaptcha_rejected")) or any(
+            int(item.get("status") or 0) == 423
+            for item in diagnostics.get("hosted_responses", []) if isinstance(item, dict)
+        )
+    if adapter == "smartrecruiters":
+        frames = diagnostics.get("captcha_frames", [])
+        return bool(diagnostics.get("anti_automation_blocked")) or (
+            diagnostics.get("evidence") == "visible_challenge_frame"
+            and any(
+                item.get("requires_action") and "captcha-delivery.com" in str(item.get("src") or "")
+                for item in frames if isinstance(item, dict)
+            )
+        )
+    return False
+
+
 @app.post("/api/agent/tasks/{application_id}/blocked")
 async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
@@ -5559,21 +5585,22 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
-    anti_automation_blocked = classify_ashby_spam_block(
+    ashby_spam_blocked = classify_ashby_spam_block(
         job=application.job, kind=payload.kind, question=payload.question, explanation=payload.explanation,
     )
+    anti_automation_blocked = ashby_spam_blocked or _deterministic_ats_anti_automation_block(application, payload)
     effective_kind = ASHBY_SPAM_BLOCKER_KIND if anti_automation_blocked else payload.kind
     existing = db.scalar(select(Blocker).where(Blocker.application_id == application_id, Blocker.status == "open"))
     if existing:
         existing.kind = effective_kind
         existing.field_label = payload.field_label
         existing.question = (
-            "Ashby חסם את ההגשה האוטומטית" if anti_automation_blocked else payload.question
+            "Ashby חסם את ההגשה האוטומטית" if ashby_spam_blocked else payload.question
         )
         existing.explanation = (
             "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
             "יש לפתוח את הטופס ולהגיש ידנית. " + str(payload.explanation or "").strip()
-            if anti_automation_blocked else payload.explanation
+            if ashby_spam_blocked else payload.explanation
         ).strip()
         existing.options_json = dumps(payload.options)
         existing.screenshot_path = payload.screenshot_path
@@ -5582,11 +5609,11 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     else:
         blocker = Blocker(
             application_id=application_id, kind=effective_kind, field_label=payload.field_label,
-            question="Ashby חסם את ההגשה האוטומטית" if anti_automation_blocked else payload.question,
+            question="Ashby חסם את ההגשה האוטומטית" if ashby_spam_blocked else payload.question,
             explanation=(
                 "Ashby סימן את ההגשה האוטומטית כחשודה בספאם. JobPilot לא ינסה שוב אוטומטית; "
                 "יש לפתוח את הטופס ולהגיש ידנית. " + str(payload.explanation or "").strip()
-                if anti_automation_blocked else payload.explanation
+                if ashby_spam_blocked else payload.explanation
             ).strip(),
             options_json=dumps(payload.options), screenshot_path=payload.screenshot_path, page_url=payload.page_url,
         )
@@ -5650,7 +5677,7 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     )
     details = {"attempt_id": attempt.id if attempt else None, "kind": effective_kind,
                "page_url": payload.page_url, "diagnostics": payload.diagnostics}
-    pause = automatic_submission_pause(db, application.job) if anti_automation_blocked else None
+    pause = automatic_submission_pause(db, application.job) if ashby_spam_blocked else None
     if pause:
         details["automatic_pause_until"] = pause["until"].isoformat()
     _record_application_event(

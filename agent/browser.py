@@ -24,7 +24,7 @@ SUCCESS_TERMS = [
 ]
 APPLY_START_TERMS = [
     "apply", "apply now", "apply for this job", "apply for job", "apply to this job", "start application",
-    "apply manually", "autofill with resume", "use my last application",
+    "apply manually", "continue application", "autofill with resume", "use my last application",
     "הגש מועמדות", "להגשת מועמדות", "התחל הגשה",
 ]
 NAVIGATION_TERMS = ["next", "continue", "save and continue", "review application", "המשך", "לשלב הבא"]
@@ -116,6 +116,14 @@ def ensure_supported(url: str) -> None:
         )
 
 
+def _is_workday_application_page_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return (
+        "myworkdayjobs.com" in (parsed.hostname or "").casefold()
+        and any(segment.casefold() == "apply" for segment in parsed.path.split("/") if segment)
+    )
+
+
 def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None,
                      security_code_provider: Callable[[], str] | None = None) -> dict:
     job = task["job"]
@@ -137,7 +145,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     visited_steps: dict[tuple, int] = {}
     sign_in_opened = False
     sign_in_submitted = False
+    sign_in_pending_checks = 0
     creating_account = False
+    workday_context_restores = 0
+    canonical_workday_job_url = (
+        job["apply_url"] if "myworkdayjobs.com" in (urlparse(job["apply_url"]).hostname or "").casefold() else ""
+    )
     # Workday commonly needs an account/sign-in round trip plus six application
     # pages. React re-renders can consume an extra pass between pages, so ten
     # iterations can stop a healthy application immediately before Review.
@@ -153,7 +166,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         _dismiss_cookie_banner(page)
         _expand_workday_profile_sections(page, profile)
         fields = _wait_for_application_ui(page)
-        is_application_path = "/apply" in urlparse(page.url).path.casefold()
+        is_application_path = _is_workday_application_page_url(page.url) or (
+            "myworkdayjobs.com" not in current_host and "/apply" in urlparse(page.url).path.casefold()
+        )
         # Authenticated Workday posting pages can expose account chrome fields
         # (Email/Password) alongside the job-level Apply button. Those fields do
         # not mean that the application form has started; always enter the
@@ -192,6 +207,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 sign_in_submitted = False
                 creating_account = True
                 continue
+            if not any(normalize(term) in body_text for term in AUTH_FAILURE_TERMS):
+                # Workday commonly leaves the old password form mounted while the
+                # authentication request and SPA redirect are still in flight.
+                # Give the page a bounded opportunity to reach Candidate Home or
+                # the application before treating unchanged controls as a failure.
+                sign_in_pending_checks += 1
+                if sign_in_pending_checks < 4:
+                    page.wait_for_timeout(750)
+                    continue
             raise ApplicationBlocked(
                 "sign_in_failed", "כניסה לחשבון", "לא הצלחנו להיכנס לחשבון הקיים",
                 "הסוכן ניסה קודם Sign In. האתר לא אישר שאין חשבון, ולכן הוא לא יצר חשבון חדש ללא אישורך.",
@@ -260,6 +284,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 _click_action(page, progression_button)
                 continue
             if _workday_application_context_lost(page):
+                if canonical_workday_job_url and workday_context_restores < 1:
+                    workday_context_restores += 1
+                    page.goto(canonical_workday_job_url, wait_until="domcontentloaded", timeout=60_000)
+                    page.wait_for_timeout(1_000)
+                    continue
                 raise ApplicationBlocked(
                     "application_context_lost", "הקשר המשרה ב־Workday",
                     "Workday החזיר את החשבון ל־Candidate Home",
@@ -667,7 +696,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     int(item.get("status") or 0) == 423 for item in hosted_submit_responses
                 )
                 raise ApplicationBlocked(
-                    "captcha" if comeet_recaptcha_blocked else
+                    "anti_automation_blocked" if comeet_recaptcha_blocked else
                     "anti_automation_blocked" if anti_automation_blocked else "submit_rejected",
                     "CAPTCHA" if comeet_recaptcha_blocked else
                     "הגשה ידנית" if anti_automation_blocked else "שליחת המועמדות",
@@ -1078,10 +1107,11 @@ def _detect_captcha(page: Page) -> None:
     # copy or a visible challenge frame is a safe handoff signal.
     if body_requires_action or frame_requires_action:
         host = (urlparse(page.url).hostname or "").casefold()
-        if host == "jobs.smartrecruiters.com" and any(
+        smartrecruiters_datadome = host == "jobs.smartrecruiters.com" and any(
             "captcha-delivery.com" in str(item.get("src") or "") and item.get("requires_action")
             for item in frame_diagnostics
-        ):
+        )
+        if smartrecruiters_datadome:
             explanation = (
                 "SmartRecruiters/DataDome חסם את דפדפן ה-worker האוטומטי. "
                 "בדפדפן רגיל הטופס עשוי להיפתח בלי CAPTCHA; זו חסימת anti-bot של האוטומציה, "
@@ -1090,13 +1120,15 @@ def _detect_captcha(page: Page) -> None:
         else:
             explanation = "האתר הציג CAPTCHA פעיל או בדיקת אנושיות שדורשת פעולה. הסוכן לא ינסה לעקוף אותה."
         raise ApplicationBlocked(
-            "captcha", "CAPTCHA", "נדרש אימות אנושי",
+            "anti_automation_blocked" if smartrecruiters_datadome else "captcha",
+            "CAPTCHA", "נדרש אימות אנושי",
             explanation,
             page.url, diagnostics={
                 "body_action_term": matched_body_term,
                 "passive_datadome_scripts": int(passive_datadome_scripts or 0),
                 "captcha_frames": frame_diagnostics[:8],
                 "evidence": "body_text" if body_requires_action else "visible_challenge_frame",
+                "anti_automation_blocked": smartrecruiters_datadome,
             },
         )
 
@@ -1800,11 +1832,25 @@ def _wait_for_application_ui(page: Page, timeout_ms: int = 30_000) -> list[dict]
     """Wait for client-rendered ATS pages instead of treating their loader as the final page."""
     deadline_steps = max(1, timeout_ms // 750)
     fields: list[dict] = []
+    workday_field_only_checks = 0
     for _ in range(deadline_steps):
         fields = _extract_fields(page)
         if any(field.get("visible") and not field.get("disabled") for field in fields):
-            return fields
+            is_workday = "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+            if not is_workday or "/apply/" in urlparse(page.url).path.casefold():
+                return fields
+            # Posting/Candidate Home chrome can mount Email/Password before the
+            # job-specific Apply or Continue action. Do not snapshot that partial
+            # render as the final page state.
+            workday_field_only_checks += 1
+            if workday_field_only_checks >= 3:
+                return fields
         if _find_action(page, APPLY_START_TERMS + NAVIGATION_TERMS + SIGN_IN_TERMS + CREATE_ACCOUNT_TERMS + SUBMIT_TERMS):
+            return fields
+        if (
+            "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+            and page.locator('[data-automation-id="navigationItem-Candidate Home"]:visible').count()
+        ):
             return fields
         page.wait_for_timeout(750)
         _dismiss_cookie_banner(page)
@@ -1837,12 +1883,14 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
     if "apply" in normalized_terms or "apply now" in normalized_terms:
         workday_selectors.extend([
             '[data-automation-id="applyButton"]',
+            '[data-automation-id="adventureButton"]',
             '[data-qa="applyButton"]',
         ])
-    if "continue" in normalized_terms or "next" in normalized_terms:
+    if any(term in normalized_terms for term in {"continue", "continue application", "next"}):
         workday_selectors.extend([
             '[data-automation-id="bottom-navigation-next-button"]',
             '[data-automation-id="pageFooterNextButton"]',
+            '[data-automation-id="continueButton"]',
         ])
     for selector in workday_selectors:
         candidate = page.locator(selector).first

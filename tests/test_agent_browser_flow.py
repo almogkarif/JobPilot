@@ -17,6 +17,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _enter_comeet_embedded_form, _toggle_custom_checkbox,
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
+                           _is_workday_application_page_url,
                            _workday_national_phone,
                            _workday_custom_control_label,
                            _workday_application_context_lost,
@@ -126,7 +127,8 @@ def test_smartrecruiters_datadome_handoff_explains_worker_only_antibot_block():
             _detect_captcha(page)
             raise AssertionError("Expected a DataDome handoff")
         except ApplicationBlocked as blocker:
-            assert blocker.kind == "captcha"
+            assert blocker.kind == "anti_automation_blocked"
+            assert blocker.diagnostics["anti_automation_blocked"] is True
             assert "חסם את דפדפן ה-worker האוטומטי" in blocker.explanation
             assert "בדפדפן רגיל" in blocker.explanation
         browser.close()
@@ -1082,6 +1084,37 @@ def test_workday_posting_clicks_apply_even_when_account_fields_are_visible():
         browser.close()
 
 
+def test_workday_visible_continue_application_reenters_target_flow():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main id="screen">
+                <label>Email<input type="email"></label>
+                <button data-automation-id="continueButton" onclick="showForm()">Continue Application</button>
+              </main>
+                <script>
+                  function showForm() {
+                  document.querySelector('#screen').innerHTML='<label>Phone Number<input type="tel"></label><button type="submit">Submit Application</button>';
+                  }
+              </script>
+            """,
+        ))
+        task = {
+            "job": {"title": "Engineer", "apply_url": "https://example.wd1.myworkdayjobs.com/job/Engineer"},
+            "profile": {"email": "candidate@example.com", "phone": "0501234567"},
+            "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected final review handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.get_by_text("Submit Application", exact=True).count() == 1
+        browser.close()
+
+
 def test_workday_candidate_home_without_job_actions_is_context_lost():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
@@ -1105,6 +1138,80 @@ def test_workday_candidate_home_without_job_actions_is_context_lost():
           <button data-automation-id="applyButton">Apply</button>
         """)
         assert _workday_application_context_lost(page) is False
+        browser.close()
+
+
+def test_workday_application_url_variants_are_classified_deterministically():
+    assert _is_workday_application_page_url(
+        "https://tenant.wd1.myworkdayjobs.com/External/job/Israel/Engineer_REQ"
+    ) is False
+    assert _is_workday_application_page_url(
+        "https://tenant.wd1.myworkdayjobs.com/External/job/Israel/Engineer_REQ/apply"
+    ) is True
+    assert _is_workday_application_page_url(
+        "https://tenant.wd1.myworkdayjobs.com/en-US/External/job/Israel%2C-Haifa/Engineer_REQ/apply/applyManually"
+    ) is True
+    assert _is_workday_application_page_url("https://example.com/apply") is False
+
+
+def test_workday_explicit_invalid_credentials_are_deterministic_sign_in_failure():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main id="screen">
+                <label>Email<input type="email"></label>
+                <label>Password<input type="password"></label>
+                <button data-automation-id="signInSubmitButton" onclick="fail()">Sign In</button>
+              </main>
+              <script>function fail(){document.body.insertAdjacentHTML('beforeend','<p>Invalid username or password</p>')}</script>
+            """,
+        ))
+        task = {
+            "job": {"title": "Engineer", "apply_url": "https://example.wd1.myworkdayjobs.com/job/Engineer/apply/applyManually"},
+            "profile": {"email": "candidate@example.com", "application_password": "test-only-password"},
+            "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected sign-in blocker")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "sign_in_failed"
+        browser.close()
+
+
+def test_workday_candidate_home_restores_the_canonical_job_once():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        loads = {"count": 0}
+
+        def serve(route):
+            loads["count"] += 1
+            if loads["count"] == 1:
+                body = """
+                  <main id="screen"><button data-automation-id="adventureButton" onclick="loseContext()">Apply</button></main>
+                  <script>function loseContext(){document.querySelector('#screen').innerHTML='<button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>'}</script>
+                """
+            else:
+                body = """
+                  <main id="screen"><button data-automation-id="adventureButton" onclick="showForm()">Apply</button></main>
+                  <script>function showForm(){document.querySelector('#screen').innerHTML='<input aria-label="Optional note"><button type="submit">Submit Application</button>'}</script>
+                """
+            route.fulfill(content_type="text/html", body=body)
+
+        page.route("https://example.wd1.myworkdayjobs.com/**", serve)
+        task = {
+            "job": {"title": "Engineer", "apply_url": "https://example.wd1.myworkdayjobs.com/job/Engineer"},
+            "profile": {}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("Expected final review handoff")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert loads["count"] == 2
         browser.close()
 
 
