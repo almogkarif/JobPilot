@@ -330,3 +330,93 @@ Do not discard user changes in order to obtain a clean working tree.
 A direct instruction from the user for the current task overrides these project defaults.
 
 When an explicit current-task instruction conflicts with this file, follow the user's instruction unless doing so would be unsafe or technically impossible.
+
+---
+
+## Ruflo Orchestration
+
+Ruflo MCP is available for orchestration, persistent project memory,
+specialized agents, and multi-agent coordination.
+
+### When to use Ruflo
+
+For trivial or highly local tasks, work directly without initializing a swarm.
+
+Examples:
+- wording/text changes
+- tiny CSS adjustments
+- obvious one-file fixes
+- simple configuration edits
+
+For non-trivial tasks, use Ruflo orchestration.
+
+A task is non-trivial when it involves one or more of:
+- multiple files or subsystems
+- backend + frontend coordination
+- database/model/schema changes
+- ranking/scanning/application pipelines
+- authentication or authorization
+- concurrency/background jobs
+- migrations
+- significant refactoring
+- debugging with an unclear root cause
+- regression-sensitive changes
+- changes requiring substantial test coverage
+
+### Swarm configuration
+
+For non-trivial tasks:
+
+1. Search Ruflo memory for relevant prior project knowledge before planning.
+2. Initialize a Ruflo swarm with:
+   - topology: hierarchical-mesh
+   - strategy: specialized
+   - maximum agents: 4
+3. Spawn only the agents actually useful for the task.
+4. Prefer specialized roles such as:
+   - architect/planner
+   - implementer
+   - tester
+   - reviewer
+5. Do not spawn agents merely to reach the maximum.
+
+The 4-agent value is a hard upper bound, not a target.
+
+### Execution rules
+
+- Define success criteria before implementation.
+- Let agents investigate in parallel when their work is genuinely independent.
+- Avoid having multiple agents make overlapping edits to the same code unnecessarily.
+- Keep implementation ownership clear.
+- Use a tester/reviewer for non-trivial changes before declaring completion.
+- Run the relevant automated tests.
+- For broad or regression-sensitive changes, run the full test suite when practical.
+- Do not declare success solely because implementation agents finished.
+- Resolve test or review findings before completion.
+
+### Ruflo memory
+
+Use Ruflo memory selectively.
+
+Before substantial work:
+- search for relevant prior decisions, fixes, patterns, and known pitfalls.
+
+After substantial verified work:
+- store concise reusable knowledge such as:
+  - architectural decisions
+  - root causes of difficult bugs
+  - important project-specific conventions
+  - approaches that were verified to work
+  - approaches that failed and should not be repeated
+
+Do not store transient chatter, raw logs, secrets, credentials, or large code dumps.
+
+### Failure behavior
+
+If Ruflo, swarm initialization, memory, or an agent fails:
+- report the failure clearly,
+- continue directly with Codex when safe,
+- do not pretend multi-agent verification happened when it did not.
+
+For destructive, security-sensitive, deployment, or data-migration operations,
+do not rely solely on agent consensus; explicitly verify the operation and its impact.

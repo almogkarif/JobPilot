@@ -14,3 +14,27 @@ data/documents/*
 agent/browser-profile/
 
 .DS_Store
+
+# Ruflo local secrets and runtime data
+.env.local
+.env.*.local
+
+# Claude-specific Ruflo setup (Codex is the project host)
+.claude/
+CLAUDE.md
+.mcp.json
+
+# Ruflo runtime / persistent local memory
+.swarm/
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db
+
+# Ruflo runtime state
+.claude-flow/*
+!.claude-flow/.gitignore
+!.claude-flow/config.yaml
+
+# Local model / embedding state
+.claude-flow/models/
+.claude-flow/embeddings.json
