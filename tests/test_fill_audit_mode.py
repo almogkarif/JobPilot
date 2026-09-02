@@ -49,6 +49,12 @@ def test_fill_audit_button_and_explicit_review_approval_are_exposed():
     assert "resolveBlockerAction(${blocker.id},'approve_submit')" in javascript
 
 
+def test_interactive_worker_keeps_cdp_connected_for_manual_submit():
+    source = open("agent/run_agent.py", encoding="utf-8").read()
+    assert "if INTERACTIVE_BROWSER:" in source
+    assert "time.sleep(max(1, INTERACTIVE_SESSION_SECONDS))" in source
+
+
 def test_fill_audit_dispatches_interactive_cloud_browser(monkeypatch):
     dispatched = []
     monkeypatch.setattr(

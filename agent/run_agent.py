@@ -354,6 +354,13 @@ def main():
                 if task:
                     run_task(context, task)
                     if RUN_ONCE:
+                        if INTERACTIVE_BROWSER:
+                            print(
+                                f"[live view] keeping Browserbase connected for "
+                                f"{INTERACTIVE_SESSION_SECONDS} seconds",
+                                flush=True,
+                            )
+                            time.sleep(max(1, INTERACTIVE_SESSION_SECONDS))
                         break
                 else:
                     if RUN_ONCE:
