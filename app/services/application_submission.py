@@ -25,7 +25,10 @@ class ATSAdapter:
 
 
 ADAPTERS = {
-    "wix": ATSAdapter("wix", "Wix Careers", notes="טופס הגשה ישיר בעמוד אחד לאחר לחיצה על Apply."),
+    "wix": ATSAdapter(
+        "wix", "Wix Careers", execution="manual_only", supports_automatic_submit=False,
+        notes="הטופס קצר, אך SmartRecruiters/DataDome חוסם דפדפני אוטומציה ולכן נדרשת הגשה ידנית.",
+    ),
     "greenhouse": ATSAdapter("greenhouse", "Greenhouse", notes="טופס מועמדות ציבורי; נשמר fallback לדפדפן במקרה של שדות מותאמים."),
     "comeet": ATSAdapter("comeet", "Comeet", notes="טופס ישראלי נפוץ עם שאלות מותאמות לפי חברה."),
     "lever": ATSAdapter("lever", "Lever", notes="טופס מועמדות ציבורי עם מבנה עקבי יחסית."),

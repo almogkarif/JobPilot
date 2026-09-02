@@ -2,7 +2,7 @@ import shutil
 
 from playwright.sync_api import sync_playwright
 
-from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
+from agent.browser import (APPLY_START_TERMS, ApplicationBlocked, _body_text_requires_captcha_action, _display_field_label,
                            _attach_file_to_field,
                            _best_visible_option, _extract_fields, _external_application_id_from_url,
                            _detect_captcha,
@@ -31,7 +31,7 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
                            _safe_hosted_response_diagnostics,
-                           _job_city_candidate,
+                           _job_city_candidate, _find_action,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
                            _lever_visible_submission_error, _small_choice_options, fill_application)
 from app.services.application_submission import lever_confirmation_from_url
@@ -137,6 +137,21 @@ def test_smartrecruiters_datadome_handoff_explains_worker_only_antibot_block():
             assert blocker.diagnostics["anti_automation_blocked"] is True
             assert "חסם את דפדפן ה-worker האוטומטי" in blocker.explanation
             assert "בדפדפן רגיל" in blocker.explanation
+        browser.close()
+
+
+def test_apply_start_ignores_social_provider_and_chooses_direct_form():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <button>Apply with Indeed</button>
+          <button>Apply with LinkedIn</button>
+          <button id="direct">Apply manually</button>
+        """)
+        action = _find_action(page, APPLY_START_TERMS)
+        assert action is not None
+        assert action.get_attribute("id") == "direct"
         browser.close()
 
 def test_cybersecurity_job_description_is_not_mistaken_for_captcha():

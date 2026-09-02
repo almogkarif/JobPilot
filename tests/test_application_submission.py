@@ -71,6 +71,7 @@ def test_timeline_reconciles_existing_pending_lever_confirmation_url():
 
 def test_detects_supported_ats_families_without_trusting_company_names():
     assert detect_adapter("https://careers.wix.com/position/REF123-7440001").key == "wix"
+    assert detect_adapter("https://careers.wix.com/position/REF123-7440001").supports_automatic_submit is False
     assert detect_adapter("https://boards.greenhouse.io/acme/jobs/123").key == "greenhouse"
     assert detect_adapter("https://www.comeet.com/jobs/acme/123").key == "comeet"
     assert detect_adapter("https://jobs.lever.co/acme/123").key == "lever"

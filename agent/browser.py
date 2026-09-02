@@ -2173,6 +2173,7 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
               const elements = [...document.querySelectorAll(
                 'a, button, [role="button"], input[type="button"], input[type="submit"], [data-automation-id]'
               )];
+              const isApplySearch = terms.some((term) => ['apply', 'apply now', 'apply for this job', 'apply to this job'].includes(term));
               const match = elements.find((el) => {
                 const style = getComputedStyle(el);
                 const rect = el.getBoundingClientRect();
@@ -2183,6 +2184,14 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
                 const text = normalize(nativeAction
                   ? [el.innerText, el.value, el.getAttribute('aria-label')].filter(Boolean).join(' ')
                   : automationId);
+                // SmartRecruiters one-click pages (including Wix) render direct
+                // application and Indeed/LinkedIn social-import actions together.
+                // A broad "apply" match must never choose an external identity
+                // provider: it leaves the employer form and can trigger an account
+                // login instead of filling the application.
+                if (isApplySearch && /(?:apply|continue|sign in|log in)(?: using| with)? (?:indeed|linkedin|google|apple)/.test(text)) {
+                  return false;
+                }
                 return text && terms.some((term) => term === text || text.includes(term));
               });
               if (!match) return '';

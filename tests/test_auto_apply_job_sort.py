@@ -102,7 +102,7 @@ def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
                     db.commit()
 
 
-def test_auto_apply_sort_prefers_wix_single_page_form_over_workday():
+def test_auto_apply_sort_excludes_wix_despite_its_single_page_form():
     token = uuid4().hex
     with TestClient(app):
         with SessionLocal() as db:
@@ -130,7 +130,7 @@ def test_auto_apply_sort_prefers_wix_single_page_form_over_workday():
                 priorities = dict(db.execute(select(Job.id, _automatic_submit_sort_order()).where(
                     Job.id.in_((wix.id, workday.id))
                 )).all())
-                assert priorities[wix.id] == 2
+                assert priorities[wix.id] == 0
                 assert priorities[workday.id] == 1
             finally:
                 db.delete(wix)
