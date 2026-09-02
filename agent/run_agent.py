@@ -191,14 +191,19 @@ def run_task(context, task: dict):
     attempt_id = (task.get("attempt") or {}).get("id")
     existing_pages = getattr(context, "pages", [])
     anchor = existing_pages[0] if existing_pages else context.new_page()
-    try:
-        with context.expect_page(timeout=5000) as page_info:
-            anchor.evaluate("window.open('about:blank', '_blank')")
-        page = page_info.value
-    except Exception:
-        # Chromium normally opens window.open without dimensions as a tab. The
-        # context fallback still keeps the same persistent browser session.
-        page = context.new_page()
+    if INTERACTIVE_BROWSER:
+        # Browserbase live-view URLs are tab-specific. Drive the initial tab that
+        # was published to the user instead of opening an invisible second tab.
+        page = anchor
+    else:
+        try:
+            with context.expect_page(timeout=5000) as page_info:
+                anchor.evaluate("window.open('about:blank', '_blank')")
+            page = page_info.value
+        except Exception:
+            # Chromium normally opens window.open without dimensions as a tab. The
+            # context fallback still keeps the same persistent browser session.
+            page = context.new_page()
     if hasattr(page, "bring_to_front"):
         page.bring_to_front()
     screenshot_path = ""
@@ -340,11 +345,12 @@ def main():
                 user_data_dir=str(BROWSER_PROFILE), headless=HEADLESS,
                 viewport={"width": 1440, "height": 1000}, locale="en-US",
             )
-        control_page = context.pages[0] if context.pages else context.new_page()
-        control_page.set_content(
-            "<html dir='rtl'><title>JobPilot Agent</title><body style='font-family:system-ui;padding:40px'>"
-            "<h1>JobPilot Agent פעיל</h1><p>כל משרה תיפתח כלשונית נוספת בחלון הזה.</p></body></html>"
-        )
+        if not INTERACTIVE_BROWSER:
+            control_page = context.pages[0] if context.pages else context.new_page()
+            control_page.set_content(
+                "<html dir='rtl'><title>JobPilot Agent</title><body style='font-family:system-ui;padding:40px'>"
+                "<h1>JobPilot Agent פעיל</h1><p>כל משרה תיפתח כלשונית נוספת בחלון הזה.</p></body></html>"
+            )
         while True:
             try:
                 response = api("GET", "/api/agent/tasks/next", params={

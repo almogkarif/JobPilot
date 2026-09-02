@@ -55,6 +55,13 @@ def test_interactive_worker_keeps_cdp_connected_for_manual_submit():
     assert "time.sleep(max(1, INTERACTIVE_SESSION_SECONDS))" in source
 
 
+def test_interactive_worker_drives_the_live_view_tab_instead_of_a_hidden_second_tab():
+    source = open("agent/run_agent.py", encoding="utf-8").read()
+    assert "if INTERACTIVE_BROWSER:" in source
+    assert "page = anchor" in source
+    assert "if not INTERACTIVE_BROWSER:" in source
+
+
 def test_fill_audit_dispatches_interactive_cloud_browser(monkeypatch):
     dispatched = []
     monkeypatch.setattr(
