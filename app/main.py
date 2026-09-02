@@ -3087,6 +3087,12 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         if selected_resume:
             application.resume_id = selected_resume.id
             application.resume_path = selected_resume.path
+    if payload.mode == "audit":
+        answers = loads(application.answers_json, {})
+        # A Browserbase debugger URL belongs to one short-lived session. Never
+        # let a retry return a disconnected URL from the previous attempt.
+        answers.pop(LIVE_VIEW_URL_KEY, None)
+        application.answers_json = dumps(answers)
     if payload.approve_submit:
         answers = loads(application.answers_json, {})
         answers[ONE_TIME_SUBMIT_KEY] = True

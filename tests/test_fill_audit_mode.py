@@ -96,6 +96,23 @@ def test_interactive_worker_publishes_private_live_view_for_application_owner(mo
     assert ready.json() == {"ready": True, "url": "https://www.browserbase.com/live/test"}
 
 
+def test_retrying_interactive_application_does_not_reuse_expired_live_view(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        job = _make_job(client, "Fresh Live View Engineer")
+        first = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"}).json()
+        client.post(
+            f"/api/agent/tasks/{first['id']}/live-view",
+            headers={"X-JobPilot-Agent-Token": "change-me"},
+            json={"agent_id": "browserbase-test", "url": "https://www.browserbase.com/live/expired"},
+        )
+        retried = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        live_view = client.get(f"/api/applications/{first['id']}/live-view")
+
+    assert retried.status_code == 200, retried.text
+    assert live_view.json() == {"ready": False, "url": ""}
+
+
 def test_fill_audit_stops_then_explicit_approval_dispatches_one_submit_attempt(monkeypatch):
     dispatched = []
     interactive_dispatched = []

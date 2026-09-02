@@ -77,6 +77,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Install headless Chromium
+        if: ${{ inputs.interactive != true }}
         run: python -m playwright install --with-deps chromium
 
       - name: Requeue the selected stopped application

@@ -135,6 +135,7 @@ def test_application_workflow_is_headless_one_shot_and_uses_repository_secrets()
     assert "JOBPILOT_RUN_ONCE: 'true'" in workflow
     assert "BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}" in workflow
     assert "JOBPILOT_INTERACTIVE_BROWSER: ${{ inputs.interactive }}" in workflow
+    assert "if: ${{ inputs.interactive != true }}" in workflow
     assert "python -m agent.run_agent" in workflow
     assert "group: jobpilot-application-${{ inputs.application_id }}" in workflow
     assert "group: jobpilot-application-worker" not in workflow
