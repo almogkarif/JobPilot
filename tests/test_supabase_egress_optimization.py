@@ -20,6 +20,15 @@ from app.services.ranking.service import (
 import app.main as main_module
 
 
+def test_interactive_live_view_polling_is_bounded_and_payload_is_tiny():
+    javascript = (main_module.STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    polling = javascript[javascript.index("async function openInteractiveLiveView"):]
+    polling = polling[:polling.index("\n}") + 2]
+    assert "attempt < 45" in polling
+    assert "setTimeout(resolve, 2000)" in polling
+    assert '/live-view`' in polling
+
+
 def _isolated_session_factory():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)

@@ -16,6 +16,13 @@ def dispatch_application_workflow(application_id: int) -> None:
     )
 
 
+def dispatch_interactive_application_workflow(application_id: int) -> None:
+    _dispatch_workflow(
+        str(settings.github_application_workflow or "jobpilot-application.yml"),
+        {"application_id": str(application_id), "interactive": "true"},
+    )
+
+
 def _dispatch_workflow(workflow: str, inputs: dict[str, str]) -> None:
     token = str(settings.github_actions_token or "").strip()
     repository = str(settings.github_repository or "").strip().strip("/")

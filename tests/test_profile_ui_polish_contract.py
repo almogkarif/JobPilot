@@ -52,8 +52,28 @@ def test_profile_contact_and_section_layout_is_compact_and_unambiguous():
 def test_profile_citizenships_are_saved_as_a_normalized_list_without_duplicating_gender():
     assert "'phone_country_code', 'phone_extension', 'citizenships'" in JS
     assert "function normalizeCitizenships(value)" in JS
-    assert "return [name, normalizeCitizenships(form.elements[field]?.value)]" in JS
+    assert "return [name, selectedCitizenships(form.elements[field])]" in JS
     assert 'name="extra_gender"' not in HTML
+
+
+def test_israel_contact_defaults_and_scrollable_citizenship_picker_are_exposed():
+    assert 'name="extra_phone_country_code" inputmode="tel" aria-label="קידומת טלפון" value="+972"' in HTML
+    assert 'select name="extra_citizenships" multiple size="7"' in HTML
+    assert "renderCitizenshipOptions(profile.application_profile?.citizenships?.length" in JS
+    assert "['Citizen (Israel)']" in JS
+    assert 'select[name="extra_citizenships"]{min-height:150px;overflow-y:auto' in CSS
+
+
+def test_profile_completion_reports_missing_common_questions_as_one_summary_item():
+    assert "unansweredCommonQuestions.length === 1" in JS
+    assert "שאלה נפוצה: ${unansweredCommonQuestions[0].title}" in JS
+    assert "${unansweredCommonQuestions.length} שאלות בשאלות הנפוצות" in JS
+
+
+def test_job_details_modal_exposes_fill_audit_action_without_submit():
+    assert "<strong>אני רוצה לראות את הסוכן מגיש</strong>" in JS
+    assert "ישאיר את עמוד Review פתוח ואתה תלחץ בעצמך על Submit" in JS
+    assert "queueJob(${job.id},'audit',Number(document.querySelector('#job-resume-select')?.value)||null)" in JS
 
 
 def test_negative_experience_preferences_are_semantically_clear_not_red_selected_cards():

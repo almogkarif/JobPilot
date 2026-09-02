@@ -12,6 +12,9 @@ POLL_SECONDS = int(os.getenv("JOBPILOT_POLL_SECONDS", "15"))
 TASK_TIMEOUT_SECONDS = int(os.getenv("JOBPILOT_TASK_TIMEOUT_SECONDS", "180"))
 RUN_ONCE = os.getenv("JOBPILOT_RUN_ONCE", "false").lower() == "true"
 APPLICATION_ID = int(os.getenv("JOBPILOT_APPLICATION_ID", "0") or 0)
+BROWSERBASE_API_KEY = os.getenv("BROWSERBASE_API_KEY", "").strip()
+INTERACTIVE_BROWSER = os.getenv("JOBPILOT_INTERACTIVE_BROWSER", "false").lower() == "true"
+INTERACTIVE_SESSION_SECONDS = int(os.getenv("JOBPILOT_INTERACTIVE_SESSION_SECONDS", "900"))
 BROWSER_PROFILE = Path(os.getenv("JOBPILOT_BROWSER_PROFILE", str(ROOT / "agent" / "browser-profile")))
 SCREENSHOT_DIR = ROOT / "data" / "screenshots"
 AGENT_CACHE_DIR = ROOT / "data" / "agent-cache"

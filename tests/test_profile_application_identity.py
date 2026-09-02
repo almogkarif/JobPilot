@@ -56,3 +56,13 @@ def test_profile_patch_persists_identity_fields_without_replacing_other_applicat
                 **client.get("/api/profile").json(),
                 "application_profile": before,
             })
+
+
+def test_profile_api_exposes_israel_application_defaults_when_not_saved_yet():
+    with TestClient(app) as client:
+        profile = client.get("/api/profile").json()
+
+    application_profile = profile["application_profile"]
+    assert application_profile["country"] == "Israel"
+    assert application_profile["phone_country_code"] == "+972"
+    assert application_profile["citizenships"] == ["Citizen (Israel)"]

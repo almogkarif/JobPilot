@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 from app.utils import split_name
 from app.application_questions import match_question_category
+from app.services.application_policy import intel_question_memory_pattern
 from app.services.degree_requirements import normalize_degree_level
 
 
@@ -213,10 +214,15 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
             # normalized punctuation/whitespace may differ, but a merely similar
             # question must not inherit an answer without the user seeing it.
             hashed_pattern = "sha256:" + hashlib.sha256(key.encode("utf-8")).hexdigest()
+            intel_pattern = intel_question_memory_pattern(label)
             exact_or_legacy_truncated = pattern == key or (
                 len(pattern) == 300 and key.startswith(pattern)
             )
-            if pattern and (exact_or_legacy_truncated or raw_pattern == hashed_pattern):
+            if pattern and (
+                exact_or_legacy_truncated
+                or raw_pattern == hashed_pattern
+                or (intel_pattern and raw_pattern == intel_pattern)
+            ):
                 return CandidateValue(str(memory.get("answer", "")), "company_answer_memory")
             continue
         fuzzy_safe = len(pattern) >= 12 and len(key) >= 12

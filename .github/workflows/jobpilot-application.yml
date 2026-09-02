@@ -17,6 +17,11 @@ on:
         required: false
         default: false
         type: boolean
+      interactive:
+        description: Run in an interactive Browserbase session and stop before Submit
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -44,6 +49,9 @@ jobs:
       JOBPILOT_APPLICATION_ID: ${{ inputs.application_id }}
       JOBPILOT_TASK_TIMEOUT_SECONDS: '600'
       JOBPILOT_BROWSER_PROFILE: /tmp/jobpilot-browser-profile
+      JOBPILOT_INTERACTIVE_BROWSER: ${{ inputs.interactive }}
+      JOBPILOT_INTERACTIVE_SESSION_SECONDS: '900'
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
     steps:
       - name: Checkout JobPilot
         uses: actions/checkout@v7
@@ -55,6 +63,9 @@ jobs:
           [[ "$REQUESTED_APPLICATION_ID" =~ ^[0-9]+$ ]] || { echo "Invalid application ID" >&2; exit 1; }
           [[ -n "$JOBPILOT_BASE_URL" ]] || { echo "JOBPILOT_BASE_URL secret is missing" >&2; exit 1; }
           [[ "$JOBPILOT_AGENT_TOKEN" == jp_agent_* ]] || { echo "JOBPILOT_AGENT_TOKEN secret is missing or invalid" >&2; exit 1; }
+          if [[ "${{ inputs.interactive }}" == "true" ]]; then
+            [[ -n "$BROWSERBASE_API_KEY" ]] || { echo "BROWSERBASE_API_KEY secret is missing" >&2; exit 1; }
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v7

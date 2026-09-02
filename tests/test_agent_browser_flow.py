@@ -19,6 +19,9 @@ from agent.browser import (ApplicationBlocked, _body_text_requires_captcha_actio
                            _is_ashby_spam_rejection,
                            _is_workday_account_chrome_field,
                            _is_workday_application_page_url,
+                           _enter_workday_start_method,
+                           _expand_workday_profile_sections,
+                           _wait_for_application_ui,
                            _workday_national_phone,
                            _workday_custom_control_label,
                            _workday_application_context_lost,
@@ -1166,6 +1169,104 @@ def test_workday_skills_are_selected_one_by_one_and_verified_as_tokens():
         browser.close()
 
 
+def test_workday_profile_expands_education_and_every_language_section():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <h1>My Experience</h1>
+              <section><h2>Education</h2><div id="education"></div>
+                <button onclick="education.insertAdjacentHTML('beforeend', '<h3>Education 1</h3>')">Add</button>
+              </section>
+              <section><h2>Languages</h2><div id="languages"></div>
+                <button onclick="languages.insertAdjacentHTML('beforeend', '<h3>Languages ' + (languages.children.length + 1) + '</h3>')">Add</button>
+              </section>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        _expand_workday_profile_sections(page, {"application_profile": {
+            "education_school": "Technion",
+            "languages": [{"name": "Hebrew"}, {"name": "English"}],
+        }})
+        assert page.locator("#education h3").count() == 1
+        assert page.locator("#languages h3").count() == 2
+        browser.close()
+
+
+def test_workday_degree_maps_bsc_profile_to_bachelors_option():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content("""
+          <div role="group">Degree*
+            <button id="degree" role="combobox" aria-haspopup="listbox"
+                    onclick="options.hidden=false">Select One</button>
+            <div id="options" role="listbox" hidden>
+              <div role="option" onclick="degree.textContent=this.textContent; options.hidden=true">Bachelors</div>
+              <div role="option">Masters</div><div role="option">Doctorate</div>
+            </div>
+          </div>
+        """)
+        filled = _fill_custom_comboboxes(page, {
+            "application_profile": {"education_degree": "B.Sc."},
+        }, {}, [])
+        assert page.locator("#degree").inner_text() == "Bachelors"
+        assert filled
+        browser.close()
+
+
+def test_workday_button_degree_maps_bsc_profile_to_bachelors_option():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <section><h3>Languages 1</h3><div>Degree*<button id="degree" aria-controls="options"
+                onclick="options.hidden=false">Select One</button></div>
+              <div id="options" role="listbox" hidden>
+                <div role="option" onclick="degree.textContent=this.textContent; options.hidden=true">Bachelor's Degree</div>
+                <div role="option">Masters</div><div role="option">Doctorate</div>
+              </div></section>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        result = _workday_unresolved_button_choice(page, {
+            "application_profile": {"education_degree": "B.Sc."},
+        }, apply_known=True)
+        assert result["resolved"] is True
+        assert page.locator("#degree").inner_text() == "Bachelor's Degree"
+        browser.close()
+
+
+def test_workday_button_language_uses_its_numbered_profile_entry():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <section><h3>Languages 2</h3><div>Language*
+                <button id="language" aria-controls="options" onclick="options.hidden=false">Select One</button>
+              </div><div id="popup" style="height:40px;overflow:auto" onscroll="loadLanguage()"><div id="options" role="listbox" hidden>
+                <div role="option">Afrikaans</div><div role="option">Albanian</div>
+                <div style="height:200px"></div>
+              </div></div></section>
+              <script>function loadLanguage() {
+                if (!document.querySelector('[data-english]')) options.insertAdjacentHTML('beforeend',
+                  '<div role="option" data-english onclick="language.textContent=this.textContent; options.hidden=true">English</div>');
+              }</script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/apply/applyManually")
+        result = _workday_unresolved_button_choice(page, {"application_profile": {"languages": [
+            {"name": "Hebrew", "proficiency": "Native / Bilingual"},
+            {"name": "English", "proficiency": "Fluent"},
+        ]}}, apply_known=True)
+        assert result["resolved"] is True
+        assert page.locator("#language").inner_text() == "English"
+        browser.close()
+
+
 def test_workday_skills_use_every_relevant_profile_skill_not_a_fixed_sample():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
@@ -1191,7 +1292,7 @@ def test_workday_skills_use_every_relevant_profile_skill_not_a_fixed_sample():
         job = {"skills": ["Python", "C++ development", "PyTorch", "SQL databases"]}
         _fill_tokenized_skills(page, profile, job)
         assert page.locator("#tokens [data-skill]").all_text_contents() == [
-            "C++", "Python", "PyTorch", "SQL",
+            "C++", "Python", "PyTorch", "SQL", "LLM", "React",
         ]
         browser.close()
 
@@ -1321,6 +1422,29 @@ def test_workday_candidate_home_without_job_actions_is_context_lost():
         browser.close()
 
 
+def test_workday_deep_apply_loader_waits_past_candidate_home_chrome():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <button data-automation-id="navigationItem-Candidate Home">Candidate Home</button>
+              <button aria-label="Sign In">Sign In</button>
+              <main id="screen"></main>
+              <script>
+                setTimeout(() => {
+                  document.querySelector('#screen').innerHTML =
+                    '<label>Phone Number<input type="tel" required></label>';
+                }, 900);
+              </script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/job/Engineer/apply/applyManually")
+        fields = _wait_for_application_ui(page, timeout_ms=3_000)
+        assert any(field.get("type") == "tel" for field in fields)
+        browser.close()
+
+
 def test_workday_application_url_variants_are_classified_deterministically():
     assert _is_workday_application_page_url(
         "https://tenant.wd1.myworkdayjobs.com/External/job/Israel/Engineer_REQ"
@@ -1392,6 +1516,77 @@ def test_workday_candidate_home_restores_the_canonical_job_once():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert loads["count"] == 2
+        browser.close()
+
+
+def test_workday_start_method_clicks_apply_manually_even_with_background_fields():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <main id="screen">
+                <h1>Start Your Application</h1>
+                <input aria-label="Background shell field">
+                <button onclick="showForm()">Apply Manually</button>
+              </main>
+              <script>function showForm(){document.querySelector('#screen').innerHTML='<input aria-label="Optional note"><button type="submit">Submit Application</button>'}</script>
+            """,
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/External/job/Engineer/apply")
+        assert page.locator('input[aria-label="Background shell field"]').count() == 1
+        assert _enter_workday_start_method(page) is True
+        assert page.get_by_role("button", name="Submit Application").count() == 1
+        browser.close()
+
+
+def test_intel_workday_policy_waits_for_delayed_start_method_before_global_sign_in():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://intel.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="""
+              <button>Sign In</button><main id="screen"><i>Loading</i></main>
+              <script>setTimeout(() => { document.querySelector('#screen').innerHTML='<a role="button" data-automation-id="applyManually" href="#manual">Apply Manually</a>' }, 900)</script>
+            """,
+        ))
+        page.goto("https://intel.wd1.myworkdayjobs.com/External/job/Engineer/apply")
+        assert _enter_workday_start_method(page, "apply_manually", timeout_ms=3_000) is True
+        assert page.url.endswith("#manual")
+        browser.close()
+
+
+def test_intel_workday_policy_reuses_all_five_approved_questions_on_button_controls():
+    questions = [
+        ("ey_employment", "Are you a current or former employee of Ernst & Young?"),
+        ("ey_family_partner", "Are you an immediate family member (parent, child, sibling, spouse/partner) of a partner at Ernst & Young based in San Jose?"),
+        ("restrictive_agreement", "Are you aware of any contract or agreement that might interfere with your ability to work for Intel?"),
+        ("intellectual_property", "Do you own or control patents, trademarks, copyrights, or other intellectual property?"),
+        ("secondary_employment", "Do you intend to maintain secondary non-Intel employment or engage in a non-Intel business activity?"),
+    ]
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://example.wd1.myworkdayjobs.com/**", lambda route: route.fulfill(
+            content_type="text/html", body="<main>Intel application</main>",
+        ))
+        page.goto("https://example.wd1.myworkdayjobs.com/External/job/Engineer/apply/applyManually")
+        for key, question in questions:
+            page.set_content(f"""
+              <div>{question}
+                <button id="question" aria-controls="answers" onclick="answers.hidden=false">Select One</button>
+              </div>
+              <div id="answers" role="listbox" hidden>
+                <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">Yes</div>
+                <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">No</div>
+              </div>
+            """)
+            result = _workday_unresolved_button_choice(page, memories=[{
+                "pattern": f"policy:intel:{key}", "answer": "No", "category": "", "scope": "company",
+            }], apply_known=True)
+            assert result["resolved"] is True
+            assert result["source"] == "company_answer_memory"
+            assert page.locator("#question").inner_text() == "No"
         browser.close()
 
 
@@ -1479,7 +1674,9 @@ def test_button_only_workday_page_reuses_answer_before_clicking_continue():
                   <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">Yes</div>
                   <div role="option" onclick="question.textContent=this.textContent; answers.hidden=true">No</div>
                 </div>
+                <button data-automation-id="backToJobPosting" onclick="discard.hidden=false">Back to Job Posting</button>
                 <button data-automation-id="pageFooterNextButton" onclick="advance()">Save and Continue</button>
+                <div id="discard" hidden>Discard Application?</div>
               </main>
               <script>
                 function advance() {
@@ -1500,6 +1697,7 @@ def test_button_only_workday_page_reuses_answer_before_clicking_continue():
         except ApplicationBlocked as blocker:
             assert blocker.kind == "review_before_submit"
             assert page.get_by_text("Submit Application", exact=True).count() == 1
+            assert page.locator("#discard").is_hidden()
         browser.close()
 
 

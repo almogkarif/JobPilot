@@ -61,6 +61,7 @@ from .application_questions import (CATALOG_BY_KEY, GLOBAL_AUTO_MEMORY_CATEGORIE
 from .services.job_cleanup import application_history_visible
 from .services.application_submission import (automatic_submit_ready_for_profile, automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
+from .services.application_policy import application_policy, intel_question_memory_pattern
 from .services.application_anti_automation import (
     ASHBY_SPAM_BLOCKER_KIND, automatic_submission_pause, classify_ashby_spam_block,
 )
@@ -81,7 +82,9 @@ from .services.career_tracks import (
 from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
 from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
-from .services.github_actions import dispatch_application_workflow, dispatch_scan_workflow
+from .services.github_actions import (dispatch_application_workflow,
+                                      dispatch_interactive_application_workflow,
+                                      dispatch_scan_workflow)
 from .services.application_queue_recovery import queue_health, recover_stuck_auto_applications
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
@@ -117,6 +120,7 @@ startup_retry_tasks: set[asyncio.Task] = set()
 
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 LOCAL_BROWSER_HANDOFF_KEY = "__jobpilot_local_browser_handoff_v1__"
+LIVE_VIEW_URL_KEY = "__jobpilot_live_view_url_v1__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
@@ -150,6 +154,12 @@ def _company_answer_pattern(job: Job | None, question: str) -> str:
     normalized_question = _normalize_company_memory_text(question)
     if not prefix or not normalized_question:
         return ""
+    policy = application_policy(
+        getattr(job, "company", ""), getattr(job, "apply_url", ""),
+    ) if job else {"id": "default"}
+    intel_pattern = intel_question_memory_pattern(question) if policy.get("id") == "intel_workday" else ""
+    if intel_pattern:
+        return prefix + intel_pattern
     available = max(1, 500 - len(prefix))
     # A prefix-truncated question cannot equal the full ATS label on retry. Use a
     # deterministic digest for long questions so exact reuse remains exact and
@@ -3039,7 +3049,7 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 @app.post("/api/jobs/{job_id}/queue")
 async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
     _repair_existing_ashby_spam_blocks(db)
-    if payload.mode not in {"review", "batch", "auto"}:
+    if payload.mode not in {"review", "audit", "batch", "auto"}:
         raise HTTPException(400, "Invalid mode")
     job = _active_job_or_404(db, job_id)
     application = job.application
@@ -3101,9 +3111,10 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
     ))
     db.commit()
     db.refresh(application)
-    if payload.approve_submit:
+    if payload.approve_submit or payload.mode == "audit":
         try:
-            await run_in_threadpool(dispatch_application_workflow, application.id)
+            dispatcher = dispatch_interactive_application_workflow if payload.mode == "audit" else dispatch_application_workflow
+            await run_in_threadpool(dispatcher, application.id)
             _record_application_event(
                 db, application, "worker_dispatched", from_status="queued", to_status="queued",
                 actor="system", message="GitHub Actions worker הופעל",
@@ -3120,6 +3131,22 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
             db.commit()
             raise HTTPException(503, "המשימה נשמרה בתור, אך לא ניתן היה להפעיל את ה-worker ברקע. בדוק את הגדרת GitHub Actions.") from exc
     return _application_dict(application, db)
+
+
+@app.get("/api/applications/{application_id}/live-view")
+def application_live_view(application_id: int, db: Session = Depends(get_db)):
+    track = active_track(get_user_profile(db))
+    answers_json = db.scalar(
+        select(Application.answers_json).join(Job, Application.job_id == Job.id).where(
+            Application.id == application_id,
+            Job.career_track == track,
+            Job.is_active.is_(True),
+        )
+    )
+    if answers_json is None:
+        raise HTTPException(404, "Application not found")
+    url = str(loads(answers_json, {}).get(LIVE_VIEW_URL_KEY) or "")
+    return {"ready": bool(url), "url": url}
 
 
 @app.get("/api/jobs/{job_id}/application-preview")
@@ -4091,8 +4118,10 @@ def application_attempt_screenshot(attempt_id: int, db: Session = Depends(get_db
     return Response(content=content, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 
-async def _dispatch_resolved_auto_application(db: Session, application: Application) -> None:
-    if application.mode != "auto" or application.status != "queued":
+async def _dispatch_resolved_auto_application(
+    db: Session, application: Application, *, force: bool = False,
+) -> None:
+    if application.status != "queued" or (application.mode != "auto" and not force):
         return
     try:
         await run_in_threadpool(dispatch_application_workflow, application.id)
@@ -4622,6 +4651,7 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         return _blocker_dict(blocker)
 
     if blocker.kind == "review_before_submit":
+        was_fill_audit = application.mode == "audit"
         normalized_answer = payload.answer.strip().lower()
         approved = action == REVIEW_APPROVE_ACTION or normalized_answer in {
             "אשר ושלח", "מאשר", "אישור", "approve", "submit", "yes"
@@ -4639,6 +4669,11 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         if approved:
             answers[ONE_TIME_SUBMIT_KEY] = True
             application.answers_json = dumps(answers)
+            # An audit run is deliberately unable to submit. Once the user
+            # explicitly approves the review blocker, return to review mode so
+            # the one-time approval can authorize exactly the next attempt.
+            if application.mode == "audit":
+                application.mode = "review"
             application.status = "queued"
             set_job_status(db, application.job, "queued")
             audit_event = "one_time_submit_approved"
@@ -4659,7 +4694,7 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         ))
         db.commit()
         db.refresh(blocker)
-        await _dispatch_resolved_auto_application(db, application)
+        await _dispatch_resolved_auto_application(db, application, force=approved and was_fill_audit)
         return _blocker_dict(blocker)
 
     answer = payload.answer.strip()
@@ -5445,7 +5480,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         anchor = db.get(Application, application_id)
         application = None
         if (
-            anchor and anchor.job and anchor.status == "queued" and anchor.mode == "auto"
+            anchor and anchor.job and anchor.status == "queued" and anchor.mode in {"auto", "audit"}
             and not bool(loads(anchor.answers_json, {}).get(LOCAL_BROWSER_HANDOFF_KEY))
             and anchor.job.is_active
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
@@ -5555,6 +5590,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             "application": _application_dict(application, db),
             "job": agent_job,
             "submission_adapter": {"key": adapter.key, "label": adapter.label},
+            "application_policy": application_policy(application.job.company, agent_job["apply_url"]),
             "attempt": _attempt_dict(attempt),
             "profile": _agent_profile_dict(profile, identity_email=identity_email),
             "answers": answers,
@@ -5566,6 +5602,24 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             ],
         }
     }
+
+
+@app.post("/api/agent/tasks/{application_id}/live-view")
+def agent_publish_live_view(application_id: int, request: Request, payload: dict, db: Session = Depends(get_db)):
+    token = request.headers.get("X-JobPilot-Agent-Token", "") or str(payload.get("token") or "")
+    agent_id = str(payload.get("agent_id") or "")
+    _check_agent_token(db, token, agent_id=agent_id, application_id=application_id)
+    application = db.get(Application, application_id)
+    if not application or application.mode != "audit":
+        raise HTTPException(404, "Interactive application not found")
+    url = str(payload.get("url") or "").strip()
+    if not url.startswith("https://") or len(url) > 2000:
+        raise HTTPException(400, "Invalid live view URL")
+    answers = loads(application.answers_json, {})
+    answers[LIVE_VIEW_URL_KEY] = url
+    application.answers_json = dumps(answers)
+    db.commit()
+    return {"ready": True}
 
 
 @app.get("/api/suggestions/skills")
@@ -6164,6 +6218,12 @@ def _profile_dict(p: Profile) -> dict:
     if not isinstance(application_profile, dict):
         application_profile = {}
     application_profile = _normalize_application_contact_fields(application_profile)
+    # Israel is JobPilot's product default. Keep explicit saved choices intact,
+    # while giving new/legacy profiles deterministic values for common ATS
+    # country and phone controls.
+    application_profile.setdefault("country", "Israel")
+    application_profile.setdefault("phone_country_code", "+972")
+    application_profile.setdefault("citizenships", ["Citizen (Israel)"])
     return {
         "id": p.id, "full_name": p.full_name, "email": p.email, "phone": p.phone, "location": p.location,
         "linkedin_url": p.linkedin_url, "github_url": p.github_url, "portfolio_url": p.portfolio_url,

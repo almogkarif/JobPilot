@@ -124,10 +124,49 @@ def _is_workday_application_page_url(url: str) -> bool:
     )
 
 
+def _enter_workday_start_method(
+    page: Page, preferred_method: str = "apply_manually", timeout_ms: int = 0,
+) -> bool:
+    """Enter Workday's application form from the start-method chooser."""
+    parsed = urlparse(page.url)
+    if (
+        "myworkdayjobs.com" not in (parsed.hostname or "").casefold()
+        or not parsed.path.rstrip("/").casefold().endswith("/apply")
+    ):
+        return False
+    attempts = max(1, timeout_ms // 500)
+    for attempt in range(attempts):
+        manual_candidates = [
+            page.locator('[data-automation-id="applyManually"]:visible').first,
+            page.get_by_role("button", name=re.compile(r"^apply manually$", re.IGNORECASE)).first,
+        ]
+        resume_candidates = [
+            page.locator('[data-automation-id="autofillWithResume"]:visible').first,
+            page.get_by_role("button", name=re.compile(r"^autofill with resume$", re.IGNORECASE)).first,
+        ]
+        candidates = resume_candidates + manual_candidates if preferred_method == "resume_autofill" else manual_candidates + resume_candidates
+        for candidate in candidates:
+            try:
+                if candidate.count() and candidate.is_visible(timeout=500):
+                    _click_action(page, candidate)
+                    return True
+            except Exception:
+                continue
+        if attempt + 1 < attempts:
+            page.wait_for_timeout(500)
+            _dismiss_cookie_banner(page)
+    return False
+
+
 def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None,
                      security_code_provider: Callable[[], str] | None = None) -> dict:
     job = task["job"]
     profile = task["profile"]
+    policy = task.get("application_policy") or {"id": "default"}
+    if policy.get("id") == "intel_workday":
+        application_profile = profile.setdefault("application_profile", {})
+        for key, value in (policy.get("profile_defaults") or {}).items():
+            application_profile.setdefault(key, value)
     answers = task.get("answers", {})
     memories = task.get("answer_memories", [])
     ensure_supported(job["apply_url"])
@@ -155,6 +194,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     # pages. React re-renders can consume an extra pass between pages, so ten
     # iterations can stop a healthy application immediately before Review.
     for _step in range(24):
+        print(f"[agent-step] step={_step + 1} url={page.url[:240]}", flush=True)
         _detect_captcha(page)
         current_host = (urlparse(page.url).hostname or "").casefold()
         if current_host in {"accounts.google.com", "login.microsoftonline.com", "appleid.apple.com"}:
@@ -164,11 +204,27 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 page.url,
             )
         _dismiss_cookie_banner(page)
-        _expand_workday_profile_sections(page, profile)
+        if policy.get("id") == "intel_workday" and _on_intel_voluntary_disclosures(page):
+            filled.extend(_fill_intel_voluntary_disclosures(page, profile))
+            next_button = _find_action(page, NAVIGATION_TERMS)
+            if next_button:
+                _click_action(page, next_button)
+                continue
+        start_method_wait = 30_000 if policy.get("id") == "intel_workday" else 0
+        if _enter_workday_start_method(
+            page, policy.get("workday_start_method", "apply_manually"), start_method_wait,
+        ):
+            continue
+        skipped_sections = policy.get("skip_optional_profile_sections", [])
+        if skipped_sections:
+            _remove_workday_profile_sections(page, skipped_sections)
+        else:
+            _expand_workday_profile_sections(page, profile)
         fields = _wait_for_application_ui(page)
+        print(f"[agent-step] step={_step + 1} fields={len(fields)}", flush=True)
         is_application_path = _is_workday_application_page_url(page.url) or (
             "myworkdayjobs.com" not in current_host and "/apply" in urlparse(page.url).path.casefold()
-        )
+        ) or _is_hosted_ats_apply_url(page.url)
         # Authenticated Workday posting pages can expose account chrome fields
         # (Email/Password) alongside the job-level Apply button. Those fields do
         # not mean that the application form has started; always enter the
@@ -251,18 +307,6 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # account form. Its header also contains a global Sign In button;
             # choosing that first bypasses the job application and can leave the
             # agent cycling on an empty shell. Enter Apply Manually first.
-            parsed_page = urlparse(page.url)
-            if (
-                "myworkdayjobs.com" in (parsed_page.hostname or "").casefold()
-                and parsed_page.path.rstrip("/").casefold().endswith("/apply")
-            ):
-                apply_manually = page.locator('[data-automation-id="applyManually"]').first
-                try:
-                    if apply_manually.count() and apply_manually.is_visible(timeout=1_000):
-                        _click_action(page, apply_manually)
-                        continue
-                except Exception:
-                    pass
             # Workday can leave the application shell on a loader while its
             # global Sign In control is already usable. Enter the existing
             # account flow instead of treating the empty shell as a dead end.
@@ -275,6 +319,18 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if active_application:
                 _click_action(page, active_application)
                 continue
+            # A completed Workday step can contain only custom button controls,
+            # so no actionable input fields remain. Always advance the active
+            # application before considering the escape hatch back to the job.
+            # Clicking Back here discards the answers that were just filled.
+            progression_button = _find_action(page, NAVIGATION_TERMS) or _find_action(page, APPLY_START_TERMS)
+            if progression_button:
+                step_key = (page.url, normalize(_action_text(progression_button)), _page_step_signature(page, fields))
+                if visited_steps.get(step_key, 0) >= 2:
+                    break
+                visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
+                _click_action(page, progression_button)
+                continue
             back_to_posting = page.locator('[data-automation-id="backToJobPosting"]:visible').first
             try:
                 if back_to_posting.count():
@@ -285,14 +341,6 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                         continue
             except Exception:
                 pass
-            progression_button = _find_action(page, APPLY_START_TERMS) or _find_action(page, NAVIGATION_TERMS)
-            if progression_button:
-                step_key = (page.url, normalize(_action_text(progression_button)), _page_step_signature(page, fields))
-                if visited_steps.get(step_key, 0) >= 2:
-                    break
-                visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
-                _click_action(page, progression_button)
-                continue
             if _workday_application_context_lost(page):
                 if canonical_workday_job_url and workday_context_restores < 1:
                     workday_context_restores += 1
@@ -327,7 +375,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if _field_is_actionable(field, page_url=page.url, is_application_path=is_application_path)
             and not _is_workday_account_chrome_field(field, page.url)
         ]
+        print(f"[agent-step] step={_step + 1} skills=start", flush=True)
         filled.extend(_fill_tokenized_skills(page, profile, job))
+        print(f"[agent-step] step={_step + 1} skills=done", flush=True)
         anonymous_month_index = 0
         for field in actionable_fields:
             if field.get("automation") in {"dateSectionMonth-input", "dateSectionYear-input"}:
@@ -932,6 +982,15 @@ def _workday_unresolved_button_choice(
                 "בחירה נדרשת ב־Workday",
             )
             label = re.sub(r"\bselect one\b", "", label, flags=re.I).strip(" -:")
+            structure_context = context
+            for depth in range(1, 12):
+                try:
+                    ancestor_text = button.locator(f"xpath=ancestor::*[{depth}]").inner_text(timeout=500)
+                except Exception:
+                    continue
+                if re.search(r"\blanguages?\s*\d+\b", normalize(ancestor_text)):
+                    structure_context = ancestor_text
+                    break
             try:
                 button.click(timeout=2_000)
             except Exception:
@@ -957,6 +1016,92 @@ def _workday_unresolved_button_choice(
                     options.append(value)
             if apply_known:
                 candidate = known_value(label, "select", profile or {}, answers or {}, memories or [])
+                choice_key = normalize(f"{label} {context}")
+                structure_key = normalize(structure_context)
+                languages = ((profile or {}).get("application_profile") or {}).get("languages", [])
+                if "language" in choice_key and isinstance(languages, list) and languages:
+                    block_match = re.search(r"languages?\s*(\d+)", structure_key)
+                    block_index = max(0, int(block_match.group(1)) - 1) if block_match else 0
+                    language = languages[min(block_index, len(languages) - 1)]
+                    if any(term in choice_key for term in (
+                        "proficiency", "fluency", "comprehension", "overall", "reading", "speaking", "writing",
+                    )):
+                        value = str(language.get("proficiency", ""))
+                        if any(term in normalize(value) for term in ("native", "bilingual", "fluent")):
+                            value = "5 - Fluent"
+                    else:
+                        value = str(language.get("name", ""))
+                    candidate = CandidateValue(value, "profile") if value else candidate
+                if candidate is not None and "degree" in choice_key:
+                    degree_key = normalize(str(candidate.value))
+                    if any(term in degree_key for term in ("b sc", "bachelor")):
+                        matched = next((value for value in options if "bachelor" in normalize(value)), "Bachelors")
+                        candidate = CandidateValue(matched, candidate.source)
+                    elif any(term in degree_key for term in ("m sc", "master")):
+                        matched = next((value for value in options if "master" in normalize(value)), "Masters")
+                        candidate = CandidateValue(matched, candidate.source)
+                    elif any(term in degree_key for term in ("ph d", "doctor")):
+                        matched = next(
+                            (value for value in options if any(term in normalize(value) for term in ("doctor", "ph d"))),
+                            "Doctorate",
+                        )
+                        candidate = CandidateValue(matched, candidate.source)
+                if candidate is not None and "language" in choice_key and not _choice_candidate_is_compatible(
+                    {"type": "select", "options": options}, candidate.value,
+                ):
+                    search_boxes = option_scope.locator(
+                        'input:visible, input[placeholder*="search" i]:visible, '
+                        'input[data-automation-id*="search" i]:visible'
+                    )
+                    if search_boxes.count():
+                        search_boxes.last.fill(str(candidate.value), timeout=2_000)
+                    else:
+                        page.keyboard.type(str(candidate.value), delay=80)
+                    page.wait_for_timeout(500)
+                    wanted_language = normalize(str(candidate.value))
+                    for _ in range(40):
+                        exact_option = next(
+                            (visible_options.nth(i) for i in range(visible_options.count())
+                             if normalize(visible_options.nth(i).inner_text(timeout=500)) == wanted_language),
+                            None,
+                        )
+                        if exact_option is not None:
+                            break
+                        moved = option_scope.evaluate("""el => {
+                          const ancestors = [];
+                          for (let node = el.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth++) ancestors.push(node);
+                          const nodes = [el, ...el.querySelectorAll('*'), ...ancestors];
+                          const scroller = nodes.find(node => node.scrollHeight > node.clientHeight + 4);
+                          if (!scroller) return false;
+                          const before = scroller.scrollTop;
+                          scroller.scrollTop = Math.min(scroller.scrollHeight, before + Math.max(120, scroller.clientHeight * .8));
+                          scroller.dispatchEvent(new Event('scroll', {bubbles: true}));
+                          return scroller.scrollTop > before;
+                        }""")
+                        if not moved:
+                            break
+                        page.wait_for_timeout(100)
+                    if not any(
+                        normalize(visible_options.nth(i).inner_text(timeout=500)) == wanted_language
+                        for i in range(visible_options.count())
+                    ):
+                        page.keyboard.press("Home")
+                        for _ in range(200):
+                            if any(
+                                normalize(visible_options.nth(i).inner_text(timeout=500)) == wanted_language
+                                for i in range(visible_options.count())
+                            ):
+                                break
+                            page.keyboard.press("ArrowDown")
+                            page.wait_for_timeout(20)
+                    if search_boxes.count() or "language" in choice_key:
+                        options = []
+                        for option_index in range(min(visible_options.count(), SMALL_CHOICE_MAX_OPTIONS + 1)):
+                            value = re.sub(
+                                r"\s+", " ", visible_options.nth(option_index).inner_text(timeout=500),
+                            ).strip()
+                            if value and normalize(value) != "select one" and value not in options:
+                                options.append(value)
                 if candidate is not None and _choice_candidate_is_compatible(
                     {"type": "select", "options": options}, candidate.value,
                 ):
@@ -974,7 +1119,15 @@ def _workday_unresolved_button_choice(
                         }
             button.press("Escape")
             diagnostics = {"control": "workday_select_one", "context": " | ".join(lines[:5])[:500],
-                           "option_count": len(options)}
+                           "option_count": len(options), "options": options[:SMALL_CHOICE_MAX_OPTIONS]}
+            diagnostics["popup_controls"] = page.evaluate(r"""() =>
+              [...document.querySelectorAll('input, button, [role="button"]')]
+                .filter(el => { const r = el.getBoundingClientRect(); return r.width && r.height; })
+                .map(el => ({tag: el.tagName, text: (el.innerText || '').trim().slice(0, 80),
+                  placeholder: el.getAttribute('placeholder') || '', aria: el.getAttribute('aria-label') || '',
+                  automation: el.getAttribute('data-automation-id') || ''}))
+                .filter(x => /search|prompt|filter/i.test(`${x.text} ${x.placeholder} ${x.aria} ${x.automation}`))
+                .slice(0, 12)""")
             profile_country = normalize(str(((profile or {}).get("application_profile") or {}).get("country") or ""))
             us_state_options = {"alabama", "alaska", "american samoa", "arizona", "arkansas"}
             if profile_country in {"israel", "il", "ישראל"} and normalize(label) in {"state", "state required"} \
@@ -1244,7 +1397,24 @@ def _extract_fields(page: Page) -> list[dict]:
     return page.evaluate(
         r"""
         () => {
-          const elements = [...document.querySelectorAll('input, textarea, select')];
+          const isWorkday = location.hostname.toLowerCase().includes('myworkdayjobs.com');
+          const root = isWorkday
+            ? (document.querySelector('[data-automation-id="formContainer"], main') || document)
+            : document;
+          const allElements = [...root.querySelectorAll(
+            isWorkday ? 'input:not([type="hidden"]), textarea, select' : 'input, textarea, select'
+          )];
+          const elements = !isWorkday ? allElements : allElements.filter(el => {
+            if (el.offsetParent === null && !['radio', 'checkbox', 'file'].includes((el.type || '').toLowerCase())) return false;
+            const style = getComputedStyle(el), rect = el.getBoundingClientRect();
+            if (el.getAttribute('aria-hidden') === 'true' || el.hidden) return false;
+            if (style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0) return true;
+            if (!['radio', 'checkbox', 'file'].includes((el.type || '').toLowerCase())) return false;
+            const associated = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : el.closest('label');
+            if (!associated) return false;
+            const labelStyle = getComputedStyle(associated), labelRect = associated.getBoundingClientRect();
+            return labelStyle.display !== 'none' && labelStyle.visibility !== 'hidden' && labelRect.width > 0 && labelRect.height > 0;
+          });
           return elements.map((el, index) => {
             if (!el.dataset.jobpilotId) el.dataset.jobpilotId = `jp-${index}-${Math.random().toString(36).slice(2)}`;
             const id = el.id;
@@ -1864,32 +2034,91 @@ def _dismiss_cookie_banner(page: Page) -> None:
         pass
 
 
+def _on_intel_voluntary_disclosures(page: Page) -> bool:
+    try:
+        return page.get_by_role(
+            "heading", name=re.compile(r"^voluntary disclosures$", re.I),
+        ).first.is_visible(timeout=500)
+    except Exception:
+        return False
+
+
+def _fill_intel_voluntary_disclosures(page: Page, profile: dict) -> list[dict]:
+    filled: list[dict] = []
+    select_ones = page.get_by_text("Select One", exact=True)
+    for index in range(select_ones.count()):
+        control = select_ones.nth(index)
+        try:
+            context = normalize(control.locator("xpath=ancestor::*[3]").inner_text(timeout=500))
+            if "gender" not in context:
+                continue
+            control.click(timeout=2_000)
+            page.wait_for_timeout(250)
+            decline = _best_visible_option(page, "Decline")
+            if decline:
+                decline.click(timeout=2_000)
+                filled.append({"label": "Gender", "source": "intel_decline"})
+        except Exception:
+            continue
+    filled.extend(_fill_workday_citizenships(page, profile))
+    checkboxes = page.locator('input[type="checkbox"]')
+    for index in range(checkboxes.count()):
+        checkbox = checkboxes.nth(index)
+        try:
+            context = normalize(checkbox.locator("xpath=ancestor::*[3]").inner_text(timeout=500))
+            if "terms and conditions" not in context and "read and consent" not in context:
+                continue
+            if not checkbox.is_checked():
+                checkbox.check(force=True, timeout=2_000)
+            filled.append({"label": "Terms and Conditions", "source": "required_consent"})
+            break
+        except Exception:
+            continue
+    return filled
+
+
 def _wait_for_application_ui(page: Page, timeout_ms: int = 30_000) -> list[dict]:
     """Wait for client-rendered ATS pages instead of treating their loader as the final page."""
     deadline_steps = max(1, timeout_ms // 750)
     fields: list[dict] = []
     workday_field_only_checks = 0
-    for _ in range(deadline_steps):
+    for wait_step in range(deadline_steps):
+        remaining = max(1, (timeout_ms - wait_step * 750 + 999) // 1000)
+        _show_agent_pointer(page, page.locator("body"), f"ממתין לחלון שייטען — {remaining} שניות")
+        parsed = urlparse(page.url)
+        is_workday_deep_apply = (
+            "myworkdayjobs.com" in (parsed.hostname or "").casefold()
+            and "/apply/" in parsed.path.casefold()
+        )
         fields = _extract_fields(page)
         if any(field.get("visible") and not field.get("disabled") for field in fields):
             is_workday = "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
             if not is_workday or "/apply/" in urlparse(page.url).path.casefold():
+                _hide_agent_pointer(page)
                 return fields
             # Posting/Candidate Home chrome can mount Email/Password before the
             # job-specific Apply or Continue action. Do not snapshot that partial
             # render as the final page state.
             workday_field_only_checks += 1
             if workday_field_only_checks >= 3:
+                _hide_agent_pointer(page)
                 return fields
-        if _find_action(page, APPLY_START_TERMS + NAVIGATION_TERMS + SIGN_IN_TERMS + CREATE_ACCOUNT_TERMS + SUBMIT_TERMS):
+        ready_action_terms = APPLY_START_TERMS + NAVIGATION_TERMS + SUBMIT_TERMS
+        if not is_workday_deep_apply:
+            ready_action_terms += SIGN_IN_TERMS + CREATE_ACCOUNT_TERMS
+        if _find_action(page, ready_action_terms):
+            _hide_agent_pointer(page)
             return fields
         if (
-            "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
+            "myworkdayjobs.com" in (parsed.hostname or "").casefold()
+            and not is_workday_deep_apply
             and page.locator('[data-automation-id="navigationItem-Candidate Home"]:visible').count()
         ):
+            _hide_agent_pointer(page)
             return fields
         page.wait_for_timeout(750)
         _dismiss_cookie_banner(page)
+    _hide_agent_pointer(page)
     return fields
 
 
@@ -1924,9 +2153,9 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
         ])
     if any(term in normalized_terms for term in {"continue", "continue application", "next"}):
         workday_selectors.extend([
+            '[data-automation-id="continueButton"]',
             '[data-automation-id="bottom-navigation-next-button"]',
             '[data-automation-id="pageFooterNextButton"]',
-            '[data-automation-id="continueButton"]',
         ])
     for selector in workday_selectors:
         candidate = page.locator(selector).first
@@ -2070,11 +2299,20 @@ def _show_agent_pointer(page: Page, target: Locator, message: str) -> None:
               }
               marker.style.left = `${Math.max(12, Math.min(innerWidth - 300, x))}px`;
               marker.style.top = `${Math.max(12, Math.min(innerHeight - 50, y))}px`;
+              marker.style.opacity = '1';
               marker.querySelector('span').textContent = message;
             }""",
             {"x": box["x"] + min(box["width"] / 2, 20), "y": box["y"] + min(box["height"] / 2, 20), "message": message},
         )
         page.wait_for_timeout(220)
+    except Exception:
+        pass
+
+
+def _hide_agent_pointer(page: Page) -> None:
+    try:
+        page.evaluate("""() => { const marker = document.getElementById('jobpilot-agent-pointer');
+          if (marker) marker.style.opacity = '0'; }""")
     except Exception:
         pass
 
@@ -2125,7 +2363,23 @@ def _find_submit_button(page: Page) -> Locator | None:
                     return candidate
             except Exception:
                 continue
-    return _find_action(page, SUBMIT_TERMS)
+    action = _find_action(page, SUBMIT_TERMS)
+    if action:
+        return action
+    for label in ("Submit application", "Submit Application"):
+        candidate = page.get_by_text(label, exact=True).first
+        try:
+            if candidate.count() and candidate.is_visible(timeout=1_000) and candidate.is_enabled(timeout=1_000):
+                return candidate
+        except Exception:
+            continue
+    candidate = page.locator('input[type="submit"][value*="submit" i]:visible').first
+    try:
+        if candidate.count() and candidate.is_enabled(timeout=1_000):
+            return candidate
+    except Exception:
+        pass
+    return None
 
 
 def _find_job_link(page: Page, title: str) -> Locator | None:
@@ -2310,6 +2564,15 @@ def _file_accept_options(field: dict) -> list[str]:
 
 def _expand_workday_profile_sections(page: Page, profile: dict) -> None:
     """Open optional Workday sections once when the profile has data for them."""
+    if "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold():
+        experience_heading = page.get_by_role(
+            "heading", name=re.compile(r"^my experience$", re.IGNORECASE),
+        )
+        try:
+            if not experience_heading.count() or not experience_heading.first.is_visible(timeout=500):
+                return
+        except Exception:
+            return
     extra = profile.get("application_profile", {}) or {}
     wanted = []
     if extra.get("education_school"):
@@ -2336,6 +2599,36 @@ def _expand_workday_profile_sections(page: Page, profile: dict) -> None:
             continue
 
 
+def _remove_workday_profile_sections(page: Page, sections: list[str]) -> None:
+    """Remove optional Workday cards that would otherwise leave required subfields."""
+    wanted = {normalize(section) for section in sections}
+    for _ in range(8):
+        action_id = page.evaluate(r"""wanted => {
+          const norm = value => String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+          const headings = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"]')];
+          for (const button of document.querySelectorAll('button,[role="button"]')) {
+            const rect = button.getBoundingClientRect();
+            const text = norm(`${button.innerText || ''} ${button.getAttribute('aria-label') || ''}`);
+            if (!rect.width || !rect.height || !text.includes('delete')) continue;
+            const preceding = headings.filter(heading =>
+              Boolean(heading.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING));
+            const heading = preceding.at(-1);
+            const headingText = norm(heading?.innerText || '');
+            if (![...wanted].some(section => headingText.startsWith(section))) continue;
+            button.dataset.jobpilotActionId ||= `jpa-delete-${Date.now()}`;
+            return button.dataset.jobpilotActionId;
+          }
+          return '';
+        }""", list(wanted))
+        if not action_id:
+            break
+        try:
+            _click_action(page, page.locator(f'[data-jobpilot-action-id="{action_id}"]').first)
+            page.wait_for_timeout(350)
+        except Exception:
+            break
+
+
 def _find_contextual_add_button(page: Page, section: str) -> Locator | None:
     try:
         action_id = page.evaluate(
@@ -2353,6 +2646,19 @@ def _find_contextual_add_button(page: Page, section: str) -> Locator | None:
                 const own = norm([button.innerText, button.getAttribute('aria-label'),
                   button.getAttribute('data-automation-id')].filter(Boolean).join(' '));
                 return own.includes(section);
+              });
+              match ||= buttons.find(button => {
+                if (!usable(button)) return false;
+                const headings = [...document.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"]')];
+                const preceding = headings.filter(heading =>
+                  norm(heading.innerText).includes(section) &&
+                  Boolean(heading.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING));
+                const heading = preceding.at(-1);
+                if (!heading) return false;
+                const laterHeading = headings.find(other =>
+                  Boolean(heading.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+                  Boolean(other.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING));
+                return !laterHeading;
               });
               match ||= buttons.find(button => {
                 if (!usable(button)) return false;
@@ -2397,12 +2703,16 @@ def _fill_tokenized_skills(page: Page, profile: dict, job: dict | None = None) -
         # literal names with the profile. Do not turn that weak signal into an
         # empty Workday Skills section; fall back to the complete profile list.
         if relevant:
-            skills = relevant
+            # Put the strongest matches first, but keep the complete JobPilot
+            # profile. Workday only accepts entries from its own suggestion
+            # catalog, so unsupported skills naturally fall out below.
+            skills = relevant + [skill for skill in skills if skill not in relevant]
     if not skills:
         return []
     candidates = page.locator(
         'input[placeholder*="skill" i]:visible, input[aria-label*="skill" i]:visible, '
-        'input[data-automation-id*="skill" i]:visible'
+        'input[data-automation-id*="skill" i]:visible, input[id*="skill" i]:visible, '
+        'input[name*="skill" i]:visible'
     )
     filled = []
     for field_index in range(candidates.count()):
@@ -2617,7 +2927,6 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
     filled = []
     controls = page.locator('[role="combobox"]:visible, button[aria-haspopup="listbox"]:visible')
     languages = (profile.get("application_profile", {}) or {}).get("languages", [])
-    language_index = 0
     for index in range(controls.count()):
         control = controls.nth(index)
         try:
@@ -2658,15 +2967,26 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 continue
             candidate = None
             if "language" in key and isinstance(languages, list) and languages:
-                item = languages[min(language_index, len(languages) - 1)]
+                block_match = re.search(r"languages?\s*(\d+)", key)
+                block_index = max(0, int(block_match.group(1)) - 1) if block_match else 0
+                item = languages[min(block_index, len(languages) - 1)]
                 if any(term in key for term in ("proficiency", "fluency", "level")):
                     candidate = str(item.get("proficiency", ""))
-                    language_index += 1
+                    if any(term in normalize(candidate) for term in ("native", "bilingual", "fluent")):
+                        candidate = "5 - Fluent"
                 else:
                     candidate = str(item.get("name", ""))
             if not candidate:
                 known = known_value(label, "select", profile, answers, memories)
                 candidate = str(known.value) if known else ""
+            if "degree" in key:
+                degree_key = normalize(candidate)
+                if any(term in degree_key for term in ("b sc", "bachelor")):
+                    candidate = "Bachelors"
+                elif any(term in degree_key for term in ("m sc", "master")):
+                    candidate = "Masters"
+                elif any(term in degree_key for term in ("ph d", "doctor")):
+                    candidate = "Doctorate"
             if "city" in key and (not candidate or normalize(candidate) in {"israel", "il"}):
                 candidate = _job_city_candidate(profile, job)
             if not candidate:
@@ -2724,7 +3044,7 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             if option:
                 option.click(timeout=2_000)
                 filled.append({"label": label or "בחירה", "source": "profile"})
-            elif searchable_input and any(term in key for term in ("city", "location")):
+            elif searchable_input and any(term in key for term in ("city", "location", "country")):
                 # Location autocompletes occasionally expose their first filtered
                 # result only to keyboard navigation (or race while mounting the
                 # portal). With a concrete profile city already typed, ArrowDown +

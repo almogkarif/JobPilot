@@ -14,12 +14,22 @@ import httpx
 from playwright.sync_api import sync_playwright
 
 from .browser import ApplicationBlocked, fill_application
-from .config import (AGENT_CACHE_DIR, AGENT_ID, APPLICATION_ID, AUTO_SUBMIT, BASE_URL, BROWSER_PROFILE, HEADLESS, POLL_SECONDS,
-                     RUN_ONCE, SCREENSHOT_DIR, TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
+from .config import (AGENT_CACHE_DIR, AGENT_ID, APPLICATION_ID, AUTO_SUBMIT, BASE_URL,
+                     BROWSERBASE_API_KEY, BROWSER_PROFILE, HEADLESS, INTERACTIVE_BROWSER,
+                     INTERACTIVE_SESSION_SECONDS, POLL_SECONDS, RUN_ONCE, SCREENSHOT_DIR,
+                     TASK_TIMEOUT_SECONDS, TOKEN, WORKER_TYPE)
 
 
 class AgentTaskTimeout(TimeoutError):
     pass
+
+
+def submission_is_authorized(task: dict) -> bool:
+    """Return whether this attempt may click the final Submit control."""
+    application_mode = str((task.get("application") or {}).get("mode") or "").strip().lower()
+    if application_mode == "audit":
+        return False
+    return AUTO_SUBMIT or application_mode == "auto" or bool(task.get("submit_approved_once"))
 
 
 def bounded_page_url(value: str, limit: int = 1200) -> str:
@@ -64,6 +74,26 @@ def api(method: str, path: str, **kwargs):
         response = client.request(method, f"{BASE_URL}{path}", headers=headers, **kwargs)
         response.raise_for_status()
         return response.json()
+
+
+def create_browserbase_session() -> dict:
+    if not BROWSERBASE_API_KEY:
+        raise RuntimeError("BROWSERBASE_API_KEY is not configured")
+    headers = {"X-BB-API-Key": BROWSERBASE_API_KEY, "Content-Type": "application/json"}
+    timeout = max(60, min(21600, INTERACTIVE_SESSION_SECONDS))
+    response = httpx.post(
+        "https://api.browserbase.com/v1/sessions", headers=headers,
+        json={"keepAlive": True, "browserSettings": {"timeout": timeout}}, timeout=30,
+    )
+    response.raise_for_status()
+    session = response.json()
+    debug = httpx.get(
+        f"https://api.browserbase.com/v1/sessions/{session['id']}/debug",
+        headers={"X-BB-API-Key": BROWSERBASE_API_KEY}, timeout=30,
+    )
+    debug.raise_for_status()
+    session["liveViewUrl"] = debug.json().get("debuggerFullscreenUrl", "")
+    return session
 
 
 def prepare_resume(task: dict) -> str:
@@ -174,13 +204,12 @@ def run_task(context, task: dict):
     screenshot_path = ""
     keep_open_for_manual_submit = False
     try:
-        application_mode = str((task.get("application") or {}).get("mode") or "").strip().lower()
         # Background auto applications are already authorized to perform the final
         # submit. Do not downgrade them to review-only after an intermediate
         # blocker/retry just because the one-time approval marker was consumed by
         # the previous attempt. Review/manual tasks still require either the
         # explicit one-time approval or the global emergency override.
-        submit_authorized = AUTO_SUBMIT or application_mode == "auto" or bool(task.get("submit_approved_once"))
+        submit_authorized = submission_is_authorized(task)
         prepare_resume(task)
         prepare_grade_sheet(task)
         def report_progress(stage, message, page_url):
@@ -278,12 +307,12 @@ def run_task(context, task: dict):
                   "screenshot_path": remote_screenshot or screenshot_path})
         print(f"[recovered] {exc}", file=sys.stderr)
     except Exception as exc:  # noqa: BLE001
+        print(f"[failed] {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         api(
             "POST",
             f"/api/agent/tasks/{application_id}/failed",
             json={"token": TOKEN, "attempt_id": attempt_id, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url},
         )
-        print(f"[failed] {exc}", file=sys.stderr)
     finally:
         if keep_open_for_manual_submit:
             if hasattr(page, "bring_to_front"):
@@ -297,12 +326,20 @@ def main():
     print(f"JobPilot agent: {AGENT_ID} | server={BASE_URL} | worker={WORKER_TYPE} | auto_submit={AUTO_SUBMIT} | headless={HEADLESS}")
     BROWSER_PROFILE.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
-        context = playwright.chromium.launch_persistent_context(
-            user_data_dir=str(BROWSER_PROFILE),
-            headless=HEADLESS,
-            viewport={"width": 1440, "height": 1000},
-            locale="en-US",
-        )
+        remote_browser = None
+        if INTERACTIVE_BROWSER:
+            session = create_browserbase_session()
+            remote_browser = playwright.chromium.connect_over_cdp(session["connectUrl"])
+            context = remote_browser.contexts[0]
+            if APPLICATION_ID and session.get("liveViewUrl"):
+                api("POST", f"/api/agent/tasks/{APPLICATION_ID}/live-view", json={
+                    "token": TOKEN, "agent_id": AGENT_ID, "url": session["liveViewUrl"],
+                })
+        else:
+            context = playwright.chromium.launch_persistent_context(
+                user_data_dir=str(BROWSER_PROFILE), headless=HEADLESS,
+                viewport={"width": 1440, "height": 1000}, locale="en-US",
+            )
         control_page = context.pages[0] if context.pages else context.new_page()
         control_page.set_content(
             "<html dir='rtl'><title>JobPilot Agent</title><body style='font-family:system-ui;padding:40px'>"
@@ -332,7 +369,12 @@ def main():
                     print("[agent stopped] Browser was closed; exiting instead of leaving a zombie Agent.", file=sys.stderr)
                     break
                 time.sleep(POLL_SECONDS)
-        context.close()
+        if INTERACTIVE_BROWSER:
+            # Browserbase keepAlive preserves the human-controlled Review tab
+            # after Playwright disconnects; the provider timeout bounds cost.
+            pass
+        else:
+            context.close()
 
 
 if __name__ == "__main__":

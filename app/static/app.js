@@ -1230,6 +1230,7 @@ async function loadAnswerLibrary() {
     $('.answer-save', card).onclick = () => saveAnswerCard(card);
   });
   updateAnswerDirtyState();
+  updateProfileCompletion();
 }
 
 function currentAnswerLibraryPayload() {
@@ -1692,7 +1693,8 @@ function jobCardActions(job) {
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
-    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>${job.application_id ? 'בדוק והחזר לתור' : 'הגש ברקע'}</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>הכנס לתור והגש ברקע</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn secondary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'audit')" ${job.status === 'submitted' ? 'disabled' : ''}>צפה בסוכן ומלא עד Submit</button>` : ''}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
     <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
     <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
@@ -1834,14 +1836,16 @@ async function queueJob(id, mode = 'review', resumeId = null) {
       <h2>${esc(preview.job?.company)} — ${esc(preview.job?.title)}</h2>
       <div class="submission-preview-summary">
         <span><strong>מערכת הגיוס</strong><b>${esc(adapter.label || 'אתר קריירה')}</b></span>
-        <span><strong>מסלול ביצוע</strong><b>${adapter.execution==='cloud_browser'?'Worker ענן · ברקע':'ידני בלבד כרגע'}</b></span>
+        <span><strong>מסלול ביצוע</strong><b>${mode === 'audit' ? 'סוכן מקומי · דפדפן גלוי' : (adapter.execution==='cloud_browser'?'Worker ענן · ברקע':'ידני בלבד כרגע')}</b></span>
         <span><strong>קורות חיים</strong><b>${esc(preview.resume?.filename || 'לא נבחרו')}</b></span>
       </div>
       ${missing.length ? `<div class="submission-preview-blocked"><strong>חסרים פרטים לפני שניתן לאשר שליחה אוטומטית:</strong><ul>${missing.map(item => `<li>${esc(item.label)}</li>`).join('')}</ul></div>` : '<div class="submission-preview-ready"><strong>הבדיקה הראשונית עברה.</strong> הפרטים הבסיסיים וקורות החיים מוכנים.</div>'}
       ${warnings.length ? `<div class="submission-preview-warnings"><strong>מה חשוב לדעת</strong><ul>${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></div>` : ''}
       <details class="submission-preview-safeguards"><summary>בלמי הבטיחות שיופעלו</summary><ul>${safeguards.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>
       <div class="modal-actions">
-        <button class="btn primary" type="button" ${preview.ready ? '' : 'disabled'} onclick="confirmApplicationPreview(${id},'auto',${resumeId || 'null'},decodeURIComponent('${token}'),true)">אשר הגשה אוטומטית חד־פעמית</button>
+        ${mode === 'audit'
+          ? `<button class="btn primary" type="button" onclick="confirmApplicationPreview(${id},'audit',${resumeId || 'null'},decodeURIComponent('${token}'),false)">פתח סוכן גלוי ומלא עד Submit</button>`
+          : `<button class="btn primary" type="button" ${preview.ready ? '' : 'disabled'} onclick="confirmApplicationPreview(${id},'auto',${resumeId || 'null'},decodeURIComponent('${token}'),true)">אשר הגשה אוטומטית חד־פעמית</button>`}
       </div>`);
   } catch (error) {
     toast(error.message);
@@ -1849,6 +1853,11 @@ async function queueJob(id, mode = 'review', resumeId = null) {
 }
 
 async function confirmApplicationPreview(id, mode, resumeId, previewToken, approveSubmit) {
+  const liveWindow = mode === 'audit' ? window.open('', '_blank') : null;
+  if (liveWindow) {
+    liveWindow.document.title = 'JobPilot Live Agent';
+    liveWindow.document.body.innerHTML = '<main dir="rtl" style="font-family:system-ui;padding:40px;text-align:center"><h1>מכין דפדפן מאובטח…</h1><p>הסוכן יופיע כאן בעוד מספר שניות.</p></main>';
+  }
   try {
     const application = await api(`/api/jobs/${id}/queue`, {
       method: 'POST',
@@ -1860,14 +1869,32 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
       ? (queuePosition > 1
         ? `ההגשה נשלחה לתור · מיקום ${queuePosition} · תופעל אוטומטית ברצף`
         : 'ההגשה נשלחה לתור ותופעל אוטומטית כשה־worker יתפנה')
-      : 'המשרה נכנסה לתור לבדיקה');
+      : (mode === 'audit'
+        ? 'המשימה ממתינה לסוכן המקומי · הדפדפן יישאר פתוח בעמוד Review לפני Submit'
+        : 'המשרה נכנסה לתור לבדיקה'));
     await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
     await syncPrimaryApplicationTracking(application.id, true);
+    if (mode === 'audit') await openInteractiveLiveView(application.id, liveWindow);
   } catch (error) {
+    if (liveWindow && !liveWindow.closed) liveWindow.close();
     toast(error.message);
   }
 }
 window.confirmApplicationPreview = confirmApplicationPreview;
+
+async function openInteractiveLiveView(applicationId, liveWindow) {
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    const session = await api(`/api/applications/${applicationId}/live-view`);
+    if (session.ready && session.url) {
+      if (liveWindow && !liveWindow.closed) liveWindow.location.replace(session.url);
+      else window.open(session.url, '_blank', 'noopener');
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  if (liveWindow && !liveWindow.closed) liveWindow.close();
+  toast('סשן הדפדפן עדיין לא עלה. בדוק שמפתח Browserbase הוגדר ב־GitHub Actions.');
+}
 async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
 
 async function markJobSubmitted(id) {
@@ -2068,8 +2095,11 @@ async function showJob(id) {
       <div class="job-capabilities job-capabilities-modal">${automaticSubmissionBadge(job)}${job.application_adapter?.label ? `<span class="ats-label">${esc(job.application_adapter.label)}</span>` : ''}</div>
       ${resumes.length ? `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>JobPilot ממליץ על הגרסה עם חפיפת הסקילים הגבוהה ביותר. אפשר לשנות ידנית לפני הכנסה לתור.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.sort((a,b)=>(b.fit?.score||0)-(a.fit?.score||0)).map((resume) => `<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.fit?.recommended ? 'selected' : ''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${resume.fit?.score ?? 0}% התאמה</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit"></div>` : '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>'}
       ${antiAutomationBlocked ? `<div class="agent-restricted-note manual-only-note"><strong>מערכת הגיוס חסמה את ההגשה האוטומטית</strong><span>JobPilot לא יבצע retry אוטומטי נוסף למשרה הזו. פתח את אתר החברה והגש ידנית.</span></div>` : applicationAgentAllowed() && automaticSupported ? `<div class="application-options">
+        <button class="application-option application-option-review" type="button" onclick="queueJob(${job.id},'audit',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
+          <i class="application-option-icon">◉</i><span class="application-option-copy"><small>דפדפן גלוי · ללא שליחה</small><strong>אני רוצה לראות את הסוכן מגיש</strong><span>הסוכן המקומי ימלא את הטופס, ישאיר את עמוד Review פתוח ואתה תלחץ בעצמך על Submit.</span></span><b>←</b>
+        </button>
         <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
-          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>בדיקה והגשה אוטומטית</strong><span>ירוץ ב־worker ענן נסתר. לא ייפתח אצלך אתר או חלון דפדפן.</span></span><b>←</b>
+          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>הכנס לתור ההגשות ותגיש ברקע</strong><span>ירוץ ב־worker ענן נסתר וילחץ על Submit לאחר אישור התצוגה המקדימה.</span></span><b>←</b>
         </button>
       </div>` : automaticSupported ? `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית.</span></div>` : `<div class="agent-restricted-note manual-only-note"><strong>הגשה אוטומטית אינה נתמכת במשרה הזו</strong><span>מערכת ${esc(job.application_adapter?.label || 'הגיוס')} מסומנת כרגע להגשה ידנית בלבד. JobPilot לא יפתח עבורך חלון נסתר ולא יציג כאילו המשרה נשלחה.</span></div>`}
       <div class="card-actions modal-actions">
@@ -2343,7 +2373,7 @@ function renderBlockerCard(blocker) {
   let interaction = '';
   if (blocker.kind === 'review_before_submit') {
     interaction = `<div class="blocker-decision">
-      <button class="btn primary" type="button" onclick="markApplicationSubmitted(${blocker.application_id})">סמן כהוגש לאחר שליחה ידנית</button>
+      <button class="btn primary" type="button" onclick="resolveBlockerAction(${blocker.id},'approve_submit')">אשר ושלח עכשיו</button>
       <button class="btn secondary" type="button" onclick="resolveBlockerAction(${blocker.id},'skip')">דלג על המשרה</button>
     </div>`;
   } else if (blocker.kind === 'grade_sheet_required') {
@@ -2694,7 +2724,7 @@ function currentProfileFormValue(name) {
   if (!control) return '';
   if (name === 'extra_languages') return JSON.stringify(collectLanguages());
   if (name === 'extra_work_experiences') return JSON.stringify(collectWorkExperiences());
-  if (name === 'extra_citizenships') return normalizeCitizenships(control.value).join(', ');
+  if (name === 'extra_citizenships') return selectedCitizenships(control).join(', ');
   if (PROFILE_ARRAY_FIELDS.has(name)) {
     const selected = $$(`[data-profile-option="${name}"]:checked`, profileForm()).map((item) => item.value);
     const custom = String(control.value || '').split(',').map((item) => item.trim()).filter(Boolean);
@@ -2720,6 +2750,30 @@ function normalizedProfileValue(name, value) {
 function normalizeCitizenships(value) {
   const items = Array.isArray(value) ? value : String(value || '').split(',');
   return [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+const CITIZENSHIP_REGION_CODES = `AD AE AF AG AL AM AO AR AT AU AZ BA BB BD BE BF BG BH BI BJ BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CU CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FM FR GA GB GD GE GH GM GN GQ GR GT GW GY HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KG KH KI KM KN KP KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MH MK ML MM MN MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NR NZ OM PA PE PG PH PK PL PT PW PY QA RO RS RU RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SY SZ TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VN VU WS YE ZA ZM ZW`.split(' ');
+
+function citizenshipOptions() {
+  let names;
+  try { names = new Intl.DisplayNames(['en'], { type:'region' }); } catch { names = null; }
+  return CITIZENSHIP_REGION_CODES.map((code) => ({ code, country:names?.of(code) || code }))
+    .sort((a,b) => (a.code === 'IL' ? -1 : b.code === 'IL' ? 1 : a.country.localeCompare(b.country)));
+}
+
+function selectedCitizenships(control = profileForm()?.elements?.extra_citizenships) {
+  if (!control) return [];
+  return normalizeCitizenships([...control.selectedOptions].map((option) => option.value));
+}
+
+function renderCitizenshipOptions(selected = ['Citizen (Israel)']) {
+  const control = profileForm()?.elements?.extra_citizenships;
+  if (!control) return;
+  const selectedKeys = new Set(normalizeCitizenships(selected).map((value) => value.toLowerCase()));
+  control.innerHTML = citizenshipOptions().map(({country}) => {
+    const value = `Citizen (${country})`;
+    return `<option value="${esc(value)}" ${selectedKeys.has(value.toLowerCase()) ? 'selected' : ''}>${esc(country)}</option>`;
+  }).join('');
 }
 
 function setFieldUnsaved(name, isUnsaved) {
@@ -3046,7 +3100,13 @@ function updateProfileCompletion() {
   if (!workComplete) missing.push('ניסיון תעסוקתי');
   const resumeComplete = Boolean(state.profile?.cv_filename || $('#resume-name')?.textContent !== 'לא הועלה קובץ');
   if (!resumeComplete) missing.push('קורות חיים');
-  const total = PROFILE_COMPLETION_FIELDS.length + 2;
+  const unansweredCommonQuestions = (state.answerLibrary || []).filter((item) => !String(item.answer || '').trim());
+  if (unansweredCommonQuestions.length === 1) {
+    missing.push(`שאלה נפוצה: ${unansweredCommonQuestions[0].title}`);
+  } else if (unansweredCommonQuestions.length > 1) {
+    missing.push(`${unansweredCommonQuestions.length} שאלות בשאלות הנפוצות`);
+  }
+  const total = PROFILE_COMPLETION_FIELDS.length + 3;
   const percent = Math.round((total - missing.length) / total * 100);
   const completion = $('#profile-completion');
   $('#profile-completion-value').textContent = `${percent}%`;
@@ -3098,11 +3158,12 @@ function applyProfileToForm(profile) {
       if (small) small.textContent = 'זמין כרגע רק לחשבון הראשי';
     }
   }
+  renderCitizenshipOptions(profile.application_profile?.citizenships?.length
+    ? profile.application_profile.citizenships : ['Citizen (Israel)']);
   APPLICATION_PROFILE_FIELDS.forEach((name) => {
     if (name === 'work_experiences') return;
-    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = name === 'citizenships'
-      ? normalizeCitizenships(profile.application_profile?.[name]).join(', ')
-      : profile.application_profile?.[name] ?? '';
+    if (name === 'citizenships') return;
+    if (form.elements[`extra_${name}`]) form.elements[`extra_${name}`].value = profile.application_profile?.[name] ?? '';
   });
   renderWorkExperiences(profile.application_profile || {});
   renderLanguages(profile.application_profile?.languages);
@@ -3137,7 +3198,7 @@ function restoreProfileDraft() {
     } else if (name === 'extra_work_experiences') {
       renderWorkExperiences(draft.values[name]);
     } else if (name === 'extra_citizenships') {
-      control.value = normalizeCitizenships(draft.values[name]).join(', ');
+      renderCitizenshipOptions(normalizeCitizenships(draft.values[name]));
     } else if (PROFILE_ARRAY_FIELDS.has(name)) {
       applyArrayFieldToControls(name, normalizedProfileValue(name, draft.values[name]));
     } else if (control.type === 'checkbox') control.checked = !!draft.values[name];
@@ -3258,7 +3319,7 @@ function buildProfilePayload(fields = PROFILE_FIELDS) {
       const name = field.slice(6);
       if (name === 'languages') return [name, collectLanguages()];
       if (name === 'work_experiences') return [name, collectWorkExperiences()];
-      if (name === 'citizenships') return [name, normalizeCitizenships(form.elements[field]?.value)];
+      if (name === 'citizenships') return [name, selectedCitizenships(form.elements[field])];
       return [name, form.elements[field]?.value || ''];
     }));
   }
