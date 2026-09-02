@@ -59,7 +59,7 @@ from .application_questions import (CATALOG_BY_KEY, GLOBAL_AUTO_MEMORY_CATEGORIE
                                     PREFIX as ANSWER_CATEGORY_PREFIX, QUESTION_CATALOG,
                                     match_question_category)
 from .services.job_cleanup import application_history_visible
-from .services.application_submission import (automatic_submit_ready_for_profile, automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
+from .services.application_submission import (adapter_payload_for_job, automatic_submit_ready_for_profile, automation_apply_url, build_submission_preview, detect_adapter, issue_preview_token,
                                                lever_confirmation_from_url, verify_preview_token)
 from .services.application_policy import application_policy, intel_question_memory_pattern
 from .services.application_anti_automation import (
@@ -873,28 +873,37 @@ def _v2_tier_order():
 
 
 def _automatic_submit_sort_order():
-    """SQL equivalent of the supported ATS families used by detect_adapter()."""
+    """Prioritize supported one-page forms, then supported multi-step forms."""
     apply_url = func.lower(func.coalesce(Job.apply_url, ""))
     source_kind = func.lower(func.coalesce(
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
     ))
     supported = (
-        apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
+        apply_url.like("%careers.wix.com/position/%")
+        | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
         | apply_url.like("%smartrecruiters.com%") | source_kind.like("%smartrecruiters%")
         | apply_url.like("%myworkdayjobs.com%") | source_kind.like("%workday%")
     )
-    return case((supported, 1), else_=0)
+    short_form = (
+        apply_url.like("%careers.wix.com/position/%")
+        | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
+        | apply_url.like("%comeet%") | source_kind.like("%comeet%")
+        | apply_url.like("%lever.co%") | (source_kind == "lever")
+        | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
+    )
+    company = func.lower(func.trim(func.coalesce(Job.company, "")))
+    allowed_company = ~company.in_(("intel", "applied materials", "applied material"))
+    return case((supported & allowed_company, case((short_form, 2), else_=1)), else_=0)
 
 
 def _application_auto_submit_supported(application: Application) -> bool:
     job = application.job
     if not job:
         return False
-    source_kind = job.source.kind if job.source else ""
-    return detect_adapter(job.apply_url, source_kind).supports_automatic_submit
+    return bool(adapter_payload_for_job(job)["supports_automatic_submit"])
 
 
 def _repair_existing_ashby_spam_blocks(
@@ -3062,6 +3071,8 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         raise HTTPException(409, pause["message"])
     if payload.mode == "auto" and not payload.approve_submit:
         raise HTTPException(409, "הגשה אוטומטית דורשת אישור תקף ממסך התצוגה המקדימה.")
+    if payload.mode in {"auto", "audit"} and not preview["adapter"]["supports_automatic_submit"]:
+        raise HTTPException(409, preview["adapter"].get("exclusion_reason") or "המשרה אינה נתמכת בהגשה אוטומטית.")
     if payload.mode == "auto" and not preview["ready"]:
         raise HTTPException(409, "המשרה או הפרופיל אינם מוכנים להגשה אוטומטית. יש להשתמש בהגשה ידנית.")
     if payload.approve_submit:
@@ -3601,7 +3612,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
         open_blocker = next((item for item in application.blockers if item.status == "open"), None)
         blocker = _blocker_dict(open_blocker) if open_blocker else None
         source_kind = application.job.source.kind if application.job.source else ""
-        adapter = detect_adapter(application.job.apply_url, source_kind)
+        adapter = adapter_payload_for_job(application.job)
         answers = {
             str(key): value for key, value in loads(application.answers_json, {}).items()
             if not str(key).startswith("__jobpilot_")
@@ -3642,7 +3653,8 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
             "last_error": application.last_error,
             "started_at": application.started_at,
             "updated_at": application.updated_at,
-            "adapter": {"key": adapter.key, "label": adapter.label, "automatic": adapter.supports_automatic_submit},
+            "adapter": {"key": adapter["key"], "label": adapter["label"],
+                        "automatic": adapter["supports_automatic_submit"]},
             "source": {"kind": source_kind, "name": application.job.source.name if application.job.source else ""},
             "urls": {
                 "job": application.job.apply_url,
@@ -5478,7 +5490,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"wix", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -5489,6 +5501,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             anchor and anchor.job and anchor.status == "queued" and anchor.mode in {"auto", "audit"}
             and not bool(loads(anchor.answers_json, {}).get(LOCAL_BROWSER_HANDOFF_KEY))
             and anchor.job.is_active
+            and adapter_payload_for_job(anchor.job)["supports_automatic_submit"]
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
             in cloud_adapters
             and automatic_submit_ready_for_profile(
@@ -6278,7 +6291,7 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
     skills = loads(j.skills_json, [])
     owned = {skill.casefold().strip() for skill in loads(profile.skills_json, [])} if profile else set()
     skill_gaps = [skill for skill in skills if skill.casefold().strip() not in owned] if profile else []
-    adapter = detect_adapter(j.apply_url, j.source.kind if j.source else "")
+    adapter = adapter_payload_for_job(j)
     data = {
         "id": j.id, "career_track": j.career_track, "title": j.title, "company": j.company, "location": j.location,
         "official_careers_url": resolve_official_careers_url(j.company, j.apply_url),
@@ -6300,8 +6313,10 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
         "source": {"id": j.source.id, "name": j.source.name, "kind": j.source.kind, "career_track": j.source.career_track} if j.source else None,
         "application_id": j.application.id if j.application else None,
         "application_adapter": {
-            "key": adapter.key, "label": adapter.label, "execution": adapter.execution,
-            "supports_automatic_submit": adapter.supports_automatic_submit,
+            "key": adapter["key"], "label": adapter["label"], "execution": adapter["execution"],
+            "supports_automatic_submit": adapter["supports_automatic_submit"],
+            "form_flow": adapter["form_flow"], "notes": adapter["notes"],
+            **({"exclusion_reason": adapter["exclusion_reason"]} if adapter.get("exclusion_reason") else {}),
         },
     }
     v2_row = getattr(j, "_active_v2_ranking", None)

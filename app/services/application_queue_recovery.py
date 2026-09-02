@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..database import get_user_profile
 from ..models import Application, ApplicationAttempt, ApplicationEvent, Blocker, Job, utcnow
 from ..utils import dumps, loads
-from .application_submission import automatic_submit_ready_for_profile, detect_adapter
+from .application_submission import adapter_payload_for_job, automatic_submit_ready_for_profile, detect_adapter
 from .application_anti_automation import automatic_submission_pause
 from .github_actions import dispatch_application_workflow
 from .user_job_state import set_job_status
@@ -24,7 +24,7 @@ QUEUE_REDISPATCH_AFTER = timedelta(minutes=12)
 # crash, so an automatic retry could create a duplicate application.
 APPLYING_STUCK_AFTER = timedelta(minutes=15)
 
-CLOUD_ADAPTERS = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+CLOUD_ADAPTERS = {"wix", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
 QUEUE_EVENT_TYPES = {
     "auto_submit_approved",
     "campaign_queued",
@@ -69,7 +69,9 @@ def _queue_support_state(db: Session, application: Application, profile) -> dict
         }
     source_kind = job.source.kind if job.source else ""
     adapter = detect_adapter(job.apply_url, source_kind)
-    auto_supported = adapter.key in CLOUD_ADAPTERS and adapter.supports_automatic_submit
+    auto_supported = adapter.key in CLOUD_ADAPTERS and bool(
+        adapter_payload_for_job(job)["supports_automatic_submit"]
+    )
     profile_ready = bool(profile and automatic_submit_ready_for_profile(adapter, profile))
     pause = automatic_submission_pause(db, job) if auto_supported else None
     dispatchable = bool(auto_supported and profile_ready and pause is None)

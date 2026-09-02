@@ -1706,8 +1706,8 @@ function automaticSubmissionBadge(job) {
   const adapter = job?.application_adapter || {};
   if (job?.status === 'manual_required') return `<span class="auto-submit-badge manual" title="מערכת הגיוס חסמה את ההגשה האוטומטית עבור המשרה הזו">נדרשת הגשה ידנית</span>`;
   return adapter.supports_automatic_submit === true
-    ? `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> תומך בהגשה אוטומטית</span>`
-    : `<span class="auto-submit-badge manual" title="מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית">הגשה ידנית בלבד</span>`;
+    ? `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> ${adapter.form_flow === 'single_page' ? 'טופס קצר · ' : ''}תומך בהגשה אוטומטית</span>`
+    : `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית בלבד</span>`;
 }
 
 function renderJobs() {
@@ -2101,7 +2101,7 @@ async function showJob(id) {
         <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
           <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>הכנס לתור ההגשות ותגיש ברקע</strong><span>ירוץ ב־worker ענן נסתר וילחץ על Submit לאחר אישור התצוגה המקדימה.</span></span><b>←</b>
         </button>
-      </div>` : automaticSupported ? `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית.</span></div>` : `<div class="agent-restricted-note manual-only-note"><strong>הגשה אוטומטית אינה נתמכת במשרה הזו</strong><span>מערכת ${esc(job.application_adapter?.label || 'הגיוס')} מסומנת כרגע להגשה ידנית בלבד. JobPilot לא יפתח עבורך חלון נסתר ולא יציג כאילו המשרה נשלחה.</span></div>`}
+      </div>` : automaticSupported ? `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית.</span></div>` : `<div class="agent-restricted-note manual-only-note"><strong>הגשה אוטומטית אינה נתמכת במשרה הזו</strong><span>${esc(job.application_adapter?.exclusion_reason || `מערכת ${job.application_adapter?.label || 'הגיוס'} מסומנת כרגע להגשה ידנית בלבד.`)} JobPilot לא יפתח עבורך חלון נסתר ולא יציג כאילו המשרה נשלחה.</span></div>`}
       <div class="card-actions modal-actions">
         ${alreadySubmitted
           ? '<button class="btn applied-job-button" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'

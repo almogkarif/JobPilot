@@ -21,9 +21,11 @@ class ATSAdapter:
     execution: str = "cloud_browser"
     supports_automatic_submit: bool = True
     notes: str = ""
+    form_flow: str = "single_page"
 
 
 ADAPTERS = {
+    "wix": ATSAdapter("wix", "Wix Careers", notes="טופס הגשה ישיר בעמוד אחד לאחר לחיצה על Apply."),
     "greenhouse": ATSAdapter("greenhouse", "Greenhouse", notes="טופס מועמדות ציבורי; נשמר fallback לדפדפן במקרה של שדות מותאמים."),
     "comeet": ATSAdapter("comeet", "Comeet", notes="טופס ישראלי נפוץ עם שאלות מותאמות לפי חברה."),
     "lever": ATSAdapter("lever", "Lever", notes="טופס מועמדות ציבורי עם מבנה עקבי יחסית."),
@@ -31,11 +33,48 @@ ADAPTERS = {
     "workday": ATSAdapter(
         "workday", "Workday",
         notes="נתמך בענן כאשר נשמרה סיסמה לאתרי הגשה; CAPTCHA, אימות מייל או MFA עדיין מועברים למשתמש.",
+        form_flow="multi_step",
     ),
-    "smartrecruiters": ATSAdapter("smartrecruiters", "SmartRecruiters"),
+    "smartrecruiters": ATSAdapter("smartrecruiters", "SmartRecruiters", form_flow="multi_step"),
     "custom": ATSAdapter("custom", "אתר קריירה מותאם", execution="manual_only", supports_automatic_submit=False,
-                         notes="נדרש adapter מאומת לפני שהאתר יורשה לרוץ אוטומטית ברקע."),
+                         notes="נדרש adapter מאומת לפני שהאתר יורשה לרוץ אוטומטית ברקע.", form_flow="unknown"),
 }
+
+
+_AUTOMATIC_SUBMISSION_EXCLUSIONS = {
+    "intel": "Intel הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "applied materials": "Applied Materials הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+}
+
+
+def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
+    """Return a manual-only reason for employers explicitly excluded from automation."""
+    normalized_company = " ".join(str(company or "").casefold().replace("&", " and ").split())
+    host = urlparse(str(apply_url or "")).netloc.casefold()
+    if normalized_company == "intel" or host.startswith("intel."):
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["intel"]
+    if normalized_company in {"applied materials", "applied material"} or host.startswith("amat."):
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["applied materials"]
+    return ""
+
+
+def adapter_for_job(job) -> tuple[ATSAdapter, str]:
+    """Resolve ATS capability together with any employer-level safety exclusion."""
+    adapter = detect_adapter(job.apply_url, getattr(getattr(job, "source", None), "kind", ""))
+    return adapter, automatic_submission_exclusion(getattr(job, "company", ""), job.apply_url)
+
+
+def adapter_payload_for_job(job) -> dict:
+    adapter, exclusion = adapter_for_job(job)
+    payload = asdict(adapter)
+    if exclusion:
+        payload.update({
+            "execution": "manual_only",
+            "supports_automatic_submit": False,
+            "notes": exclusion,
+            "exclusion_reason": exclusion,
+        })
+    return payload
 
 
 def lever_confirmation_from_url(url: str) -> tuple[str, str]:
@@ -98,6 +137,8 @@ def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if host in {"careers.wix.com", "www.careers.wix.com"}:
+        return ADAPTERS["wix"]
     if "greenhouse" in joined:
         return ADAPTERS["greenhouse"]
     if "comeet" in joined:
@@ -128,7 +169,7 @@ def automatic_submit_ready_for_profile(adapter: ATSAdapter, profile) -> bool:
 
 
 def build_submission_preview(job, profile, resume=None) -> dict:
-    adapter = detect_adapter(job.apply_url, getattr(getattr(job, "source", None), "kind", ""))
+    adapter, exclusion = adapter_for_job(job)
     missing: list[dict[str, str]] = []
     warnings: list[str] = []
 
@@ -152,13 +193,15 @@ def build_submission_preview(job, profile, resume=None) -> dict:
             warnings.append("Workday דורש סיסמה שמורה כדי שה-Agent יוכל להיכנס או ליצור חשבון מועמד בצורה בטוחה.")
         else:
             warnings.append("ב-Workday ה-Agent ישתמש בסיסמה השמורה; CAPTCHA, אימות מייל או MFA יעצרו להשלמה ידנית.")
-    if not adapter.supports_automatic_submit:
+    if exclusion:
+        warnings.append(exclusion)
+    elif not adapter.supports_automatic_submit:
         warnings.append("המקור הזה עדיין לא מורשה להגשה אוטומטית ברקע; JobPilot לא יפתח עבורך חלון דפדפן.")
     warnings.append("שאלות ייחודיות ו-CAPTCHA נבדקים בזמן אמת; המערכת לא תנחש תשובה ולא תעקוף אימות אנושי.")
-    ready = not missing and automatic_submit_ready_for_profile(adapter, profile)
+    ready = not exclusion and not missing and automatic_submit_ready_for_profile(adapter, profile)
     return {
         "job": {"id": job.id, "title": job.title, "company": job.company, "apply_url": job.apply_url},
-        "adapter": asdict(adapter),
+        "adapter": adapter_payload_for_job(job),
         "ready": ready,
         "missing": missing,
         "warnings": warnings,

@@ -70,11 +70,51 @@ def test_timeline_reconciles_existing_pending_lever_confirmation_url():
         assert any(event["event_type"] == "submission_verified" for event in payload["events"])
 
 def test_detects_supported_ats_families_without_trusting_company_names():
+    assert detect_adapter("https://careers.wix.com/position/REF123-7440001").key == "wix"
     assert detect_adapter("https://boards.greenhouse.io/acme/jobs/123").key == "greenhouse"
     assert detect_adapter("https://www.comeet.com/jobs/acme/123").key == "comeet"
     assert detect_adapter("https://jobs.lever.co/acme/123").key == "lever"
     assert detect_adapter("https://acme.wd5.myworkdayjobs.com/jobs/123").key == "workday"
     assert detect_adapter("https://careers.example.com/jobs/123").key == "custom"
+
+
+def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday():
+    for company, url in (
+        ("Intel", "https://intel.wd1.myworkdayjobs.com/External/job/Israel/Test_R1"),
+        ("Applied Materials", "https://amat.wd1.myworkdayjobs.com/External/job/Israel/Test_R2"),
+    ):
+        preview = build_submission_preview(
+            SimpleNamespace(id=41, title="Engineer", company=company, apply_url=url,
+                            source=SimpleNamespace(kind="workday")),
+            _profile(application_password="saved-password"),
+        )
+        assert preview["ready"] is False
+        assert preview["adapter"]["key"] == "workday"
+        assert preview["adapter"]["execution"] == "manual_only"
+        assert preview["adapter"]["supports_automatic_submit"] is False
+        assert preview["adapter"]["exclusion_reason"]
+
+
+def test_short_form_adapters_are_exposed_separately_from_multistep_workday():
+    assert detect_adapter("https://careers.wix.com/position/REF123-7440001").form_flow == "single_page"
+    assert detect_adapter("https://boards.greenhouse.io/acme/jobs/1").form_flow == "single_page"
+    assert detect_adapter("https://jobs.lever.co/acme/1").form_flow == "single_page"
+    assert detect_adapter("https://www.comeet.com/jobs/acme/1").form_flow == "single_page"
+    assert detect_adapter("https://acme.wd1.myworkdayjobs.com/jobs/1").form_flow == "multi_step"
+
+
+def test_excluded_employer_cannot_enter_visible_or_background_automation():
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Excluded Workday Test", "company": "Intel", "location": "Israel",
+            "apply_url": "https://intel.wd1.myworkdayjobs.com/External/job/Israel/Test_R1",
+        }).json()
+        fetched = client.get(f"/api/jobs/{job['id']}").json()
+        assert fetched["application_adapter"]["supports_automatic_submit"] is False
+        assert fetched["application_adapter"]["execution"] == "manual_only"
+        response = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        assert response.status_code == 409
+        assert "Intel" in response.json()["detail"]
 
 
 def test_preview_fails_closed_when_identity_or_resume_is_missing():

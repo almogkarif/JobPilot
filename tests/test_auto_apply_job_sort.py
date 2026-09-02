@@ -33,6 +33,7 @@ def test_auto_apply_first_sort_is_supported_by_jobs_api():
 
 def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
     cases = [
+        ("manual", "https://careers.wix.com/position/REF123-7440001"),
         ("manual", "https://job-boards.greenhouse.io/example/jobs/1"),
         ("comeet", "https://example.com/jobs/2"),
         ("manual", "https://jobs.eu.lever.co/example/3"),
@@ -99,3 +100,41 @@ def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
                     for source in db.scalars(select(Source).where(Source.id.in_(source_ids))).all():
                         db.delete(source)
                     db.commit()
+
+
+def test_auto_apply_sort_prefers_wix_single_page_form_over_workday():
+    token = uuid4().hex
+    with TestClient(app):
+        with SessionLocal() as db:
+            source = Source(
+                name=f"Flow Sort {token}", kind="manual", identifier=f"flow-sort-{token}",
+                company_name="Flow Sort", career_track="computer_science", enabled=False,
+            )
+            db.add(source)
+            db.flush()
+            wix = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"wix-{token}",
+                title="Wix form", company="Wix", location="Israel", description="Software role",
+                apply_url="https://careers.wix.com/position/REF123-7440001",
+                source_url="https://careers.wix.com/position/REF123-7440001", score=0, is_active=True,
+            )
+            workday = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"wd-{token}",
+                title="Workday form", company="Other Company", location="Israel", description="Software role",
+                apply_url="https://other.wd1.myworkdayjobs.com/External/job/Israel/Test_R1",
+                source_url="https://other.wd1.myworkdayjobs.com/External/job/Israel/Test_R1", score=0, is_active=True,
+            )
+            db.add_all([wix, workday])
+            db.flush()
+            try:
+                priorities = dict(db.execute(select(Job.id, _automatic_submit_sort_order()).where(
+                    Job.id.in_((wix.id, workday.id))
+                )).all())
+                assert priorities[wix.id] == 2
+                assert priorities[workday.id] == 1
+            finally:
+                db.delete(wix)
+                db.delete(workday)
+                db.flush()
+                db.delete(source)
+                db.commit()
