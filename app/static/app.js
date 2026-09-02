@@ -2711,7 +2711,10 @@ function profileForm() {
 function savedProfileFormValue(name) {
   if (name === 'extra_languages') return JSON.stringify(normalizeLanguages(state.profile?.application_profile?.languages));
   if (name === 'extra_work_experiences') return JSON.stringify(normalizeWorkExperiences(state.profile?.application_profile));
-  if (name === 'extra_citizenships') return normalizeCitizenships(state.profile?.application_profile?.citizenships).join(', ');
+  if (name === 'extra_citizenships') {
+    const saved = normalizeCitizenships(state.profile?.application_profile?.citizenships);
+    return (saved.length ? saved : ['Citizen (Israel)']).join(', ');
+  }
   if (name.startsWith('extra_')) return String(state.profile?.application_profile?.[name.slice(6)] ?? '');
   if (name === 'application_password') return '';
   if (PROFILE_CHECK_FIELDS.includes(name)) return !!state.profile?.[name];

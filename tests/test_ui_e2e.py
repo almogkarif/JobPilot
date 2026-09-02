@@ -261,7 +261,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     recent.click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
-    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").count() == 0
+    assert page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").count() == 0
     page.locator(".modal-close").click()
 
     # Metric cards navigate and apply their filter.
@@ -281,7 +281,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     # The seeded custom career page is deliberately background-ineligible. It
     # must be visibly manual-only and must not offer an automatic action.
     assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
-    assert page.get_by_role("button", name="בדיקה והגשה אוטומטית").count() == 0
+    assert page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").count() == 0
     page.locator(".modal-close").click()
     first_job = page.evaluate("async()=>await (await fetch('/api/jobs')).json()")[0]
     page.evaluate("async id=>await fetch(`/api/jobs/${id}/mark-submitted`,{method:'POST'})", first_job["id"])
@@ -322,7 +322,8 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     assert "תומך בהגשה אוטומטית" in badge.text_content()
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    page.get_by_role("button", name="בדיקה והגשה אוטומטית").wait_for(state="visible")
+    page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").wait_for(state="visible")
+    page.get_by_role("button", name="אני רוצה לראות את הסוכן מגיש").wait_for(state="visible")
 
 
 def test_small_choice_blocker_is_yellow_and_uses_clickable_options_everywhere(browser_page):
