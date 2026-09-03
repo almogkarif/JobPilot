@@ -872,8 +872,8 @@ def _v2_tier_order():
     )
 
 
-def _automatic_submit_sort_order():
-    """Prioritize supported one-page forms, then supported multi-step forms."""
+def _automatic_application_query_filter():
+    """Match lightweight application lists to the adapter capability check."""
     apply_url = func.lower(func.coalesce(Job.apply_url, ""))
     source_kind = func.lower(func.coalesce(
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
@@ -887,6 +887,24 @@ def _automatic_submit_sort_order():
         | apply_url.like("%smartrecruiters.com%") | source_kind.like("%smartrecruiters%")
         | apply_url.like("%myworkdayjobs.com%") | source_kind.like("%workday%")
     )
+    company = func.lower(func.trim(func.coalesce(Job.company, "")))
+    excluded = company.in_(
+        (
+            "intel", "applied materials", "applied material",
+            "check point", "check point software", "check point software technologies",
+            "servicenow", "service now", "traild", "kla", "medtronic", "nvidia",
+        )
+    )
+    return supported & ~excluded
+
+
+def _automatic_submit_sort_order():
+    """Prioritize supported one-page forms, then supported multi-step forms."""
+    apply_url = func.lower(func.coalesce(Job.apply_url, ""))
+    source_kind = func.lower(func.coalesce(
+        select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
+    ))
+    supported = _automatic_application_query_filter()
     short_form = (
         apply_url.like("%elbitsystemscareer.com/job/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
@@ -894,13 +912,7 @@ def _automatic_submit_sort_order():
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
     )
-    company = func.lower(func.trim(func.coalesce(Job.company, "")))
-    allowed_company = ~company.in_((
-        "intel", "applied materials", "applied material",
-        "check point", "check point software", "check point software technologies",
-        "servicenow", "service now",
-    ))
-    return case((supported & allowed_company, case((short_form, 2), else_=1)), else_=0)
+    return case((supported, case((short_form, 2), else_=1)), else_=0)
 
 
 def _application_auto_submit_supported(application: Application) -> bool:
@@ -3517,6 +3529,7 @@ def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = De
             Job.career_track == track,
             Job.is_active.is_(True),
             Application.mode == "auto",
+            _automatic_application_query_filter(),
             Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "manual_required", "queued")),
         )
         .order_by(Application.id)
