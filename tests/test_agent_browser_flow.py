@@ -1,4 +1,5 @@
 import shutil
+import time
 
 from playwright.sync_api import sync_playwright
 
@@ -21,6 +22,7 @@ from agent.browser import (APPLY_START_TERMS, ApplicationBlocked, _body_text_req
                            _is_workday_application_page_url,
                            _enter_workday_start_method,
                            _expand_workday_profile_sections,
+                           _wait_for_ashby_resume_autofill,
                            _wait_for_application_ui,
                            _workday_national_phone,
                            _workday_custom_control_label,
@@ -30,11 +32,16 @@ from agent.browser import (APPLY_START_TERMS, ApplicationBlocked, _body_text_req
                            _clear_stale_workday_phone_extension,
                            _workday_unresolved_button_choice,
                            _choice_candidate_is_compatible,
+                           _set_boolean,
                            _safe_hosted_response_diagnostics,
                            _job_city_candidate, _find_action,
                            _is_lever_submission_endpoint, _lever_submission_response_result,
-                           _lever_visible_submission_error, _small_choice_options, fill_application)
+                           _lever_visible_submission_error, _small_choice_options, fill_application,
+                           _elbit_inferred_resume_field, _elbit_profile_resume_fallback,
+                           _is_hosted_ats_submission_endpoint, _hosted_ats_name,
+                           _hosted_ats_submission_response_result)
 from app.services.application_submission import lever_confirmation_from_url
+from agent.fields import known_value
 
 
 def _launch(playwright):
@@ -153,6 +160,34 @@ def test_apply_start_ignores_social_provider_and_chooses_direct_form():
         assert action is not None
         assert action.get_attribute("id") == "direct"
         browser.close()
+
+
+def test_elbit_page_is_a_direct_application_and_privacy_checkbox_is_consent():
+    assert _is_hosted_ats_apply_url("https://elbitsystemscareer.com/job/?jid=20711") is True
+    consent = known_value("מדיניות פרטיות", "checkbox", {}, {}, [])
+    assert consent is not None
+    assert consent.value is True
+    assert consent.source == "submission_consent"
+
+
+def test_elbit_single_hidden_file_input_uses_profile_resume_and_is_required():
+    fields = [{"selector": "#cv", "type": "file", "required": False, "visible": False}]
+    url = "https://elbitsystemscareer.com/job/?jid=20711"
+    assert _elbit_inferred_resume_field(fields[0], fields, url) is True
+    candidate = _elbit_profile_resume_fallback(fields[0], fields, {"cv_path": "/tmp/cv.pdf"}, url)
+    assert candidate is not None
+    assert candidate.value == "/tmp/cv.pdf"
+    assert candidate.source == "profile_elbit_resume"
+    assert _elbit_inferred_resume_field(fields[0], fields + [{"selector": "#other", "type": "file"}], url) is False
+
+
+def test_elbit_submission_endpoint_and_confirmation_are_recognized():
+    endpoint = "https://niloo-server.herokuapp.com/actions-elbit"
+    assert _is_hosted_ats_submission_endpoint(endpoint) is True
+    assert _hosted_ats_name(endpoint) == "Elbit"
+    assert _hosted_ats_submission_response_result(endpoint, 200, "true") == (
+        "Elbit accepted the application", "", ""
+    )
 
 def test_cybersecurity_job_description_is_not_mistaken_for_captcha():
     description = (
@@ -414,6 +449,44 @@ def test_hidden_native_radio_with_visible_label_remains_actionable():
         assert len(fields) == 2
         assert all(field["visible"] is True for field in fields)
         assert all("commuting to Jerusalem" in _display_field_label(field) for field in fields)
+        browser.close()
+
+
+def test_single_consent_checkbox_keeps_its_own_label_not_neighboring_field():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.set_content('''
+          <form>
+            <label>Country<select><option>Israel</option></select></label>
+            <label><input name="consent" type="checkbox" required>
+              By submitting your application you consent to the hiring process
+            </label>
+          </form>
+        ''')
+        consent = next(field for field in _extract_fields(page) if field["type"] == "checkbox")
+        assert "submitting your application" in _display_field_label(consent)
+        assert "Country" not in _display_field_label(consent)
+        browser.close()
+
+
+def test_choice_fill_recovers_after_ashby_style_react_rerender():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        markup = '''
+          <fieldset class="ashby-application-form-input-radio-group">
+            <legend>Work authorization</legend>
+            <label><input type="radio" name="authorization">Authorized to work</label>
+            <label><input type="radio" name="authorization">Requires sponsorship</label>
+          </fieldset>
+        '''
+        page.set_content(markup)
+        field = _extract_fields(page)[0]
+        stale = page.locator(field["selector"]).first
+        page.locator("body").evaluate("(el, html) => { el.innerHTML = html; }", markup)
+        _set_boolean(stale, "Authorized to work", field)
+        assert page.locator('input[name="authorization"]').first.is_checked() is True
         browser.close()
 
 
@@ -864,6 +937,40 @@ def test_saved_answer_from_first_lever_checkbox_option_selects_the_chosen_siblin
             browser.close()
 
 
+def test_lever_checkbox_question_uses_group_label_and_selects_saved_no_option():
+    question = "Have you worked on 3D reconstruction or multi-view geometry projects?"
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.eu.lever.co/**", lambda route: route.fulfill(content_type="text/html", body=f"""
+          <form>
+            <div class="application-question">
+              <div class="question-title">{question}</div>
+              <label><input name="three-d" type="checkbox" value="industry">Yes, in industry</label>
+              <label><input name="three-d" type="checkbox" value="academia">Yes, in academia/research</label>
+              <label><input name="three-d" type="checkbox" value="no">No</label>
+            </div>
+            <button type="submit">Submit Application</button>
+          </form>
+        """))
+        task = {
+            "job": {"apply_url": "https://jobs.eu.lever.co/mobileye/example/apply"},
+            "profile": {"full_name": "Demo Candidate"},
+            "answers": {},
+            "answer_memories": [{"pattern": question, "answer": "No", "scope": "company"}],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent must stop at final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.locator('input[value="no"]').is_checked()
+            assert not page.locator('input[value="industry"]').is_checked()
+            assert not page.locator('input[value="academia"]').is_checked()
+        finally:
+            browser.close()
+
+
 def test_dynamic_combobox_becomes_clickable_choice_blocker():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
@@ -895,6 +1002,87 @@ def test_dynamic_combobox_becomes_clickable_choice_blocker():
             browser.close()
 
 
+def test_minimum_experience_combobox_uses_profile_years_and_reaches_review():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <label id="python-years-label" for="python-years">Do you have at least 5 years of experience coding in Python?*</label>
+          <input id="python-years" role="combobox" aria-labelledby="python-years-label" aria-required="true">
+          <div id="choices" hidden><div role="option">Yes</div><div role="option">No</div></div>
+          <script>
+            const input = document.querySelector('#python-years');
+            input.addEventListener('click', () => choices.hidden = false);
+            document.querySelectorAll('[role=option]').forEach(option => option.addEventListener('click', () => {
+              input.value = option.textContent;
+              choices.hidden = true;
+            }));
+          </script>
+          <button type="submit">Submit Application</button>
+        """))
+        task = {
+            "job": {"apply_url": "https://careers.example.test/apply"},
+            "profile": {"full_name": "Demo Candidate", "years_experience": 3},
+            "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent must stop at final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.locator("#python-years").input_value() == "No"
+        finally:
+            browser.close()
+
+
+def test_ashby_button_yes_no_questions_and_privacy_are_completed_before_review():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.ashbyhq.com/**", lambda route: route.fulfill(content_type="text/html", body="""
+          <form>
+            <section><label for="sponsor">Would you require employment sponsorship in Israel?</label>
+              <input id="sponsor" type="checkbox" hidden>
+              <button data-option="yes" aria-pressed="false">Yes</button><button data-option="no" aria-pressed="false">No</button>
+            </section>
+            <section><label for="onsite">Are you open to working in-person 5 days per week?</label>
+              <input id="onsite" type="checkbox" hidden>
+              <button data-option="yes" aria-pressed="false">Yes</button><button data-option="no" aria-pressed="false">No</button>
+            </section>
+            <section><label for="prior">Have you been previously employed by Example?</label>
+              <input id="prior" type="checkbox" hidden>
+              <button data-option="yes" aria-pressed="false">Yes</button><button data-option="no" aria-pressed="false">No</button>
+            </section>
+            <p>Applicant Privacy Policy</p><label><input name="I agree" type="checkbox">I agree</label>
+            <button type="submit">Submit Application</button>
+          </form>
+          <script>
+            document.querySelectorAll('button[data-option]').forEach(button => button.addEventListener('click', event => {
+              event.preventDefault();
+              button.parentElement.querySelectorAll('button[data-option]').forEach(item => item.setAttribute('aria-pressed', 'false'));
+              button.setAttribute('aria-pressed', 'true');
+            }));
+          </script>
+        """))
+        task = {
+            "job": {"apply_url": "https://jobs.ashbyhq.com/example/role/application"},
+            "profile": {"needs_sponsorship": False, "preferred_work_modes": ["onsite"]},
+            "answers": {"Have you been previously employed by Example?": "No"},
+            "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent must stop at final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.locator("#sponsor").locator("xpath=..//button[@data-option='no']").get_attribute("aria-pressed") == "true"
+            assert page.locator("#onsite").locator("xpath=..//button[@data-option='yes']").get_attribute("aria-pressed") == "true"
+            assert page.locator("#prior").locator("xpath=..//button[@data-option='no']").get_attribute("aria-pressed") == "true"
+            assert page.locator('input[name="I agree"]').is_checked()
+        finally:
+            browser.close()
+
+
 def test_comeet_generated_field_name_uses_plain_text_ancestor_question():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
@@ -910,6 +1098,26 @@ def test_comeet_generated_field_name_uses_plain_text_ancestor_question():
         field = next(item for item in _extract_fields(page) if item["tag"] == "select")
         assert _display_field_label(field) == "האם עבדת בעבר בחברה?"
         assert "cards[" not in _display_field_label(field)
+        browser.close()
+
+
+def test_ashby_resume_wait_finishes_when_parser_disappears_without_completion_message():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://jobs.ashbyhq.com/**", lambda route: route.fulfill(
+            content_type="text/html",
+            body="""
+                <div id="status">Parsing your resume</div>
+                <script>setTimeout(() => document.querySelector('#status').remove(), 500)</script>
+            """,
+        ))
+        page.goto("https://jobs.ashbyhq.com/example/role/application")
+
+        started = time.monotonic()
+        _wait_for_ashby_resume_autofill(page)
+
+        assert time.monotonic() - started < 5
         browser.close()
 
 
@@ -929,6 +1137,80 @@ def test_comeet_embedded_apply_iframe_is_promoted_to_active_page():
         assert page.url == "https://www.comeet.co/jobs/test/apply"
         assert page.locator('input[name="first_name"]').count() == 1
         browser.close()
+
+
+def test_branded_page_detects_comeet_after_vendor_replaces_marker_with_iframe():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/job", lambda route: route.fulfill(
+            content_type="text/html",
+            body='<div id="apply"><iframe src="https://www.comeet.co/jobs/example/role/apply"></iframe></div>',
+        ))
+        page.route("https://www.comeet.co/jobs/example/role/apply", lambda route: route.fulfill(
+            content_type="text/html", body='<input name="first_name" required>',
+        ))
+        page.goto("https://careers.example.test/job")
+        assert _enter_comeet_embedded_form(page) is True
+        assert page.url == "https://www.comeet.co/jobs/example/role/apply"
+        browser.close()
+
+
+def test_proteantecs_style_container_waits_for_delayed_comeet_iframe():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/job", lambda route: route.fulfill(
+            content_type="text/html",
+            body='''
+              <div id="form-script-wrapper" class="careerpageform"></div>
+              <script>
+                setTimeout(() => {
+                  document.querySelector('#form-script-wrapper').innerHTML =
+                    '<iframe src="https://www.comeet.co/jobs/example/role/apply"></iframe>';
+                }, 500);
+              </script>
+            ''',
+        ))
+        page.route("https://www.comeet.co/jobs/example/role/apply", lambda route: route.fulfill(
+            content_type="text/html", body='<input name="first_name" required>',
+        ))
+        page.goto("https://careers.example.test/job")
+        assert _enter_comeet_embedded_form(page) is True
+        assert page.url == "https://www.comeet.co/jobs/example/role/apply"
+        browser.close()
+
+
+def test_branded_career_page_prefers_embedded_comeet_form_over_unrelated_apply_link():
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("https://careers.example.test/job", lambda route: route.fulfill(
+            content_type="text/html",
+            body="""
+              <a href="https://product.example.test/signin">Apply now</a>
+              <div class="comeet-apply">
+                <script type="comeet-applyform" data-position-uid="role-1"></script>
+                <iframe src="https://www.comeet.co/jobs/example/role-1/apply"></iframe>
+              </div>
+            """,
+        ))
+        page.route("https://www.comeet.co/jobs/example/role-1/apply", lambda route: route.fulfill(
+            content_type="text/html",
+            body='<label>Full Name<input name="first_name" required></label><button type="submit">Submit Application</button>',
+        ))
+        task = {
+            "job": {"title": "Engineer", "apply_url": "https://careers.example.test/job"},
+            "profile": {"full_name": "Demo Candidate"}, "answers": {}, "answer_memories": [],
+        }
+        try:
+            fill_application(page, task, auto_submit=False)
+            raise AssertionError("The agent must stop at final review")
+        except ApplicationBlocked as blocker:
+            assert blocker.kind == "review_before_submit"
+            assert page.url == "https://www.comeet.co/jobs/example/role-1/apply"
+        finally:
+            browser.close()
 
 
 def test_workday_custom_checkbox_falls_back_to_clickable_wrapper():

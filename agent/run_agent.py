@@ -111,10 +111,15 @@ def prepare_resume(task: dict) -> str:
     response.raise_for_status()
     disposition = response.headers.get("content-disposition", "")
     filename = "resume.pdf"
-    if 'filename="' in disposition:
+    encoded_match = re.search(r"filename\*=UTF-8''([^;]+)", disposition, flags=re.IGNORECASE)
+    if encoded_match:
+        filename = unquote(encoded_match.group(1).strip())
+    elif 'filename="' in disposition:
         filename = disposition.split('filename="', 1)[1].split('"', 1)[0]
     safe_name = Path(filename).name or "resume.pdf"
-    destination = AGENT_CACHE_DIR / f"{application_id}_{safe_name}"
+    destination_dir = AGENT_CACHE_DIR / str(application_id)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    destination = destination_dir / safe_name
     destination.write_bytes(response.content)
     application["resume_path"] = str(destination)
     profile = task.get("profile") or {}

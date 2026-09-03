@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import time
 from dataclasses import asdict, dataclass
@@ -25,6 +26,7 @@ class ATSAdapter:
 
 
 ADAPTERS = {
+    "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
     "wix": ATSAdapter(
         "wix", "Wix Careers", execution="manual_only", supports_automatic_submit=False,
         notes="הטופס קצר, אך SmartRecruiters/DataDome חוסם דפדפני אוטומציה ולכן נדרשת הגשה ידנית.",
@@ -47,6 +49,12 @@ ADAPTERS = {
 _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "intel": "Intel הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "applied materials": "Applied Materials הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "check point": "Check Point הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
+    "servicenow": "ServiceNow הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
+    "traild": "TRAILD הוסרה מהגשה אוטומטית: טופס Lever מציג CAPTCHA פעיל שדורש אימות אנושי.",
+    "kla": "KLA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "medtronic": "Medtronic הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "nvidia": "NVIDIA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה דורש כניסה חיצונית ורב-שלבית.",
 }
 
 
@@ -58,6 +66,18 @@ def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["intel"]
     if normalized_company in {"applied materials", "applied material"} or host.startswith("amat."):
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["applied materials"]
+    if normalized_company in {"check point", "check point software", "check point software technologies"}:
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["check point"]
+    if normalized_company in {"servicenow", "service now"}:
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["servicenow"]
+    if normalized_company == "traild":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["traild"]
+    if normalized_company == "kla":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["kla"]
+    if normalized_company == "medtronic":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["medtronic"]
+    if normalized_company == "nvidia":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["nvidia"]
     return ""
 
 
@@ -111,6 +131,12 @@ def automation_apply_url(job) -> str:
     controls. The original public URL remains on the Job row for users.
     """
     original = str(getattr(job, "apply_url", "") or "").strip()
+    parsed_original = urlparse(original)
+    original_host = (parsed_original.hostname or "").casefold()
+    original_parts = [part for part in parsed_original.path.split("/") if part]
+    if original_host in {"monday.com", "www.monday.com"} and len(original_parts) == 2 \
+            and original_parts[0].casefold() == "careers":
+        return f"https://jobs.ashbyhq.com/monday.com/{quote(original_parts[1], safe='-._~')}"
     source = getattr(job, "source", None)
     kind = str(getattr(source, "kind", "") or "").strip().casefold()
     if kind != "greenhouse":
@@ -140,8 +166,23 @@ def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}:
+        return ADAPTERS["elbit"]
     if host in {"careers.wix.com", "www.careers.wix.com"}:
         return ADAPTERS["wix"]
+    # Aqua's branded WordPress career pages embed the actual Comeet form in a
+    # `.comeet-apply` region. The browser adapter promotes that iframe before
+    # considering any unrelated site-wide Apply links.
+    if host in {"aquasec.com", "www.aquasec.com"} and "/careers/" in path:
+        return ADAPTERS["comeet"]
+    if host in {"camtek.com", "www.camtek.com"} and "/careers/open-positions/" in path:
+        return ADAPTERS["comeet"]
+    if host in {"nextsilicon.com", "www.nextsilicon.com"} and "/careers/" in path:
+        return ADAPTERS["comeet"]
+    if host in {"proteantecs.com", "www.proteantecs.com"} and path.rstrip("/") == "/careerinfo":
+        return ADAPTERS["comeet"]
+    if host in {"monday.com", "www.monday.com"} and re.fullmatch(r"/careers/[^/]+/?", path):
+        return ADAPTERS["ashby"]
     if "greenhouse" in joined:
         return ADAPTERS["greenhouse"]
     if "comeet" in joined:

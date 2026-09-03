@@ -20,7 +20,8 @@ CAPTCHA_ACTION_TERMS = [
 SUCCESS_TERMS = [
     "application submitted", "thank you for applying", "thanks for applying", "application received",
     "successfully submitted", "your application has been submitted",
-    "thanks for your application", "מועמדותך התקבלה", "הבקשה נשלחה", "תודה שהגשת",
+    "thanks for your application", "מועמדותך התקבלה", "המועמדות נשלחה בהצלחה",
+    "הבקשה נשלחה", "תודה שהגשת",
 ]
 APPLY_START_TERMS = [
     "apply", "apply now", "apply for this job", "apply for job", "apply to this job", "start application",
@@ -41,7 +42,7 @@ AUTH_FAILURE_TERMS = [
 ]
 SUBMIT_TERMS = [
     "submit application", "submit my application", "send application", "final submit",
-    "שלח מועמדות", "שליחה סופית",
+    "שלח מועמדות", "הגש מועמדות", "שליחה סופית",
 ]
 DUPLICATE_SUBMISSION_TERMS = [
     "your application was already submitted", "application already submitted",
@@ -204,6 +205,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 page.url,
             )
         _dismiss_cookie_banner(page)
+        # Branded career pages can embed the real Comeet application below
+        # unrelated product CTAs that also say "Apply". Enter the embedded
+        # recruiting form before the generic action search can leave the site.
+        if _enter_comeet_embedded_form(page):
+            continue
         if policy.get("id") == "intel_workday" and _on_intel_voluntary_disclosures(page):
             filled.extend(_fill_intel_voluntary_disclosures(page, profile))
             next_button = _find_action(page, NAVIGATION_TERMS)
@@ -224,7 +230,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         print(f"[agent-step] step={_step + 1} fields={len(fields)}", flush=True)
         is_application_path = _is_workday_application_page_url(page.url) or (
             "myworkdayjobs.com" not in current_host and "/apply" in urlparse(page.url).path.casefold()
-        ) or _is_hosted_ats_apply_url(page.url)
+        ) or _is_hosted_ats_apply_url(page.url) or bool(
+            page.locator('[data-jobpilot-comeet-embedded="true"]').count()
+        )
         # Authenticated Workday posting pages can expose account chrome fields
         # (Email/Password) alongside the job-level Apply button. Those fields do
         # not mean that the application form has started; always enter the
@@ -354,6 +362,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     "יש לפתוח את המשרה פעם אחת מתוך החשבון; לאחר מכן JobPilot יוכל להמשיך מהטיוטה.",
                     page.url, diagnostics=_stalled_flow_diagnostics(page, filled),
                 )
+            # DataDome can inject its visible challenge only after the initial
+            # application-page check. Re-check immediately before reporting a
+            # missing form so delayed SmartRecruiters challenges are classified
+            # as anti-automation blocks rather than a misleading zero-field form.
+            _detect_captcha(page)
             raise ApplicationBlocked(
                 "application_form_missing", "טופס הגשה", "איך מגיעים לטופס ההגשה?",
                 "עמוד המשרה נפתח, אך לא נמצאו בו טופס או כפתור Apply שניתן לזהות בבטחה.", page.url,
@@ -363,6 +376,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
         filled.extend(_fill_workday_citizenships(page, profile))
         filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
+        filled.extend(_fill_ashby_yes_no_choices(page, profile, answers, memories))
+        filled.extend(_fill_ashby_privacy_consent(page))
         filled.extend(_clear_stale_workday_phone_extension(page, profile))
         workday_resume = _attach_workday_resume_chooser(page, profile)
         if workday_resume:
@@ -394,6 +409,14 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 anonymous_month_index += 1
             candidate = known_value(lookup_label, field_type, profile, answers, memories)
 
+            # Lever can expose the demographic prompt as nearby prose rather
+            # than the select's accessible label. Its closed option set still
+            # identifies the gender question unambiguously.
+            if candidate is None and field.get("tag") == "select":
+                option_keys = {normalize(option) for option in field.get("options", [])}
+                if {"male", "female"}.issubset(option_keys):
+                    candidate = known_value("What is your gender?", field_type, profile, answers, memories)
+
             # Older blockers could use the first radio option as the question key
             # (for example the positive Python-experience statement). On retry the
             # chosen negative statement must be applied to every radio in that same
@@ -413,6 +436,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 candidate = candidate or _lever_profile_document_fallback(
                     field, actionable_fields, profile, page.url
                 )
+                candidate = candidate or _elbit_profile_resume_fallback(
+                    field, actionable_fields, profile, page.url
+                )
                 if candidate is not None:
                     field["candidate_source"] = candidate.source
                 candidate_path = Path(str(candidate.value)) if candidate else None
@@ -422,9 +448,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 elif candidate_path and candidate_path.exists():
                     if _attach_file_to_field(page, field, candidate_path):
                         filled.append({"label": label, "source": candidate.source, "document": document_kind})
+                        if document_kind == "resume":
+                            _wait_for_ashby_resume_autofill(page)
                     else:
                         unknown.append(field)
-                elif field.get("required") or _lever_inferred_grade_sheet_field(field, actionable_fields, page.url):
+                elif (
+                    field.get("required")
+                    or _lever_inferred_grade_sheet_field(field, actionable_fields, page.url)
+                    or _elbit_inferred_resume_field(field, actionable_fields, page.url)
+                ):
                     unknown.append(field)
                 continue
 
@@ -517,6 +549,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         # Reapply approved answers only after every other field mutation, just
         # before validation and navigation.
         filled.extend(_fill_known_workday_button_choices(page, profile, answers, memories))
+        # Ashby can re-render its questionnaire after resume parsing completes,
+        # resetting button-backed answers and the privacy acknowledgement.
+        filled.extend(_fill_ashby_yes_no_choices(page, profile, answers, memories))
+        filled.extend(_fill_ashby_privacy_consent(page))
         unresolved = []
         for field in unknown:
             if field.get("type") == "file":
@@ -1459,8 +1495,11 @@ def _extract_fields(page: Page) -> list[dict]:
               }
             }
             let groupLabel = '';
-            if ((el.type || '').toLowerCase() === 'radio') {
-              const peers = el.name ? [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)] : [el];
+            const choiceType = (el.type || '').toLowerCase();
+            const peers = ['radio', 'checkbox'].includes(choiceType) && el.name
+              ? [...document.querySelectorAll(`input[type="${choiceType}"][name="${CSS.escape(el.name)}"]`)]
+              : [el];
+            if (choiceType === 'radio' || (choiceType === 'checkbox' && peers.length > 1)) {
               let common = peers[0] || el;
               while (common && !peers.every(peer => common.contains(peer))) common = common.parentElement;
               const group = el.closest('fieldset, [role="radiogroup"], .application-question, .ashby-application-form-question, [class*="question"]') || common;
@@ -1593,6 +1632,9 @@ def _choice_candidate_is_compatible(field: dict, desired: str | bool) -> bool:
     if not desired_key:
         return False
     options = [normalize(option) for option in field.get("options", []) or [] if normalize(option)]
+    unique_options = set(options)
+    if field.get("type") == "checkbox" and len(unique_options) <= 1:
+        return desired_key in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
     if not options:
         # A single checkbox can legitimately use a textual Yes/No value even
         # without an exposed option list. Other arbitrary text is unsafe.
@@ -1606,10 +1648,13 @@ def _choice_candidate_is_compatible(field: dict, desired: str | bool) -> bool:
 
 def _choice_group_has_selection(locator: Locator, field: dict) -> bool:
     try:
-        if field.get("type") == "radio":
+        unique_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
+        if field.get("type") == "radio" or (
+            field.get("type") == "checkbox" and len(unique_options) > 1
+        ):
             return bool(locator.evaluate(
                 """el => el.name
-                    ? [...document.querySelectorAll('input[type=radio]')].some(peer => peer.name === el.name && peer.checked)
+                    ? [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].some(peer => peer.name === el.name && peer.checked)
                     : !!el.checked"""
             ))
         return bool(locator.is_checked(timeout=1_000))
@@ -1618,8 +1663,38 @@ def _choice_group_has_selection(locator: Locator, field: dict) -> bool:
 
 
 def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
+    # React-driven ATS forms (notably Ashby) can replace later question inputs
+    # while earlier text fields are filled. Re-resolve the choice from a fresh
+    # field snapshot before interacting with a detached JobPilot selector.
+    try:
+        if not locator.count():
+            current_fields = _extract_fields(locator.page)
+            replacement = next((
+                current for current in current_fields
+                if current.get("type") == field.get("type")
+                and current.get("name") == field.get("name")
+                and normalize(current.get("label", "")) == normalize(field.get("label", ""))
+            ), None)
+            if replacement:
+                field = replacement
+                locator = locator.page.locator(field["selector"]).first
+    except Exception:
+        pass
     desired_key = normalize(str(desired))
     desired_bool = desired if isinstance(desired, bool) else desired_key in {"true", "yes", "כן", "1"}
+    unique_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
+    grouped_checkbox = field.get("type") == "checkbox" and len(unique_options) > 1
+    if grouped_checkbox and not isinstance(desired, bool):
+        option = normalize(" ".join([field.get("value", ""), field.get("label", "")]))
+        selected = bool(desired_key and (option == desired_key or option.endswith(" " + desired_key)))
+        if selected and not field.get("checked"):
+            try:
+                locator.check(force=True, timeout=2_000)
+            except Exception:
+                _toggle_custom_checkbox(locator, True)
+        elif not selected and field.get("checked"):
+            locator.uncheck(force=True, timeout=2_000)
+        return
     if field.get("type") in {"radio", "checkbox"} and not isinstance(desired, bool) and desired_key not in {
         "true", "yes", "כן", "1", "false", "no", "לא", "0",
     }:
@@ -1696,6 +1771,9 @@ def _select_best(locator: Locator, value: str) -> bool:
     wanted = normalize(value)
     yes = wanted in {"true", "yes", "כן", "1"}
     no = wanted in {"false", "no", "לא", "0"}
+    declines_demographic = wanted in {
+        "decline to self identify", "prefer not to say", "prefer not to answer",
+    }
     try:
         options = locator.locator("option").all_text_contents()
         referral_fallback = ""
@@ -1708,6 +1786,11 @@ def _select_best(locator: Locator, value: str) -> bool:
                 locator.select_option(label=option, timeout=2_000)
                 return True
             if no and option_key in {"no", "לא", "not required", "i am not"}:
+                locator.select_option(label=option, timeout=2_000)
+                return True
+            if declines_demographic and option_key in {
+                "decline to self identify", "prefer not to say", "prefer not to answer",
+            }:
                 locator.select_option(label=option, timeout=2_000)
                 return True
             if wanted == "company website" and not referral_fallback and any(
@@ -1837,6 +1920,29 @@ def _lever_profile_document_fallback(
     return CandidateValue(str(profile["grade_sheet_path"]), "profile_grade_sheet_inferred")
 
 
+def _elbit_inferred_resume_field(field: dict, fields: list[dict], page_url: str) -> bool:
+    """Identify Elbit's single hidden CV input even when its label is not exposed."""
+    parsed = urlparse(page_url)
+    if (parsed.hostname or "").casefold() not in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}:
+        return False
+    if field.get("type") != "file":
+        return False
+    file_fields = [
+        item for item in fields
+        if item.get("type") == "file" and not item.get("disabled")
+    ]
+    return len(file_fields) == 1 and file_fields[0].get("selector") == field.get("selector")
+
+
+def _elbit_profile_resume_fallback(
+    field: dict, fields: list[dict], profile: dict, page_url: str,
+) -> CandidateValue | None:
+    cv_path = str(profile.get("cv_path") or "").strip()
+    if not cv_path or not _elbit_inferred_resume_field(field, fields, page_url):
+        return None
+    return CandidateValue(cv_path, "profile_elbit_resume")
+
+
 def _ensure_profile_documents_attached(
     page: Page, fields: list[dict], profile: dict, answers: dict, memories: list[dict],
 ) -> list[dict]:
@@ -1847,6 +1953,7 @@ def _ensure_profile_documents_attached(
         label = _display_field_label(field)
         candidate = known_value(label, "file", profile, answers, memories)
         candidate = candidate or _lever_profile_document_fallback(field, actionable, profile, page.url)
+        candidate = candidate or _elbit_profile_resume_fallback(field, actionable, profile, page.url)
         if not candidate:
             continue
         path = Path(str(candidate.value))
@@ -1878,7 +1985,7 @@ def _display_field_label(field: dict) -> str:
         return file_context[:500]
     if field.get("type") == "file" and file_context and _is_generic_file_action_label(label):
         return file_context[:500]
-    if field.get("type") == "radio" and group_label:
+    if field.get("type") in {"radio", "checkbox"} and group_label:
         return group_label[:500]
     if field.get("type") == "email" or autocomplete == "email" or re.search(r"(?:^|[^a-z])e?mail(?:[^a-z]|$)", raw_name, re.I):
         return "Email"
@@ -2255,9 +2362,22 @@ def _click_action(page: Page, candidate: Locator) -> None:
 def _enter_comeet_embedded_form(page: Page) -> bool:
     """Promote Comeet's cross-origin application iframe into the active page."""
     host = (urlparse(page.url).hostname or "").casefold()
-    if host not in {"comeet.com", "www.comeet.com"}:
+    marker = page.locator('script[type="comeet-applyform"], .comeet-applyform').first
+    container = page.locator('.comeet-apply, #form-script-wrapper.careerpageform').first
+    iframe = page.locator(
+        '#applyFormWrapper iframe[src*="/apply"], '
+        '.comeet-apply iframe[src*="comeet"][src*="/apply"], '
+        'iframe[src*="comeet.co"][src*="/apply"]'
+    )
+    is_comeet_host = host in {"comeet.com", "www.comeet.com"}
+    if not is_comeet_host and not marker.count() and not container.count() and not iframe.count():
         return False
-    iframe = page.locator('#applyFormWrapper iframe[src*="/apply"]')
+    try:
+        target = container if container.count() else marker
+        if target.count():
+            target.scroll_into_view_if_needed(timeout=1_500)
+    except Exception:
+        pass
     for _ in range(20):
         try:
             if iframe.count():
@@ -2269,6 +2389,14 @@ def _enter_comeet_embedded_form(page: Page) -> bool:
         except Exception:
             pass
         page.wait_for_timeout(250)
+    # The branded page explicitly owns a Comeet application area. Mark it so
+    # the caller will not fall through to unrelated site-wide Apply links while
+    # the vendor script is still rendering an inline form.
+    if container.count():
+        try:
+            container.evaluate("el => el.setAttribute('data-jobpilot-comeet-embedded', 'true')")
+        except Exception:
+            pass
     return False
 
 
@@ -2931,6 +3059,130 @@ def _clear_stale_workday_phone_extension(page: Page, profile: dict) -> list[dict
     return []
 
 
+def _wait_for_ashby_resume_autofill(page: Page, timeout_ms: int = 20_000) -> None:
+    """Wait for Ashby's resume parser before filling fields it can re-render."""
+    if "ashbyhq.com" not in (urlparse(page.url).hostname or "").casefold():
+        return
+    page.wait_for_timeout(300)
+    seen_parser = False
+    settled_checks = 0
+    for check_index in range(max(1, timeout_ms // 250)):
+        try:
+            body = normalize(page.locator("body").inner_text(timeout=1_000))
+        except Exception:
+            body = ""
+        parsing = "parsing your resume" in body or "autofilling key fields" in body
+        completed = "autofill completed" in body
+        seen_parser = seen_parser or parsing or completed
+        if completed and not parsing:
+            page.wait_for_timeout(250)
+            return
+        # Ashby does not consistently keep its "Autofill completed" message in
+        # the DOM. Once parsing was observed, two quiet checks are enough to
+        # confirm that the React update settled; waiting for the full timeout
+        # here made otherwise-simple applications pause for 20 seconds.
+        if seen_parser and not parsing:
+            settled_checks += 1
+            if settled_checks >= 2:
+                return
+        else:
+            settled_checks = 0
+        if check_index >= 4 and not seen_parser:
+            return
+        page.wait_for_timeout(250)
+
+
+def _fill_ashby_yes_no_choices(page: Page, profile: dict, answers: dict, memories: list) -> list[dict]:
+    """Fill Ashby's button-backed Yes/No questions whose native checkbox is hidden."""
+    if "ashbyhq.com" not in (urlparse(page.url).hostname or "").casefold():
+        return []
+    filled = []
+    fields = _extract_fields(page)
+    for field in fields:
+        if field.get("type") != "checkbox" or field.get("visible"):
+            continue
+        label = _display_field_label(field)
+        locator = page.locator(field["selector"]).first
+        try:
+            group = locator.locator(
+                "xpath=ancestor::*[.//button[@data-option='yes'] and .//button[@data-option='no']][1]"
+            )
+            if not group.count():
+                continue
+            yes_button = group.locator("button[data-option='yes']").first
+            no_button = group.locator("button[data-option='no']").first
+            selected = None
+            if (yes_button.get_attribute("aria-pressed") or "").casefold() == "true":
+                selected = "Yes"
+            elif (no_button.get_attribute("aria-pressed") or "").casefold() == "true":
+                selected = "No"
+            if selected:
+                continue
+            candidate = known_value(label, "radio", profile, answers, memories)
+            if candidate is None:
+                raise ApplicationBlocked(
+                    "choice_required", label, label,
+                    "נדרשת בחירה מאושרת כדי להמשיך. בחר אחת מהאפשרויות והסוכן ימשיך אוטומטית.",
+                    page.url, ["Yes", "No"], _field_diagnostics(field),
+                )
+            desired = normalize(str(candidate.value))
+            if desired in {"true", "yes", "כן", "1"}:
+                target, expected = yes_button, "Yes"
+            elif desired in {"false", "no", "לא", "0"}:
+                target, expected = no_button, "No"
+            else:
+                raise ApplicationBlocked(
+                    "choice_required", label, label,
+                    "התשובה השמורה אינה Yes או No. נדרשת בחירה מאושרת כדי להמשיך.",
+                    page.url, ["Yes", "No"], _field_diagnostics(field),
+                )
+            target.click(timeout=2_000)
+            page.wait_for_timeout(150)
+            if (target.get_attribute("aria-pressed") or "").casefold() != "true":
+                raise ApplicationBlocked(
+                    "choice_required", label, label,
+                    "Ashby לא שמר את הבחירה. נדרשת בחירה מאושרת כדי להמשיך.",
+                    page.url, ["Yes", "No"], _field_diagnostics(field),
+                )
+            filled.append({"label": label, "source": candidate.source})
+        except ApplicationBlocked:
+            raise
+        except Exception:
+            continue
+    return filled
+
+
+def _fill_ashby_privacy_consent(page: Page) -> list[dict]:
+    """Check Ashby's application privacy acknowledgement, never marketing consent."""
+    if "ashbyhq.com" not in (urlparse(page.url).hostname or "").casefold():
+        return []
+    checkbox = page.locator('input[type="checkbox"][name="I agree"]:visible').first
+    if not checkbox.count():
+        return []
+    try:
+        context = normalize(checkbox.locator("xpath=ancestor::*[1]").inner_text(timeout=500))
+        page_text = normalize(page.locator("body").inner_text(timeout=1_000))
+        if "privacy" not in context and "applicant privacy" not in page_text:
+            return []
+        if not checkbox.is_checked():
+            checkbox.check(force=True, timeout=2_000)
+        if not checkbox.is_checked():
+            label = checkbox.locator("xpath=ancestor::label[1]")
+            if label.count():
+                label.click(timeout=2_000)
+        if not checkbox.is_checked():
+            raise ApplicationBlocked(
+                "choice_required", "Applicant Privacy", "I agree",
+                "Ashby לא שמר את אישור מדיניות הפרטיות. נדרשת בדיקה ידנית לפני ההגשה.",
+                page.url, ["I agree"],
+            )
+        return [{"label": "Applicant Privacy", "source": "submission_consent"}]
+    except ApplicationBlocked:
+        raise
+    except Exception:
+        return []
+
+
 def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: list, job: dict | None = None) -> list[dict]:
     """Open custom ATS dropdowns, inspect their options, and choose the best match."""
     filled = []
@@ -3031,6 +3283,12 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     page.wait_for_timeout(300)
                 except Exception:
                     pass
+            initial_options = []
+            visible_choices = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
+            for option_index in range(min(visible_choices.count(), SMALL_CHOICE_MAX_OPTIONS + 1)):
+                option_text = re.sub(r"\s+", " ", visible_choices.nth(option_index).inner_text(timeout=500)).strip()
+                if option_text and option_text not in initial_options:
+                    initial_options.append(option_text)
             # Current Greenhouse React Select country/city lists can be remote and
             # contain hundreds of entries. Filter first, then allow the portal-backed
             # option list time to arrive instead of checking a single 250 ms snapshot.
@@ -3083,6 +3341,15 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     control.press("Escape")
             else:
                 control.press("Escape")
+                if (
+                    (control.get_attribute("aria-required") or "").casefold() == "true"
+                    and 2 <= len(initial_options) <= SMALL_CHOICE_MAX_OPTIONS
+                ):
+                    raise ApplicationBlocked(
+                        "choice_required", label or "בחירה נדרשת", label or "בחירה נדרשת",
+                        "הערך השמור אינו אחת מהאפשרויות הזמינות. נדרשת בחירה מאושרת כדי להמשיך.",
+                        page.url, initial_options,
+                    )
         except ApplicationBlocked:
             raise
         except Exception:
@@ -3382,6 +3649,8 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
         return bool(re.fullmatch(
             r"/careers-api/1\.0/company/[^/]+/positions/[^/]+/apply", path,
         ))
+    if host == "niloo-server.herokuapp.com":
+        return path == "/actions-elbit"
     if host in GREENHOUSE_HOSTS:
         return True
     if not ((host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")) and path == "/api/non-user-graphql"):
@@ -3402,6 +3671,8 @@ def _hosted_ats_name(url: str) -> str:
         return "Greenhouse"
     if host in {"comeet.co", "www.comeet.co"}:
         return "Comeet"
+    if host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com", "niloo-server.herokuapp.com"}:
+        return "Elbit"
     if host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com"):
         return "Ashby"
     return "ATS"
@@ -3412,6 +3683,7 @@ def _is_hosted_ats_apply_url(url: str) -> bool:
         host = (urlparse(str(url or "")).hostname or "").casefold()
         return (
             host in GREENHOUSE_HOSTS
+            or host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}
             or host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
             or host in {"comeet.co", "www.comeet.co"}
         )
@@ -3463,6 +3735,15 @@ def _hosted_ats_submission_response_result(
             return "Comeet accepted the application", "", ""
         if code >= 400:
             return "", "", f"Comeet rejected the application (HTTP {code})"
+        return "", "", ""
+    if host == "niloo-server.herokuapp.com":
+        explicit_success = compact in {"true", "1", '"true"'} or any(token in compact for token in (
+            '"success":true', '"submitted":true', '"status":"success"',
+        ))
+        if 200 <= code < 300 and (explicit_success or evidence_term):
+            return "Elbit accepted the application", "", ""
+        if code >= 400 or compact in {"false", "0", '"false"'}:
+            return "", "", f"Elbit rejected the application (HTTP {code})"
         return "", "", ""
     is_ashby = host == "jobs.ashbyhq.com" or host.endswith(".ashbyhq.com")
     if is_ashby:

@@ -33,6 +33,7 @@ def test_auto_apply_first_sort_is_supported_by_jobs_api():
 
 def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
     cases = [
+        ("manual", "https://elbitsystemscareer.com/job/?jid=20711"),
         ("manual", "https://careers.wix.com/position/REF123-7440001"),
         ("manual", "https://job-boards.greenhouse.io/example/jobs/1"),
         ("comeet", "https://example.com/jobs/2"),
@@ -102,7 +103,7 @@ def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
                     db.commit()
 
 
-def test_auto_apply_sort_excludes_wix_despite_its_single_page_form():
+def test_auto_apply_sort_excludes_employers_with_proven_browser_blocks():
     token = uuid4().hex
     with TestClient(app):
         with SessionLocal() as db:
@@ -124,17 +125,32 @@ def test_auto_apply_sort_excludes_wix_despite_its_single_page_form():
                 apply_url="https://other.wd1.myworkdayjobs.com/External/job/Israel/Test_R1",
                 source_url="https://other.wd1.myworkdayjobs.com/External/job/Israel/Test_R1", score=0, is_active=True,
             )
-            db.add_all([wix, workday])
+            checkpoint = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"cp-{token}",
+                title="Check Point form", company="Check Point", location="Israel", description="Software role",
+                apply_url="https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/123-role",
+                source_url="https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/123-role",
+                score=0, is_active=True,
+            )
+            servicenow = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"sn-{token}",
+                title="ServiceNow form", company="ServiceNow", location="Israel", description="Software role",
+                apply_url="https://jobs.smartrecruiters.com/ServiceNow/123-role",
+                source_url="https://jobs.smartrecruiters.com/ServiceNow/123-role", score=0, is_active=True,
+            )
+            db.add_all([wix, workday, checkpoint, servicenow])
             db.flush()
             try:
                 priorities = dict(db.execute(select(Job.id, _automatic_submit_sort_order()).where(
-                    Job.id.in_((wix.id, workday.id))
+                    Job.id.in_((wix.id, workday.id, checkpoint.id, servicenow.id))
                 )).all())
                 assert priorities[wix.id] == 0
+                assert priorities[checkpoint.id] == 0
+                assert priorities[servicenow.id] == 0
                 assert priorities[workday.id] == 1
             finally:
-                db.delete(wix)
-                db.delete(workday)
+                for job in (wix, workday, checkpoint, servicenow):
+                    db.delete(job)
                 db.flush()
                 db.delete(source)
                 db.commit()

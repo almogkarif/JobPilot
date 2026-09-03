@@ -879,7 +879,8 @@ def _automatic_submit_sort_order():
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
     ))
     supported = (
-        apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
+        apply_url.like("%elbitsystemscareer.com/job/%")
+        | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
@@ -887,13 +888,18 @@ def _automatic_submit_sort_order():
         | apply_url.like("%myworkdayjobs.com%") | source_kind.like("%workday%")
     )
     short_form = (
-        apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
+        apply_url.like("%elbitsystemscareer.com/job/%")
+        | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
     )
     company = func.lower(func.trim(func.coalesce(Job.company, "")))
-    allowed_company = ~company.in_(("intel", "applied materials", "applied material"))
+    allowed_company = ~company.in_((
+        "intel", "applied materials", "applied material",
+        "check point", "check point software", "check point software technologies",
+        "servicenow", "service now",
+    ))
     return case((supported & allowed_company, case((short_form, 2), else_=1)), else_=0)
 
 
@@ -5488,7 +5494,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is

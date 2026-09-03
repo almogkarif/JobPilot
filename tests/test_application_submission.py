@@ -5,8 +5,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.database import SessionLocal
 from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker
-from app.services.application_submission import (build_submission_preview, detect_adapter, issue_preview_token,
-                                                     lever_confirmation_from_url, verify_preview_token)
+from app.services.application_submission import (adapter_payload_for_job, automation_apply_url, build_submission_preview, detect_adapter,
+                                                     issue_preview_token, lever_confirmation_from_url,
+                                                     verify_preview_token)
 
 
 def _profile(**overrides):
@@ -70,13 +71,31 @@ def test_timeline_reconciles_existing_pending_lever_confirmation_url():
         assert any(event["event_type"] == "submission_verified" for event in payload["events"])
 
 def test_detects_supported_ats_families_without_trusting_company_names():
+    elbit = detect_adapter("https://elbitsystemscareer.com/job/?jid=20711")
+    assert elbit.key == "elbit"
+    assert elbit.supports_automatic_submit is True
+    assert elbit.form_flow == "single_page"
     assert detect_adapter("https://careers.wix.com/position/REF123-7440001").key == "wix"
     assert detect_adapter("https://careers.wix.com/position/REF123-7440001").supports_automatic_submit is False
     assert detect_adapter("https://boards.greenhouse.io/acme/jobs/123").key == "greenhouse"
+    assert detect_adapter("https://www.camtek.com/careers/open-positions/62.F6A/").key == "comeet"
+    assert detect_adapter("https://www.nextsilicon.com/careers/emulation-engineer").key == "comeet"
+    assert detect_adapter("https://www.proteantecs.com/careerinfo?pi=FB.D6C").key == "comeet"
+    assert detect_adapter("https://monday.com/careers/3ce06e40-f9bf-4bb6-b60b-65f8dc763e1d").key == "ashby"
     assert detect_adapter("https://www.comeet.com/jobs/acme/123").key == "comeet"
+    aqua = detect_adapter("https://www.aquasec.com/about-us/careers/co/israel/role/all/")
+    assert aqua.key == "comeet"
+    assert aqua.supports_automatic_submit is True
     assert detect_adapter("https://jobs.lever.co/acme/123").key == "lever"
     assert detect_adapter("https://acme.wd5.myworkdayjobs.com/jobs/123").key == "workday"
     assert detect_adapter("https://careers.example.com/jobs/123").key == "custom"
+
+
+def test_monday_branded_job_uses_its_ashby_application_surface():
+    job = _job("https://monday.com/careers/3ce06e40-f9bf-4bb6-b60b-65f8dc763e1d")
+    assert automation_apply_url(job) == (
+        "https://jobs.ashbyhq.com/monday.com/3ce06e40-f9bf-4bb6-b60b-65f8dc763e1d"
+    )
 
 
 def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday():
@@ -94,6 +113,70 @@ def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday()
         assert preview["adapter"]["execution"] == "manual_only"
         assert preview["adapter"]["supports_automatic_submit"] is False
         assert preview["adapter"]["exclusion_reason"]
+
+
+def test_checkpoint_and_servicenow_are_manual_only_after_datadome_audit():
+    for company, tenant in (
+        ("Check Point", "CheckPointSoftwareTechnologies2"),
+        ("ServiceNow", "ServiceNow"),
+    ):
+        job = type("Job", (), {
+            "company": company,
+            "apply_url": f"https://jobs.smartrecruiters.com/{tenant}/123-role",
+            "source": type("Source", (), {"kind": "smartrecruiters"})(),
+        })()
+        payload = adapter_payload_for_job(job)
+        assert payload["execution"] == "manual_only"
+        assert payload["supports_automatic_submit"] is False
+        assert "DataDome" in payload["exclusion_reason"]
+
+
+def test_traild_is_manual_only_after_live_captcha_audit():
+    job = type("Job", (), {
+        "company": "TRAILD",
+        "apply_url": "https://jobs.lever.co/traildsoftware/example/apply",
+        "source": type("Source", (), {"kind": "lever"})(),
+    })()
+    payload = adapter_payload_for_job(job)
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "CAPTCHA" in payload["exclusion_reason"]
+
+
+def test_kla_is_manual_only_after_live_multistep_workday_audit():
+    job = type("Job", (), {
+        "company": "KLA",
+        "apply_url": "https://kla.wd1.myworkdayjobs.com/Israel/job/Yavne/Engineer_R1",
+        "source": type("Source", (), {"kind": "workday"})(),
+    })()
+    payload = adapter_payload_for_job(job)
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "רב-שלבי" in payload["exclusion_reason"]
+
+
+def test_medtronic_is_manual_only_after_live_multistep_workday_audit():
+    job = type("Job", (), {
+        "company": "Medtronic",
+        "apply_url": "https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers/job/Israel/Role_R1",
+        "source": type("Source", (), {"kind": "workday"})(),
+    })()
+    payload = adapter_payload_for_job(job)
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "רב-שלבי" in payload["exclusion_reason"]
+
+
+def test_nvidia_is_manual_only_after_live_external_auth_audit():
+    job = type("Job", (), {
+        "company": "NVIDIA",
+        "apply_url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel/Role_R1",
+        "source": type("Source", (), {"kind": "workday"})(),
+    })()
+    payload = adapter_payload_for_job(job)
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "כניסה חיצונית" in payload["exclusion_reason"]
 
 
 def test_short_form_adapters_are_exposed_separately_from_multistep_workday():

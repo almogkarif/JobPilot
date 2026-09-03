@@ -99,6 +99,68 @@ def _degree_yes_no_answer(label: str, extra: dict) -> CandidateValue | None:
     return CandidateValue("Yes", "profile_degree")
 
 
+def _experience_threshold_answer(label: str, profile: dict) -> CandidateValue | None:
+    """Answer explicit minimum-years gates from the numeric profile value."""
+    key = normalize(label)
+    if "experience" not in key:
+        return None
+    match = re.search(r"(?:at least|minimum(?: of)?)\s*(\d+(?:\.\d+)?)\s*\+?\s*years?", key)
+    if not match:
+        match = re.search(r"(\d+(?:\.\d+)?)\s*\+\s*years?", key)
+    if not match:
+        return None
+    try:
+        actual = float(profile.get("years_experience"))
+        required = float(match.group(1))
+    except (TypeError, ValueError):
+        return None
+    return CandidateValue("Yes" if actual >= required else "No", "profile_experience")
+
+
+def _current_country_answer(label: str, profile: dict) -> CandidateValue | None:
+    """Answer explicit current-location country gates from the saved profile."""
+    key = normalize(label)
+    match = re.search(r"(?:currently\s+)?based\s+in\s+([a-zא-ת ]+?)(?:\s+office)?$", key)
+    if not match:
+        return None
+    requested = normalize(match.group(1))
+    if not requested:
+        return None
+    extra = profile.get("application_profile", {}) or {}
+    saved = normalize(str(extra.get("country") or profile.get("location") or ""))
+    if not saved:
+        return None
+    aliases = {"israel", "il", "ישראל"}
+    if requested in aliases:
+        saved_words = set(saved.split())
+        return CandidateValue(
+            "Yes" if saved in aliases or bool(saved_words & aliases) else "No",
+            "profile_country",
+        )
+    return CandidateValue("Yes" if requested in saved else "No", "profile_country")
+
+
+def _work_model_answer(label: str, profile: dict) -> CandidateValue | None:
+    """Answer explicit willingness to work in a saved work model/location."""
+    key = normalize(label)
+    willingness = any(term in key for term in ("open to working", "willing to work", "able to work"))
+    if not willingness:
+        return None
+    requested_mode = ""
+    if any(term in key for term in ("onsite", "on site", "in person", "office")):
+        requested_mode = "onsite"
+    elif "hybrid" in key:
+        requested_mode = "hybrid"
+    elif any(term in key for term in ("remote", "work from home")):
+        requested_mode = "remote"
+    if not requested_mode:
+        return None
+    modes = {normalize(str(item)) for item in profile.get("preferred_work_modes", []) if str(item).strip()}
+    if not modes:
+        return None
+    return CandidateValue("Yes" if requested_mode in modes else "No", "profile_work_mode")
+
+
 def known_value(label: str, field_type: str, profile: dict, explicit_answers: dict, memories: list[dict]) -> CandidateValue | None:
     key = normalize(label)
     first_name, last_name = split_name(profile.get("full_name", ""))
@@ -141,6 +203,16 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
                 and any(term in degree_key for term in ("do you hold", "do you have", "have you", "did you earn", "have a", "hold a")):
             return None
 
+    experience_answer = _experience_threshold_answer(label, profile)
+    if experience_answer is not None:
+        return experience_answer
+    country_answer = _current_country_answer(label, profile)
+    if country_answer is not None:
+        return country_answer
+    work_model_answer = _work_model_answer(label, profile)
+    if work_model_answer is not None:
+        return work_model_answer
+
     if key in {
         "how did you hear about us", "how did you hear about this job",
         "how did you hear about this role", "how did you hear about this position",
@@ -181,6 +253,8 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         "marketing", "newsletter", "promotional", "talent community", "talent network",
         "future opportunities", "future job", "job alerts",
     ))
+    if field_type == "checkbox" and key in {"מדיניות פרטיות", "אישור מדיניות פרטיות"}:
+        return CandidateValue(True, "submission_consent")
     if consent_action and submission_context and not promotional_context:
         return CandidateValue(True if field_type == "checkbox" else "Yes", "submission_consent")
 
@@ -241,6 +315,15 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         extension = str(extra.get("phone_extension") or "").strip()
         return CandidateValue(extension, "profile") if extension else None
 
+    # Combined Ashby prompts contain the word "country", but they are a closed
+    # authorization/sponsorship choice—not a country text field.
+    if "legal right to work" in key and "sponsor" in key:
+        if bool(profile.get("work_authorization")) and not bool(profile.get("needs_sponsorship")):
+            return CandidateValue("Authorized to work (No sponsorship required)", "profile")
+        if bool(profile.get("needs_sponsorship")):
+            return CandidateValue("Requires visa sponsorship", "profile")
+        return None
+
     mapping: list[tuple[list[str], Any, str]] = [
         (["preferred name"], extra.get("preferred_name", ""), "profile"),
         (["pronouns"], extra.get("pronouns", ""), "profile"),
@@ -286,9 +369,15 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         if any(needle in key for needle in needles) and str(value).strip():
             return CandidateValue(value, source)
 
-    if any(x in key for x in ["authorized to work", "work authorization", "רשאי לעבוד", "אישור עבודה"]):
+    if any(x in key for x in ["authorized to work", "work authorization", "רשאי לעבוד", "אישור עבודה"]) or (
+        "eligible" in key and "work" in key and "legally" in key
+    ):
         return CandidateValue(bool(profile.get("work_authorization")), "profile")
-    if any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"]):
+    if (
+        any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"])
+        or ("sponsorship" in key and any(term in key for term in ("require", "need")))
+        or ("sponsor" in key and any(term in key for term in ("require", "need")))
+    ):
         return CandidateValue(bool(profile.get("needs_sponsorship")), "profile")
     return None
 

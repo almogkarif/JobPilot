@@ -24,7 +24,7 @@ QUEUE_REDISPATCH_AFTER = timedelta(minutes=12)
 # crash, so an automatic retry could create a duplicate application.
 APPLYING_STUCK_AFTER = timedelta(minutes=15)
 
-CLOUD_ADAPTERS = {"greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+CLOUD_ADAPTERS = {"elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
 QUEUE_EVENT_TYPES = {
     "auto_submit_approved",
     "campaign_queued",
