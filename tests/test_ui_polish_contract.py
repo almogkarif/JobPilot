@@ -58,41 +58,52 @@ def test_logout_uses_exit_icon_and_explicit_hover_tooltip():
 
 
 def test_iem_theme_has_semantic_tokens_for_controls_dock_and_headings():
-    assert 'body.track-industrial-engineering {' in CSS
+    marker = "/* v0.3.4 — jobs filtering + preference overflow + Claude Code-inspired IEM palette. */"
+    final = CSS[CSS.rfind(marker):]
+    assert marker in final
     for token in (
-        '--accent: #b87908',
-        '--control-bg: #fffdf6',
-        '--control-border: #dfcf9b',
-        '--dock-surface: #6b4a08',
-        '--dock-accent: #ffe58b',
-        '--accent-heading: #5f4610',
+        '--accent:#d97757',
+        '--control-bg:#fffdfa',
+        '--control-border:#ddd1c8',
+        '--dock-surface:#a94f36',
+        '--dock-accent:#ffd8ca',
+        '--accent-heading:#493934',
     ):
-        assert token in CSS
-    assert 'body.theme-dark.track-industrial-engineering {' in CSS
-    assert '--control-bg: #211a09' in CSS
-    assert '--dock-surface: #5b4008' in CSS
-    assert 'body.track-industrial-engineering :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea)' in CSS
-    assert 'body.track-industrial-engineering :where(.panel-head h2,.panel-head h3,.profile-detail-section h3' in CSS
+        assert token in final
+    assert '--control-bg:#211c19' in final
+    assert '--dock-surface:#7e4333' in final
+    assert 'body.track-industrial-engineering :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea)' in final
+    assert 'body.track-industrial-engineering :where(' in final
+    assert '.profile-detail-section h3' in final
 
 
 def test_iem_final_specificity_guard_overrides_legacy_blue_dock_and_notifications():
-    css = Path("app/static/styles.css").read_text()
-    assert "body.track-industrial-engineering .sidebar nav button.active .nav-icon .nav-accent" in css
-    assert "stroke: var(--dock-accent) !important" in css
-    assert "body.theme-dark.track-industrial-engineering .notification-trigger" in css
-    assert "background: var(--accent-soft) !important" in css
+    marker = "/* v0.3.4 — jobs filtering + preference overflow + Claude Code-inspired IEM palette. */"
+    final = CSS[CSS.rfind(marker):]
+    assert "body.track-industrial-engineering .sidebar nav button.active .nav-icon" in final
+    assert "stroke:var(--dock-accent) !important" in final
+    assert "body.track-industrial-engineering .notification-trigger" in final
+    assert "background:var(--accent-soft) !important" in final
+    assert "body.track-industrial-engineering #app-shell" in final
 
 
-def test_iem_final_palette_is_calm_sage_and_ergonomic():
-    final = CSS[CSS.rfind("/* v0.3.3 — jobs filtering + preference overflow + ergonomic IEM palette. */"):]
-    assert "--bg:#f3f7f5;" in final
-    assert "--panel:#fbfdfc;" in final
-    assert "--brand:#527a68;" in final
-    assert "--bg:#111715;" in final
-    assert "--panel:#1b2420;" in final
-    assert "--brand:#7fae98;" in final
-    assert "background:linear-gradient(135deg,#0e1311 0%,#161f1b 100%) !important;" in final
-
+def test_iem_final_palette_is_claude_code_inspired_and_complete():
+    marker = "/* v0.3.4 — jobs filtering + preference overflow + Claude Code-inspired IEM palette. */"
+    final = CSS[CSS.rfind(marker):]
+    assert "--bg:#f6f2eb;" in final
+    assert "--panel:#fffdf9;" in final
+    assert "--brand:#d97757;" in final
+    assert "--accent-soft:#f7dfd5;" in final
+    assert "--dock-surface:#a94f36;" in final
+    assert "--bg:#181512;" in final
+    assert "--panel:#211d1a;" in final
+    assert "--brand:#e58a68;" in final
+    assert "--dock-surface:#7e4333;" in final
+    assert "linear-gradient(135deg,#151210 0%,#1d1916 100%) !important;" in final
+    assert ".source-toggle input:checked + .source-toggle-track" in final
+    assert ".notification-trigger" in final
+    assert ".onboarding-gate" in final
+    assert "#527a68" not in final and "#7fae98" not in final
 
 def test_mobile_layout_has_explicit_rtl_vertical_flow():
     assert '/* v0.3.2 — mobile RTL flow hardening.' in CSS
@@ -124,7 +135,7 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
     assert 'app.js?v=0.31.0' in HTML
-    assert 'styles.css?v=0.51.0' in HTML
+    assert 'styles.css?v=0.52.0' in HTML
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():

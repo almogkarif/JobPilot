@@ -3614,7 +3614,7 @@ body.theme-dark .auto-apply-queue-list article.auto-queue-waiting.tone-next,body
   .onboarding-ranking-actions .btn { width:100%; min-width:0; }
 }
 
-/* v0.3.3 — jobs filtering + preference overflow + ergonomic IEM palette. */
+/* v0.3.4 — jobs filtering + preference overflow + Claude Code-inspired IEM palette. */
 .job-location-control { min-width: 152px; }
 .profile-pane[data-profile-pane="preferences"] .preference-stack,
 .profile-pane[data-profile-pane="preferences"] .preference-group,
@@ -3625,67 +3625,128 @@ body.theme-dark .auto-apply-queue-list article.auto-queue-waiting.tone-next,body
 .profile-pane[data-profile-pane="preferences"] .custom-preference,
 .profile-pane[data-profile-pane="preferences"] textarea { min-width: 0; max-width: 100%; }
 
-/* Industrial Engineering: calm sage/graphite palette. The screen stays neutral and
-   low-contrast; green is reserved for actions, selection and compact identity accents. */
+/* Industrial Engineering & Management — Claude Code inspired.
+   Warm cream / graphite surfaces carry the page; terracotta is deliberately
+   reserved for actions, selection, progress and compact identity accents. */
 body.track-industrial-engineering {
-  --bg:#f3f7f5;
-  --panel:#fbfdfc;
-  --ink:#26332e;
-  --muted:#6d7d76;
-  --line:#d7e1dc;
-  --brand:#527a68;
-  --brand2:#86a897;
-  --brand-soft:#e5eee9;
-  --warning:#946b36;
-  --surface-soft:#f1f6f3;
-  --surface-tint:#eaf2ee;
-  --line-strong:#c4d2cb;
-  --accent:#527a68;
-  --accent-strong:#355b4b;
-  --accent-strong-2:#466f5e;
-  --accent-soft:#e5eee9;
-  --accent-soft-2:#edf4f0;
-  --accent-border:#adc3b8;
-  --accent-border-strong:#7fa18f;
-  --accent-text:#456657;
-  --accent-heading:#304b40;
-  --accent-kicker:#5f7e70;
-  --accent-muted:#74857d;
-  --accent-glow:rgba(82,122,104,.13);
-  --accent-glow-strong:rgba(82,122,104,.21);
-  --control-bg:#fdfefd;
+  --bg:#f6f2eb;
+  --panel:#fffdf9;
+  --ink:#2b2623;
+  --muted:#756b65;
+  --line:#ded4cc;
+  --brand:#d97757;
+  --brand2:#e89a7d;
+  --brand-soft:#f6e2da;
+  --warning:#a45c46;
+  --surface-soft:#faf5f0;
+  --surface-tint:#f5e9e2;
+  --line-strong:#cdbeb4;
+  --accent:#d97757;
+  --accent-strong:#a94f36;
+  --accent-strong-2:#c56245;
+  --accent-soft:#f7dfd5;
+  --accent-soft-2:#fbede7;
+  --accent-border:#e2ae9c;
+  --accent-border-strong:#cc795c;
+  --accent-text:#8f4935;
+  --accent-heading:#493934;
+  --accent-kicker:#a7583f;
+  --accent-muted:#8b7971;
+  --accent-glow:rgba(217,119,87,.15);
+  --accent-glow-strong:rgba(217,119,87,.24);
+  --control-bg:#fffdfa;
   --control-bg-hover:#ffffff;
-  --control-border:#d1ddd7;
-  --control-border-hover:#a9beb4;
-  --control-placeholder:#91a099;
-  --dock-surface:#35584a;
-  --dock-surface-2:#4a705f;
-  --dock-icon-bg:#fbfdfc;
-  --dock-icon-border:#d2ddd7;
-  --dock-icon-ink:#66766f;
-  --dock-accent:#b8dcc9;
-  --dock-rail:rgba(246,250,248,.93);
-  --dock-rail-border:#d5e0da;
-  --notice-bg:rgba(249,252,250,.98);
-  --notice-item-bg:#fdfefd;
-  --notice-border:#d7e1dc;
-  --notice-icon-bg:#e5eee9;
-  --notice-icon-ink:#527a68;
-  --focus-ring:0 0 0 4px rgba(82,122,104,.12);
-  --shadow:0 14px 40px rgba(42,58,51,.075);
-  --shadow-soft:0 8px 24px rgba(42,58,51,.055);
-  background:linear-gradient(135deg,#f8fbf9 0%,#eef4f1 100%) !important;
+  --control-border:#ddd1c8;
+  --control-border-hover:#d9ab9a;
+  --control-placeholder:#9b8e87;
+  --dock-surface:#a94f36;
+  --dock-surface-2:#d97757;
+  --dock-icon-bg:#fffaf6;
+  --dock-icon-border:#e3d5cc;
+  --dock-icon-ink:#74645d;
+  --dock-accent:#ffd8ca;
+  --dock-rail:rgba(250,245,240,.93);
+  --dock-rail-border:#ded2ca;
+  --notice-bg:rgba(255,251,247,.98);
+  --notice-item-bg:#fffdf9;
+  --notice-border:#e3d7cf;
+  --notice-icon-bg:#f7dfd5;
+  --notice-icon-ink:#a34f38;
+  --focus-ring:0 0 0 4px rgba(217,119,87,.15);
+  --shadow:0 14px 40px rgba(61,47,41,.09);
+  --shadow-soft:0 8px 24px rgba(61,47,41,.07);
+  background:
+    radial-gradient(circle at 14% 8%,rgba(217,119,87,.055),transparent 30%),
+    linear-gradient(135deg,#faf7f2 0%,#f3eee7 100%) !important;
+  color:var(--ink) !important;
 }
+
+body.theme-dark.track-industrial-engineering {
+  --bg:#181512;
+  --panel:#211d1a;
+  --ink:#f3ede9;
+  --muted:#b3a8a1;
+  --line:#443a35;
+  --brand:#e58a68;
+  --brand2:#f0a184;
+  --brand-soft:#3a2922;
+  --warning:#e39172;
+  --surface-soft:#29221f;
+  --surface-tint:#312720;
+  --line-strong:#584942;
+  --accent:#e58a68;
+  --accent-strong:#a9553d;
+  --accent-strong-2:#c66b4f;
+  --accent-soft:#3b2822;
+  --accent-soft-2:#33231f;
+  --accent-border:#70483a;
+  --accent-border-strong:#a96550;
+  --accent-text:#f1b39d;
+  --accent-heading:#f7ddd4;
+  --accent-kicker:#eaa083;
+  --accent-muted:#b9a49a;
+  --accent-glow:rgba(229,138,104,.15);
+  --accent-glow-strong:rgba(229,138,104,.24);
+  --control-bg:#211c19;
+  --control-bg-hover:#2a231f;
+  --control-border:#493d37;
+  --control-border-hover:#6c5147;
+  --control-placeholder:#82746d;
+  --dock-surface:#7e4333;
+  --dock-surface-2:#b55f45;
+  --dock-icon-bg:#28211e;
+  --dock-icon-border:#4c3f38;
+  --dock-icon-ink:#c5b7af;
+  --dock-accent:#ffd0bf;
+  --dock-rail:rgba(29,25,22,.96);
+  --dock-rail-border:#463a34;
+  --notice-bg:rgba(30,26,23,.98);
+  --notice-item-bg:#28211e;
+  --notice-border:#493d37;
+  --notice-icon-bg:#3b2822;
+  --notice-icon-ink:#ee9a7b;
+  --focus-ring:0 0 0 4px rgba(229,138,104,.16);
+  --shadow:0 14px 40px rgba(0,0,0,.27);
+  --shadow-soft:0 8px 24px rgba(0,0,0,.22);
+  background:
+    radial-gradient(circle at 15% 8%,rgba(229,138,104,.06),transparent 30%),
+    linear-gradient(135deg,#151210 0%,#1d1916 100%) !important;
+  color:var(--ink) !important;
+}
+
+/* Major surfaces: neutral first, accent second. */
 body.track-industrial-engineering .topbar {
-  background:rgba(249,252,250,.96) !important;
+  background:color-mix(in srgb,var(--panel) 95%,transparent) !important;
   border-color:var(--line) !important;
-  box-shadow:0 10px 30px rgba(42,58,51,.055) !important;
+  box-shadow:0 10px 30px color-mix(in srgb,var(--ink) 7%,transparent) !important;
 }
 body.track-industrial-engineering :where(
   .panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,
   .preference-group,.answer-card,.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,
   .skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,
-  .queue-progress-meta,.application-option,.scan-report-details,.notification-center,.command-card
+  .queue-progress-meta,.application-option,.application-option-auto,.scan-report-details,
+  .notification-center,.command-card,.modal-card,.kanban-column,.onboarding-card,.onboarding-panel,
+  .source-scan-card,.application-automation-panel,.profile-card,.profile-pane-card
 ) {
   background-color:var(--panel) !important;
   background-image:none !important;
@@ -3696,117 +3757,505 @@ body.track-industrial-engineering :where(
   .jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,.profile-completion,
   .theme-switch,.icon-action,.section-collapse,.career-switcher-trigger,.flow-list li,.status-pill,
   .score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,
-  .job-search-field small,.readiness-check,.notification-item,.auth-guest,.guest-mode-banner
+  .job-search-field small,.readiness-check,.notification-item,.auth-guest,.guest-mode-banner,
+  .threshold-control,.automation-toggle-card,.automation-note,.help-box,.safe-note,.density-toggle,
+  .command-result,.table-wrap th,.onboarding-choice,.onboarding-progress,.source-toggle
 ) {
   background-color:var(--surface-soft) !important;
   border-color:var(--line) !important;
   color:var(--accent-text) !important;
-}
-body.track-industrial-engineering :where(.panel-head h2,.panel-head h3,.profile-detail-section h3,.notification-item strong,.empty-state strong,.metric-copy b) {
-  color:var(--accent-heading) !important;
-}
-body.track-industrial-engineering :where(.muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small,.notification-item small,.metric-copy small,.flow-list span,.empty-state p) {
-  color:var(--muted) !important;
-}
-body.track-industrial-engineering .btn.primary,
-body.track-industrial-engineering :where(.sidebar nav button:hover .nav-icon,.sidebar nav button:focus-visible .nav-icon,.sidebar nav button.active .nav-icon,.profile-section-nav button.active>span) {
-  background:linear-gradient(155deg,var(--brand2),var(--brand)) !important;
-  border-color:var(--brand) !important;
-  color:#fff !important;
-}
-body.track-industrial-engineering :where(.option-grid label:has(input:checked),.check-row label:has(input:checked),.answer-enabled:has(input:checked),.pagination-page.active) {
-  background:var(--accent-soft) !important;
-  border-color:var(--accent-border-strong) !important;
-  color:var(--accent-heading) !important;
-}
-body.track-industrial-engineering .toast {
-  background:rgba(48,72,62,.97) !important;
-  border-color:#6f9482 !important;
-  color:#f3faf6 !important;
-  box-shadow:0 14px 35px rgba(32,48,41,.2) !important;
-}
-
-body.theme-dark.track-industrial-engineering {
-  --bg:#111715;
-  --panel:#1b2420;
-  --ink:#e6eee9;
-  --muted:#9dada6;
-  --line:#33413b;
-  --brand:#7fae98;
-  --brand2:#a0c2b1;
-  --brand-soft:#26372f;
-  --warning:#c29a62;
-  --surface-soft:#212c27;
-  --surface-tint:#283630;
-  --line-strong:#42544c;
-  --accent:#7fae98;
-  --accent-strong:#446b59;
-  --accent-strong-2:#5b806f;
-  --accent-soft:#26372f;
-  --accent-soft-2:#22302a;
-  --accent-border:#526f61;
-  --accent-border-strong:#719782;
-  --accent-text:#b7cec3;
-  --accent-heading:#edf4f0;
-  --accent-kicker:#9fc2b1;
-  --accent-muted:#a3b3ab;
-  --accent-glow:rgba(127,174,152,.13);
-  --accent-glow-strong:rgba(127,174,152,.21);
-  --control-bg:#17201c;
-  --control-bg-hover:#1e2924;
-  --control-border:#394941;
-  --control-border-hover:#5c7569;
-  --control-placeholder:#73867d;
-  --dock-surface:#243a31;
-  --dock-surface-2:#345245;
-  --dock-icon-bg:#202a25;
-  --dock-icon-border:#3c4d45;
-  --dock-icon-ink:#a9bab2;
-  --dock-accent:#b9dfcb;
-  --dock-rail:rgba(24,33,29,.96);
-  --dock-rail-border:#394841;
-  --notice-bg:rgba(25,34,30,.98);
-  --notice-item-bg:#202a25;
-  --notice-border:#3a4a42;
-  --notice-icon-bg:#26372f;
-  --notice-icon-ink:#9fc9b4;
-  --focus-ring:0 0 0 4px rgba(127,174,152,.14);
-  --shadow:0 14px 40px rgba(0,0,0,.25);
-  --shadow-soft:0 8px 24px rgba(0,0,0,.2);
-  background:linear-gradient(135deg,#0e1311 0%,#161f1b 100%) !important;
-}
-body.theme-dark.track-industrial-engineering .topbar {
-  background:rgba(25,34,30,.97) !important;
-  border-color:var(--line) !important;
-}
-body.theme-dark.track-industrial-engineering :where(
-  .panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,
-  .preference-group,.answer-card,.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,
-  .skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,
-  .queue-progress-meta,.application-option,.scan-report-details,.notification-center,.command-card
-) {
-  background-color:var(--panel) !important;
-  border-color:var(--line) !important;
-  color:var(--ink) !important;
 }
 body.theme-dark.track-industrial-engineering :where(
   input,select,textarea,.jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,
   .profile-completion,.theme-switch,.icon-action,.section-collapse,.career-switcher-trigger,.flow-list li,
   .status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,
-  .skill-gap-list button,.job-search-field small,.readiness-check,.notification-item,.auth-guest,.guest-mode-banner
+  .skill-gap-list button,.job-search-field small,.readiness-check,.notification-item,.auth-guest,
+  .guest-mode-banner,.threshold-control,.automation-toggle-card,.automation-note,.help-box,.safe-note,
+  .density-toggle,.command-result,.table-wrap th,.onboarding-choice,.onboarding-progress,.source-toggle
 ) {
   background-color:var(--surface-soft) !important;
   border-color:var(--line) !important;
   color:var(--accent-text) !important;
 }
-body.theme-dark.track-industrial-engineering :where(h1,h2,h3,strong,label,.panel-head h2,.panel-head h3,.profile-detail-section h3,.empty-state strong,.metric-copy b) {
+body.track-industrial-engineering :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  background-color:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
   color:var(--ink) !important;
 }
-body.theme-dark.track-industrial-engineering :where(.muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small,.notification-item small,.metric-copy small,.flow-list span,.empty-state p) {
-  color:var(--muted) !important;
+body.track-industrial-engineering :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea):hover {
+  background-color:var(--control-bg-hover) !important;
+  border-color:var(--control-border-hover) !important;
+}
+body.track-industrial-engineering :where(input,select,textarea):focus,
+body.track-industrial-engineering :where(.job-search-field,.filter-control):focus-within {
+  border-color:var(--accent-border-strong) !important;
+  box-shadow:var(--focus-ring),0 7px 18px var(--accent-glow) !important;
+}
+body.track-industrial-engineering :where(input,select,textarea)::placeholder { color:var(--control-placeholder) !important; }
+
+/* Typography and compact metadata. */
+body.track-industrial-engineering :where(
+  h1,h2,h3,strong,label,.panel-head h2,.panel-head h3,.profile-detail-section h3,
+  .notification-item strong,.empty-state strong,.metric-copy b,.availability-card>div strong,
+  .brand strong,.career-option-copy strong,.career-track-copy strong,.career-track-future strong
+) { color:var(--ink) !important; }
+body.track-industrial-engineering :where(.panel-head h2,.panel-head h3,.profile-detail-section h3,.availability-card>div strong) { color:var(--accent-heading) !important; }
+body.track-industrial-engineering :where(
+  .muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small,
+  .notification-item small,.metric-copy small,.flow-list span,.empty-state p,.brand-tagline,
+  .career-option-copy small,.career-track-copy small,.career-track-future small
+) { color:var(--muted) !important; }
+body.track-industrial-engineering :where(.eyebrow,.kicker,.profile-section-index,.text-btn,.profile-card-navigation button,.source-logo-fallback) { color:var(--accent-kicker) !important; }
+
+/* Primary interaction chrome. */
+body.track-industrial-engineering .btn.primary,
+body.track-industrial-engineering :where(
+  .sidebar nav button:hover .nav-icon,.sidebar nav button:focus-visible .nav-icon,
+  .sidebar nav button.active .nav-icon,.profile-section-nav button.active>span,
+  .career-track-symbol,.career-track-option.active .career-option-symbol,.automation-symbol,.source-scan-core
+) {
+  background:linear-gradient(150deg,var(--brand2),var(--brand) 58%,var(--accent-strong-2)) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:#fff8f4 !important;
+  box-shadow:0 10px 24px var(--accent-glow),inset 0 1px rgba(255,255,255,.24) !important;
+}
+body.track-industrial-engineering .btn.secondary,
+body.track-industrial-engineering .density-toggle {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering :where(.btn.secondary,.density-toggle):hover,
+body.track-industrial-engineering :where(.btn.secondary,.density-toggle):focus-visible {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering :where(.option-grid label:has(input:checked),.check-row label:has(input:checked),.answer-enabled:has(input:checked),.onboarding-choice.selected) {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent-border) 38%,transparent) !important;
+}
+body.track-industrial-engineering input[type="checkbox"]:checked,
+body.track-industrial-engineering input[type="radio"]:checked {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  border-color:var(--accent-border-strong) !important;
+  box-shadow:0 3px 8px var(--accent-glow) !important;
+}
+body.track-industrial-engineering :where(.switch-track,.source-toggle-track) { background:#c9bbb2 !important; }
+body.theme-dark.track-industrial-engineering :where(.switch-track,.source-toggle-track) { background:#554944 !important; }
+body.track-industrial-engineering :where(.automation-toggle-card input:checked + .switch-track,.source-toggle input:checked + .source-toggle-track) {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  border-color:var(--accent-border-strong) !important;
+}
+
+/* Dock, mark and career selector. */
+body.track-industrial-engineering .sidebar nav::before {
+  background:var(--dock-rail) !important;
+  border-color:var(--dock-rail-border) !important;
+  box-shadow:0 18px 50px color-mix(in srgb,var(--ink) 10%,transparent) !important;
+}
+body.track-industrial-engineering .sidebar nav button::before {
+  background:linear-gradient(180deg,var(--brand2),var(--brand)) !important;
+  box-shadow:0 0 0 3px var(--accent-glow) !important;
+}
+body.track-industrial-engineering .sidebar nav button .nav-icon {
+  background:var(--dock-icon-bg) !important;
+  border-color:var(--dock-icon-border) !important;
+  color:var(--dock-icon-ink) !important;
+}
+body.track-industrial-engineering .sidebar nav button.active .nav-icon,
+body.track-industrial-engineering .sidebar nav button:hover .nav-icon,
+body.track-industrial-engineering .sidebar nav button:focus-visible .nav-icon,
+body.track-industrial-engineering .sidebar nav button.is-dock-focus .nav-icon,
+body.track-industrial-engineering .sidebar nav button.is-dock-exit .nav-icon {
+  background:linear-gradient(160deg,var(--dock-surface-2),var(--dock-surface)) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:#fff8f4 !important;
+}
+body.track-industrial-engineering .sidebar nav button :where(.nav-accent),
+body.track-industrial-engineering .sidebar nav button.active .nav-accent,
+body.track-industrial-engineering .sidebar nav button:hover .nav-accent,
+body.track-industrial-engineering .sidebar nav button:focus-visible .nav-accent,
+body.track-industrial-engineering .sidebar nav button.is-dock-focus .nav-accent,
+body.track-industrial-engineering .sidebar nav button.is-dock-exit .nav-accent {
+  stroke:var(--dock-accent) !important;
+  filter:none !important;
+}
+body.track-industrial-engineering .sidebar nav button .nav-label,
+body.track-industrial-engineering .sidebar nav button.is-dock-focus .nav-label,
+body.track-industrial-engineering .sidebar nav button.is-dock-exit .nav-label { color:var(--accent-text) !important; }
+body.track-industrial-engineering .logo-surface,
+body.track-industrial-engineering .auth-brand .logo-surface { fill:var(--accent-strong) !important; stroke:var(--accent-border) !important; }
+body.track-industrial-engineering .logo-route,
+body.track-industrial-engineering .auth-brand .logo-route { stroke:var(--dock-accent) !important; }
+body.track-industrial-engineering .logo-route-depth { stroke:color-mix(in srgb,var(--accent-strong) 72%,#2b2623) !important; }
+body.track-industrial-engineering .logo-route-highlight { stroke:#fff0e9 !important; }
+body.track-industrial-engineering .brand-flight-dot { background:#fff5ef !important; border-color:var(--accent-border) !important; box-shadow:0 0 0 3px var(--accent-glow),0 2px 7px rgba(69,43,34,.25) !important; }
+body.theme-dark.track-industrial-engineering .brand-flight-dot { background:#ffd8c9 !important; }
+body.track-industrial-engineering .brand-flight-dot::after { background:radial-gradient(circle,rgba(229,138,104,.36),rgba(217,119,87,.12) 48%,transparent 72%) !important; }
+body.track-industrial-engineering .brand-i-dot { background:var(--brand2) !important; }
+body.track-industrial-engineering .career-switcher-menu { background:var(--notice-bg) !important; border-color:var(--notice-border) !important; }
+body.track-industrial-engineering .career-track-option:hover { background:var(--accent-soft-2) !important; border-color:var(--accent-border) !important; }
+body.track-industrial-engineering .career-track-option.active { background:var(--accent-soft) !important; border-color:var(--accent-border-strong) !important; }
+body.track-industrial-engineering .career-option-symbol { background:var(--surface-soft) !important; color:var(--accent-text) !important; border-color:var(--line) !important; }
+
+/* Progress, metrics, cards and data-heavy views. */
+body.track-industrial-engineering .metric[data-metric-tone="strong"] { --metric-accent:var(--brand); }
+body.track-industrial-engineering .metric[data-metric-tone="queue"] { --metric-accent:#bb725b; }
+body.track-industrial-engineering .metric[data-metric-tone="submitted"] { --metric-accent:#628a70; }
+body.theme-dark.track-industrial-engineering .metric[data-metric-tone="submitted"] { --metric-accent:#7caf8c; }
+body.track-industrial-engineering .metric-link:hover,
+body.track-industrial-engineering .metric-link:focus-visible { background:var(--accent-soft-2) !important; box-shadow:inset 0 0 0 1px var(--accent-border) !important; }
+body.track-industrial-engineering .flow-list b,
+body.track-industrial-engineering .profile-section-nav button.active>span {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  color:#fff8f4 !important;
+}
+body.track-industrial-engineering .empty-state-icon,
+body.track-industrial-engineering :where(.notification-item>i,.notification-head button,.automation-note-icon,.source-identifier-icon,.resume-file-icon,.application-option-icon) {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering :where(.status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,.job-search-field small,.readiness-check) {
+  background:var(--accent-soft-2) !important;
+  border-color:color-mix(in srgb,var(--accent-border) 72%,var(--line)) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering .readiness-ready,
+body.track-industrial-engineering .scan-report-metric.primary,
+body.track-industrial-engineering :where(.panel,.profile-detail-section,.preference-group,.answer-card,.job-card,.source-item,.blocker-card).is-card-selected {
+  background-color:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+}
+body.track-industrial-engineering .table-wrap th { background:var(--surface-tint) !important; color:var(--accent-heading) !important; }
+body.track-industrial-engineering .application-option::before { background:color-mix(in srgb,var(--accent) 11%,transparent) !important; }
+body.track-industrial-engineering .application-option-auto { background:linear-gradient(145deg,var(--panel),var(--accent-soft-2)) !important; }
+body.track-industrial-engineering .view-mode-button { color:var(--accent-muted) !important; }
+body.track-industrial-engineering .view-mode-button:hover { color:var(--accent-text) !important; }
+body.track-industrial-engineering .view-mode-button.active { background:var(--accent-soft-2) !important; color:var(--accent-text) !important; box-shadow:0 4px 11px var(--accent-glow),inset 0 0 0 1px var(--accent-border) !important; }
+body.track-industrial-engineering .profile-completion-track,
+body.track-industrial-engineering .scan-progress { background:color-mix(in srgb,var(--accent-border) 42%,var(--surface-soft)) !important; }
+body.track-industrial-engineering .profile-completion-track i,
+body.track-industrial-engineering .scan-progress i,
+body.track-industrial-engineering .scan-btn-progress-fill,
+body.track-industrial-engineering .source-health i b {
+  background:linear-gradient(90deg,var(--brand),var(--brand2)) !important;
+  border-color:var(--accent-border) !important;
+}
+body.track-industrial-engineering .scan-status::after { background:var(--brand) !important; box-shadow:0 0 0 4px var(--accent-glow) !important; }
+body.track-industrial-engineering .scan-status-fill { background:linear-gradient(90deg,color-mix(in srgb,var(--brand) 22%,transparent),color-mix(in srgb,var(--brand2) 8%,transparent)) !important; }
+body.track-industrial-engineering .scan-btn-running,
+body.track-industrial-engineering :where(.system-status,.system-status.is-active,.system-status.is-paused) {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.35),0 6px 18px var(--accent-glow) !important;
+}
+body.theme-dark.track-industrial-engineering .scan-btn-running,
+body.theme-dark.track-industrial-engineering :where(.system-status,.system-status.is-active,.system-status.is-paused) {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.03),0 6px 18px rgba(0,0,0,.18) !important;
+}
+body.track-industrial-engineering .system-status-tooltip,
+body.track-industrial-engineering .system-status-tooltip::before {
+  background:var(--notice-bg) !important;
+  border-color:var(--notice-border) !important;
+  color:var(--accent-text) !important;
+}
+
+/* Notifications and transient UI. */
+body.track-industrial-engineering .notification-trigger {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+  box-shadow:0 12px 30px var(--accent-glow),inset 0 1px rgba(255,255,255,.45) !important;
+}
+body.track-industrial-engineering .notification-trigger:hover,
+body.track-industrial-engineering .notification-trigger:focus-visible,
+body.track-industrial-engineering .notification-trigger[aria-expanded="true"] {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:#fff8f4 !important;
+  box-shadow:0 15px 34px var(--accent-glow-strong),0 0 0 3px var(--accent-glow) !important;
+}
+body.track-industrial-engineering .notification-center { background:var(--notice-bg) !important; border-color:var(--notice-border) !important; box-shadow:0 28px 80px color-mix(in srgb,var(--ink) 18%,transparent) !important; }
+body.track-industrial-engineering .notification-item { background:var(--notice-item-bg) !important; border-color:var(--notice-border) !important; color:var(--ink) !important; }
+body.track-industrial-engineering .notification-item>b { color:var(--accent) !important; }
+body.track-industrial-engineering .toast {
+  background:rgba(73,55,48,.97) !important;
+  border-color:#a66a56 !important;
+  color:#fff5ef !important;
+  box-shadow:0 14px 35px rgba(48,34,29,.24) !important;
 }
 body.theme-dark.track-industrial-engineering .toast {
-  background:rgba(36,58,49,.98) !important;
-  border-color:#577765 !important;
-  color:#eef7f2 !important;
+  background:rgba(49,37,32,.98) !important;
+  border-color:#7b5245 !important;
+  color:#ffe7dd !important;
+  box-shadow:0 16px 38px rgba(0,0,0,.4) !important;
+}
+
+/* Login, onboarding and responsive dock inherit the same palette too. */
+body.track-industrial-engineering .auth-gate,
+body.track-industrial-engineering .onboarding-gate {
+  background:
+    radial-gradient(circle at 18% 13%,rgba(217,119,87,.10),transparent 31%),
+    linear-gradient(145deg,var(--bg),color-mix(in srgb,var(--bg) 88%,var(--accent-soft))) !important;
+}
+body.theme-dark.track-industrial-engineering .auth-gate,
+body.theme-dark.track-industrial-engineering .onboarding-gate {
+  background:
+    radial-gradient(circle at 18% 13%,rgba(229,138,104,.10),transparent 31%),
+    linear-gradient(145deg,var(--bg),#14110f) !important;
+}
+body.track-industrial-engineering .auth-card,
+body.track-industrial-engineering .onboarding-card { background:color-mix(in srgb,var(--panel) 95%,transparent) !important; border-color:var(--line) !important; }
+body.track-industrial-engineering .auth-card::before { background:linear-gradient(90deg,transparent,var(--brand),var(--brand2),transparent) !important; }
+body.track-industrial-engineering .auth-google,
+body.track-industrial-engineering .auth-guest { background:var(--control-bg) !important; border-color:var(--control-border) !important; color:var(--ink) !important; }
+body.track-industrial-engineering .auth-guest>span,
+body.track-industrial-engineering .account-chip>span { background:var(--accent-soft) !important; color:var(--accent-text) !important; }
+body.track-industrial-engineering .guest-mode-banner { background:var(--accent-soft-2) !important; border-color:var(--accent-border) !important; color:var(--accent-text) !important; }
+body.track-industrial-engineering .career-agent-dot.on { background:var(--brand) !important; box-shadow:0 0 0 4px var(--accent-glow) !important; }
+body.track-industrial-engineering .source-scan-orbit i { background:var(--brand2) !important; box-shadow:0 0 0 3px var(--accent-glow) !important; }
+body.track-industrial-engineering #mobile-tab-dock.mobile-tab-dock { background:color-mix(in srgb,var(--panel) 94%,transparent) !important; border-color:var(--line) !important; }
+body.track-industrial-engineering #mobile-tab-dock.mobile-tab-dock button.active { color:var(--accent-text) !important; }
+
+body.track-industrial-engineering ::selection { background:#f3c7b7 !important; color:#442a22 !important; }
+body.theme-dark.track-industrial-engineering ::selection { background:#7d4938 !important; color:#fff1eb !important; }
+
+/* IEM Claude palette specificity seal: app-shell ID deliberately outranks legacy
+   track rules so no historical yellow/olive/blue component chrome can leak back. */
+body.track-industrial-engineering #app-shell :where(
+  .panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,
+  .preference-group,.answer-card,.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,
+  .skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,
+  .queue-progress-meta,.application-option,.application-option-auto,.scan-report-details,
+  .notification-center,.command-card,.modal-card,.kanban-column,.application-automation-panel,
+  .employment-entry,.onboarding-source-scan
+) {
+  background-color:var(--panel) !important;
+  background-image:none !important;
+  border-color:var(--line) !important;
+  color:var(--ink) !important;
+}
+body.track-industrial-engineering #app-shell :where(
+  .jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,.profile-completion,
+  .theme-switch,.icon-action,.section-collapse,.career-switcher-trigger,.flow-list li,.notification-item,
+  .threshold-control,.automation-toggle-card,.automation-note,.help-box,.safe-note,.density-toggle,
+  .command-result,.auth-guest,.guest-mode-banner,.resume-version-help,.scan-report-metric.primary
+) {
+  background-color:var(--surface-soft) !important;
+  background-image:none !important;
+  border-color:var(--line) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering #app-shell :where(
+  .option-grid label,.check-row label,.answer-enabled
+) {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  color:var(--ink) !important;
+  box-shadow:none !important;
+}
+body.track-industrial-engineering #app-shell :where(
+  .option-grid label:hover,.check-row label:hover,.answer-enabled:hover
+) {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering #app-shell :where(
+  .option-grid label:has(input:checked),.check-row label:has(input:checked),.answer-enabled:has(input:checked),
+  .option-grid label.is-option-checked,.check-row label.is-option-checked
+) {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:var(--accent-heading) !important;
+  box-shadow:0 5px 14px var(--accent-glow) !important;
+}
+body.track-industrial-engineering #app-shell .preference-group .option-grid>label[data-priority]::after {
+  background:var(--accent-soft) !important;
+  color:var(--accent-text) !important;
+  box-shadow:inset 0 0 0 1px var(--accent-border) !important;
+}
+body.track-industrial-engineering #app-shell .preference-group .option-grid>label.is-priority-dragging {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border-strong) !important;
+  box-shadow:0 14px 30px var(--accent-glow-strong) !important;
+}
+body.track-industrial-engineering #app-shell :where(
+  .profile-section-nav button small,.profile-section-nav button:not(.active) strong,.preference-group legend,
+  .form-stack label,.form-grid label,.custom-preference,.career-track-copy strong
+) { color:var(--accent-text) !important; }
+body.track-industrial-engineering #app-shell :where(
+  .status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,
+  .skill-gap-list button,.job-search-field small,.readiness-check
+) {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering #app-shell .skeleton-item :where(i,span,small) {
+  background:color-mix(in srgb,var(--accent-soft) 58%,var(--line)) !important;
+}
+body.track-industrial-engineering #app-shell .skeleton-item::after {
+  background:linear-gradient(100deg,transparent 25%,color-mix(in srgb,var(--brand2) 16%,transparent) 48%,transparent 72%) !important;
+}
+body.track-industrial-engineering #app-shell .metrics {
+  background:color-mix(in srgb,var(--panel) 92%,var(--accent-soft-2)) !important;
+  border-color:var(--line) !important;
+  box-shadow:var(--shadow-soft) !important;
+}
+body.track-industrial-engineering #app-shell .flow-list b {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  color:#fff8f4 !important;
+}
+body.track-industrial-engineering #app-shell .empty-state-icon {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+  box-shadow:0 7px 17px var(--accent-glow) !important;
+}
+body.track-industrial-engineering #app-shell .table-wrap th {
+  background:var(--surface-tint) !important;
+  border-color:var(--line) !important;
+  color:var(--accent-heading) !important;
+}
+body.track-industrial-engineering #app-shell :where(.source-toggle,.source-toggle-track) {
+  border-color:var(--control-border) !important;
+}
+body.track-industrial-engineering #app-shell .source-toggle-track { background:#c9bbb2 !important; }
+body.theme-dark.track-industrial-engineering #app-shell .source-toggle-track { background:#554944 !important; }
+body.track-industrial-engineering #app-shell .source-toggle input:checked + .source-toggle-track {
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  border-color:var(--accent-border-strong) !important;
+}
+body.track-industrial-engineering #app-shell :where(.profile-completion-track,.scan-progress) {
+  background:color-mix(in srgb,var(--accent-border) 35%,var(--surface-soft)) !important;
+}
+body.track-industrial-engineering #app-shell :where(.profile-completion-track i,.scan-progress i,.scan-btn-progress-fill,.source-health i b) {
+  background:linear-gradient(90deg,var(--brand),var(--brand2)) !important;
+}
+body.track-industrial-engineering #app-shell .notification-center {
+  background:var(--notice-bg) !important;
+  border-color:var(--notice-border) !important;
+}
+body.track-industrial-engineering #app-shell .notification-item {
+  background:var(--notice-item-bg) !important;
+  border-color:var(--notice-border) !important;
+  color:var(--ink) !important;
+}
+body.track-industrial-engineering #app-shell .career-switcher-menu {
+  background:var(--notice-bg) !important;
+  border-color:var(--notice-border) !important;
+}
+body.track-industrial-engineering #app-shell .career-track-option:hover {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+}
+body.track-industrial-engineering #app-shell .career-track-option.active {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border-strong) !important;
+}
+
+/* Text and small-surface seal for old dark IEM literals. */
+body.track-industrial-engineering #app-shell :where(
+  .page-context,.preference-help,.profile-section-summary,.preference-group-summary,.panel-collapse-summary,
+  .form-stack label>small,.form-grid label>small,.custom-preference,.career-track-copy small,
+  .resume-safe-note,.automation-summary p,.automation-note p,.help-box p,.safe-note,.source-item small,
+  .job-info span,.job-meta,.job-meta span,.metric-copy small,.flow-list span,.empty-state p,
+  .scan-status small,.profile-completion small
+) { color:var(--muted) !important; border-color:transparent !important; }
+body.track-industrial-engineering #app-shell :where(
+  .metric-copy b,.flow-list strong,.empty-state strong,.profile-detail-section h3,.preference-group legend,
+  .scan-status b,.profile-completion strong
+) { color:var(--accent-heading) !important; border-color:transparent !important; }
+body.track-industrial-engineering #app-shell .metric-link i { color:var(--metric-accent) !important; border-color:transparent !important; }
+body.track-industrial-engineering #app-shell .metric[data-metric-tone="strong"] { --metric-accent:var(--brand) !important; }
+body.track-industrial-engineering #app-shell .metric[data-metric-tone="queue"] { --metric-accent:#bb725b !important; }
+body.track-industrial-engineering #app-shell .metric[data-metric-tone="submitted"] { --metric-accent:#628a70 !important; }
+body.theme-dark.track-industrial-engineering #app-shell .metric[data-metric-tone="strong"] { --metric-accent:var(--brand2) !important; }
+body.theme-dark.track-industrial-engineering #app-shell .metric[data-metric-tone="queue"] { --metric-accent:#c98974 !important; }
+body.theme-dark.track-industrial-engineering #app-shell .metric[data-metric-tone="submitted"] { --metric-accent:#7caf8c !important; }
+body.track-industrial-engineering #app-shell .profile-section-index {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering #app-shell :where(.language-row,.source-logo-tile) {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  color:var(--ink) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell :where(.language-row,.source-logo-tile) {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  color:var(--ink) !important;
+}
+
+/* v0.3.4 — final IEM visual leak seal verified against rendered light/dark screens. */
+body.track-industrial-engineering #app-shell input[type="checkbox"]:not(.automation-toggle-card input),
+body.track-industrial-engineering #app-shell input[type="radio"] {
+  border-color:var(--control-border) !important;
+  background-color:var(--control-bg) !important;
+}
+body.track-industrial-engineering #app-shell input[type="checkbox"]:not(.automation-toggle-card input):checked,
+body.track-industrial-engineering #app-shell input[type="radio"]:checked {
+  border-color:var(--accent-border-strong) !important;
+  background:linear-gradient(145deg,var(--brand2),var(--brand)) !important;
+  box-shadow:0 3px 8px var(--accent-glow) !important;
+}
+body.track-industrial-engineering #app-shell .sidebar nav button,
+body.track-industrial-engineering #app-shell .sidebar nav button .nav-label,
+body.track-industrial-engineering #app-shell .sidebar nav button .nav-label small {
+  color:var(--accent-text) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell .sidebar nav button .nav-label small {
+  color:var(--accent-muted) !important;
+}
+body.track-industrial-engineering #app-shell .auto-submit-badge.manual {
+  background:var(--surface-soft) !important;
+  border-color:var(--line-strong) !important;
+  color:var(--muted) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell .auto-submit-badge.manual {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  color:var(--accent-muted) !important;
+}
+body.track-industrial-engineering #app-shell .ats-label {
+  background:var(--accent-soft-2) !important;
+  border-color:var(--accent-border) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering #app-shell .view-switch {
+  background:var(--surface-soft) !important;
+  border-color:var(--line) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.45) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell .view-switch {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.03) !important;
+}
+body.track-industrial-engineering #app-shell .view-mode-button { color:var(--muted) !important; }
+body.track-industrial-engineering #app-shell .view-mode-button:hover { color:var(--accent-text) !important; }
+body.track-industrial-engineering #app-shell .view-mode-button.active {
+  background:var(--panel) !important;
+  color:var(--accent-text) !important;
+  box-shadow:0 4px 11px var(--accent-glow),inset 0 0 0 1px var(--accent-border) !important;
+}
+body.track-industrial-engineering #app-shell .automation-note small b,
+body.track-industrial-engineering #app-shell .resume-profile-card strong {
+  color:var(--ink) !important;
+}
+body.track-industrial-engineering #app-shell :where(.unsaved-nav-badge,#blocker-count,#notification-count) {
+  border-color:var(--panel) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell :where(.unsaved-nav-badge,#blocker-count,#notification-count) {
+  border-color:var(--surface-soft) !important;
 }

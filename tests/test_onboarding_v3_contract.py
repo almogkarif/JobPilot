@@ -42,4 +42,4 @@ def test_developer_users_panel_is_scroll_limited():
 
 def test_assets_bumped():
     assert 'app.js?v=0.31.0' in HTML
-    assert 'styles.css?v=0.51.0' in HTML
+    assert 'styles.css?v=0.52.0' in HTML

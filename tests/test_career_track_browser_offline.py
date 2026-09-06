@@ -101,7 +101,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert page.locator('#desired-title-options input[value="industrial engineer"]').count() == 1
         assert "תעו״נ" in page.locator("#scan-btn").inner_text()
         light_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert light_brand == "#527a68"
+        assert light_brand == "#d97757"
         # IEM light mode must keep the explanatory dock text visible and track-specific.
         dock_subtitle = page.locator('#nav button.active .nav-label small')
         assert dock_subtitle.is_visible()
@@ -111,7 +111,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         page.evaluate("selectTheme('dark', true, true)")
         page.wait_for_function("document.body.classList.contains('theme-dark')")
         dark_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert dark_brand == "#7fae98"
+        assert dark_brand == "#e58a68"
         assert "track-industrial-engineering" in page.locator("body").get_attribute("class")
 
         page.locator("#career-switcher-trigger").click()
@@ -123,7 +123,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         cs_option = page.locator('[data-career-track="computer_science"]')
         assert "סוכן חיפוש כבוי" in cs_option.inner_text()
 
-        # Yellow-track audit: moving logo dots, dock accents and active source
+        # IEM palette audit: moving logo dots, dock accents and active source
         # switches must all use the IEM palette in dark mode, not legacy blue.
         def rgb(selector, prop="backgroundColor"):
             return page.eval_on_selector(selector, "(el, prop) => getComputedStyle(el)[prop]", prop)
@@ -150,7 +150,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert '35, 150, 209' not in source_switch_image and '142, 220, 255' not in source_switch_image
 
         # Full IEM palette regression: the large surfaces that previously leaked
-        # several legacy CS blue shades must stay yellow/brown in dark mode too.
+        # several legacy CS blue shades must stay track-specific in dark mode too.
         page.evaluate("switchView('jobs')")
         assert page.locator('.flow-list li').count() >= 1
         assert not is_blue(rgb('.flow-list li'))
