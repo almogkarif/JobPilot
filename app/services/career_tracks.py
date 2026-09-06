@@ -10,6 +10,7 @@ COMPUTER_SCIENCE = "computer_science"
 INDUSTRIAL_ENGINEERING = "industrial_engineering"
 ELECTRICAL_ENGINEERING = "electrical_engineering"
 DEFAULT_TRACK = COMPUTER_SCIENCE
+AUTO_SUBMIT_OPT_IN_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -63,6 +64,7 @@ TRACK_FIELDS = (
     "excluded_keywords_json",
     "auto_apply_threshold",
     "auto_submit_enabled",
+    "auto_submit_opt_in_version",
     "cv_path",
 )
 
@@ -93,6 +95,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
         "excluded_keywords_json": dumps(["manual qa", "sales", "support representative"]),
         "auto_apply_threshold": 82,
         "auto_submit_enabled": False,
+        "auto_submit_opt_in_version": 0,
         "cv_path": "",
     },
     INDUSTRIAL_ENGINEERING: {
@@ -115,6 +118,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
         ]),
         "auto_apply_threshold": 78,
         "auto_submit_enabled": False,
+        "auto_submit_opt_in_version": 0,
         "cv_path": "",
     },
     ELECTRICAL_ENGINEERING: {
@@ -128,6 +132,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
         "excluded_keywords_json": dumps(["frontend", "full stack", "sales representative", "manual qa"]),
         "auto_apply_threshold": 80,
         "auto_submit_enabled": False,
+        "auto_submit_opt_in_version": 0,
         "cv_path": "",
     },
 }
@@ -142,6 +147,15 @@ def active_track(profile: Profile | None) -> str:
     if not profile:
         return DEFAULT_TRACK
     return normalize_track(getattr(profile, "active_career_track", DEFAULT_TRACK))
+
+
+def auto_submit_is_enabled(profile: Profile | None) -> bool:
+    """Require an explicit opt-in after the public-by-default safety reset."""
+    return bool(
+        profile
+        and getattr(profile, "auto_submit_enabled", False)
+        and int(getattr(profile, "auto_submit_opt_in_version", 0) or 0) >= AUTO_SUBMIT_OPT_IN_VERSION
+    )
 
 
 def _capture_current(profile: Profile) -> dict[str, Any]:

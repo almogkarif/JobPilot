@@ -27,10 +27,17 @@ def test_admin_preview_uses_regular_user_permissions_with_only_return_control_ex
     assert "jobpilot-preview-non-admin" in JS
     assert "X-JobPilot-Preview-Role" in JS
     assert "authState.capabilities?.developer_tools === true" in JS
+    assert "const manualScanAllowed = () => !adminPreviewActive()" in JS
+    assert "const scanButton=$('#scan-btn');if(scanButton)scanButton.hidden=!manualScanAllowed();" in JS
     assert ".preview-non-admin .admin-only-nav" not in CSS
     assert ".preview-non-admin #view-developer" not in CSS
     assert "הרשאות השרת שלך נשארו Admin" not in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.30.0" in HTML
-    assert "styles.css?v=0.50.0" in HTML
+    assert "app.js?v=0.31.0" in HTML
+    assert "styles.css?v=0.51.0" in HTML
+
+
+def test_preferences_do_not_expand_past_the_profile_shell():
+    assert '.profile-pane[data-profile-pane="preferences"] .preference-group { min-inline-size: 0;' in CSS
+    assert '.profile-pane[data-profile-pane="preferences"] .option-grid > label { overflow-wrap: anywhere; }' in CSS

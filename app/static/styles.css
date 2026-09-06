@@ -579,6 +579,16 @@ body.theme-dark .applied-job-button { background: #1d4935 !important; border-col
   transition: transform var(--motion-base) var(--ease-apple-out), background-color var(--motion-base) var(--ease-apple), box-shadow var(--motion-base) var(--ease-apple), color var(--motion-fast) var(--ease-apple);
 }
 .profile-section-nav button > span { grid-row: 1 / 3; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; background: #e7f2fa; color: #4e7998; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; transition: inherit; }
+.profile-section-nav button > .profile-section-alert { position: absolute; top: 7px; inset-inline-start: 7px; width: 20px; height: 20px; display: grid; place-items: center; border: 2px solid var(--panel); border-radius: 50%; background: var(--warning); color: #fff; font-size: 11px; font-style: normal; font-weight: 900; box-shadow: 0 3px 8px color-mix(in srgb, var(--warning) 30%, transparent); animation: profileAlertPulse 3.2s ease-in-out infinite; }
+.profile-section-nav button > .profile-section-alert[hidden] { display: none; }
+.profile-section-nav button.has-warning { border-color: color-mix(in srgb, var(--warning) 35%, transparent); }
+.profile-section-nav button.has-warning > span { background: color-mix(in srgb, var(--warning) 18%, var(--panel)); color: var(--warning); }
+.profile-detail-section label.is-profile-critical-missing { color: var(--danger); }
+.profile-detail-section label.is-profile-critical-missing :where(input, select, textarea) { border-color: color-mix(in srgb, var(--danger) 62%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
+.answer-card.answer-card-warning { border-color: color-mix(in srgb, var(--warning) 55%, var(--line)); background: color-mix(in srgb, var(--warning) 7%, var(--panel)); }
+.answer-card.answer-card-warning .answer-card-copy strong { color: var(--warning); }
+.answer-card.answer-card-warning [data-answer] { border-color: color-mix(in srgb, var(--warning) 62%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 10%, transparent); }
+@keyframes profileAlertPulse { 0%, 72%, 100% { transform: scale(1); } 78% { transform: scale(1.12); } 84% { transform: scale(1); } }
 .profile-section-nav button strong { align-self: end; color: #294b65; font-size: 13px; }
 .profile-section-nav button small { align-self: start; color: #7b91a2; font-size: 10px; }
 .profile-section-nav button:hover { background: rgba(255,255,255,.7); transform: translateY(-1px); }
@@ -3410,7 +3420,7 @@ body.track-electrical-engineering.theme-dark .btn.secondary:hover{background:var
 .experience-section .experience-options{grid-template-columns:repeat(6,minmax(72px,1fr));gap:10px}
 .experience-section .experience-options>label{min-height:48px;cursor:pointer;user-select:none}
 .personal-profile-layout{grid-template-columns:minmax(0,1fr);gap:12px}.personal-profile-layout .profile-detail-section{grid-column:1/-1;width:100%}.personal-profile-layout .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.phone-input-group{display:grid;grid-template-columns:92px minmax(0,1fr);gap:7px}.phone-input-group input{min-width:0;text-align:left;direction:ltr}.phone-input-group input:first-child{text-align:center}.profile-detail-section .profile-detail-head{flex-wrap:wrap}.profile-detail-section .profile-detail-head>.card-head-actions{flex-wrap:wrap}
-.profile-identity-grid select[name="extra_citizenships"]{min-height:150px;overflow-y:auto;direction:ltr;text-align:left}.profile-identity-grid select[name="extra_citizenships"] option{padding:6px 9px}
+.profile-identity-grid .citizenship-field{grid-column:auto;min-width:0}.profile-identity-grid select[name="extra_citizenships"].citizenship-native-select{display:none}.citizenship-picker{position:relative;display:flex;align-items:center;gap:7px;min-height:38px;max-width:100%;padding:4px;border:1px solid var(--control-border);border-radius:11px;background:var(--control-bg)}.citizenship-selected{display:flex;flex-wrap:wrap;gap:5px;min-width:0;flex:1}.citizenship-chip{padding:5px 8px;border:1px solid var(--accent-border);border-radius:8px;background:var(--accent-soft-2);color:var(--accent-text);font-size:11px;font-weight:750;white-space:nowrap}.citizenship-add{flex:0 0 auto;padding:7px 9px;border:1px solid var(--accent-border);border-radius:8px;background:var(--panel);color:var(--accent-text);font:inherit;font-size:10px;font-weight:800;cursor:pointer}.citizenship-add:hover,.citizenship-picker.is-open .citizenship-add{background:var(--accent-soft-2);border-color:var(--accent-border-strong)}.citizenship-picker-list{position:absolute;z-index:20;inset-inline:0;top:calc(100% + 6px);padding:7px;border:1px solid var(--accent-border);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);max-height:230px;overflow-y:auto}.citizenship-picker-list[hidden]{display:none}.citizenship-option-grid{grid-template-columns:repeat(3,minmax(0,1fr));padding:1px;direction:ltr}.citizenship-option-grid label{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.citizenship-option-grid input{flex:0 0 auto}
 @media(max-width:900px){.personal-profile-layout .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-identity-grid .phone-contact-field{grid-column:auto}}
 @media(max-width:620px){.personal-profile-layout .form-grid{grid-template-columns:minmax(0,1fr)}.phone-input-group{grid-template-columns:84px minmax(0,1fr)}.profile-detail-head>.btn,.profile-detail-head>.card-head-actions{width:100%}.profile-detail-head>.btn{min-width:0}.profile-detail-head>.card-head-actions .btn{flex:1 1 auto}}
 @media(max-width:900px){.experience-section .experience-options{grid-template-columns:repeat(3,minmax(72px,1fr))}}
@@ -3602,4 +3612,202 @@ body.theme-dark .auto-apply-queue-list article.auto-queue-waiting.tone-next,body
   .source-readonly-note { width:100%; min-height:36px; }
   .onboarding-ranking-actions { display:grid; grid-template-columns:1fr; width:100%; }
   .onboarding-ranking-actions .btn { width:100%; min-width:0; }
+}
+
+/* v0.3.3 — jobs filtering + preference overflow + ergonomic IEM palette. */
+.job-location-control { min-width: 152px; }
+.profile-pane[data-profile-pane="preferences"] .preference-stack,
+.profile-pane[data-profile-pane="preferences"] .preference-group,
+.profile-pane[data-profile-pane="preferences"] .option-grid,
+.profile-pane[data-profile-pane="preferences"] .option-grid > label { min-width: 0; }
+.profile-pane[data-profile-pane="preferences"] .preference-group { min-inline-size: 0; max-width: 100%; overflow: hidden; }
+.profile-pane[data-profile-pane="preferences"] .option-grid > label { overflow-wrap: anywhere; }
+.profile-pane[data-profile-pane="preferences"] .custom-preference,
+.profile-pane[data-profile-pane="preferences"] textarea { min-width: 0; max-width: 100%; }
+
+/* Industrial Engineering: desaturated stone/olive surfaces keep the track identity
+   without washing the whole screen in yellow. Career color is reserved for actions,
+   selection and small accents in both light and dark modes. */
+body.track-industrial-engineering {
+  --bg:#f4f4ef;
+  --panel:#fbfbf7;
+  --ink:#30342f;
+  --muted:#6f756c;
+  --line:#d9dbd2;
+  --brand:#7d7040;
+  --brand2:#a49358;
+  --brand-soft:#ece9dc;
+  --warning:#8b6d27;
+  --surface-soft:#f6f5ef;
+  --surface-tint:#efeee6;
+  --line-strong:#c9cbbf;
+  --accent:#7d7040;
+  --accent-strong:#5c5434;
+  --accent-strong-2:#74683b;
+  --accent-soft:#ece9dc;
+  --accent-soft-2:#f2f0e7;
+  --accent-border:#bcb69d;
+  --accent-border-strong:#9b9270;
+  --accent-text:#625a38;
+  --accent-heading:#484735;
+  --accent-kicker:#756b46;
+  --accent-muted:#77796f;
+  --accent-glow:rgba(105,96,58,.12);
+  --accent-glow-strong:rgba(105,96,58,.2);
+  --control-bg:#fdfdf9;
+  --control-bg-hover:#ffffff;
+  --control-border:#d5d6cd;
+  --control-border-hover:#b4b09a;
+  --control-placeholder:#96998e;
+  --dock-surface:#55523f;
+  --dock-surface-2:#716948;
+  --dock-icon-bg:#fbfbf7;
+  --dock-icon-border:#d2d3c9;
+  --dock-icon-ink:#696b61;
+  --dock-accent:#ddd3a8;
+  --dock-rail:rgba(247,247,241,.92);
+  --dock-rail-border:#d7d8cf;
+  --notice-bg:rgba(250,250,246,.98);
+  --notice-item-bg:#fdfdf9;
+  --notice-border:#d9dbd2;
+  --notice-icon-bg:#ece9dc;
+  --notice-icon-ink:#756a3e;
+  --focus-ring:0 0 0 4px rgba(125,112,64,.12);
+  --shadow:0 14px 40px rgba(55,58,50,.08);
+  --shadow-soft:0 8px 24px rgba(55,58,50,.06);
+  background:linear-gradient(135deg,#f8f8f4 0%,#f1f1eb 100%) !important;
+}
+body.track-industrial-engineering .topbar {
+  background:rgba(250,250,246,.95) !important;
+  border-color:var(--line) !important;
+  box-shadow:0 10px 30px rgba(55,58,50,.06) !important;
+}
+body.track-industrial-engineering :where(
+  .panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,
+  .preference-group,.answer-card,.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,
+  .skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,
+  .queue-progress-meta,.application-option,.scan-report-details,.notification-center,.command-card
+) {
+  background-color:var(--panel) !important;
+  background-image:none !important;
+  border-color:var(--line) !important;
+  color:var(--ink) !important;
+}
+body.track-industrial-engineering :where(
+  .jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,.profile-completion,
+  .theme-switch,.icon-action,.section-collapse,.career-switcher-trigger,.flow-list li,.status-pill,
+  .score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,.skill-gap-list button,
+  .job-search-field small,.readiness-check,.notification-item,.auth-guest,.guest-mode-banner
+) {
+  background-color:var(--surface-soft) !important;
+  border-color:var(--line) !important;
+  color:var(--accent-text) !important;
+}
+body.track-industrial-engineering :where(.panel-head h2,.panel-head h3,.profile-detail-section h3,.notification-item strong,.empty-state strong,.metric-copy b) {
+  color:var(--accent-heading) !important;
+}
+body.track-industrial-engineering :where(.muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small,.notification-item small,.metric-copy small,.flow-list span,.empty-state p) {
+  color:var(--muted) !important;
+}
+body.track-industrial-engineering .btn.primary,
+body.track-industrial-engineering :where(.sidebar nav button:hover .nav-icon,.sidebar nav button:focus-visible .nav-icon,.sidebar nav button.active .nav-icon,.profile-section-nav button.active>span) {
+  background:linear-gradient(155deg,var(--brand2),var(--brand)) !important;
+  border-color:var(--brand) !important;
+  color:#fff !important;
+}
+body.track-industrial-engineering :where(.option-grid label:has(input:checked),.check-row label:has(input:checked),.answer-enabled:has(input:checked),.pagination-page.active) {
+  background:var(--accent-soft) !important;
+  border-color:var(--accent-border-strong) !important;
+  color:var(--accent-heading) !important;
+}
+body.track-industrial-engineering .toast {
+  background:rgba(76,74,57,.97) !important;
+  border-color:#8d876a !important;
+  color:#f7f5ec !important;
+  box-shadow:0 14px 35px rgba(41,42,36,.2) !important;
+}
+
+body.theme-dark.track-industrial-engineering {
+  --bg:#151713;
+  --panel:#20231e;
+  --ink:#e8eae3;
+  --muted:#a5aa9f;
+  --line:#3b4038;
+  --brand:#b9a76a;
+  --brand2:#cbbb83;
+  --brand-soft:#343328;
+  --warning:#c1a45a;
+  --surface-soft:#272a24;
+  --surface-tint:#2d3029;
+  --line-strong:#4a5046;
+  --accent:#b9a76a;
+  --accent-strong:#76704f;
+  --accent-strong-2:#91865a;
+  --accent-soft:#343328;
+  --accent-soft-2:#2d3029;
+  --accent-border:#625f4b;
+  --accent-border-strong:#8d835d;
+  --accent-text:#d1c79f;
+  --accent-heading:#ece7d2;
+  --accent-kicker:#c4b989;
+  --accent-muted:#a9ab9f;
+  --accent-glow:rgba(191,174,109,.12);
+  --accent-glow-strong:rgba(191,174,109,.2);
+  --control-bg:#1b1e1a;
+  --control-bg-hover:#232720;
+  --control-border:#42473f;
+  --control-border-hover:#676551;
+  --control-placeholder:#777d72;
+  --dock-surface:#31342d;
+  --dock-surface-2:#4d4b38;
+  --dock-icon-bg:#242720;
+  --dock-icon-border:#444940;
+  --dock-icon-ink:#b0b5aa;
+  --dock-accent:#d8c993;
+  --dock-rail:rgba(27,30,25,.95);
+  --dock-rail-border:#3f443c;
+  --notice-bg:rgba(28,31,26,.98);
+  --notice-item-bg:#242720;
+  --notice-border:#40453d;
+  --notice-icon-bg:#343328;
+  --notice-icon-ink:#c8b97e;
+  --focus-ring:0 0 0 4px rgba(185,167,106,.14);
+  --shadow:0 14px 40px rgba(0,0,0,.24);
+  --shadow-soft:0 8px 24px rgba(0,0,0,.2);
+  background:linear-gradient(135deg,#121411 0%,#191c17 100%) !important;
+}
+body.theme-dark.track-industrial-engineering .topbar {
+  background:rgba(29,32,27,.97) !important;
+  border-color:var(--line) !important;
+}
+body.theme-dark.track-industrial-engineering :where(
+  .panel,.toolbar,.metric,.job-row,.job-card,.source-item,.blocker-card,.profile-detail-section,
+  .preference-group,.answer-card,.flow-panel,.hero-panel,.metrics,.empty-state,.skeleton-item,
+  .skill-suggestion,.resume-box,.resume-profile-card,.source-detail-grid,.availability-card,
+  .queue-progress-meta,.application-option,.scan-report-details,.notification-center,.command-card
+) {
+  background-color:var(--panel) !important;
+  border-color:var(--line) !important;
+  color:var(--ink) !important;
+}
+body.theme-dark.track-industrial-engineering :where(
+  input,select,textarea,.jobs-toolbar,.job-search-field,.filter-control,.scan-status,.profile-section-nav,
+  .profile-completion,.theme-switch,.icon-action,.section-collapse,.career-switcher-trigger,.flow-list li,
+  .status-pill,.score-badge,.skills span,.reason,.active-filters button,.skill-cloud span,
+  .skill-gap-list button,.job-search-field small,.readiness-check,.notification-item,.auth-guest,.guest-mode-banner
+) {
+  background-color:var(--surface-soft) !important;
+  border-color:var(--line) !important;
+  color:var(--accent-text) !important;
+}
+body.theme-dark.track-industrial-engineering :where(h1,h2,h3,strong,label,.panel-head h2,.panel-head h3,.profile-detail-section h3,.empty-state strong,.metric-copy b) {
+  color:var(--ink) !important;
+}
+body.theme-dark.track-industrial-engineering :where(.muted,.page-context,.filter-control>span,.scan-status small,.profile-completion small,.notification-item small,.metric-copy small,.flow-list span,.empty-state p) {
+  color:var(--muted) !important;
+}
+body.theme-dark.track-industrial-engineering .toast {
+  background:rgba(45,48,41,.98) !important;
+  border-color:#66624d !important;
+  color:#eee9d7 !important;
 }

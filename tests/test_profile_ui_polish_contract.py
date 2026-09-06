@@ -58,10 +58,17 @@ def test_profile_citizenships_are_saved_as_a_normalized_list_without_duplicating
 
 def test_israel_contact_defaults_and_scrollable_citizenship_picker_are_exposed():
     assert 'name="extra_phone_country_code" inputmode="tel" aria-label="קידומת טלפון" value="+972"' in HTML
-    assert 'select name="extra_citizenships" multiple size="7"' in HTML
-    assert "renderCitizenshipOptions(profile.application_profile?.citizenships?.length" in JS
+    assert 'select name="extra_citizenships" multiple size="4"' in HTML
+    assert 'ישראל מסומנת כברירת מחדל. אפשר לגלול ולבחור כמה מדינות' not in HTML
+    assert "function renderCitizenshipOptions(selected = ['Citizen (Israel)'])" in JS
+    assert "citizenship-option-grid" in JS
+    assert "citizenship-picker-list" in JS
+    assert "+ הוסף אזרחות" in JS
+    assert "data-profile-option=\"extra_citizenships\"" in JS
     assert "['Citizen (Israel)']" in JS
-    assert 'select[name="extra_citizenships"]{min-height:150px;overflow-y:auto' in CSS
+    assert "select[name=\"extra_citizenships\"].citizenship-native-select{display:none}" in CSS
+    assert ".citizenship-picker-list[hidden]{display:none}" in CSS
+    assert ".citizenship-option-grid{grid-template-columns:repeat(3" in CSS
 
 
 def test_profile_completion_reports_missing_common_questions_as_one_summary_item():

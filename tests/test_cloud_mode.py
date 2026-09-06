@@ -359,6 +359,7 @@ def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
         normal_me = client.get("/api/auth/me", headers=admin_headers)
         assert normal_me.status_code == 200
         assert normal_me.json()["capabilities"]["developer_tools"] is True
+        assert normal_me.json()["capabilities"]["manual_scan"] is True
 
         created = client.post("/api/agent-devices", headers=admin_headers, json={"name": "Preview protected worker"})
         assert created.status_code == 200
@@ -368,6 +369,7 @@ def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
         assert preview_me.status_code == 200
         assert preview_me.json()["user"]["role"] == "user"
         assert preview_me.json()["capabilities"]["developer_tools"] is False
+        assert preview_me.json()["capabilities"]["manual_scan"] is False
 
         devices = client.get("/api/agent-devices", headers=preview_headers)
         assert devices.status_code == 200

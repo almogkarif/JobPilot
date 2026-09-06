@@ -83,6 +83,16 @@ def test_iem_final_specificity_guard_overrides_legacy_blue_dock_and_notification
     assert "background: var(--accent-soft) !important" in css
 
 
+def test_iem_final_palette_is_desaturated_and_ergonomic():
+    final = CSS[CSS.rfind("/* v0.3.3 — jobs filtering + preference overflow + ergonomic IEM palette. */"):]
+    assert "--bg:#f4f4ef;" in final
+    assert "--panel:#fbfbf7;" in final
+    assert "--brand:#7d7040;" in final
+    assert "--bg:#151713;" in final
+    assert "--panel:#20231e;" in final
+    assert "background:linear-gradient(135deg,#121411 0%,#191c17 100%) !important;" in final
+
+
 def test_mobile_layout_has_explicit_rtl_vertical_flow():
     assert '/* v0.3.2 — mobile RTL flow hardening.' in CSS
     assert '.app-shell { display:flex; flex-direction:column; min-height:100dvh; }' in CSS
@@ -112,8 +122,21 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert "$$('[data-mobile-view]')" in JS
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.30.0' in HTML
-    assert 'styles.css?v=0.50.0' in HTML
+    assert 'app.js?v=0.31.0' in HTML
+    assert 'styles.css?v=0.51.0' in HTML
+
+
+def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
+    jobs_view = HTML[HTML.index('id="view-jobs"'):HTML.index('id="view-applications"')]
+    assert 'id="job-location-filter"' in jobs_view
+    assert '<option value="__all_israel__">כל הארץ</option>' in jobs_view
+    assert '<option value="score_desc">המומלצות ביותר</option>' in jobs_view
+    assert '<option value="newest">החדשות ביותר</option>' in jobs_view
+    assert 'value="score_asc"' not in jobs_view
+    assert 'value="oldest"' not in jobs_view
+    assert 'value="discovered_desc"' not in jobs_view
+    assert 'value="title_asc"' not in jobs_view
+    assert "updateJobLocationOptions(payload.location_options || [], payload.location || '')" in JS
 
 
 def test_jobs_offer_manual_applied_action_and_distinct_applied_state():

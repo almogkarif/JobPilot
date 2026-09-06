@@ -17,7 +17,7 @@ from .application_anti_automation import automatic_submission_pause
 from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .location_filter import is_israel_location
 from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, track_job_relevance
-from .career_tracks import DEFAULT_TRACK, normalize_track, active_track
+from .career_tracks import DEFAULT_TRACK, active_track, auto_submit_is_enabled, normalize_track
 from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
@@ -492,7 +492,7 @@ async def scan_all_sources(
                 # while other source collectors are still running in parallel.
                 db.commit()
 
-                if not catalog_only and profile.auto_submit_enabled and (source_new or source_updated):
+                if not catalog_only and auto_submit_is_enabled(profile) and (source_new or source_updated):
                     total_auto_queued += auto_queue_jobs(db, profile)
 
                 source_result = {
@@ -596,7 +596,7 @@ def _job_fingerprint(title: str, company: str, location: str) -> tuple[str, str,
 
 
 def auto_queue_jobs(db: Session, profile: Profile) -> int:
-    if not profile.auto_submit_enabled:
+    if not auto_submit_is_enabled(profile):
         return 0
     from ..models import Application
 

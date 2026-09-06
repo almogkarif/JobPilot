@@ -1,4 +1,7 @@
-from app.collectors.official import PRESETS, _extract_israel_location, _extract_raw_rows, _extract_text_id_rows, _resolve_row_href
+from app.collectors.official import (
+    PRESETS, _apple_embedded_detail_text, _extract_israel_location,
+    _extract_raw_rows, _extract_text_id_rows, _resolve_row_href,
+)
 
 
 def _id(identifier: str, href: str = "", onclick: str = "") -> tuple[str, str]:
@@ -40,6 +43,14 @@ def test_wix_accepts_new_position_seat_urls_and_legacy_location_urls():
 def test_elbit_uses_current_jid_detail_urls():
     _, external_id = _id("elbit", "https://elbitsystemscareer.com/job/?jid=20409")
     assert external_id == "20409"
+
+
+def test_apple_embedded_qualifications_are_extracted_from_detail_response():
+    document = r'''{"description":"Build modem systems","minimumQualifications":"BSc in EE or Physics\\n5 years of experience in signal processing","preferredQualifications":"MSc or PhD - an advantage"}'''
+    text = _apple_embedded_detail_text(document)
+    assert "BSc in EE or Physics" in text
+    assert "5 years of experience in signal processing" in text
+    assert "MSc or PhD" in text
 
 
 def test_rafael_and_appsflyer_current_job_urls():

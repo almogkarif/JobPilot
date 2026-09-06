@@ -866,6 +866,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 title = heading.get_text(" ", strip=True) if heading else ""
                 body = soup.select_one("main, article, [role='main']") or soup.body
                 text = clean_job_text(str(body)) if body else ""
+                if preset.get("company") == "Apple":
+                    text = _apple_embedded_detail_text(response.text) or text
                 canonical = soup.select_one('link[rel="canonical"]')
                 canonical_href = str(canonical.get("href") or "") if canonical else ""
                 result = dict(row)
@@ -879,6 +881,26 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
             except Exception:
                 return row
         return await asyncio.gather(*(one(row) for row in rows))
+
+
+def _apple_embedded_detail_text(document: str) -> str:
+    """Extract Apple's qualification JSON that is absent from the rendered shell."""
+    fields = ("description", "minimumQualifications", "preferredQualifications")
+    values: dict[str, str] = {}
+    for field in fields:
+        match = re.search(
+            rf'\\?"{field}\\?"\s*:\s*\\?"((?:\\\\.|[^"\\])*)',
+            str(document or ""),
+        )
+        if not match:
+            continue
+        try:
+            value = json.loads('"' + match.group(1) + '"')
+            values[field] = value.encode("utf-8").decode("unicode_escape")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+    parts = [values[field] for field in fields if values.get(field)]
+    return clean_job_text("\n".join(parts)) if parts else ""
 
 
 def _resolve_row_href(row: dict, preset: dict) -> tuple[str, re.Match[str] | None]:

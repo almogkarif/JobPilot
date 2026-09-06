@@ -83,6 +83,7 @@ class Profile(UserOwnedMixin, Base):
     onboarding_state_json: Mapped[str] = mapped_column(Text, default="{}")
     auto_apply_threshold: Mapped[int] = mapped_column(Integer, default=82)
     auto_submit_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    auto_submit_opt_in_version: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 

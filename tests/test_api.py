@@ -47,6 +47,42 @@ def test_health_and_dashboard():
         }
 
 
+
+def test_auto_submit_is_reset_off_until_user_explicitly_opts_in(monkeypatch):
+    from app.services import scanner
+
+    monkeypatch.setattr(scanner, "auto_queue_jobs", lambda db, profile: 0)
+
+    with TestClient(app) as client:
+        with SessionLocal() as db:
+            set_user_scope(db, "local-owner")
+            profile = db.scalar(select(Profile).where(Profile.user_id == "local-owner"))
+            assert profile is not None
+            # Simulate an account that had automatic submission enabled before the
+            # explicit-opt-in safety version was introduced.
+            profile.auto_submit_enabled = True
+            profile.auto_submit_opt_in_version = 0
+            db.commit()
+
+        legacy_payload = client.get("/api/profile")
+        assert legacy_payload.status_code == 200
+        assert legacy_payload.json()["auto_submit_enabled"] is False
+
+        enabled = client.patch("/api/profile", json={"auto_submit_enabled": True})
+        assert enabled.status_code == 200
+        assert enabled.json()["auto_submit_enabled"] is True
+
+        with SessionLocal() as db:
+            set_user_scope(db, "local-owner")
+            profile = db.scalar(select(Profile).where(Profile.user_id == "local-owner"))
+            assert profile is not None
+            assert profile.auto_submit_enabled is True
+            assert profile.auto_submit_opt_in_version == 1
+
+        disabled = client.patch("/api/profile", json={"auto_submit_enabled": False})
+        assert disabled.status_code == 200
+        assert disabled.json()["auto_submit_enabled"] is False
+
 def test_demo_jobs_and_sources_are_never_exposed_by_product_endpoints():
     with TestClient(app) as client:
         with SessionLocal() as db:
@@ -340,7 +376,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.30.0" in index.text
+        assert "app.js?v=0.31.0" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 
@@ -616,7 +652,10 @@ def test_jobs_support_paginated_sorting_without_breaking_legacy_list_response():
         )
         assert response.status_code == 200
         payload = response.json()
-        assert set(payload) == {"items", "total", "page", "page_size", "pages", "sort"}
+        assert set(payload) == {
+            "items", "total", "page", "page_size", "pages", "sort",
+            "location", "location_options",
+        }
         assert payload["page"] == 1
         assert payload["page_size"] == 2
         assert payload["sort"] == "score_desc"
@@ -635,3 +674,45 @@ def test_jobs_support_paginated_sorting_without_breaking_legacy_list_response():
 
         invalid = client.get("/api/jobs", params={"paginated": "true", "sort": "not-a-sort"})
         assert invalid.status_code == 400
+
+
+def test_jobs_location_filter_is_dynamic_and_keeps_all_israel_bucket():
+    from app.services.location_filter import ALL_ISRAEL_LOCATION_FILTER, job_location_filter_bucket
+
+    with TestClient(app) as client:
+        for suffix, location in (("haifa", "Haifa, Israel"), ("country", "Israel")):
+            response = client.post("/api/jobs/import", json={
+                "title": f"Location Filter Engineer {suffix}",
+                "company": "Location Filter Fixture",
+                "location": location,
+                "description": "Software engineering role with Python and C++.",
+                "apply_url": f"https://jobs.location-filter.invalid/{suffix}",
+            })
+            assert response.status_code == 200
+
+        payload = client.get("/api/jobs", params={
+            "paginated": "true", "page": 1, "page_size": 100, "sort": "score_desc",
+        }).json()
+        options = {item["value"]: item for item in payload["location_options"]}
+        assert ALL_ISRAEL_LOCATION_FILTER in options
+        assert options[ALL_ISRAEL_LOCATION_FILTER]["label"] == "כל הארץ"
+        assert "haifa" in options
+        assert options["haifa"]["label"] == "חיפה"
+
+        haifa = client.get("/api/jobs", params={
+            "paginated": "true", "page": 1, "page_size": 100, "location": "haifa",
+        }).json()
+        assert haifa["location"] == "haifa"
+        assert haifa["items"]
+        assert all(job_location_filter_bucket(item["location"])[0] == "haifa" for item in haifa["items"])
+
+        nationwide = client.get("/api/jobs", params={
+            "paginated": "true", "page": 1, "page_size": 100,
+            "location": ALL_ISRAEL_LOCATION_FILTER,
+        }).json()
+        assert nationwide["location"] == ALL_ISRAEL_LOCATION_FILTER
+        assert nationwide["items"]
+        assert all(
+            job_location_filter_bucket(item["location"])[0] == ALL_ISRAEL_LOCATION_FILTER
+            for item in nationwide["items"]
+        )

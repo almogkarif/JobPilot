@@ -95,7 +95,7 @@ const parseJwt = (token = '') => {
 
 const authHeaders = () => authState.session?.access_token ? { Authorization: `Bearer ${authState.session.access_token}` } : {};
 const applicationAgentAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.application_agent !== false;
-const manualScanAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.manual_scan === true;
+const manualScanAllowed = () => !adminPreviewActive() && (authState.config?.mode !== 'supabase' || authState.capabilities?.manual_scan === true);
 const sourceManagementAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.developer_tools === true;
 
 const saveAuthSession = (session) => {
@@ -1199,7 +1199,7 @@ async function loadAnswerLibrary() {
     const control = item.choices.length
       ? `<select data-answer>${['', ...item.choices].map((choice) => `<option value="${esc(choice)}" ${choice === item.answer ? 'selected' : ''}>${esc(choice || 'בחר תשובה')}</option>`).join('')}</select>`
       : `<input data-answer type="text" value="${esc(item.answer)}" placeholder="כתוב תשובה מאושרת" />`;
-    return `<div class="answer-card" data-answer-key="${esc(item.key)}">
+    return `<div class="answer-card ${item.answer ? '' : 'answer-card-warning'}" data-answer-key="${esc(item.key)}">
       <div class="answer-card-copy"><strong>${esc(item.title)}</strong><small dir="ltr">${esc(item.example)}</small><small class="answer-compact-summary"></small></div>
       <div class="answer-card-actions">${control}
         <label class="answer-enabled"><input data-enabled type="checkbox" ${item.enabled ? 'checked' : ''} /> שימוש אוטומטי</label>
@@ -1249,6 +1249,7 @@ function updateAnswerDirtyState() {
   $('#profile-answer-panel')?.classList.toggle('has-unsaved', state.answersDirty);
   $('#answers-unsaved-note').textContent = state.answersDirty ? 'יש שינויים בתשובות שעדיין לא נשמרו' : '';
   syncProfileUnsavedUI();
+  updateProfileCompletion();
 }
 
 async function saveAnswerCard(card) {
@@ -1657,16 +1658,18 @@ async function loadJobs(options = {}) {
   const query = encodeURIComponent($('#job-search').value || '');
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
+  const location = $('#job-location-filter')?.value || '';
   const sort = $('#job-sort').value || 'score_desc';
   const pageSize = Number($('#jobs-page-size').value || 20);
   state.jobsPaging.sort = sort;
   state.jobsPaging.pageSize = pageSize;
-  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}`);
+  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&location=${encodeURIComponent(location)}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}`);
   if (Array.isArray(payload)) {
     state.jobs = payload;
     state.jobsPaging = { ...state.jobsPaging, page: 1, total: payload.length, pages: 1 };
   } else {
     state.jobs = payload.items || [];
+    updateJobLocationOptions(payload.location_options || [], payload.location || '');
     state.jobsPaging = {
       page: payload.page || 1,
       pageSize: payload.page_size || pageSize,
@@ -1676,6 +1679,25 @@ async function loadJobs(options = {}) {
     };
   }
   renderJobs();
+}
+
+function updateJobLocationOptions(options, selectedValue = '') {
+  const select = $('#job-location-filter');
+  if (!select) return;
+  const fragment = document.createDocumentFragment();
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'כל המקומות';
+  fragment.appendChild(all);
+  (Array.isArray(options) ? options : []).forEach((item) => {
+    const option = document.createElement('option');
+    option.value = String(item?.value || '');
+    const count = Math.max(0, Number(item?.count || 0));
+    option.textContent = `${String(item?.label || 'מיקום')}${count ? ` (${count})` : ''}`;
+    fragment.appendChild(option);
+  });
+  select.replaceChildren(fragment);
+  select.value = [...select.options].some((option) => option.value === selectedValue) ? selectedValue : '';
 }
 
 function jobCardActions(job) {
@@ -1716,7 +1738,7 @@ function renderJobs() {
   setPageContext('jobs', state.jobsPaging.total);
   if (!state.jobs.length) {
     $('#jobs-pagination').innerHTML = '';
-    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value;
+    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value || $('#job-location-filter')?.value;
     root.innerHTML = hasFilters
       ? emptyState('⌕', 'לא נמצאו התאמות לסינון הזה', 'אפשר להסיר מסנן אחד או לנקות את החיפוש ולנסות שוב.', '<button class="btn secondary small" type="button" onclick="clearJobFilters()">נקה את כל המסננים</button>')
       : emptyState('＋', 'עדיין אין משרות להצגה', 'הוסף מקורות משרות והפעל סריקה ראשונה.', '<button class="btn primary small" type="button" onclick="switchView(\'sources\')">הגדר מקורות</button>');
@@ -1785,6 +1807,7 @@ window.goToJobsPage = goToJobsPage;
 $('#job-search').addEventListener('input', debounce(() => loadJobs({ resetPage: true }), 300));
 $('#score-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-status-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-location-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-sort').onchange = () => loadJobs({ resetPage: true });
 $('#jobs-page-size').onchange = () => loadJobs({ resetPage: true });
 
@@ -1794,9 +1817,11 @@ function renderActiveFilters() {
   const query = $('#job-search').value.trim();
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
+  const location = $('#job-location-filter')?.value || '';
   if (query) filters.push({ key: 'query', label: `חיפוש: ${query}` });
   if (score !== '0') filters.push({ key: 'score', label: `התאמה ${score}+` });
   if (status) filters.push({ key: 'status', label: `סטטוס: ${statusLabel(status)}` });
+  if (location) filters.push({ key: 'location', label: `מיקום: ${$('#job-location-filter').selectedOptions[0]?.textContent || 'נבחר'}` });
   root.innerHTML = filters.length ? `<span>מסננים פעילים</span>${filters.map((filter) => `<button type="button" data-clear-filter="${filter.key}">${esc(filter.label)} <b>×</b></button>`).join('')}<button type="button" class="clear-all-filters" data-clear-filter="all">נקה הכול</button>` : '';
   $$('[data-clear-filter]', root).forEach((button) => { button.onclick = () => clearJobFilters(button.dataset.clearFilter); });
 }
@@ -1805,6 +1830,7 @@ function clearJobFilters(key = 'all') {
   if (key === 'all' || key === 'query') $('#job-search').value = '';
   if (key === 'all' || key === 'score') $('#score-filter').value = '0';
   if (key === 'all' || key === 'status') $('#job-status-filter').value = '';
+  if (key === 'all' || key === 'location') $('#job-location-filter').value = '';
   loadJobs({ resetPage: true });
 }
 window.clearJobFilters = clearJobFilters;
@@ -2773,10 +2799,46 @@ function renderCitizenshipOptions(selected = ['Citizen (Israel)']) {
   const control = profileForm()?.elements?.extra_citizenships;
   if (!control) return;
   const selectedKeys = new Set(normalizeCitizenships(selected).map((value) => value.toLowerCase()));
-  control.innerHTML = citizenshipOptions().map(({country}) => {
+  const options = citizenshipOptions().map(({country}) => {
     const value = `Citizen (${country})`;
-    return `<option value="${esc(value)}" ${selectedKeys.has(value.toLowerCase()) ? 'selected' : ''}>${esc(country)}</option>`;
-  }).join('');
+    const checked = selectedKeys.has(value.toLowerCase());
+    return { value, country, checked };
+  });
+  control.innerHTML = options.map(({value, country, checked}) =>
+    `<option value="${esc(value)}" ${checked ? 'selected' : ''}>${esc(country)}</option>`
+  ).join('');
+  control.classList.add('citizenship-native-select');
+  control.setAttribute('aria-hidden', 'true');
+  control.tabIndex = -1;
+  control.parentElement?.querySelector('.citizenship-option-grid')?.remove();
+  control.insertAdjacentHTML('afterend', `<div class="citizenship-picker">
+    <div class="citizenship-selected" aria-live="polite"></div>
+    <button class="citizenship-add" type="button">+ הוסף אזרחות</button>
+    <div class="citizenship-picker-list" hidden><div class="option-grid citizenship-option-grid" aria-label="בחר אזרחויות">${options.map(({value, country, checked}) =>
+      `<label><input type="checkbox" data-profile-option="extra_citizenships" value="${esc(value)}" ${checked ? 'checked' : ''} /> ${esc(country)}</label>`
+    ).join('')}</div></div>
+  </div>`);
+  const picker = control.parentElement?.querySelector('.citizenship-picker');
+  const selectedSummary = picker?.querySelector('.citizenship-selected');
+  const updateSelectedSummary = () => {
+    const selected = options.filter(({value}) => [...control.options].some((option) => option.value === value && option.selected));
+    selectedSummary.innerHTML = selected.map(({country}) => `<span class="citizenship-chip">${esc(country)}</span>`).join('');
+  };
+  picker?.querySelector('.citizenship-add')?.addEventListener('click', () => {
+    const list = picker.querySelector('.citizenship-picker-list');
+    list.hidden = !list.hidden;
+    picker.classList.toggle('is-open', !list.hidden);
+  });
+  $$('.citizenship-option-grid input', picker).forEach((checkbox) => {
+    checkbox.addEventListener('change', () => {
+      const option = [...control.options].find((item) => item.value === checkbox.value);
+      if (option) option.selected = checkbox.checked;
+      updateSelectedSummary();
+      updateProfileDirtyState();
+      updateProfileCompletion();
+    });
+  });
+  updateSelectedSummary();
 }
 
 function setFieldUnsaved(name, isUnsaved) {
@@ -3085,6 +3147,7 @@ const PROFILE_COMPLETION_FIELDS = [
   ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_education_school','מוסד לימודים'],
   ['degree_level','השכלה'], ['extra_languages','שפות'],
 ];
+const PROFILE_CRITICAL_FIELDS = new Set(['full_name', 'email', 'phone', 'location']);
 function updateProfileCompletion() {
   const form = profileForm();
   if (!form || !$('#profile-completion')) return;
@@ -3095,7 +3158,8 @@ function updateProfileCompletion() {
     const complete = Array.isArray(value) ? value.length > 0 : Boolean(value);
     if (!complete) missing.push(label);
     const fieldLabel = control?.closest('label');
-    fieldLabel?.classList.toggle('is-recommended-missing', !complete);
+    fieldLabel?.classList.toggle('is-recommended-missing', !complete && !PROFILE_CRITICAL_FIELDS.has(name));
+    fieldLabel?.classList.toggle('is-profile-critical-missing', !complete && PROFILE_CRITICAL_FIELDS.has(name));
     if (fieldLabel) fieldLabel.title = complete ? '' : `${label} הוא פרט נפוץ בטפסי מועמדות ומומלץ להשלים אותו`;
   });
   const work = collectWorkExperiences();
@@ -3104,6 +3168,11 @@ function updateProfileCompletion() {
   const resumeComplete = Boolean(state.profile?.cv_filename || $('#resume-name')?.textContent !== 'לא הועלה קובץ');
   if (!resumeComplete) missing.push('קורות חיים');
   const unansweredCommonQuestions = (state.answerLibrary || []).filter((item) => !String(item.answer || '').trim());
+  $$('.answer-card', $('#answer-library')).forEach((card) => {
+    const unanswered = !String($('[data-answer]', card)?.value || '').trim();
+    card.classList.toggle('answer-card-warning', unanswered);
+    card.classList.toggle('answer-card-complete', !unanswered);
+  });
   if (unansweredCommonQuestions.length === 1) {
     missing.push(`שאלה נפוצה: ${unansweredCommonQuestions[0].title}`);
   } else if (unansweredCommonQuestions.length > 1) {
@@ -3116,6 +3185,13 @@ function updateProfileCompletion() {
   $('#profile-completion-bar').style.width = `${percent}%`;
   $('#profile-completion-copy').textContent = missing.length ? `מומלץ להשלים: ${missing.slice(0,3).join(' · ')}${missing.length > 3 ? ` ועוד ${missing.length - 3}` : ''}` : 'הפרופיל מלא ומוכן למילוי טפסים';
   completion.hidden = percent >= 100;
+  const automationNav = $('[data-profile-section="automation"]');
+  const automationAlert = $('#profile-automation-alert');
+  const hasAutomationWarning = unansweredCommonQuestions.length > 0;
+  automationNav?.classList.toggle('has-warning', hasAutomationWarning);
+  automationAlert.hidden = !hasAutomationWarning;
+  automationAlert?.classList.toggle('is-warning', hasAutomationWarning);
+  automationAlert.textContent = hasAutomationWarning ? '!' : '';
   renderNotificationCenter();
 }
 
@@ -4598,6 +4674,7 @@ async function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW
 function configureDeveloperTools(){
   const allowed=!adminPreviewActive()&&(authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true);$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
   const importButton=$('#import-job-btn'); if(importButton) importButton.hidden=!allowed;
+  const scanButton=$('#scan-btn');if(scanButton)scanButton.hidden=!manualScanAllowed();
   const workerSetting=$('#admin-worker-setting');if(workerSetting)workerSetting.hidden=!allowed;
   applyAdminPreviewMode();const status=$('#developer-runtime-status');if(status)status.textContent=allowed?`מחובר כ־${authState.user?.email||'local'} · role: ${authState.user?.role||'admin'} · onboarding v${ONBOARDING_VERSION}`:'';if(allowed)loadDeveloperCenter();
 }

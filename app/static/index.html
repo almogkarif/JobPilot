@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.50.0" />
+    <link rel="stylesheet" href="/static/styles.css?v=0.51.0" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -139,8 +139,8 @@
             <ol class="flow-list">
               <li><b>1</b><div><strong>מאתר ומנקה</strong><span>סורק אתרי קריירה, מסנן משרות לא מתאימות ומאחד כפילויות בין מקורות.</span></div></li>
               <li><b>2</b><div><strong>מסביר את ההתאמה</strong><span>מדרג לפי כותרת, סקילים, ניסיון, מיקום ועדכניות — עם פירוט מלא של הציון.</span></div></li>
-              <li><b>3</b><div><strong>מכין את ההגשה</strong><span>בוחר את גרסת קורות החיים המתאימה, מזהה פערי סקילים וממלא רק מידע שאישרת.</span></div></li>
-              <li><b>4</b><div><strong>משאיר אותך בשליטה</strong><span>עוצר לפני השליחה הסופית ומרכז הגשות, תזכורות ושלבי המשך ב־Kanban.</span></div></li>
+              <li><b>3</b><div><strong>מכין ומגיש אוטומטית</strong><span>בוחר את גרסת קורות החיים המתאימה, מזהה פערי סקילים וממלא את הטופס רק במידע שאישרת.</span></div></li>
+              <li><b>4</b><div><strong>עוקב ומבקש עזרה כשצריך</strong><span>מפעיל worker לאחר מעבר הסף, מסמן את המשרה בירוק ומוציא אותה מההמלצות לאחר שנכנסה לתור.</span></div></li>
             </ol>
             <div class="safe-note">LinkedIn משמש כמקור קישורים בלבד; אין אוטומציה בתוך האתר.</div>
           </article>
@@ -152,7 +152,8 @@
           <label class="job-search-field" for="job-search"><span class="search-symbol">⌕</span><input id="job-search" type="search" placeholder="חיפוש תפקיד, חברה או טכנולוגיה" /><small>חיפוש חכם</small></label>
           <label class="filter-control"><span>התאמה</span><select id="score-filter"><option value="0">כל הציונים</option><option value="80">80 ומעלה</option><option value="70">70 ומעלה</option><option value="50">50 ומעלה</option></select></label>
           <label class="filter-control job-status-control"><span>סטטוס</span><select id="job-status-filter"><option value="">הכול</option><option value="new">חדש</option><option value="queued">בתור</option><option value="submitted">הוגש</option><option value="skipped">דולג</option></select></label>
-          <label class="filter-control job-sort-control"><span>מיון</span><select id="job-sort"><option value="score_desc">ציון — גבוה לנמוך</option><option value="auto_apply_first">הגשה אוטומטית קודם</option><option value="score_asc">ציון — נמוך לגבוה</option><option value="newest">חדשות קודם</option><option value="oldest">ישנות קודם</option><option value="discovered_desc">נוספו לאחרונה</option><option value="company_asc">חברה — א׳ עד ת׳</option><option value="title_asc">תפקיד — א׳ עד ת׳</option></select></label>
+          <label class="filter-control job-location-control"><span>מיקום</span><select id="job-location-filter"><option value="">כל המקומות</option><option value="__all_israel__">כל הארץ</option></select></label>
+          <label class="filter-control job-sort-control"><span>מיון</span><select id="job-sort"><option value="score_desc">המומלצות ביותר</option><option value="newest">החדשות ביותר</option><option value="auto_apply_first">הגשה אוטומטית קודם</option><option value="company_asc">חברה — א׳ עד ת׳</option></select></label>
           <label class="filter-control page-size-control"><span>משרות בעמוד</span><select id="jobs-page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></label>
           <button class="btn secondary density-toggle" id="density-toggle" type="button" aria-pressed="false">תצוגה קומפקטית</button>
           <button class="btn secondary" id="import-job-btn" hidden>הוסף קישור ידנית</button>
@@ -182,7 +183,7 @@
               <b id="threshold-value">82</b>
               <input id="threshold" name="auto_apply_threshold" form="profile-form" type="range" min="50" max="100" />
             </label>
-            <label class="automation-toggle-card"><input name="auto_submit_enabled" form="profile-form" type="checkbox" /><span class="switch-track"></span><span><strong>הוספה אוטומטית לתור</strong><small>לאחר כל סריקה, לפי הסף שקבעת</small></span></label>
+            <label class="automation-toggle-card"><input name="auto_submit_enabled" form="profile-form" type="checkbox" /><span class="switch-track"></span><span><strong>הוספה אוטומטית לתור</strong><small>כבוי כברירת מחדל · הפעל רק אם תרצה ש־JobPilot יוסיף משרות לבד</small></span></label>
           </div>
           <div class="campaign-controls" id="campaign-controls">
             <label><span>מצב קמפיין</span><select id="campaign-mode"><option value="simple">פשוט — לפי ההתאמה</option><option value="advanced">מתקדם — עם בלמי בטיחות</option></select></label>
@@ -312,7 +313,7 @@
           </section>
           <nav class="profile-section-nav" aria-label="אזורי הפרופיל">
             <button class="active" type="button" data-profile-section="personal"><span>01</span><strong>פרטים אישיים</strong><small>קשר, ניסיון והשכלה</small></button>
-            <button type="button" data-profile-section="automation"><span>02</span><strong>שאלות והגשה</strong><small>תשובות, קורות חיים ואוטומציה</small></button>
+            <button type="button" data-profile-section="automation"><span>02</span><strong>שאלות והגשה</strong><small>תשובות, קורות חיים ואוטומציה</small><em id="profile-automation-alert" class="profile-section-alert" hidden aria-label="יש הערות בשאלות והגשה">!</em></button>
           </nav>
           <article class="panel profile-pane active" data-profile-pane="personal">
             <div class="panel-head">
@@ -325,7 +326,7 @@
                 <div class="form-grid profile-identity-grid">
                   <label>שם מלא<input name="full_name" /></label><label>שם מועדף<input name="extra_preferred_name" /></label><label>כינויי גוף<input name="extra_pronouns" placeholder="אופציונלי" /></label>
                   <label>אימייל<input name="email" type="email" /></label><label class="phone-contact-field">טלפון<span class="phone-input-group" dir="ltr"><input name="extra_phone_country_code" inputmode="tel" aria-label="קידומת טלפון" value="+972" placeholder="+972" /><input name="phone" inputmode="tel" autocomplete="tel-national" aria-label="מספר טלפון" placeholder="50-123-4567" /></span></label><label>שלוחת טלפון<input name="extra_phone_extension" inputmode="numeric" autocomplete="off" placeholder="אופציונלי" /></label><label>אזור מגורים<input name="location" placeholder="למשל: תל אביב" /></label>
-                  <label class="wide-field">אפשרויות אזרחות בטפסים<select name="extra_citizenships" multiple size="7" aria-label="בחר אזרחויות"></select><small>ישראל מסומנת כברירת מחדל. אפשר לגלול ולבחור כמה מדינות; להסרת בחירה השתמש ב־⌘ במק או Ctrl ב־Windows.</small></label>
+                  <label class="citizenship-field">אפשרויות אזרחות בטפסים<select name="extra_citizenships" multiple size="4" aria-label="בחר אזרחויות"></select></label>
                 </div>
               </section>
               <section class="profile-detail-section">
@@ -507,6 +508,6 @@
   <aside id="notification-center" class="notification-center" aria-hidden="true" aria-label="מרכז התראות"><div class="notification-head"><div><span class="kicker">עדכונים ופעולות</span><h2>מרכז התראות</h2></div><button type="button" id="notification-close" aria-label="סגור התראות">×</button></div><div id="notification-list" class="notification-list"></div></aside>
   <div id="command-palette" class="command-palette" aria-hidden="true"><div class="command-card" role="dialog" aria-modal="true" aria-label="חיפוש מהיר"><label><span>⌕</span><input id="command-input" type="search" placeholder="חיפוש משרה, חברה, סקיל או מעבר לעמוד…" autocomplete="off" /></label><div id="command-results" class="command-results"></div><small>Enter לבחירה · Esc לסגירה · ⌘K לפתיחה</small></div></div>
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>\n\n  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js?v=0.30.0"></script>
+    <script src="/static/app.js?v=0.31.0"></script>
 </body>
 </html>

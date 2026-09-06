@@ -65,7 +65,11 @@ from .services.application_policy import application_policy, intel_question_memo
 from .services.application_anti_automation import (
     ASHBY_SPAM_BLOCKER_KIND, automatic_submission_pause, classify_ashby_spam_block,
 )
-from .services.location_filter import is_israel_location
+from .services.location_filter import (
+    ALL_ISRAEL_LOCATION_FILTER,
+    is_israel_location,
+    job_location_filter_bucket,
+)
 from .services.degree_requirements import (allowed_job_degree_levels, application_degree_value,
                                            degree_requirement_label, extract_degree_requirement_details,
                                            normalize_degree_level, profile_degree_level)
@@ -75,9 +79,9 @@ from .services.ranking.service import (get_ranking_engine, get_settings as get_r
                                        job_fingerprint_values, persist_v2_result,
                                        rank_job as run_ranking, result_is_stale, v2_config)
 from .services.career_tracks import (
-    CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
+    AUTO_SUBMIT_OPT_IN_VERSION, CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
     TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
-    persist_active_track, switch_track, track_public_dict,
+    auto_submit_is_enabled, persist_active_track, switch_track, track_public_dict,
 )
 from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
@@ -1323,6 +1327,7 @@ def developer_reset_user_profile(user_id: str, request: Request, db: Session = D
         profile.onboarding_state_json = "{}"
         profile.auto_apply_threshold = 82
         profile.auto_submit_enabled = False
+        profile.auto_submit_opt_in_version = 0
         ensure_track_state(profile)
         tenant.add(AuditLog(event_type="developer_profile_reset", entity_type="profile", entity_id=str(profile.id), message="Profile and search preferences reset by admin; jobs, sources, applications and resumes preserved"))
         tenant.commit()
@@ -1874,7 +1879,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 & (JobRanking.error == "")
             )
             top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
-                func.coalesce(UserJobState.status, "new") != "submitted"
+                func.coalesce(UserJobState.status, "new").not_in(
+                    ("submitted", "queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")
+                )
             ).where(_degree_visibility_condition(profile)).outerjoin(JobRanking, valid_ranking_join).where(
                 or_(JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded")
             ).order_by(
@@ -2080,6 +2087,11 @@ def _apply_profile_changes(
         "desired_titles_json", "preferred_locations_json", "preferred_work_modes_json",
         "keywords_json", "excluded_keywords_json",
     )
+    automatic_settings_before = (
+        profile.auto_apply_threshold,
+        profile.auto_submit_enabled,
+        profile.auto_submit_opt_in_version,
+    )
     resume_analysis_fields = ("full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url", "skills_json")
     matching_before = tuple(getattr(profile, field) for field in matching_fields)
     degree_before = profile_degree_level(profile)
@@ -2094,6 +2106,10 @@ def _apply_profile_changes(
         value = values[field]
         if value is not None:
             setattr(profile, field, value)
+    if "auto_submit_enabled" in values and values.get("auto_submit_enabled") is not None:
+        # Existing accounts are deliberately reset to effective-off after this
+        # release. Only an explicit save of the toggle opts the current track in.
+        profile.auto_submit_opt_in_version = AUTO_SUBMIT_OPT_IN_VERSION
 
     # Blank/omitted means keep the encrypted-at-rest application password value.
     if values.get("application_password"):
@@ -2165,10 +2181,19 @@ def _apply_profile_changes(
     # job (and re-analysing every CV) can take seconds on a small Render instance.
     # Keep local/test mode synchronous for deterministic tests, but defer derived
     # work until after the HTTP response in Supabase mode.
-    if settings.auth_mode == "supabase" and background_tasks is not None and (matching_changed or resume_analysis_changed):
+    automatic_settings_changed = automatic_settings_before != (
+        profile.auto_apply_threshold,
+        profile.auto_submit_enabled,
+        profile.auto_submit_opt_in_version,
+    )
+    if settings.auth_mode == "supabase" and background_tasks is not None and (
+        matching_changed or resume_analysis_changed or automatic_settings_changed
+    ):
         db.commit()
         db.refresh(profile)
-        _queue_profile_derived_refresh(user_id, track, matching_changed, resume_analysis_changed, matching_changed)
+        _queue_profile_derived_refresh(
+            user_id, track, matching_changed, resume_analysis_changed, matching_changed,
+        )
         return _profile_dict(profile)
 
     if matching_changed:
@@ -2176,6 +2201,9 @@ def _apply_profile_changes(
     if resume_analysis_changed:
         _refresh_resume_analyses(db, profile)
     db.commit()
+    if automatic_settings_changed and auto_submit_is_enabled(profile):
+        from .services.scanner import auto_queue_jobs
+        auto_queue_jobs(db, profile)
     db.refresh(profile)
     return _profile_dict(profile)
 
@@ -2665,11 +2693,52 @@ def personal_ranking_status(db: Session = Depends(get_db)):
     }
 
 
+def _jobs_location_filter_options(
+    db: Session,
+    statement,
+) -> tuple[list[dict], dict[str, list[str]]]:
+    """Build dynamic location buckets from a filtered location-count query."""
+    rows = db.execute(statement.group_by(Job.location)).all()
+
+    buckets: dict[str, dict] = {
+        ALL_ISRAEL_LOCATION_FILTER: {
+            "value": ALL_ISRAEL_LOCATION_FILTER,
+            "label": "כל הארץ",
+            "count": 0,
+            "raw_values": [],
+        }
+    }
+    for raw_location, count in rows:
+        key, label = job_location_filter_bucket(raw_location)
+        bucket = buckets.setdefault(key, {
+            "value": key,
+            "label": label,
+            "count": 0,
+            "raw_values": [],
+        })
+        bucket["count"] += int(count or 0)
+        raw = str(raw_location or "")
+        if raw not in bucket["raw_values"]:
+            bucket["raw_values"].append(raw)
+
+    raw_map = {key: list(value["raw_values"]) for key, value in buckets.items()}
+    public = [
+        {"value": value["value"], "label": value["label"], "count": value["count"]}
+        for value in buckets.values()
+    ]
+    public.sort(key=lambda item: (
+        item["value"] != ALL_ISRAEL_LOCATION_FILTER,
+        str(item["label"]).casefold(),
+    ))
+    return public, raw_map
+
+
 @app.get("/api/jobs")
 def list_jobs(
     request: Request,
     min_score: int = Query(0, ge=0, le=100),
     status: str | None = None,
+    location: str | None = None,
     query: str | None = None,
     active_only: bool = True,
     limit: int = Query(200, ge=1, le=1000),
@@ -2686,12 +2755,15 @@ def list_jobs(
     with _job_catalog_session(request, db) as catalog_db:
         ranking_settings = get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
+        selected_location = str(location or "").strip()
+        location_options: list[dict] = []
+        location_raw_map: dict[str, list[str]] = {}
         statement = select(Job).options(
             defer(Job.description), joinedload(Job.source), joinedload(Job.application)
         ).where(
             Job.career_track == career_track, Job.source.has(Source.kind != "demo"),
         )
-        count_statement = select(func.count()).select_from(Job).where(
+        location_count_statement = select(Job.location, func.count(Job.id)).where(
             Job.career_track == career_track, Job.source.has(Source.kind != "demo"),
         )
         if ranking_active:
@@ -2710,14 +2782,14 @@ def list_jobs(
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).outerjoin(
                 JobRanking, valid_ranking_join
             ).where(Job.career_track == career_track, Job.source.has(Source.kind != "demo"))
-            count_statement = count_statement.outerjoin(
+            location_count_statement = location_count_statement.outerjoin(
                 UserJobState, UserJobState.job_id == Job.id
             ).outerjoin(JobRanking, valid_ranking_join)
         selected_degree = "" if guest_catalog else profile_degree_level(profile)
         if selected_degree:
             degree_filter = _degree_visibility_condition(profile)
             statement = statement.where(degree_filter)
-            count_statement = count_statement.where(degree_filter)
+            location_count_statement = location_count_statement.where(degree_filter)
         if ranking_active:
             if min_score > 0:
                 ranking_visibility = (
@@ -2730,20 +2802,38 @@ def list_jobs(
                     JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded"
                 )
             statement = statement.where(ranking_visibility)
-            count_statement = count_statement.where(ranking_visibility)
+            location_count_statement = location_count_statement.where(ranking_visibility)
         if active_only:
             statement = statement.where(Job.is_active.is_(True))
-            count_statement = count_statement.where(Job.is_active.is_(True))
+            location_count_statement = location_count_statement.where(Job.is_active.is_(True))
         # A guest sees neutral read-only opportunities, not the admin's private
         # saved/submitted state. Ignore the status filter in shared-catalog mode.
         if status and ranking_active:
             statement = statement.where(func.coalesce(UserJobState.status, "new") == status)
-            count_statement = count_statement.where(func.coalesce(UserJobState.status, "new") == status)
+            location_count_statement = location_count_statement.where(func.coalesce(UserJobState.status, "new") == status)
         if query:
             pattern = f"%{query}%"
             query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
             statement = statement.where(query_filter)
-            count_statement = count_statement.where(query_filter)
+            location_count_statement = location_count_statement.where(query_filter)
+
+        # The location aggregation doubles as the paginated total-count query, so
+        # adding the dynamic filter does not add another database round trip.
+        if paginated or selected_location:
+            location_options, location_raw_map = _jobs_location_filter_options(
+                catalog_db, location_count_statement
+            )
+            if selected_location not in location_raw_map:
+                selected_location = ""
+        if selected_location:
+            raw_locations = location_raw_map.get(selected_location, [])
+            if raw_locations:
+                statement = statement.where(Job.location.in_(raw_locations))
+            else:
+                # "כל הארץ" remains visible even when there are currently no
+                # generic-location jobs. Selecting it should then return no rows,
+                # not silently fall back to all locations.
+                statement = statement.where(literal(False))
 
         if ranking_active:
             active_score = func.coalesce(JobRanking.score, 0)
@@ -2774,7 +2864,13 @@ def list_jobs(
         statement = statement.order_by(*sort_map[sort])
 
         if paginated:
-            total = int(catalog_db.scalar(count_statement) or 0)
+            if selected_location:
+                total = next(
+                    (int(item["count"]) for item in location_options if item["value"] == selected_location),
+                    0,
+                )
+            else:
+                total = sum(int(item["count"]) for item in location_options)
             pages = max(1, (total + page_size - 1) // page_size)
             effective_page = min(page, pages)
             limited_statement = statement.offset((effective_page - 1) * page_size).limit(page_size)
@@ -2800,6 +2896,8 @@ def list_jobs(
         "page_size": page_size,
         "pages": pages,
         "sort": sort,
+        "location": selected_location,
+        "location_options": location_options,
     }
     if guest_catalog:
         response["guest_catalog"] = True
@@ -6194,6 +6292,9 @@ def _refresh_profile_derived_background(
                             stale_only=not rescore_jobs, progress_key=(user_id, career_track),
                         )
                     db.commit()
+                    if auto_submit_is_enabled(profile):
+                        from .services.scanner import auto_queue_jobs
+                        auto_queue_jobs(db, profile)
     except Exception as exc:
         # A failed derived refresh must never roll back the already-confirmed user edit.
         print(f"[profile derived refresh warning:{user_id[:12]}:{career_track}] {exc}")
@@ -6273,7 +6374,7 @@ def _profile_dict(p: Profile) -> dict:
         "preferred_locations": loads(p.preferred_locations_json, []),
         "preferred_work_modes": loads(p.preferred_work_modes_json, []), "keywords": loads(p.keywords_json, []),
         "excluded_keywords": loads(p.excluded_keywords_json, []), "auto_apply_threshold": p.auto_apply_threshold,
-        "auto_submit_enabled": p.auto_submit_enabled, "updated_at": p.updated_at,
+        "auto_submit_enabled": auto_submit_is_enabled(p), "updated_at": p.updated_at,
         "application_profile": application_profile,
         "onboarding_version": int(p.onboarding_version or 0),
         "active_career_track": active_track(p),
