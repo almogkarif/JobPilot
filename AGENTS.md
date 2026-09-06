@@ -338,7 +338,42 @@ When an explicit current-task instruction conflicts with this file, follow the u
 Ruflo MCP is available for orchestration, persistent project memory,
 specialized agents, and multi-agent coordination.
 
+### Agent Budget / Escalation Policy
+
+Default to the root Codex agent only.
+
+Use additional Ruflo agents only when parallel specialization is likely to materially improve correctness, reduce investigation time, or provide valuable independent verification.
+
+Agent budget:
+
+- 1 total agent (root only): default for most tasks.
+  Use for isolated bugs, localized changes, one-subsystem work, straightforward debugging, UI changes, small backend changes, configuration changes, and tasks where the root agent can reasonably investigate and verify the solution itself.
+
+- 2 total agents (root + 1 specialist): use when an independent investigation, specialist domain, or reviewer would materially help.
+
+- 3 total agents (root + 2 specialists): use for genuinely cross-subsystem work, unclear root causes spanning multiple areas, significant regression risk, or when implementation and independent verification can usefully run in parallel.
+
+- 4 total agents: exceptional cases only.
+  Reserve for large, high-risk, genuinely parallel work involving multiple independent subsystems or where multiple specialist investigations plus independent verification are clearly justified.
+
+Rules:
+
+- 4 is a hard upper bound, not a target.
+- Never spawn agents merely because capacity is available.
+- Do not create a swarm for trivial or routine work.
+- Do not duplicate investigation across agents unless independent confirmation is specifically valuable.
+- Give every spawned agent a narrow, distinct responsibility.
+- Avoid having multiple agents read the same large repository areas unnecessarily.
+- Prefer targeted file/context sharing over each agent independently rediscovering the same context.
+- The root agent should perform work directly whenever delegation would cost more context/tokens than it saves.
+- A reviewer/tester agent is optional, not mandatory for every task. Use one when regression risk or complexity justifies independent verification.
+- For small and medium tasks, the root agent may implement and verify the work itself.
+- Preserve the existing hierarchical-mesh / specialized Ruflo configuration when a swarm is actually initialized.
+- Before initializing a swarm, briefly decide whether 2+ agents provide a concrete benefit. If not, continue with the root agent only.
+
 ### When to use Ruflo
+
+Use Ruflo swarm orchestration only when the above escalation policy justifies additional agents. Ruflo memory may still be used by the root agent without initializing a swarm when prior project knowledge is likely to materially reduce investigation or repeated context loading.
 
 For trivial or highly local tasks, work directly without initializing a swarm.
 
@@ -348,44 +383,22 @@ Examples:
 - obvious one-file fixes
 - simple configuration edits
 
-For non-trivial tasks, use Ruflo orchestration.
-
-A task is non-trivial when it involves one or more of:
-- multiple files or subsystems
-- backend + frontend coordination
-- database/model/schema changes
-- ranking/scanning/application pipelines
-- authentication or authorization
-- concurrency/background jobs
-- migrations
-- significant refactoring
-- debugging with an unclear root cause
-- regression-sensitive changes
-- changes requiring substantial test coverage
-
 ### Swarm configuration
 
-For non-trivial tasks:
+When a swarm is actually initialized, preserve the existing hierarchical-mesh / specialized configuration:
 
-1. Search Ruflo memory for relevant prior project knowledge before planning.
-2. Initialize a Ruflo swarm with:
-   - topology: hierarchical-mesh
-   - strategy: specialized
-   - maximum agents: 4
-3. Spawn only the agents actually useful for the task.
-4. Prefer specialized roles such as:
-   - architect/planner
-   - implementer
-   - tester
-   - reviewer
-5. Do not spawn agents merely to reach the maximum.
+- topology: hierarchical-mesh
+- strategy: specialized
+- maximum agents: 4
 
-The 4-agent value is a hard upper bound, not a target.
+Spawn only the agents actually useful for the task.
+Prefer specialized roles such as:
+- architect/planner
+- implementer
+- tester
+- reviewer
 
-- Prefer 1 agent for normal tasks.
-- Use 2 agents when independent investigation or verification is useful.
-- Use 3-4 agents only for genuinely complex, cross-cutting work.
-- Never spawn an agent merely for redundancy.
+Do not spawn agents merely to reach the maximum.
 
 ### Execution rules
 
@@ -393,7 +406,7 @@ The 4-agent value is a hard upper bound, not a target.
 - Let agents investigate in parallel when their work is genuinely independent.
 - Avoid having multiple agents make overlapping edits to the same code unnecessarily.
 - Keep implementation ownership clear.
-- Use a tester/reviewer for non-trivial changes before declaring completion.
+- Use a tester/reviewer only when regression risk or complexity justifies independent verification.
 - Run the relevant automated tests.
 - For broad or regression-sensitive changes, run the full test suite when practical.
 - Do not declare success solely because implementation agents finished.
@@ -402,6 +415,8 @@ The 4-agent value is a hard upper bound, not a target.
 ### Ruflo memory
 
 Use Ruflo memory selectively.
+
+Search Ruflo memory selectively before substantial work when relevant prior architectural decisions, bug root causes, conventions, or previously verified approaches are likely to help. Do not perform memory searches routinely for trivial or obvious tasks.
 
 Before substantial work:
 - search for relevant prior decisions, fixes, patterns, and known pitfalls.

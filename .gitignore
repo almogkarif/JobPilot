@@ -38,3 +38,4 @@ ruvector.db
 # Local model / embedding state
 .claude-flow/models/
 .claude-flow/embeddings.json
+data/agent-cache/
