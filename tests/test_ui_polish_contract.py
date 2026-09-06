@@ -83,14 +83,15 @@ def test_iem_final_specificity_guard_overrides_legacy_blue_dock_and_notification
     assert "background: var(--accent-soft) !important" in css
 
 
-def test_iem_final_palette_is_desaturated_and_ergonomic():
+def test_iem_final_palette_is_calm_sage_and_ergonomic():
     final = CSS[CSS.rfind("/* v0.3.3 — jobs filtering + preference overflow + ergonomic IEM palette. */"):]
-    assert "--bg:#f4f4ef;" in final
-    assert "--panel:#fbfbf7;" in final
-    assert "--brand:#7d7040;" in final
-    assert "--bg:#151713;" in final
-    assert "--panel:#20231e;" in final
-    assert "background:linear-gradient(135deg,#121411 0%,#191c17 100%) !important;" in final
+    assert "--bg:#f3f7f5;" in final
+    assert "--panel:#fbfdfc;" in final
+    assert "--brand:#527a68;" in final
+    assert "--bg:#111715;" in final
+    assert "--panel:#1b2420;" in final
+    assert "--brand:#7fae98;" in final
+    assert "background:linear-gradient(135deg,#0e1311 0%,#161f1b 100%) !important;" in final
 
 
 def test_mobile_layout_has_explicit_rtl_vertical_flow():

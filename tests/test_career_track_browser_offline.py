@@ -101,8 +101,8 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert page.locator('#desired-title-options input[value="industrial engineer"]').count() == 1
         assert "תעו״נ" in page.locator("#scan-btn").inner_text()
         light_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert light_brand == "#7d7040"
-        # IEM light mode must keep the explanatory dock text visible and warm.
+        assert light_brand == "#527a68"
+        # IEM light mode must keep the explanatory dock text visible and track-specific.
         dock_subtitle = page.locator('#nav button.active .nav-label small')
         assert dock_subtitle.is_visible()
         subtitle_color = dock_subtitle.evaluate("el => getComputedStyle(el).color")
@@ -111,7 +111,7 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         page.evaluate("selectTheme('dark', true, true)")
         page.wait_for_function("document.body.classList.contains('theme-dark')")
         dark_brand = page.evaluate("getComputedStyle(document.body).getPropertyValue('--brand').trim()")
-        assert dark_brand == "#b9a76a"
+        assert dark_brand == "#7fae98"
         assert "track-industrial-engineering" in page.locator("body").get_attribute("class")
 
         page.locator("#career-switcher-trigger").click()
