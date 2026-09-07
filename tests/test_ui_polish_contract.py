@@ -135,7 +135,7 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
     assert 'app.js?v=0.31.0' in HTML
-    assert 'styles.css?v=0.52.0' in HTML
+    assert 'styles.css?v=0.52.1' in HTML
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
@@ -157,3 +157,19 @@ def test_jobs_offer_manual_applied_action_and_distinct_applied_state():
     assert "/mark-submitted" in JS
     assert "job.status === 'submitted' ? 'is-applied'" in JS
     assert ".job-card.is-applied" in CSS
+
+
+
+def test_iem_dock_active_label_and_jobs_filter_deck_have_explicit_contrast_guards():
+    marker = "/* v0.3.4.1 — IEM dock-label contrast + jobs filter deck cleanup. */"
+    final = CSS[CSS.rfind(marker):]
+    assert marker in final
+    assert ".sidebar nav button:is(.active,.is-dock-focus,.is-dock-exit)" in final
+    assert "color:#fff8f4 !important;" in final
+    assert "color:#ffe1d6 !important;" in final
+    assert ".jobs-toolbar .filter-control select" in final
+    assert "background-color:transparent !important;" in final
+    assert "background-image:none !important;" in final
+    assert ".jobs-toolbar .filter-control::after" in final
+    assert "color:var(--ink) !important;" in final
+    assert 'styles.css?v=0.52.1' in HTML

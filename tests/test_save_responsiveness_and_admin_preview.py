@@ -35,7 +35,7 @@ def test_admin_preview_uses_regular_user_permissions_with_only_return_control_ex
 
 def test_assets_bumped():
     assert "app.js?v=0.31.0" in HTML
-    assert "styles.css?v=0.52.0" in HTML
+    assert "styles.css?v=0.52.1" in HTML
 
 
 def test_preferences_do_not_expand_past_the_profile_shell():

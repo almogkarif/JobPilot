@@ -4259,3 +4259,109 @@ body.track-industrial-engineering #app-shell :where(.unsaved-nav-badge,#blocker-
 body.theme-dark.track-industrial-engineering #app-shell :where(.unsaved-nav-badge,#blocker-count,#notification-count) {
   border-color:var(--surface-soft) !important;
 }
+
+
+/* v0.3.4.1 — IEM dock-label contrast + jobs filter deck cleanup. */
+body.track-industrial-engineering #app-shell .sidebar nav button:is(.active,.is-dock-focus,.is-dock-exit):where(:not(.is-disabled)) .nav-label,
+body.track-industrial-engineering #app-shell .sidebar nav button:hover .nav-label,
+body.track-industrial-engineering #app-shell .sidebar nav button:focus-visible .nav-label {
+  color:#fff8f4 !important;
+  text-shadow:0 1px 2px rgba(72,38,28,.30) !important;
+}
+body.track-industrial-engineering #app-shell .sidebar nav button:is(.active,.is-dock-focus,.is-dock-exit):where(:not(.is-disabled)) .nav-label small,
+body.track-industrial-engineering #app-shell .sidebar nav button:hover .nav-label small,
+body.track-industrial-engineering #app-shell .sidebar nav button:focus-visible .nav-label small {
+  color:#ffe1d6 !important;
+  text-shadow:0 1px 2px rgba(72,38,28,.24) !important;
+}
+
+body.track-industrial-engineering #app-shell .jobs-toolbar {
+  background:color-mix(in srgb,var(--panel) 96%,transparent) !important;
+  border-color:var(--line) !important;
+  border-radius:18px !important;
+  gap:8px !important;
+  padding:9px !important;
+  box-shadow:0 10px 28px color-mix(in srgb,var(--ink) 7%,transparent) !important;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control {
+  position:relative;
+  height:52px;
+  min-height:52px;
+  padding:7px 12px 6px;
+  border:1px solid var(--control-border) !important;
+  border-radius:13px !important;
+  background:var(--control-bg) !important;
+  box-shadow:0 1px 0 rgba(255,255,255,.55),0 3px 10px rgba(61,47,41,.035) !important;
+  transition:border-color var(--motion-fast) var(--ease-apple),box-shadow var(--motion-base) var(--ease-apple),background-color var(--motion-fast) var(--ease-apple);
+}
+body.theme-dark.track-industrial-engineering #app-shell .jobs-toolbar .filter-control {
+  box-shadow:inset 0 1px rgba(255,255,255,.025),0 4px 12px rgba(0,0,0,.13) !important;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control:hover {
+  background:var(--control-bg-hover) !important;
+  border-color:var(--control-border-hover) !important;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control:focus-within {
+  border-color:var(--accent-border-strong) !important;
+  box-shadow:var(--focus-ring),0 7px 18px var(--accent-glow) !important;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control > span {
+  margin:0 0 1px;
+  color:var(--muted) !important;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.015em;
+  line-height:1.1;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control select {
+  min-width:0;
+  min-height:24px !important;
+  height:24px;
+  padding:2px 0 0 22px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background-color:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  color:var(--ink) !important;
+  font-size:12px;
+  font-weight:780;
+  line-height:1.15;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control::after {
+  content:'';
+  position:absolute;
+  left:13px;
+  bottom:14px;
+  width:6px;
+  height:6px;
+  border-right:1.5px solid var(--accent-text);
+  border-bottom:1.5px solid var(--accent-text);
+  opacity:.78;
+  transform:rotate(45deg);
+  pointer-events:none;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control:focus-within::after {
+  border-color:var(--accent);
+  opacity:1;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field {
+  background:var(--control-bg) !important;
+  border-color:var(--control-border) !important;
+  box-shadow:0 1px 0 rgba(255,255,255,.55),0 3px 10px rgba(61,47,41,.035) !important;
+}
+body.theme-dark.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field {
+  box-shadow:inset 0 1px rgba(255,255,255,.025),0 4px 12px rgba(0,0,0,.13) !important;
+}
+body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field input {
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  color:var(--ink) !important;
+}
+
+@media (max-width:760px) {
+  body.track-industrial-engineering #app-shell .jobs-toolbar { gap:7px !important; padding:8px !important; }
+  body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control { min-height:48px; height:48px; padding-block:6px 5px; }
+  body.track-industrial-engineering #app-shell .jobs-toolbar .filter-control::after { bottom:12px; }
+}

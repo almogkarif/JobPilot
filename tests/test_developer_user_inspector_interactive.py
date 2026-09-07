@@ -12,7 +12,7 @@ def test_user_inspector_cards_are_interactive():
     assert "openDeveloperUserSection" in JS
     assert "developer-inspector-list" in CSS
     assert "app.js?v=0.31.0" in HTML
-    assert "styles.css?v=0.52.0" in HTML
+    assert "styles.css?v=0.52.1" in HTML
 
 
 def test_admin_can_reopen_onboarding_and_reset_profile_for_selected_user():
