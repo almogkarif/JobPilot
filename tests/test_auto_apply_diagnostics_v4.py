@@ -34,3 +34,11 @@ def test_application_diagnostics_can_be_generated_from_the_cloud_worker():
     assert 'audit_known_user_applications' in SCAN_SCRIPT
     assert 'application_failure_diagnostics(db=db)' in SCAN_SCRIPT
     assert '[application-audit-row]' in SCAN_SCRIPT
+
+
+def test_cloud_scan_retries_refreshed_sources_before_collecting():
+    assert 'from app.services.source_repair import repair_error_sources' in SCAN_SCRIPT
+    assert 'repaired = repair_error_sources(db)' in SCAN_SCRIPT
+    assert SCAN_SCRIPT.index('repaired = repair_error_sources(db)') < SCAN_SCRIPT.index(
+        'result = await scan_all_sources('
+    )

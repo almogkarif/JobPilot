@@ -21,6 +21,7 @@ from app.services.career_tracks import CAREER_TRACKS, active_track, normalize_tr
 from app.services.catalog_ranking import rank_shared_catalog_for_user  # noqa: E402
 from app.services.application_queue_recovery import recover_stuck_auto_applications  # noqa: E402
 from app.services.source_catalog import install_recommended_sources  # noqa: E402
+from app.services.source_repair import repair_error_sources  # noqa: E402
 from app.services.scan_runtime import (  # noqa: E402
     create_scan_run,
     queued_scan_runs,
@@ -211,6 +212,12 @@ async def execute_run(run_id: str, career_track: str) -> dict:
     try:
         with user_session(SHARED_CATALOG_USER_ID) as db:
             install_recommended_sources(db, career_track)
+            repaired = repair_error_sources(db)
+            if repaired["source_ids"]:
+                print(
+                    f"[source-repair] track={career_track} retries={len(repaired['source_ids'])}",
+                    flush=True,
+                )
             result = await scan_all_sources(
                 db, career_track=career_track, catalog_only=True,
                 progress_callback=progress_writer(run_id, career_track),
