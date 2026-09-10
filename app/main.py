@@ -1878,10 +1878,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 & JobRanking.stale.is_(False)
                 & (JobRanking.error == "")
             )
+            # Keep jobs visible while automatic submission is still in progress.
+            # Queued/applying/needs-input/verification-pending/failed/manual-required
+            # are all unfinished states. Only a fully submitted job leaves the dashboard.
             top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
-                func.coalesce(UserJobState.status, "new").not_in(
-                    ("submitted", "queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")
-                )
+                func.coalesce(UserJobState.status, "new") != "submitted"
             ).where(_degree_visibility_condition(profile)).outerjoin(JobRanking, valid_ranking_join).where(
                 or_(JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded")
             ).order_by(

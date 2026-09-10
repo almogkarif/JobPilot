@@ -93,6 +93,23 @@ def test_eligibility_edge_cases(name, opening, candidate, state, field):
     assert field in result.eligibility
 
 
+def test_mobileye_three_year_python_requirement_excludes_zero_to_two_profile():
+    candidate = profile(years=2, years_options=["0", "1", "2"], titles=["algorithm"])
+    opening = job(
+        "Experienced Python Developer for Algorithmic Group - Semantics",
+        "Bachelor's or higher degree in Computer Science, Software Engineering. "
+        "3 years industry experience in Python- server side advantage. "
+        "Familiarity with numerical and data science frameworks: numpy, pandas, scipy. "
+        "Familiarity with AWS - advantage.",
+        location="Jerusalem, Israel",
+    )
+    result = score(candidate, opening)
+
+    assert result.eligibility["required_experience_min"] == 3
+    assert result.eligibility["experience_status"] == "mismatch"
+    assert result.eligibility["state"] == "excluded"
+
+
 def test_profile_experience_multiselect_is_the_hard_filter():
     candidate = profile(years=2, years_options=["0", "1", "2"], titles=["backend software engineer"])
     implicit = score(candidate, job("Backend Software Engineer", "Experience working with Python services"))

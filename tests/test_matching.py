@@ -114,6 +114,22 @@ def test_optional_numeric_experience_never_overrides_mandatory_requirement():
     ) == (2.0, None)
 
 
+def test_mobileye_three_year_requirement_is_not_downgraded_by_following_advantage():
+    text = (
+        "Experienced Python Developer for Algorithmic Group - Semantics\n"
+        "Bachelor's or higher degree in Computer Science, Software Engineering.\n"
+        "3 years industry experience in Python- server side advantage. "
+        "Familiarity with numerical and data science frameworks: numpy, pandas, scipy. Pyspark.\n"
+        "Familiarity with AWS - advantage."
+    )
+    assert extract_experience(text) == (3.0, None)
+
+
+def test_dash_followed_by_bare_advantage_still_marks_experience_optional():
+    assert extract_experience("3 years of Python experience - advantage") == (None, None)
+    assert extract_experience("Preferred: 3 years industry experience in Python- server side advantage") == (None, None)
+
+
 def test_bare_work_with_is_one_year_only_inside_requirements_section():
     assert extract_experience("Requirements:\n- Working with Linux and Kubernetes") == (1.0, None)
     assert extract_experience("דרישות:\n- עבודה עם Linux ו-Kubernetes") == (1.0, None)

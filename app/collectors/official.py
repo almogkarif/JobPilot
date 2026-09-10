@@ -36,7 +36,7 @@ def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
         "network_title_keys": ("name", "title", "positionTitle", "jobTitle"),
         "network_location_keys": ("location", "locations", "city"),
         "network_description_keys": (
-            "department", "employment_type", "experience_level", "workplace_type",
+            "details", "department", "employment_type", "experience_level", "workplace_type",
         ),
         "network_url_keys": (
             "url_comeet_hosted_page", "url_recruit_hosted_page", "url_active_page",
@@ -121,9 +121,9 @@ PRESETS = {
     "orca": {"url": "https://orca.security/about/careers/", "selector": 'a[href*="/about/careers/"]', "id_pattern": r"/about/careers/(\d+)/", "company": "Orca Security"},
     "sentinelone": {"url": "https://www.sentinelone.com/jobs/?location=Israel", "selector": 'a[href*="job"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SentinelOne"},
     "aqua": {"url": "https://www.aquasec.com/about-us/careers/", "selector": 'a[href*="/about-us/careers/co/"]', "id_pattern": r"/careers/co/[^/]+/([^/]+)/", "company": "Aqua Security"},
-    "claroty": {**_comeet_preset("Claroty", "F2.004", "Claroty"), "data_url": "https://www.comeet.co/careers-api/2.0/company/F2.004/positions?token=2F4EC42F42F45E814AC1A945E814AC5E8&details=false", "data_only": True},
+    "claroty": {**_comeet_preset("Claroty", "F2.004", "Claroty"), "data_url": "https://www.comeet.co/careers-api/2.0/company/F2.004/positions?token=2F4EC42F42F45E814AC1A945E814AC5E8&details=true", "data_only": True},
     "vastdata": _comeet_preset("vastdata", "43.001", "VAST Data"),
-    "gloat": {**_comeet_preset("gloat", "E5.000", "Gloat"), "data_url": "https://www.comeet.co/careers-api/2.0/company/E5.000/positions?token=5E02340002F0017800234011A01780&details=false", "data_only": True},
+    "gloat": {**_comeet_preset("gloat", "E5.000", "Gloat"), "data_url": "https://www.comeet.co/careers-api/2.0/company/E5.000/positions?token=5E02340002F0017800234011A01780&details=true", "data_only": True},
     "silverfort": _comeet_preset("silverfort", "54.007", "Silverfort"),
     "4manalytics": _comeet_preset("4Manalytics", "B6.00F", "4M Analytics"),
     "exodigo": _comeet_preset("exodigo", "89.005", "Exodigo"),
@@ -681,7 +681,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
         if isinstance(value, (str, int, float)) and not isinstance(value, bool):
             return " ".join(str(value).split()).strip()
         if isinstance(value, dict):
-            for key in ("name", "title", "label", "value", "city"):
+            for key in ("city", "name", "title", "label", "value"):
                 result = scalar(value.get(key)) if key in value else ""
                 if result:
                     return result
@@ -695,7 +695,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
         if isinstance(value, list):
             return clean_job_text("\n".join(rich_text(item) for item in value))
         if isinstance(value, dict):
-            preferred = ("text", "html", "value", "description", "content", "label", "name", "title")
+            preferred = ("text", "html", "value", "description", "requirements", "content", "label", "name", "title")
             parts = [rich_text(value[key]) for key in preferred if key in value]
             return clean_job_text("\n".join(part for part in parts if part))
         return ""
@@ -870,12 +870,21 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                     text = _apple_embedded_detail_text(response.text) or text
                 canonical = soup.select_one('link[rel="canonical"]')
                 canonical_href = str(canonical.get("href") or "") if canonical else ""
+                # Branded Comeet pages sometimes return an unresolved client-side
+                # shell.  Its canonical URL no longer matches the stable job route
+                # and its heading still contains template placeholders.  Keep the
+                # structured-feed values in that case instead of turning every job
+                # into an unusable row during detail hydration.
+                hydrated_href = canonical_href or str(response.url)
+                hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
+                hydrated_title = title.strip()
+                title_is_template = "{{" in hydrated_title or "}}" in hydrated_title
                 result = dict(row)
                 result.update({
-                    "href": canonical_href or str(response.url),
-                    "title": title or row.get("title") or "",
-                    "linkText": title or row.get("linkText") or "",
-                    "text": text if job_text_quality(text) == "complete" else row.get("text") or "",
+                    "href": hydrated_href if hydrated_match else href,
+                    "title": hydrated_title if hydrated_title and not title_is_template else row.get("title") or "",
+                    "linkText": hydrated_title if hydrated_title and not title_is_template else row.get("linkText") or "",
+                    "text": text if not title_is_template and job_text_quality(text) == "complete" else row.get("text") or "",
                 })
                 return result
             except Exception:

@@ -71,6 +71,7 @@ window.jobPilotReloadAfterCareerSwitch = window.jobPilotReloadAfterCareerSwitch 
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
 let scanPollActive = false;
 let lastScanCompleted = 0;
 let lastScanReport = null;
@@ -161,11 +162,34 @@ const api = async (path, options = {}) => {
       saveAuthSession(null);
       showAuthGate('פג תוקף ההתחברות. התחבר שוב.');
     }
-    throw new Error(message || `שגיאת שרת ${response.status}`);
+    throw new Error(professionalMessage(message || `שגיאת שרת ${response.status}`));
   }
   if (response.status === 204) return null;
   return response.json();
 };
+
+const technicalDetailsAllowed = () => authState.user?.capabilities?.developer_tools === true && !adminPreviewActive();
+
+function professionalMessage(value = '') {
+  const raw = String(value || '').replace(/^\[blocked:[^\]]+\]\s*/i, '').trim();
+  if (!raw || technicalDetailsAllowed()) return raw;
+  if (/captcha|datadome|recaptcha|anti.?automation|bot.?protection/i.test(raw)) {
+    return 'אתר הגיוס דורש אימות אנושי, ולכן הפעולה האוטומטית נעצרה בבטחה. אפשר לפתוח את הטופס ולהמשיך ידנית.';
+  }
+  if (/timeout|timed out|target closed|websocket|browserbase|playwright|chromium/i.test(raw)) {
+    return 'החיבור המאובטח לאתר הגיוס לא הושלם בזמן. המידע נשמר ואפשר לנסות שוב.';
+  }
+  if (/unreliable source data|job description|repeated the same|without a stable id|official jobs feed/i.test(raw)) {
+    return 'המקור החזיר מידע שלא עבר את בדיקות האיכות. המשרות הקודמות נשמרו ולא הוחלפו במידע חלקי.';
+  }
+  if (/github actions|worker|runner|dispatch|endpoint|status code|http\s*\d|\b(?:401|403|404|409|423|429|500|502|503)\b/i.test(raw)) {
+    return 'שירות הרקע לא הצליח להשלים את הפעולה. הנתונים נשמרו ואפשר לנסות שוב; אם הבעיה נמשכת, מנהל המערכת יקבל את הפרטים הטכניים.';
+  }
+  if (/traceback|exception|sqlalchemy|psycopg|supabase|payload|selector/i.test(raw)) {
+    return 'אירעה שגיאה פנימית והפעולה לא הושלמה. המידע נשמר בבטחה ואפשר לנסות שוב.';
+  }
+  return raw;
+}
 
 const esc = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -860,7 +884,7 @@ function blockerTarget(blocker, application) {
 }
 
 function compactAgentFailure(value = '') {
-  return String(value || '').replace(/^\[blocked:[^\]]+\]\s*/i, '').trim();
+  return professionalMessage(value);
 }
 
 function renderApplicationStatus(application) {
@@ -889,7 +913,7 @@ function renderApplicationStatus(application) {
   }
   if (application.status === 'failed' && application.last_error) {
     return `${stageBadge}
-      <div class="queue-error" title="${esc(application.last_error)}">${esc(application.last_error)}</div>`;
+      <div class="queue-error" title="${esc(professionalMessage(application.last_error))}">${esc(professionalMessage(application.last_error))}</div>`;
   }
   return `${stageBadge}
     <div class="queue-progress-meta">
@@ -951,13 +975,13 @@ async function showApplicationTimeline(applicationId) {
     const evidence = receipt?.evidence || [];
     modal(`<span class="kicker">קבלה דיגיטלית וציר זמן</span><h2>${esc(data.application?.job?.company)} — ${esc(data.application?.job?.title)}</h2>
       <div class="application-receipt ${receipt?.verification_state === 'verified' ? 'verified' : 'pending'}">
-        <div><strong>${receipt?.verification_state === 'verified' ? 'ההגשה אומתה' : 'עדיין אין אימות חד־משמעי'}</strong><span>${receipt ? `${esc(receipt.adapter)} · ניסיון ${receipt.attempt_number}` : 'לא נרשם עדיין ניסיון הגשה'}</span></div>
+        <div><strong>${receipt?.verification_state === 'verified' ? 'ההגשה אומתה' : 'עדיין אין אימות חד־משמעי'}</strong><span>${receipt ? `${technicalDetailsAllowed() ? `${esc(receipt.adapter)} · ` : ''}ניסיון ${receipt.attempt_number}` : 'לא נרשם עדיין ניסיון הגשה'}</span></div>
         ${receipt?.confirmation_text ? `<p>${esc(receipt.confirmation_text)}</p>` : ''}
         ${receipt?.external_application_id ? `<p><b>מספר מועמדות:</b> ${esc(receipt.external_application_id)}</p>` : ''}
         ${evidence.length ? `<ul>${evidence.map(item => `<li>${esc(item.type || 'ראיה')}: ${esc(item.value || item.url || '')}</li>`).join('')}</ul>` : ''}
         <div class="card-actions">${receipt?.confirmation_url ? `<a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(receipt.confirmation_url)}">פתח עמוד אישור</a>` : ''}${receipt?.screenshot_url ? `<a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(receipt.screenshot_url)}">צילום מסך</a>` : ''}</div>
       </div>
-      <div class="application-timeline">${data.events.length ? data.events.map(event => `<article><i></i><span><strong>${esc(event.message || statusLabel(event.to_status) || event.event_type)}</strong><small>${dateFmt(event.created_at)} · ${esc(event.actor)}</small></span></article>`).join('') : '<p>אין עדיין אירועים.</p>'}</div>`);
+      <div class="application-timeline">${data.events.length ? data.events.map(event => `<article><i></i><span><strong>${esc(professionalMessage(event.message) || statusLabel(event.to_status) || (technicalDetailsAllowed() ? event.event_type : 'עדכון התקדמות'))}</strong><small>${dateFmt(event.created_at)}${technicalDetailsAllowed() ? ` · ${esc(event.actor)}` : ''}</small></span></article>`).join('') : '<p>אין עדיין אירועים.</p>'}</div>`);
   } catch (error) { toast(error.message); }
 }
 window.showApplicationTimeline = showApplicationTimeline;
@@ -1404,19 +1428,67 @@ function renderReadiness(readiness) {
     }).join('')}</div>`;
 }
 
+function dashboardMatchLabel(job) {
+  if (job.ranking_pending) return 'ממתין לדירוג';
+  const score = Number(job.score || 0);
+  if (score >= 90) return 'התאמה גבוהה מאוד';
+  if (score >= 80) return 'התאמה גבוהה';
+  if (score >= 70) return 'התאמה טובה';
+  return 'התאמה אפשרית';
+}
+
+function dashboardJobMeta(job) {
+  const parts = [job.company, job.location || 'מיקום לא צוין'];
+  if (job.workplace && job.workplace !== 'unknown') parts.push(job.workplace);
+  return parts.filter(Boolean).map((value) => esc(value)).join(' · ');
+}
+
+function dashboardSubmissionBadge(job) {
+  const adapter = job?.application_adapter || {};
+  if (job?.status === 'manual_required') {
+    return `<span class="auto-submit-badge manual" title="מערכת הגיוס חסמה את ההגשה האוטומטית עבור המשרה הזו">הגשה ידנית</span>`;
+  }
+  if (adapter.supports_automatic_submit === true) {
+    return `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> הגשה אוטומטית</span>`;
+  }
+  return `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית</span>`;
+}
+
 function renderRecent(jobs) {
   const root = $('#recent-jobs');
-  root.innerHTML = jobs.length ? jobs.map((job) => `
-    <button class="job-row interactive-row" type="button" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
-      <div class="score-ring ${job.ranking_pending?'is-pending':''}" style="--score:${job.ranking_pending?0:job.score}"><b>${job.ranking_pending?'…':job.score}</b></div>
-      <div class="job-info"><strong dir="auto">${esc(job.title)}</strong><span>${esc(job.company)} · ${esc(job.location || 'מיקום לא צוין')}</span></div>
-      ${automaticSubmissionBadge(job)}
-      <span class="status-pill">${statusLabel(job.status)}</span>
-      <span class="row-arrow" aria-hidden="true">←</span>
-    </button>
-  `).join('') : emptyState('⌁', 'עוד אין משרות מדורגות', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר מכל המאגר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
+  root.innerHTML = jobs.length ? jobs.map((job) => {
+    const score = Math.max(0, Math.min(100, Number(job.score || 0)));
+    const skills = Array.isArray(job.skills) ? job.skills.slice(0, 5) : [];
+    return `
+      <article class="job-row dashboard-job-card interactive-row" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+        <div class="dashboard-score-block">
+          <div class="dashboard-score-ring ${job.ranking_pending ? 'is-pending' : ''}" style="--dashboard-score:${job.ranking_pending ? 0 : score}%" title="${esc(dashboardMatchLabel(job))} · ${job.ranking_pending ? 'ממתין לדירוג' : `${score}%`}">
+            ${sourceLogoMarkup({ company_name: job.company, name: job.company }, 'dashboard-company-logo')}
+          </div>
+          <span class="dashboard-score-value">${job.ranking_pending ? '…' : `${score}% התאמה`}</span>
+        </div>
+        <div class="dashboard-job-copy">
+          <h3 dir="auto">${esc(job.title)}</h3>
+          <p>${dashboardJobMeta(job)}</p>
+          ${skills.length ? `<div class="dashboard-job-tags">${skills.map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>` : ''}
+        </div>
+        <div class="dashboard-job-action">
+          <div class="dashboard-job-capabilities">${dashboardSubmissionBadge(job)}</div>
+          <button class="btn primary small" type="button" data-no-card-click onclick="event.stopPropagation();showJob(${job.id})">פתח משרה</button>
+        </div>
+      </article>`;
+  }).join('') : emptyState('⌁', 'עוד אין משרות מדורגות', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר מכל המאגר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
   $$('[data-job-id]', root).forEach((element) => {
-    element.onclick = () => showJob(Number(element.dataset.jobId));
+    element.onclick = (event) => {
+      if (event.target.closest('[data-no-card-click]')) return;
+      showJob(Number(element.dataset.jobId));
+    };
+    element.onkeydown = (event) => {
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('[data-no-card-click]')) {
+        event.preventDefault();
+        showJob(Number(element.dataset.jobId));
+      }
+    };
   });
 }
 
@@ -1458,10 +1530,10 @@ function renderScan(scan) {
     const source = current.current_source || activeSources[0] || '';
     const phase = current.phase || 'starting';
     const percent = total ? Math.min(100, Math.max(0, Math.round((completed / total) * 100))) : 0;
-    const counter = phase === 'queued' ? 'ממתין ל־worker' : (total ? `${Math.min(completed, total)} מתוך ${total}` : 'מכין מקורות');
+    const counter = phase === 'queued' ? 'ממתין להפעלת הסריקה' : (total ? `${Math.min(completed, total)} מתוך ${total}` : 'מכין מקורות');
     const parallel = activeSources.length > 1 ? ` · עוד ${activeSources.length - 1} במקביל` : '';
     const detail = phase === 'queued'
-      ? 'הבקשה נשלחה ל־GitHub Actions. האתר נשאר פנוי בזמן שהסריקה מתחילה…'
+      ? 'בקשת הסריקה התקבלה ותתחיל בשירות הרקע. אפשר להמשיך להשתמש באתר בזמן ההמתנה…'
       : phase === 'finalizing'
         ? 'מסיים שמירה ודירוג של המשרות…'
         : source ? `סורק עכשיו: ${source}${parallel}` : 'מכין את רשימת המקורות…';
@@ -1549,7 +1621,7 @@ function showScanReport(result) {
     <section class="scan-report-section scan-report-errors">
       <div class="scan-report-section-title"><div><span class="kicker">דורש בדיקה</span><h3>${errors.length} מקורות עם שגיאה</h3></div><button class="btn secondary small" type="button" onclick="closeModal();switchView('sources')">פתח מקורות</button></div>
       <div class="scan-report-error-list">${errors.map((item) => `
-        <div class="scan-report-error"><span aria-hidden="true">!</span><div><strong>${esc(item.source || 'מקור')}</strong><small>${esc(item.error || 'שגיאה לא ידועה')}</small></div></div>
+        <div class="scan-report-error"><span aria-hidden="true">!</span><div><strong>${esc(item.source || 'מקור')}</strong><small>${esc(professionalMessage(item.error) || 'המקור לא הושלם בסריקה זו; המידע הקודם נשמר.')}</small></div></div>
       `).join('')}</div>
     </section>` : '';
 
@@ -1557,7 +1629,7 @@ function showScanReport(result) {
     <div class="scan-source-row ${item.error ? 'has-error' : ''}">
       <div class="scan-source-name"><i aria-hidden="true"></i><strong>${esc(item.source || 'מקור')}</strong></div>
       ${item.error
-        ? `<span class="scan-source-error">${esc(item.error)}</span>`
+        ? `<span class="scan-source-error">${esc(professionalMessage(item.error))}</span>`
         : item.deferred
           ? `<span class="scan-source-counts">הגישה נחסמה זמנית — המשרות מהסריקה התקינה האחרונה נשמרו</span>`
           : `<span class="scan-source-counts"><b>${Number(item.israel_found ?? item.found ?? 0)}</b> בישראל <b>${Number(item.found || 0)}</b> מתאימות <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
@@ -1597,7 +1669,7 @@ async function startSiteScan() {
   const started = await api('/api/scan', { method: 'POST' });
   lastScanCompleted = 0;
   const external = started?.worker === 'github_actions';
-  toast(external ? 'בקשת הסריקה נשלחה ל־GitHub Actions' : 'הסריקה התחילה');
+  toast(external ? 'בקשת הסריקה התקבלה ותתחיל ברקע' : 'הסריקה התחילה');
   renderScan({ running: true, progress: { phase: external ? 'queued' : 'starting', current: 0, completed: 0, total: 0, current_source: null } });
   pollScan();
   return started;
@@ -1862,7 +1934,7 @@ async function queueJob(id, mode = 'review', resumeId = null) {
       <h2>${esc(preview.job?.company)} — ${esc(preview.job?.title)}</h2>
       <div class="submission-preview-summary">
         <span><strong>מערכת הגיוס</strong><b>${esc(adapter.label || 'אתר קריירה')}</b></span>
-        <span><strong>מסלול ביצוע</strong><b>${mode === 'audit' ? 'סוכן מקומי · דפדפן גלוי' : (adapter.execution==='cloud_browser'?'Worker ענן · ברקע':'ידני בלבד כרגע')}</b></span>
+        <span><strong>מסלול ביצוע</strong><b>${mode === 'audit' ? 'דפדפן גלוי לבדיקה שלך' : (adapter.execution==='cloud_browser'?'הגשה מאובטחת ברקע':'ידני בלבד כרגע')}</b></span>
         <span><strong>קורות חיים</strong><b>${esc(preview.resume?.filename || 'לא נבחרו')}</b></span>
       </div>
       ${missing.length ? `<div class="submission-preview-blocked"><strong>חסרים פרטים לפני שניתן לאשר שליחה אוטומטית:</strong><ul>${missing.map(item => `<li>${esc(item.label)}</li>`).join('')}</ul></div>` : '<div class="submission-preview-ready"><strong>הבדיקה הראשונית עברה.</strong> הפרטים הבסיסיים וקורות החיים מוכנים.</div>'}
@@ -1894,7 +1966,7 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
     toast(approveSubmit
       ? (queuePosition > 1
         ? `ההגשה נשלחה לתור · מיקום ${queuePosition} · תופעל אוטומטית ברצף`
-        : 'ההגשה נשלחה לתור ותופעל אוטומטית כשה־worker יתפנה')
+        : 'ההגשה נשלחה לתור ותופעל אוטומטית כשהשירות יתפנה')
       : (mode === 'audit'
         ? 'המשימה ממתינה לסוכן המקומי · הדפדפן יישאר פתוח בעמוד Review לפני Submit'
         : 'המשרה נכנסה לתור לבדיקה'));
@@ -1919,7 +1991,7 @@ async function openInteractiveLiveView(applicationId, liveWindow) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   if (liveWindow && !liveWindow.closed) liveWindow.close();
-  toast('סשן הדפדפן עדיין לא עלה. בדוק שמפתח Browserbase הוגדר ב־GitHub Actions.');
+  toast('הדפדפן המאובטח עדיין לא מוכן. המשימה נשמרה; אפשר להמתין מעט ולנסות לפתוח אותה שוב.');
 }
 async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
 
@@ -2065,15 +2137,15 @@ function renderV2RankingExplanation(job) {
   const e=job.eligibility||{},b=job.match_breakdown||{};
   const state=rankingStatusMeta(e.state||'unknown');
   const filterRows=[
-    ['מסלול מקצועי',e.career_track_status,e.career_track_status==='match'?'המשרה שייכת למסלול הפעיל':'המשרה אינה שייכת למסלול הפעיל'],
-    ['ניסיון',e.experience_status,v2ExperienceDetail(e)],
-    ['תואר',e.degree_status,v2DegreeDetail(e)],
-    ['עדכניות',e.recency_status,e.age_days===null||e.age_days===undefined?'תאריך הפרסום לא ידוע':`פורסמה לפני ${e.age_days} ימים`],
-    ['מיקום',e.location_status,e.job_location||job.location||'לא צוין'],
-    ['מודל עבודה',e.work_mode_status,job.workplace&&job.workplace!=='unknown'?job.workplace:'לא צוין'],
-    ['סוג העסקה',e.employment_type_status,e.employment_type||'לא זוהה'],
+    ['מסלול מקצועי',e.career_track_status,e.career_track_status==='match'?'המשרה שייכת למסלול הפעיל':'המשרה אינה שייכת למסלול הפעיל',false],
+    ['ניסיון',e.experience_status,v2ExperienceDetail(e),e.required_experience_min===null||e.required_experience_min===undefined],
+    ['תואר',e.degree_status,v2DegreeDetail(e),!e.required_degree],
+    ['עדכניות',e.recency_status,e.age_days===null||e.age_days===undefined?'תאריך הפרסום לא ידוע':`פורסמה לפני ${e.age_days} ימים`,false],
+    ['מיקום',e.location_status,e.job_location||job.location||'לא צוין',false],
+    ['מודל עבודה',e.work_mode_status,job.workplace&&job.workplace!=='unknown'?job.workplace:'לא צוין',false],
+    ['סוג העסקה',e.employment_type_status,e.employment_type||'לא זוהה',false],
   ];
-  const filters=filterRows.map(([label,status,detail])=>{const [statusLabel,tone]=rankingStatusMeta(status);return `<article class="ranking-filter ${tone}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small>${esc(detail)}</small></article>`}).join('');
+  const filters=filterRows.map(([label,status,detail,detectionMissing])=>{const [statusLabel,tone]=rankingStatusMeta(status);return `<article class="ranking-filter ${tone}${detectionMissing?' detection-missing':''}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small>${esc(detail)}</small></article>`}).join('');
   const cards=[
     ['התאמת תפקיד','role',v2RoleDetail(b.role)],
     ['כישורים וטכנולוגיות','skills',v2SkillsDetail(b.skills)],
@@ -2334,7 +2406,7 @@ async function loadSkills() {
   setPageContext('skills', state.skillsOverview.profile_skills.length);
   renderOwnedSkills(state.skillsOverview.profile_skills);
   $('#skill-suggestions').innerHTML = state.skillsOverview.suggestions.length
-    ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div><strong>${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span><small>${item.jobs.map((job) => `${esc(job.company)} — ${esc(job.title)}`).join('<br>')}</small></div><button class="btn secondary small" type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">הוסף לסקילים שלי</button></article>`).join('')
+    ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div class="skill-suggestion-copy"><strong title="${esc(item.skill)}">${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span></div><button class="skill-suggestion-add" type="button" title="הוסף לסקילים שלי" aria-label="הוסף את ${esc(item.skill)} לסקילים שלי" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">＋</button></article>`).join('')
     : emptyState('✓', 'אין כרגע פערי סקילים חדשים', 'כל הסקילים שזוהו במשרות הפעילות כבר מופיעים בפרופיל שלך.');
 }
 
@@ -2650,7 +2722,7 @@ function showSource(id) {
   modal(`
     <div class="source-modal-heading">${sourceLogoMarkup(source, 'source-logo-modal')}<div><span class="kicker">מקור משרות</span><h2>${esc(source.name)}</h2></div></div>
     <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>סריקה אחרונה</span><strong>${dateFmt(source.last_scanned_at)}</strong></div>
-    ${source.last_error ? `<div class="warning">${esc(source.last_error)}</div>` : ''}
+    ${source.last_error ? `<div class="warning">${esc(professionalMessage(source.last_error))}</div>` : ''}
     ${sourceManagementAllowed() ? `<div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>` : '<div class="automation-note">המקורות מנוהלים על ידי מנהל המערכת והסריקה מתבצעת אוטומטית בכל שעה עגולה.</div>'}
   `);
 }
@@ -3782,9 +3854,9 @@ function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQ
 function otherAutoQueueItems(snapshot=state.autoApplyQueue,applicationId=trackedApplicationId){const queue=normalizeAutoApplyQueue(snapshot),items=[];if(queue.current&&Number(queue.current.id)!==Number(applicationId))items.push(queue.current);queue.waiting.forEach(item=>{if(Number(item.id)!==Number(applicationId))items.push(item)});return items}
 async function refreshAutoApplyQueue(){try{return setAutoApplyQueue(await api('/api/applications/auto-queue'))}catch{return setAutoApplyQueue(state.autoApplyQueue)}}
 function autoQueueRowActions(item,{isCurrent=false}={}){const running=item.status==='applying',queued=item.status==='queued',alreadyNext=isCurrent&&!running,retryable=['needs_input','failed','verification_pending'].includes(item.status);return `<div class="auto-queue-row-actions"><button class="btn secondary small" type="button" onclick="openAutoQueueApplication(${item.id})">פתח</button>${retryable?`<button class="application-tracker-retry auto-queue-retry" type="button" onclick="retryAutomaticApplication(${item.id},{status:'${item.status}',button:this,refreshQueue:true})" aria-label="הגשה מחדש" title="הגשה מחדש">↻</button>`:''}${queued?`<button class="btn secondary small" type="button" onclick="prioritizeAutoQueueApplication(${item.id})" ${running||alreadyNext?'disabled':''}>${alreadyNext?'הבא בתור':'הגש הבא בתור'}</button>`:''}<button class="btn danger-outline small" type="button" onclick="cancelAutoQueueApplication(${item.id})" ${running?'disabled title="לא ניתן לבטל worker שכבר רץ"':''}>ביטול</button></div>`}
-function securityCodeInputMarkup(applicationId){const draft=applicationSecurityCodeDrafts.get(Number(applicationId))||'';return `<div class="auto-queue-inline-answer security-code-answer"><strong>הדבק את קוד האבטחה האחרון שקיבלת במייל</strong><div><input type="text" inputmode="text" autocomplete="one-time-code" maxlength="16" value="${esc(draft)}" oninput="applicationSecurityCodeDrafts.set(${Number(applicationId)},this.value)" placeholder="Security code"><button class="btn primary small" type="button" onclick="submitApplicationSecurityCode(${Number(applicationId)},this.previousElementSibling,this)">המשך הגשה</button></div><small>הקוד מועבר ל־worker שממתין באותו סשן נסתר. לא ייפתח חלון ולא יתחיל ניסיון חדש.</small></div>`}
-function autoQueueRunningMarkup(item,index,total){const worker=String(item.agent_id||'').replace(/^github-actions-/,'GitHub Actions #'),duplicate=Number(item.duplicate_of||0),waitingCode=item.blocker?.kind==='security_code_required';return `<article class="auto-queue-current is-active is-running ${duplicate?'is-duplicate':''} ${waitingCode?'is-security-waiting':''}"><b>${waitingCode?'⌨':'▶'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${waitingCode?'ממתינה לקוד אבטחה':duplicate?`כפילות אפשרית של הגשה #${duplicate}`:`worker פעיל${worker?` · ${esc(worker)}`:''}`}</small></span><em>${waitingCode?'מחכה לקוד':duplicate?'בדיקת כפילות':total>1?`רץ עכשיו · ${index+1}/${total}`:'רץ עכשיו'}</em>${waitingCode?securityCodeInputMarkup(item.id):''}${autoQueueRowActions(item,{isCurrent:true})}</article>`}
-function autoQueueWaitingMarkup(item,index,runningCount){const position=Number(item.queue_position||index+1),duplicate=Number(item.duplicate_of||0),hasError=Boolean(String(item.last_error||'').trim()),health=item.queue_health||{},dispatchState=String(health.dispatch_state||''),dispatchAge=Math.max(0,Number(health.dispatch_age_seconds||0)),dispatchMinutes=Math.max(1,Math.floor(dispatchAge/60)),tone=duplicate||hasError?'danger':position===1?'next':'waiting';let label=duplicate?'כפילות אפשרית':hasError?'הפעלה נכשלה':position===1?(runningCount?'הבאה בתור':'ממתינה ל־worker'):`מקום ${position} בתור`;let detail=duplicate?`נראית זהה להגשה #${duplicate} — מומלץ לבדוק לפני הפעלה`:hasError?String(item.last_error):runningCount?`ממתינה שאחד מ־${runningCount} ה־workers הפעילים יתפנה`:`ממתינה להפעלת worker ברקע`;if(!duplicate&&!hasError){if(dispatchState==='dispatch_sent_waiting'){label='worker נשלח';detail=`GitHub קיבל את בקשת ה־worker לפני ${dispatchMinutes} דק׳ · ממתין להתחלת runner`; }else if(dispatchState==='needs_dispatch'){label='ממתינה ל־recovery';detail='עדיין אין רישום dispatch · JobPilot מנסה להפעיל worker עכשיו';}else if(dispatchState==='needs_redispatch'){label='worker לא התחיל';detail='ה־dispatch הקודם לא נתפס בזמן · JobPilot מפעיל worker מחדש';}else if(dispatchState==='profile_not_ready'){label='חסר פרט בפרופיל';detail='המשרה בתור אבל הפרופיל עדיין לא מוכן להגשה אוטומטית עבור ה־ATS הזה';}else if(dispatchState==='ats_paused'){label='ATS בהשהיה';detail=health.pause_message||'הגשות אוטומטיות ל־ATS הזה מושהות זמנית';}}return `<article class="auto-queue-waiting tone-${tone}"><b>${position}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${esc(detail)}</small></span><em>${esc(label)}</em>${autoQueueRowActions(item)}</article>`}
+function securityCodeInputMarkup(applicationId){const draft=applicationSecurityCodeDrafts.get(Number(applicationId))||'';return `<div class="auto-queue-inline-answer security-code-answer"><strong>הדבק את קוד האבטחה האחרון שקיבלת במייל</strong><div><input type="text" inputmode="text" autocomplete="one-time-code" maxlength="16" value="${esc(draft)}" oninput="applicationSecurityCodeDrafts.set(${Number(applicationId)},this.value)" placeholder="קוד אבטחה"><button class="btn primary small" type="button" onclick="submitApplicationSecurityCode(${Number(applicationId)},this.previousElementSibling,this)">המשך הגשה</button></div><small>הקוד יועבר ישירות להגשה שממתינה כעת. לא ייפתח חלון נוסף ולא יתחיל ניסיון חדש.</small></div>`}
+function autoQueueRunningMarkup(item,index,total){const worker=String(item.agent_id||'').replace(/^github-actions-/,'GitHub Actions #'),duplicate=Number(item.duplicate_of||0),waitingCode=item.blocker?.kind==='security_code_required',serviceLabel=technicalDetailsAllowed()&&worker?`שירות הגשה פעיל · ${worker}`:'הגשה אוטומטית פעילה';return `<article class="auto-queue-current is-active is-running ${duplicate?'is-duplicate':''} ${waitingCode?'is-security-waiting':''}"><b>${waitingCode?'⌨':'▶'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${waitingCode?'ממתינה לקוד אבטחה':duplicate?`כפילות אפשרית של הגשה #${duplicate}`:esc(serviceLabel)}</small></span><em>${waitingCode?'מחכה לקוד':duplicate?'בדיקת כפילות':total>1?`רץ עכשיו · ${index+1}/${total}`:'רץ עכשיו'}</em>${waitingCode?securityCodeInputMarkup(item.id):''}${autoQueueRowActions(item,{isCurrent:true})}</article>`}
+function autoQueueWaitingMarkup(item,index,runningCount){const position=Number(item.queue_position||index+1),duplicate=Number(item.duplicate_of||0),hasError=Boolean(String(item.last_error||'').trim()),health=item.queue_health||{},dispatchState=String(health.dispatch_state||''),dispatchAge=Math.max(0,Number(health.dispatch_age_seconds||0)),dispatchMinutes=Math.max(1,Math.floor(dispatchAge/60)),tone=duplicate||hasError?'danger':position===1?'next':'waiting';let label=duplicate?'כפילות אפשרית':hasError?'הפעלה נכשלה':position===1?(runningCount?'הבאה בתור':'ממתינה להפעלה'):`מקום ${position} בתור`;let detail=duplicate?`נראית זהה להגשה #${duplicate} — מומלץ לבדוק לפני הפעלה`:hasError?professionalMessage(item.last_error):runningCount?`ממתינה שאחת מ־${runningCount} ההגשות הפעילות תסתיים`:'ממתינה להפעלת שירות ההגשה ברקע';if(!duplicate&&!hasError){if(dispatchState==='dispatch_sent_waiting'){label='בקשת ההפעלה התקבלה';detail=technicalDetailsAllowed()?`GitHub קיבל את הבקשה לפני ${dispatchMinutes} דק׳ · ממתין להתחלת runner`:`הבקשה התקבלה לפני ${dispatchMinutes} דק׳ וממתינה להפעלה`; }else if(dispatchState==='needs_dispatch'){label='ממתינה להפעלה';detail='JobPilot מנסה להפעיל את שירות ההגשה כעת';}else if(dispatchState==='needs_redispatch'){label='ההפעלה מתעכבת';detail='JobPilot מבצע ניסיון הפעלה בטוח נוסף';}else if(dispatchState==='profile_not_ready'){label='חסר פרט בפרופיל';detail='המשרה בתור, אך נדרש להשלים פרט בפרופיל לפני הגשה אוטומטית';}else if(dispatchState==='ats_paused'){label='הגשות מושהות זמנית';detail=professionalMessage(health.pause_message)||'ההגשות האוטומטיות למערכת גיוס זו מושהות זמנית';}}return `<article class="auto-queue-waiting tone-${tone}"><b>${position}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${esc(detail)}</small></span><em>${esc(label)}</em>${autoQueueRowActions(item)}</article>`}
 function autoQueueAttentionMarkup(item){const blocker=item.blocker||{},options=blockerChoiceOptions(blocker),needsInput=item.status==='needs_input',isChoice=needsInput&&options.length>0,isText=needsInput&&['unknown_field','missing_profile_detail'].includes(blocker.kind)&&!options.length,isQuestion=isChoice||isText,tone=needsInput?'question':'danger',headline=isQuestion?'מחכה לתשובה שלך':needsInput?'נדרשת פעולה':item.status==='verification_pending'?'השליחה טרם אומתה':'ההגשה נעצרה',question=blocker.question||blocker.field_label||'',detail=blocker.explanation||item.last_error||'נדרשת בדיקה לפני ניסיון נוסף',rediscover=blocker.legacy_choice_question?`<button class="btn secondary small" type="button" onclick="resolveBlockerAction(${blocker.id},'rediscover_question',${item.id})">השאלה לא מוצגת — זהה מחדש</button>`:'',interaction=isChoice?`<div class="auto-queue-inline-answer"><strong>${esc(question||'בחר תשובה')}</strong>${blockerChoiceControlMarkup(blocker,item.id)}${rediscover}</div>`:isText?`<div class="auto-queue-inline-answer"><strong>${esc(question||'נדרשת תשובה')}</strong><div><input type="text" maxlength="255" data-text-blocker-input="${blocker.id}" value="${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}" placeholder="כתוב תשובה קצרה"><button class="btn primary small" type="button" data-text-blocker="${blocker.id}" data-text-application="${item.id}">שמור והמשך</button></div></div>`:'';return `<article class="auto-queue-attention tone-${tone}"><b>${isQuestion?'?':'!'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${esc(isQuestion?(question||detail):detail)}</small></span><em>${esc(headline)}</em>${interaction}${autoQueueRowActions(item)}</article>`}
 async function retryAllAutoQueueApplications(button=null){const queue=await refreshAutoApplyQueue(),retryable=(queue.attention||[]).filter(item=>['needs_input','failed'].includes(item.status)&&!automaticRetryInFlight.has(Number(item.id)));if(!retryable.length){toast('אין כרגע הגשות תקועות שאפשר להפעיל מחדש בבטחה');return}if(!confirm(`להפעיל מחדש ${retryable.length} הגשות תקועות? הגשות שכבר רצות, ממתינות או מחכות לאימות לא יופעלו שוב.`))return;const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='מפעיל…'}let started=0;for(const item of retryable){if(await retryAutomaticApplication(item.id,{status:item.status,batch:true}))started++}await Promise.all([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);if(button?.isConnected){button.disabled=false;button.textContent=original}toast(`${started} הגשות הוחזרו לתור ללא הפעלה כפולה`);await showAutoApplyQueue()}
 async function showAutoApplyQueue(){let recovery={recovered:[],failed:[]};try{recovery=await api('/api/applications/auto-queue/recover',{method:'POST'});if(recovery.auto_apply_queue)setAutoApplyQueue(recovery.auto_apply_queue)}catch(error){console.warn('Auto-queue recovery failed',error)}const queue=await refreshAutoApplyQueue(),running=queue.running||[],waiting=queue.waiting||[],attention=queue.attention||[],current=queue.current,total=Number(queue.total_active_count||running.length+waiting.length+attention.length),bulkRetryCount=attention.filter(item=>['needs_input','failed'].includes(item.status)).length,recoveredCount=(recovery.recovered||[]).length,recoveryFailed=(recovery.failed||[]).length;const runningMarkup=running.map((item,index)=>autoQueueRunningMarkup(item,index,running.length)).join('');const attentionMarkup=attention.map(autoQueueAttentionMarkup).join('');const queuedHead=!running.length&&current?.status==='queued'&&!waiting.some(item=>Number(item.id)===Number(current.id))?[current,...waiting]:waiting;const waitingMarkup=queuedHead.map((item,index)=>autoQueueWaitingMarkup(item,index,running.length)).join('');const emptyMarkup=!total&&!running.length&&!attention.length?emptyState('✓','התור ריק','אין כרגע משרות שממתינות להגשה אוטומטית.'):'';const recoveryMarkup=recoveredCount?`<p class="auto-queue-recovery-note success">✓ הופעלו מחדש ${recoveredCount} משרות שהיו תקועות ללא worker.</p>`:recoveryFailed?`<p class="auto-queue-recovery-note danger">לא ניתן להפעיל ${recoveryFailed} משרות תקועות. פרטי השגיאה נשמרו באבחון.</p>`:'';const runningSummary=running.length?`${running.length} ${running.length===1?'worker פעיל':'workers פעילים'} כרגע`:'אין worker פעיל כרגע';modal(`<span class="kicker">תור הגשה אוטומטית</span><h2>${total} ${total===1?'משרה פעילה':'משרות פעילות'} בתור ובטיפול</h2><p class="muted"><strong>${runningSummary}.</strong> ירוק מציין הגשה שרצה, צהוב מציין המתנה או שאלה שאפשר לענות עליה כאן, ואדום מציין שגיאה או הגשה שלא אומתה.</p>${recoveryMarkup}<div class="auto-apply-queue-list" data-auto-queue-content="true">${runningMarkup}${attentionMarkup}${waitingMarkup}${emptyMarkup}</div><div class="modal-actions">${bulkRetryCount?`<button class="btn secondary auto-queue-retry-all" type="button" onclick="retryAllAutoQueueApplications(this)" title="הפעל מחדש את כל ההגשות התקועות"><span>↻</span> הפעל מחדש את כולן (${bulkRetryCount})</button>`:''}<button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`);bindChoiceBlockerButtons($('#modal-content'))}
@@ -3795,9 +3867,9 @@ window.showAutoApplyQueue=showAutoApplyQueue;
 window.openAutoQueueApplication=openAutoQueueApplication;
 window.prioritizeAutoQueueApplication=prioritizeAutoQueueApplication;
 window.cancelAutoQueueApplication=cancelAutoQueueApplication;
-const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה נשמרה בבטחה'],['worker_dispatched','ה־worker הופעל','GitHub Actions מכין סביבת עבודה זמנית'],['attempt_started','סביבת הרקע מוכנה','המשימה נלקחה לעבודה בלעדית'],['page_opened','עמוד ההגשה נפתח','נפתח ב־Chromium נסתר בענן'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים והמסמכים מולאו','הפרופיל, קורות החיים וגיליון הציונים (אם נדרש) הוזנו'],['submit_clicked','נלחץ Submit','כפתור ה־Submit הסופי נלחץ; עדיין לא נחשב כהגשה'],['submission_verified','ההגשה אומתה','האתר אישר שהמועמדות נקלטה']];
+const APPLICATION_PROGRESS_STEPS=[['queued','נכנסה לתור','המשימה נשמרה בבטחה'],['worker_dispatched','שירות ההגשה הופעל','מכין סביבת עבודה מאובטחת וזמנית'],['attempt_started','סביבת הרקע מוכנה','המשימה נלקחה לטיפול'],['page_opened','עמוד ההגשה נפתח','אתר הגיוס נפתח בסביבה המאובטחת'],['form_detected','הטופס זוהה','נמצא טופס מועמדות תקין'],['details_filled','הפרטים והמסמכים מולאו','הפרופיל, קורות החיים וגיליון הציונים (אם נדרש) הוזנו'],['submit_clicked','בוצעה פעולת השליחה','בקשת השליחה נשלחה; עדיין נדרש אישור קליטה מאתר הגיוס'],['submission_verified','ההגשה אומתה','אתר הגיוס אישר שהמועמדות נקלטה']];
 const applicationSecurityCodeDrafts=new Map();
-async function submitApplicationSecurityCode(applicationId,input,button){const code=String(input?.value||applicationSecurityCodeDrafts.get(Number(applicationId))||'').trim();if(!/^[A-Za-z0-9]{6,16}$/.test(code)){toast('הדבק קוד אבטחה תקין באורך 6–16 תווים');input?.focus();return}const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='מעביר…'}try{await api(`/api/applications/${applicationId}/security-code`,{method:'POST',body:JSON.stringify({code})});applicationSecurityCodeDrafts.delete(Number(applicationId));toast('הקוד הועבר ל־worker — ההגשה ממשיכה ברקע');setTimeout(()=>refreshApplicationTracking(),800)}catch(error){toast(error.message);if(button?.isConnected){button.disabled=false;button.textContent=original}}}
+async function submitApplicationSecurityCode(applicationId,input,button){const code=String(input?.value||applicationSecurityCodeDrafts.get(Number(applicationId))||'').trim();if(!/^[A-Za-z0-9]{6,16}$/.test(code)){toast('הדבק קוד אבטחה תקין באורך 6–16 תווים');input?.focus();return}const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='מעביר…'}try{await api(`/api/applications/${applicationId}/security-code`,{method:'POST',body:JSON.stringify({code})});applicationSecurityCodeDrafts.delete(Number(applicationId));toast('הקוד התקבל — ההגשה ממשיכה ברקע');setTimeout(()=>refreshApplicationTracking(),800)}catch(error){toast(error.message);if(button?.isConnected){button.disabled=false;button.textContent=original}}}
 window.applicationSecurityCodeDrafts=applicationSecurityCodeDrafts;window.submitApplicationSecurityCode=submitApplicationSecurityCode;
 let lastAutomaticGmailVerification=0;
 async function verifyPendingApplicationsFromGmail(){const now=Date.now();if(now-lastAutomaticGmailVerification<300000)return;lastAutomaticGmailVerification=now;try{const connection=await api('/api/integrations/gmail');if(!connection.connected)return;const result=await api('/api/integrations/gmail/verify-applications',{method:'POST'});if(Number(result.verified_count||0)){toast(`${result.verified_count} הגשות אומתו ממיילי האישור`);await Promise.all([loadDashboard(),refreshTrackingApplications(),refreshAutoApplyQueue()]);renderNotificationCenter()}}catch(_){}}

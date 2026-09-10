@@ -111,9 +111,10 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "autocomplete=\"one-time-code\"" in js
     assert "applicationSecurityCodeDrafts" in js
     assert ".auto-queue-current.is-active" in css
-    assert "ממתינה להפעלת worker ברקע" in js
-    assert "worker נשלח" in js
-    assert "GitHub קיבל את בקשת ה־worker" in js
+    assert "ממתינה להפעלת שירות ההגשה ברקע" in js
+    assert "בקשת ההפעלה התקבלה" in js
+    assert "GitHub קיבל את הבקשה" in js
+    assert "technicalDetailsAllowed()" in js
     assert "dispatch_sent_waiting" in js
     assert "needs_redispatch" in js
     assert "ירוק מציין הגשה שרצה" in js

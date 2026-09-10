@@ -52,6 +52,7 @@ _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "check point": "Check Point הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
     "servicenow": "ServiceNow הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
     "traild": "TRAILD הוסרה מהגשה אוטומטית: טופס Lever מציג CAPTCHA פעיל שדורש אימות אנושי.",
+    "claroty": "Claroty הוסרה מהגשה אוטומטית: טופס Comeet שלה מפעיל בדיקת אבטחה שדורשת השלמה ידנית.",
     "kla": "KLA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "medtronic": "Medtronic הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "nvidia": "NVIDIA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה דורש כניסה חיצונית ורב-שלבית.",
@@ -72,6 +73,8 @@ def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["servicenow"]
     if normalized_company == "traild":
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["traild"]
+    if normalized_company == "claroty":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["claroty"]
     if normalized_company == "kla":
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["kla"]
     if normalized_company == "medtronic":

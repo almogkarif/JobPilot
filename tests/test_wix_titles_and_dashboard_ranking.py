@@ -102,7 +102,8 @@ def test_dashboard_uses_highest_scores_from_full_active_catalog_not_only_today()
                 assert payload["recommendation_basis"] == "top_score_all_catalog"
                 assert payload["recent_jobs"][0]["id"] == best.id
                 assert payload["recent_jobs"][0]["score"] == 99
-                assert newest.id not in {item["id"] for item in payload["recent_jobs"]}
+                # Auto-queued jobs remain recommendations until submission is verified.
+                assert newest.id in {item["id"] for item in payload["recent_jobs"]}
             finally:
                 for job in jobs:
                     discovered_at, published_at, degree_requirement, degree_required, degree_alternative = originals[job.id]

@@ -286,11 +286,45 @@ _EXPERIENCE_DOMAIN_FALSE_POSITIVES = (
 )
 
 
+_OPTIONAL_CUE_SUFFIX_NOISE = {
+    "a", "an", "the", "is", "are", "would", "be", "considered",
+    "strong", "significant", "major", "clear", "definite", "big", "nice",
+}
+
+
+def _optional_cue_targets_separate_suffix(clause: str, target_end: int, cue_start: int) -> bool:
+    """Return whether a trailing optional cue belongs to a phrase after a dash.
+
+    ATS text often flattens two bullets into one sentence, for example
+    ``3 years industry experience in Python- server side advantage``.  In that
+    wording ``advantage`` modifies ``server side``, not the three-year requirement.
+    A bare ``3 years experience - advantage`` still remains optional.
+    """
+    between = clause[target_end:cue_start]
+    dash_matches = list(re.finditer(r"-\s*", between))
+    if not dash_matches:
+        return False
+    suffix = between[dash_matches[-1].end():]
+    words = re.findall(r"[a-z0-9+#./]+|[\u0590-\u05ff]+", suffix.casefold())
+    meaningful = [word for word in words if word not in _OPTIONAL_CUE_SUFFIX_NOISE]
+    return bool(meaningful)
+
+
 def _optional_experience_context(text: str, start: int, end: int) -> bool:
     if section_kind_at(text, start) == "preferred":
         return True
-    clause = _experience_clause(text, start, end, radius=150)
-    return any(cue in clause for cue in _EXPERIENCE_OPTIONAL_CUES)
+    left, right = _experience_clause_span(text, start, end, radius=150)
+    clause = text[left:right]
+    target_start, target_end = start - left, end - left
+    for cue in _EXPERIENCE_OPTIONAL_CUES:
+        for match in re.finditer(re.escape(cue), clause):
+            if match.end() <= target_start:
+                return True
+            if match.start() < target_end:
+                return True
+            if not _optional_cue_targets_separate_suffix(clause, target_end, match.start()):
+                return True
+    return False
 
 
 def _requirement_section_context(text: str, start: int) -> bool:

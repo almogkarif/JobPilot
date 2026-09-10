@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from app.collectors.official import (
@@ -138,6 +139,45 @@ def test_comeet_api_uses_its_canonical_hosted_url_and_nested_locations():
     assert external_id == "38.10A"
     assert href.endswith("/backend-engineer/38.10A")
     assert "Tel Aviv, Hybrid" in row["text"]
+
+
+def test_comeet_api_extracts_full_details_and_city_from_location_object():
+    payload = json.dumps([{
+        "uid": "FA.E52",
+        "name": "Backend Engineer",
+        "location": {"name": "Israel", "city": "Tel Aviv"},
+        "details": {"description": "Build secure backend systems", "requirements": "Python experience"},
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/Claroty/F2.004/backend-engineer/FA.E52",
+    }])
+    row, _href, _external_id = _one("claroty", payload)
+    assert "Tel Aviv" in row["text"]
+    assert "Build secure backend systems" in row["text"]
+    assert "Python experience" in row["text"]
+
+
+def test_comeet_hydration_keeps_feed_route_when_branded_shell_has_template_heading(monkeypatch):
+    from app.collectors.official import _hydrate_detail_rows
+
+    class Response:
+        status_code = 200
+        text = '<html><head><link rel="canonical" href="https://claroty.com/open-positions/FA.E52"></head><body><main><h1>{{position.name}} @ {{company.name}}</h1></main></body></html>'
+        url = "https://www.comeet.com/jobs/Claroty/F2.004/backend-engineer/FA.E52"
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *_args): return None
+        async def get(self, _url): return Response()
+
+    monkeypatch.setattr("app.collectors.official.httpx.AsyncClient", lambda **_kwargs: Client())
+    row = {
+        "href": "https://www.comeet.com/jobs/Claroty/F2.004/backend-engineer/FA.E52",
+        "title": "Backend Engineer",
+        "linkText": "Backend Engineer",
+        "text": "Backend Engineer Tel Aviv Engineering",
+    }
+    hydrated = asyncio.run(_hydrate_detail_rows([row], PRESETS["claroty"]))[0]
+    assert hydrated["href"] == row["href"]
+    assert hydrated["title"] == "Backend Engineer"
 
 
 def test_structured_adapter_rejects_unrelated_numeric_objects_without_job_title():

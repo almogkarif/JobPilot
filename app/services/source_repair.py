@@ -101,6 +101,16 @@ REFRESHED_OFFICIAL_IDENTIFIERS = {
     "iai",
     "appsflyer",
     "aqua",
+    "claroty",
+    "gloat",
+    "vastdata",
+    "silverfort",
+    "4manalytics",
+    "exodigo",
+    "paragon",
+    "legitsecurity",
+    "voyantis",
+    "sunflower",
 }
 
 

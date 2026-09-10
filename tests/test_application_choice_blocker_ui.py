@@ -75,4 +75,4 @@ def test_lever_no_post_is_not_presented_as_verification_pending():
     assert "submit_not_sent" in js
     assert "לא נשלח" in js
     assert "נלחץ Submit" in js
-    assert "עדיין לא נחשב כהגשה" in js
+    assert "עדיין נדרש אישור קליטה מאתר הגיוס" in js

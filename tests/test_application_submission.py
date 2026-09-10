@@ -99,17 +99,18 @@ def test_monday_branded_job_uses_its_ashby_application_surface():
 
 
 def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday():
-    for company, url in (
-        ("Intel", "https://intel.wd1.myworkdayjobs.com/External/job/Israel/Test_R1"),
-        ("Applied Materials", "https://amat.wd1.myworkdayjobs.com/External/job/Israel/Test_R2"),
+    for company, url, source_kind, adapter_key in (
+        ("Intel", "https://intel.wd1.myworkdayjobs.com/External/job/Israel/Test_R1", "workday", "workday"),
+        ("Applied Materials", "https://amat.wd1.myworkdayjobs.com/External/job/Israel/Test_R2", "workday", "workday"),
+        ("Claroty", "https://www.comeet.com/jobs/Claroty/F2.004/test/FA.E52", "official_careers", "comeet"),
     ):
         preview = build_submission_preview(
             SimpleNamespace(id=41, title="Engineer", company=company, apply_url=url,
-                            source=SimpleNamespace(kind="workday")),
+                            source=SimpleNamespace(kind=source_kind)),
             _profile(application_password="saved-password"),
         )
         assert preview["ready"] is False
-        assert preview["adapter"]["key"] == "workday"
+        assert preview["adapter"]["key"] == adapter_key
         assert preview["adapter"]["execution"] == "manual_only"
         assert preview["adapter"]["supports_automatic_submit"] is False
         assert preview["adapter"]["exclusion_reason"]

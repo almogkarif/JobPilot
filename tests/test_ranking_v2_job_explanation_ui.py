@@ -35,3 +35,10 @@ def test_v2_engine_upgrade_never_serves_old_eligibility_rows():
     assert 'JobRanking.engine_version == get_ranking_engine().version' in MAIN
     assert "_delayed_v2_engine_refresh" in MAIN
     assert "_queue_profile_derived_refresh(user_id, career_track, False, False, True)" in MAIN
+
+def test_missing_experience_or_degree_detection_is_visually_prominent():
+    assert "e.required_experience_min===null||e.required_experience_min===undefined" in JS
+    assert "!e.required_degree" in JS
+    assert "detectionMissing?' detection-missing':''" in JS
+    assert ".ranking-filter.detection-missing" in CSS
+    assert "border:2px solid var(--danger)" in CSS
