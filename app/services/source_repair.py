@@ -111,6 +111,8 @@ REFRESHED_OFFICIAL_IDENTIFIERS = {
     "legitsecurity",
     "voyantis",
     "sunflower",
+    "cisco",
+    "paloalto",
 }
 
 

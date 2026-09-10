@@ -192,5 +192,18 @@ def test_unstable_large_boards_use_their_public_data_feeds():
         assert preset["data_only"] is True
 
 
+def test_problematic_comeet_boards_request_complete_structured_details():
+    for identifier in ("vastdata", "silverfort", "paragon"):
+        preset = PRESETS[identifier]
+        assert preset["data_only"] is True
+        assert "details=true" in preset["data_url"]
+
+
+def test_aqua_uses_the_job_slug_instead_of_the_full_card_as_title():
+    preset = PRESETS["aqua"]
+    assert preset["title_from_slug"] is True
+    assert preset["title_path_offset"] == -2
+
+
 def test_pliops_does_not_launch_a_browser_when_its_static_page_has_no_jobs():
     assert PRESETS["pliops"]["static_only"] is True
