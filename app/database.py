@@ -722,9 +722,12 @@ def ensure_job_source_fingerprint_column() -> None:
                 connection.execute(text(
                     "ALTER TABLE jobs ADD COLUMN source_fingerprint VARCHAR(64) NOT NULL DEFAULT ''"
                 ))
-        if engine.dialect.name == "postgresql":
+        if (
+            engine.dialect.name == "postgresql"
+            and "ix_jobs_source_fingerprint" not in _postgres_index_names(connection, "jobs")
+        ):
             connection.execute(text(
-                "CREATE INDEX IF NOT EXISTS ix_jobs_source_fingerprint ON jobs(source_fingerprint)"
+                "CREATE INDEX ix_jobs_source_fingerprint ON jobs(source_fingerprint)"
             ))
 
 

@@ -190,3 +190,39 @@ def test_ensure_compatibility_skips_followups_when_postgres_lock_is_busy(monkeyp
     database_module.ensure_compatibility_columns()
 
     assert followups == []
+
+
+def test_scan_worker_guard_skips_existing_source_fingerprint_index(monkeypatch):
+    class _Dialect:
+        name = "postgresql"
+
+    connection = _Connection()
+
+    class _Begin:
+        def __enter__(self):
+            return connection
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class _Engine:
+        dialect = _Dialect()
+
+        def begin(self):
+            return _Begin()
+
+    inspector = _Inspector(
+        ["jobs"],
+        {"jobs": [{"name": "source_fingerprint", "nullable": False}]},
+    )
+    monkeypatch.setattr(database_module, "engine", _Engine())
+    monkeypatch.setattr(database_module, "inspect", lambda _connection: inspector)
+    monkeypatch.setattr(
+        database_module,
+        "_postgres_index_names",
+        lambda _connection, table: {"ix_jobs_source_fingerprint"} if table == "jobs" else set(),
+    )
+
+    database_module.ensure_job_source_fingerprint_column()
+
+    assert connection.statements == []
