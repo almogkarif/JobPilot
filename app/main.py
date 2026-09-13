@@ -6100,8 +6100,12 @@ def agent_retry_stopped_application(
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
-    if application.mode != "auto" or not _application_auto_submit_supported(application):
+    if (not payload.interactive and application.mode != "auto") or not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
+    if payload.interactive and application.status == "queued":
+        application.mode = "audit"
+        db.commit()
+        return {"application_id": application.id, "status": application.status}
     if not payload.interactive and (application.status == "manual_required" or any(
         blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
     )):

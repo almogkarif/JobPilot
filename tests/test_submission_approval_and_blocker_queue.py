@@ -873,6 +873,13 @@ def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
         with SessionLocal() as db:
             assert db.get(Application, application_id).mode == "audit"
 
+        repeated = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped",
+            json={"token": "change-me", "interactive": True},
+        )
+        assert repeated.status_code == 200
+        assert repeated.json()["status"] == "queued"
+
 
 def test_final_review_can_be_skipped_without_returning_to_queue():
     with TestClient(app) as client:
