@@ -870,6 +870,8 @@ def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
         )
         assert interactive.status_code == 200, interactive.text
         assert interactive.json()["status"] == "queued"
+        with SessionLocal() as db:
+            assert db.get(Application, application_id).mode == "audit"
 
 
 def test_final_review_can_be_skipped_without_returning_to_queue():

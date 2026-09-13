@@ -6125,6 +6125,8 @@ def agent_retry_stopped_application(
                 blocker.remember_answer = False
                 blocker.resolved_at = utcnow()
     application.status = "queued"
+    if payload.interactive:
+        application.mode = "audit"
     application.last_error = ""
     set_job_status(db, application.job, "queued")
     _record_application_event(
