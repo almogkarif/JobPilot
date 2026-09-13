@@ -45,7 +45,7 @@ def test_fill_audit_button_and_explicit_review_approval_are_exposed():
 
     assert "צפה בסוכן ומלא עד Submit" in javascript
     assert "פתח סוכן גלוי ומלא עד Submit" in javascript
-    assert "הכנס לתור ההגשות ותגיש ברקע" in javascript
+    assert "הגש אוטומטית עכשיו" in javascript
     assert "resolveBlockerAction(${blocker.id},'approve_submit')" in javascript
 
 

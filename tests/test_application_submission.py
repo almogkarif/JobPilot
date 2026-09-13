@@ -144,6 +144,19 @@ def test_traild_is_manual_only_after_live_captcha_audit():
     assert "CAPTCHA" in payload["exclusion_reason"]
 
 
+def test_vast_data_is_manual_only_after_live_invisible_recaptcha_rejection():
+    job = type("Job", (), {
+        "company": "VAST Data",
+        "apply_url": "https://www.comeet.com/jobs/vastdata/43.001/software-engineer/AA.BBB",
+        "source": type("Source", (), {"kind": "official_careers"})(),
+    })()
+    payload = adapter_payload_for_job(job)
+    assert payload["key"] == "comeet"
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "reCAPTCHA" in payload["exclusion_reason"]
+
+
 def test_kla_is_manual_only_after_live_multistep_workday_audit():
     job = type("Job", (), {
         "company": "KLA",

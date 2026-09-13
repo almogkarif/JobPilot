@@ -261,7 +261,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     recent.click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
-    assert page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").count() == 0
+    assert page.get_by_role("button", name="הגש אוטומטית עכשיו").count() == 0
     page.locator(".modal-close").click()
 
     # Metric cards navigate and apply their filter.
@@ -281,7 +281,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     # The seeded custom career page is deliberately background-ineligible. It
     # must be visibly manual-only and must not offer an automatic action.
     assert page.get_by_text("הגשה אוטומטית אינה נתמכת במשרה הזו", exact=True).is_visible()
-    assert page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").count() == 0
+    assert page.get_by_role("button", name="הגש אוטומטית עכשיו").count() == 0
     page.locator(".modal-close").click()
     first_job = page.evaluate("async()=>await (await fetch('/api/jobs')).json()")[0]
     page.evaluate("async id=>await fetch(`/api/jobs/${id}/mark-submitted`,{method:'POST'})", first_job["id"])
@@ -306,7 +306,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
 
 def test_supported_job_shows_automatic_submission_badge_and_action(browser_page):
     page, _ = browser_page
-    page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
+    job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
         title:'Supported ATS Test Software Engineer', company:'Greenhouse Test', location:'Israel',
         apply_url:'https://boards.greenhouse.io/example/jobs/987654'
@@ -322,8 +322,36 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     assert "תומך בהגשה אוטומטית" in badge.text_content()
     card.click(position={"x": 250, "y": 80})
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
-    page.get_by_role("button", name="הכנס לתור ההגשות ותגיש ברקע").wait_for(state="visible")
+    automatic = page.get_by_role("button", name="הגש אוטומטית עכשיו")
+    automatic.wait_for(state="visible")
     page.get_by_role("button", name="אני רוצה לראות את הסוכן מגיש").wait_for(state="visible")
+
+    queued_requests = []
+    page.route(
+        f"**/api/jobs/{job['id']}/application-preview**",
+        lambda route: route.fulfill(json={
+            "ready": True,
+            "missing": [],
+            "warnings": [],
+            "safeguards": [],
+            "preview_token": "signed-one-click-preview",
+        }),
+    )
+
+    def fulfill_queue(route):
+        queued_requests.append(route.request.post_data_json)
+        route.fulfill(json={"id": 987, "queue_position": 1})
+
+    page.route(f"**/api/jobs/{job['id']}/queue", fulfill_queue)
+    automatic.click()
+    page.wait_for_function("() => !document.querySelector('#modal').classList.contains('open')")
+    assert queued_requests == [{
+        "mode": "auto",
+        "resume_id": None,
+        "preview_token": "signed-one-click-preview",
+        "approve_submit": True,
+    }]
+    assert page.get_by_role("heading", name="בדיקה לפני הגשה").count() == 0
 
 
 def test_small_choice_blocker_is_yellow_and_uses_clickable_options_everywhere(browser_page):

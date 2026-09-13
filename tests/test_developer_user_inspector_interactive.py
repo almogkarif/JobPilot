@@ -11,7 +11,7 @@ def test_user_inspector_cards_are_interactive():
     assert "data-developer-section" in JS
     assert "openDeveloperUserSection" in JS
     assert "developer-inspector-list" in CSS
-    assert "app.js?v=0.31.0" in HTML
+    assert "app.js?v=0.31.3" in HTML
     assert "styles.css?v=0.52.1" in HTML
 
 

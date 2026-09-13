@@ -329,16 +329,39 @@ def test_worker_credentials_are_admin_only_but_regular_users_can_access_submissi
             assert client.get("/api/profile", headers=headers).status_code == 200
             me = client.get("/api/auth/me", headers=headers).json()
             assert me["capabilities"]["application_agent"] is True
+            assert me["capabilities"]["applications_workspace"] is False
+            assert me["capabilities"]["automatic_campaigns"] is False
+            profile = client.patch("/api/profile", headers=headers, json={"auto_submit_enabled": True})
+            assert profile.status_code == 200
+            assert profile.json()["auto_submit_enabled"] is False
             devices = client.get("/api/agent-devices", headers=headers)
             assert devices.status_code == 200
             assert devices.json()["available"] is False
             assert client.post("/api/agent-devices", headers=headers, json={"name": "Friend Mac"}).status_code == 403
+            assert client.get("/api/applications", headers=headers).status_code == 403
+            assert client.get("/api/application-campaign", headers=headers).status_code == 403
             assert client.post("/api/jobs/999999/queue", headers=headers, json={"mode": "review"}).status_code == 404
     finally:
         with SessionLocal() as db:
             db.execute(delete(AgentDevice).where(AgentDevice.user_id == "friend-agent-block"))
             db.execute(delete(AppIdentity).where(AppIdentity.auth_user_id == "friend-agent-block"))
             db.commit()
+
+
+def test_local_view_as_user_uses_regular_permissions_server_side(monkeypatch):
+    monkeypatch.setattr(settings, "auth_mode", "local")
+    headers = {"X-JobPilot-Preview-Role": "user"}
+    with TestClient(app) as client:
+        me = client.get("/api/auth/me", headers=headers)
+        assert me.status_code == 200
+        assert me.json()["user"]["role"] == "user"
+        assert me.json()["capabilities"]["application_agent"] is True
+        assert me.json()["capabilities"]["applications_workspace"] is False
+        assert client.get("/api/applications", headers=headers).status_code == 403
+        # Explicit one-job submission remains reachable; only the missing job fails.
+        assert client.post(
+            "/api/jobs/999999/queue", headers=headers, json={"mode": "review"}
+        ).status_code == 404
 
 
 def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
@@ -370,6 +393,7 @@ def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
         assert preview_me.json()["user"]["role"] == "user"
         assert preview_me.json()["capabilities"]["developer_tools"] is False
         assert preview_me.json()["capabilities"]["manual_scan"] is False
+        assert preview_me.json()["capabilities"]["applications_workspace"] is False
 
         devices = client.get("/api/agent-devices", headers=preview_headers)
         assert devices.status_code == 200

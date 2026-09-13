@@ -56,6 +56,7 @@ _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "kla": "KLA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "medtronic": "Medtronic הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "nvidia": "NVIDIA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה דורש כניסה חיצונית ורב-שלבית.",
+    "vast data": "VAST Data הוסרה מהגשה אוטומטית: Comeet דוחה את אימות ה-reCAPTCHA הבלתי-נראה בזמן השליחה.",
 }
 
 
@@ -81,6 +82,8 @@ def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["medtronic"]
     if normalized_company == "nvidia":
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["nvidia"]
+    if normalized_company in {"vast data", "vastdata"}:
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["vast data"]
     return ""
 
 

@@ -8,8 +8,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, joinedload, load_only
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
-from ..models import Application, ApplicationEvent, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
-from ..database import SessionLocal, get_user_profile
+from ..models import AppIdentity, Application, ApplicationEvent, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
+from ..database import SessionLocal, current_user_id, get_user_profile
 from ..utils import dumps, loads
 from ..config import settings
 from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
@@ -598,6 +598,21 @@ def _job_fingerprint(title: str, company: str, location: str) -> tuple[str, str,
 def auto_queue_jobs(db: Session, profile: Profile) -> int:
     if not auto_submit_is_enabled(profile):
         return 0
+    if settings.auth_mode == "supabase":
+        allowed = db.info.get("global_auto_queue_allowed")
+        if allowed is None:
+            identity = db.execute(select(AppIdentity.role, AppIdentity.email).where(
+                AppIdentity.auth_user_id == current_user_id(db)
+            ).limit(1)).first()
+            email = str(identity.email if identity else "").strip().casefold()
+            allowed = bool(identity and (
+                identity.role == "admin"
+                or email == str(settings.owner_email or "").strip().casefold()
+                or email == str(settings.application_agent_owner_email or "").strip().casefold()
+            ))
+            db.info["global_auto_queue_allowed"] = allowed
+        if not allowed:
+            return 0
     from ..models import Application
 
     career_track = active_track(profile)

@@ -83,6 +83,15 @@ def test_job_details_modal_exposes_fill_audit_action_without_submit():
     assert "queueJob(${job.id},'audit',Number(document.querySelector('#job-resume-select')?.value)||null)" in JS
 
 
+def test_job_auto_submit_click_skips_the_duplicate_preview_confirmation():
+    queue_job = JS[JS.index("async function queueJob"):JS.index("async function confirmApplicationPreview")]
+    direct_auto = queue_job.index("if (mode === 'auto')")
+    preview_modal = queue_job.index("modal(`<span class=\"kicker\">בדיקה לפני הגשה")
+    assert direct_auto < preview_modal
+    assert "await confirmApplicationPreview(id, 'auto', resumeId, preview.preview_token || '', true)" in queue_job
+    assert "אשר הגשה אוטומטית חד־פעמית" not in queue_job
+
+
 def test_negative_experience_preferences_are_semantically_clear_not_red_selected_cards():
     assert 'ש<strong class="negative-word">לא</strong> לחפש עבורך' in HTML
     assert HTML.count('class="negative-x"') >= 5

@@ -686,6 +686,10 @@ async def disable_frontend_cache(request: Request, call_next):
 @app.middleware("http")
 async def cloud_auth_guard(request: Request, call_next):
     if settings.auth_mode != "supabase":
+        if request.headers.get("X-JobPilot-Preview-Role", "").strip().casefold() == "user":
+            request.state.identity = AuthIdentity(
+                LOCAL_USER_ID, "", "local", "user", False, "", None, True,
+            )
         return await call_next(request)
     path = request.url.path
     public = (
@@ -764,7 +768,16 @@ def auth_config():
 def auth_me(request: Request):
     identity = getattr(request.state, "identity", None)
     if settings.auth_mode != "supabase":
-        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True, "developer_tools": True, "manual_scan": True, "write": True}}
+        if getattr(identity, "preview_regular_user", False):
+            return {
+                "authenticated": True, "mode": "local",
+                "user": {"id": "local-owner", "email": "", "role": "user"},
+                "capabilities": {
+                    "application_agent": True, "developer_tools": False, "manual_scan": False,
+                    "applications_workspace": False, "automatic_campaigns": False, "write": True,
+                },
+            }
+        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True, "developer_tools": True, "manual_scan": True, "applications_workspace": True, "automatic_campaigns": True, "write": True}}
     if not identity:
         raise HTTPException(401, "Authentication required")
     is_guest = bool(getattr(identity, "is_guest", False) or identity.role == "guest")
@@ -782,6 +795,8 @@ def auth_me(request: Request):
             "application_agent": not is_guest,
             "developer_tools": False if is_guest else _developer_tools_allowed(identity),
             "manual_scan": False if is_guest else _developer_tools_allowed(identity),
+            "applications_workspace": False if is_guest else _developer_tools_allowed(identity),
+            "automatic_campaigns": False if is_guest else _developer_tools_allowed(identity),
             "write": not is_guest,
         },
     }
@@ -804,6 +819,16 @@ def _developer_tools_allowed(identity) -> bool:
         or (owner_email and email == owner_email)
         or (agent_owner and email == agent_owner)
     )
+
+
+def _applications_workspace_allowed(identity) -> bool:
+    """Keep bulk application controls private while one-job submission stays public."""
+    return _developer_tools_allowed(identity)
+
+
+def _require_applications_workspace(request: Request) -> None:
+    if not _applications_workspace_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "ניהול תור והיסטוריית הגשות זמינים למנהל בלבד")
 
 def _request_is_guest(request: Request) -> bool:
     identity = getattr(request.state, "identity", None)
@@ -1844,7 +1869,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     career_track = active_track(profile)
     guest_catalog = _request_is_guest(request)
-    if not guest_catalog:
+    identity = getattr(request.state, "identity", None)
+    applications_workspace = _applications_workspace_allowed(identity)
+    if not guest_catalog and applications_workspace:
         _repair_existing_ashby_spam_blocks(db)
     ranking_refresh = {"running": False, "message": ""} if guest_catalog else _ranking_refresh_status(
         current_user_id(db), career_track,
@@ -1902,8 +1929,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ]
 
     career_track_info = _career_tracks_payload(db, profile, stats=career_stats)
-    if guest_catalog:
+    if guest_catalog or not applications_workspace:
         # Never leak the admin's application pipeline through the demo dashboard.
+        # Regular accounts submit one explicitly selected job at a time and do not
+        # have an applications workspace, so avoid four needless pipeline queries
+        # on every dashboard refresh as well.
         status_counts = {}
         auto_apply_queue = {"current": None, "waiting": [], "waiting_count": 0, "queued_count": 0, "total_active_count": 0}
         open_blockers = 0
@@ -1929,7 +1959,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     required_profile_fields = (("full_name", "שם מלא"), ("email", "אימייל"), ("phone", "טלפון"), ("location", "מיקום"))
     missing_profile_fields = [label for field, label in required_profile_fields if not str(getattr(profile, field, "") or "").strip()] if profile else [label for _field, label in required_profile_fields]
     profile_complete = not missing_profile_fields
-    identity = getattr(request.state, "identity", None)
     agent_required = bool(
         not guest_catalog
         and (settings.auth_mode != "supabase" or getattr(identity, "role", "") == "admin")
@@ -1970,27 +1999,35 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/profile")
-def get_profile(db: Session = Depends(get_db)):
+def get_profile(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
-    return _profile_dict(profile)
+    data = _profile_dict(profile)
+    if not _applications_workspace_allowed(getattr(request.state, "identity", None)):
+        data["auto_submit_enabled"] = False
+    return data
 
 
 @app.put("/api/profile")
-def update_profile(payload: ProfileUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def update_profile(payload: ProfileUpdate, background_tasks: BackgroundTasks, request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
+    values = payload.model_dump()
+    if not _applications_workspace_allowed(getattr(request.state, "identity", None)):
+        values["auto_submit_enabled"] = False
     return _apply_profile_changes(
-        profile, payload.model_dump(), db, replace_application_profile=True, audit_scope="full", background_tasks=background_tasks
+        profile, values, db, replace_application_profile=True, audit_scope="full", background_tasks=background_tasks
     )
 
 
 @app.patch("/api/profile")
-def patch_profile(payload: ProfilePatch, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def patch_profile(payload: ProfilePatch, background_tasks: BackgroundTasks, request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     if not profile:
         raise HTTPException(404, "Profile not found")
     values = payload.model_dump(exclude_unset=True)
+    if not _applications_workspace_allowed(getattr(request.state, "identity", None)):
+        values["auto_submit_enabled"] = False
     if not values:
         return _profile_dict(profile)
     return _apply_profile_changes(
@@ -3063,13 +3100,18 @@ def _active_job_or_404(db: Session, job_id: int) -> Job:
     return job
 
 
-def _active_application_or_404(db: Session, application_id: int) -> Application:
-    application = db.get(Application, application_id)
-    profile = get_user_profile(db)
+def _active_application_or_404(
+    db: Session, application_id: int, *, defer_job_description: bool = False,
+) -> Application:
+    statement = select(Application).where(Application.id == application_id)
+    if defer_job_description:
+        statement = statement.options(joinedload(Application.job).defer(Job.description))
+    application = db.scalar(statement)
+    profile_track = db.scalar(select(Profile.active_career_track).limit(1))
     if (
         not application
         or not application.job
-        or application.job.career_track != active_track(profile)
+        or application.job.career_track != normalize_track(profile_track)
         or not application_history_visible(application.job, application)
     ):
         raise HTTPException(404, "Application not found")
@@ -3328,12 +3370,14 @@ def _campaign_dict(campaign: ApplicationCampaign) -> dict:
 
 
 @app.get("/api/application-campaign")
-def get_application_campaign(db: Session = Depends(get_db)):
+def get_application_campaign(request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     return _campaign_dict(_campaign_for_active_track(db))
 
 
 @app.patch("/api/application-campaign")
-def update_application_campaign(payload: CampaignUpdate, db: Session = Depends(get_db)):
+def update_application_campaign(payload: CampaignUpdate, request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     campaign = _campaign_for_active_track(db)
     values = payload.model_dump(exclude_unset=True)
     if "blocked_companies" in values:
@@ -3347,7 +3391,8 @@ def update_application_campaign(payload: CampaignUpdate, db: Session = Depends(g
 
 
 @app.post("/api/application-campaign/dry-run")
-def dry_run_application_campaign(db: Session = Depends(get_db)):
+def dry_run_application_campaign(request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     campaign = _campaign_for_active_track(db)
     profile = get_user_profile(db)
     blocked = {name.casefold() for name in loads(campaign.blocked_companies_json, [])}
@@ -3414,6 +3459,7 @@ def dry_run_application_campaign(db: Session = Depends(get_db)):
 
 @app.post("/api/application-campaign/runs/{run_id}/activate")
 async def activate_application_campaign(run_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     body = await request.json()
     raw_token = str(body.get("preview_token") or "")
     run = db.get(CampaignRun, run_id)
@@ -3484,7 +3530,8 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
 
 
 @app.get("/api/application-campaign/runs")
-def list_application_campaign_runs(limit: int = Query(25, ge=1, le=100), db: Session = Depends(get_db)):
+def list_application_campaign_runs(request: Request, limit: int = Query(25, ge=1, le=100), db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     campaign = _campaign_for_active_track(db)
     runs = db.scalars(select(CampaignRun).where(CampaignRun.campaign_id == campaign.id).order_by(
         desc(CampaignRun.created_at), desc(CampaignRun.id)
@@ -3562,7 +3609,8 @@ def mark_job_submitted(job_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/applications")
-def list_applications(status: str | None = None, db: Session = Depends(get_db)):
+def list_applications(request: Request, status: str | None = None, limit: int = Query(100, ge=1, le=100), db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     # Filtered reads need repair-before-filter semantics. The common unfiltered
     # notification-center read repairs from the rows it already loads, saving a query.
     if status:
@@ -3574,11 +3622,11 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
         .options(
             joinedload(Application.job).joinedload(Job.source),
             joinedload(Application.job).joinedload(Job.application),
-            selectinload(Application.blockers),
-            selectinload(Application.attempts),
+            selectinload(Application.blockers.and_(Blocker.status == "open")),
         )
         .where(Job.career_track == track)
         .order_by(desc(Application.updated_at))
+        .limit(limit)
     )
     if status:
         statement = statement.where(Application.status == status)
@@ -3599,6 +3647,16 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
             repaired_existing = True
     if repaired_existing:
         db.commit()
+    application_ids = [item.id for item in applications]
+    latest_attempts = {
+        item.application_id: item for item in db.scalars(select(ApplicationAttempt).where(
+            ApplicationAttempt.id.in_(
+                select(func.max(ApplicationAttempt.id)).where(
+                    ApplicationAttempt.application_id.in_(application_ids or [-1])
+                ).group_by(ApplicationAttempt.application_id)
+            )
+        )).all()
+    }
     auto_queued = sorted(
         (item for item in applications
          if item.status == "queued" and item.mode == "auto" and _application_auto_submit_supported(item)),
@@ -3606,11 +3664,18 @@ def list_applications(status: str | None = None, db: Session = Depends(get_db)):
         reverse=True,
     )
     queue_positions = {item.id: index for index, item in enumerate(auto_queued, start=1)}
-    return [_application_dict(a, queue_position=queue_positions.get(a.id)) for a in applications]
+    return [
+        _application_dict(
+            a, queue_position=queue_positions.get(a.id), load_latest_attempt=False,
+            latest_attempt=latest_attempts.get(a.id),
+        )
+        for a in applications
+    ]
 
 
 @app.get("/api/applications/tracking-list")
-def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
+def application_tracking_list(request: Request, current_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     """Return only the tiny navigation payload needed by the notification tracker.
 
     The full applications endpoint eagerly loads jobs, sources, blockers and every
@@ -3645,13 +3710,15 @@ def application_tracking_list(current_id: int = Query(0, ge=0), db: Session = De
 
 
 @app.get("/api/applications/auto-queue")
-def automatic_application_queue(db: Session = Depends(get_db)):
+def automatic_application_queue(request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     track = active_track(get_user_profile(db))
     return _auto_apply_queue_snapshot(db, track, include_health=True)
 
 
 @app.post("/api/applications/auto-queue/recover")
-def recover_automatic_application_queue(db: Session = Depends(get_db)):
+def recover_automatic_application_queue(request: Request, db: Session = Depends(get_db)):
+    _require_applications_workspace(request)
     """Dispatch approved queue rows whose worker was never started or claimed.
 
     Recovery is safe to call repeatedly: a recent dispatch is recorded before the
@@ -3671,8 +3738,14 @@ def recover_automatic_application_queue(db: Session = Depends(get_db)):
 
 
 @app.get("/api/applications/failure-diagnostics")
-def application_failure_diagnostics(db: Session = Depends(get_db)):
-    """Return one bounded, high-signal snapshot for troubleshooting auto-apply."""
+def application_failure_diagnostics(application_id: int | None = None, db: Session = Depends(get_db)):
+    """Return a bounded, high-signal snapshot for troubleshooting auto-apply.
+
+    The live tracker requests one application explicitly.  Keeping the broader
+    snapshot available for administrator investigations preserves the existing
+    endpoint while preventing a user-facing copy action from exporting years of
+    unrelated unfinished attempts.
+    """
     _repair_existing_ashby_spam_blocks(db)
     profile = get_user_profile(db)
     track = active_track(profile)
@@ -3680,7 +3753,7 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
     if not isinstance(profile_extra, dict):
         profile_extra = {}
     health_by_id = queue_health(db, track)
-    all_rows = db.scalars(
+    statement = (
         select(Application)
         .join(Job, Application.job_id == Job.id)
         .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
@@ -3690,7 +3763,10 @@ def application_failure_diagnostics(db: Session = Depends(get_db)):
             Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")),
         )
         .order_by(Application.id)
-    ).unique().all()
+    )
+    if application_id is not None:
+        statement = statement.where(Application.id == application_id)
+    all_rows = db.scalars(statement).unique().all()
     inactive_queued = [
         item for item in all_rows
         if item.status == "queued" and item.job and not item.job.is_active
@@ -3845,7 +3921,7 @@ def prioritize_automatic_application(application_id: int, db: Session = Depends(
     applications by ``updated_at`` newest-first. Touching this queued row therefore
     changes priority without interrupting an application that is already running.
     """
-    application = _active_application_or_404(db, application_id)
+    application = _active_application_or_404(db, application_id, defer_job_description=True)
     if application.mode != "auto" or not _application_auto_submit_supported(application):
         raise HTTPException(409, "המשרה אינה בתור ההגשה האוטומטית")
     if application.status == "applying":
@@ -3865,7 +3941,7 @@ def prioritize_automatic_application(application_id: int, db: Session = Depends(
 
 @app.patch("/api/applications/{application_id}")
 def update_application(application_id: int, payload: ApplicationUpdate, db: Session = Depends(get_db)):
-    application = _active_application_or_404(db, application_id)
+    application = _active_application_or_404(db, application_id, defer_job_description=True)
     previous_status = application.status
     allowed = {"saved", "queued", "applying", "needs_input", "verification_pending", "submitted",
                "phone_screen", "test", "interview", "offer", "accepted", "rejected", "failed"}
@@ -3946,14 +4022,14 @@ def _reconcile_lever_confirmation_url(db: Session, application: Application) -> 
 
 
 @app.get("/api/applications/{application_id}/tracking-status")
-def application_tracking_status(application_id: int, db: Session = Depends(get_db)):
+def application_tracking_status(application_id: int, request: Request, db: Session = Depends(get_db)):
     """Lightweight change token for the live application tracker.
 
     The browser polls this endpoint frequently while an application is active and
     fetches the full timeline only when the token changes. This avoids repeatedly
     downloading the complete event/attempt history every couple of seconds.
     """
-    application = _active_application_or_404(db, application_id)
+    application = _active_application_or_404(db, application_id, defer_job_description=True)
     latest_event_id = db.scalar(select(func.max(ApplicationEvent.id)).where(
         ApplicationEvent.application_id == application.id
     )) or 0
@@ -3963,7 +4039,8 @@ def application_tracking_status(application_id: int, db: Session = Depends(get_d
     latest_blocker = db.scalar(select(Blocker).where(
         Blocker.application_id == application.id
     ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1))
-    queue = _auto_apply_queue_snapshot(db, application.job.career_track)
+    workspace_allowed = _applications_workspace_allowed(getattr(request.state, "identity", None))
+    queue = _auto_apply_queue_snapshot(db, application.job.career_track) if workspace_allowed else {}
     current = queue.get("current") or {}
     waiting_ids = [int(item.get("id") or 0) for item in queue.get("waiting") or []]
     updated = application.updated_at.isoformat() if application.updated_at else ""
@@ -3990,8 +4067,9 @@ def application_tracking_status(application_id: int, db: Session = Depends(get_d
 
 
 @app.get("/api/applications/{application_id}/timeline")
-async def application_timeline(application_id: int, db: Session = Depends(get_db)):
-    application = _active_application_or_404(db, application_id)
+async def application_timeline(application_id: int, request: Request, db: Session = Depends(get_db)):
+    application = _active_application_or_404(db, application_id, defer_job_description=True)
+    workspace_allowed = _applications_workspace_allowed(getattr(request.state, "identity", None))
     _reconcile_lever_confirmation_url(db, application)
     open_blocker = db.scalar(select(Blocker).where(
         Blocker.application_id == application.id, Blocker.status == "open"
@@ -4012,19 +4090,39 @@ async def application_timeline(application_id: int, db: Session = Depends(get_db
         await _dispatch_resolved_auto_application(db, application)
     events = db.scalars(select(ApplicationEvent).where(
         ApplicationEvent.application_id == application.id
-    ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
+    ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id)).limit(100 if workspace_allowed else 50)).all()
     attempts = db.scalars(select(ApplicationAttempt).where(
         ApplicationAttempt.application_id == application.id
-    ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))).all()
+    ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(25 if workspace_allowed else 10)).all()
+    def timeline_event_details(item: ApplicationEvent) -> dict:
+        details = loads(item.details_json, {})
+        if workspace_allowed or not isinstance(details, dict):
+            return details if isinstance(details, dict) else {}
+        return {"attempt_id": details.get("attempt_id")} if details.get("attempt_id") is not None else {}
+
+    def timeline_attempt(item: ApplicationAttempt) -> dict:
+        data = _attempt_dict(item) or {}
+        if workspace_allowed:
+            return data
+        data["evidence"] = []
+        data["confirmation_text"] = str(data.get("confirmation_text") or "")[:1000]
+        data["error"] = str(data.get("error") or "")[:1000]
+        data.pop("idempotency_key", None)
+        return data
+
     return {
-        "application": _application_dict(application, db),
-        "auto_apply_queue": _auto_apply_queue_snapshot(db, application.job.career_track),
+        "application": _application_dict(
+            application, db if workspace_allowed else None,
+            include_answers=workspace_allowed,
+        ),
+        "auto_apply_queue": _auto_apply_queue_snapshot(db, application.job.career_track) if workspace_allowed else {},
         "events": [{
             "id": item.id, "event_type": item.event_type, "from_status": item.from_status,
-            "to_status": item.to_status, "actor": item.actor, "message": item.message,
-            "details": loads(item.details_json, {}), "created_at": item.created_at,
+            "to_status": item.to_status, "actor": item.actor,
+            "message": item.message if workspace_allowed else str(item.message or "")[:1000],
+            "details": timeline_event_details(item), "created_at": item.created_at,
         } for item in events],
-        "attempts": [_attempt_dict(item) for item in attempts],
+        "attempts": [timeline_attempt(item) for item in attempts],
     }
 
 
@@ -6463,7 +6561,11 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
     return data
 
 
-def _application_dict(a: Application, db: Session | None = None, *, queue_position: int | None = None) -> dict:
+def _application_dict(
+    a: Application, db: Session | None = None, *, queue_position: int | None = None,
+    load_latest_attempt: bool = True, include_answers: bool = True,
+    latest_attempt: ApplicationAttempt | None = None,
+) -> dict:
     open_blockers = [blocker for blocker in a.blockers if blocker.status == "open"]
     active_blocker = max(open_blockers, key=lambda blocker: blocker.created_at) if open_blockers else None
     blocker_summary = None
@@ -6552,18 +6654,17 @@ def _application_dict(a: Application, db: Session | None = None, *, queue_positi
     else:
         queue_position = None
 
-    latest_attempt = None
-    if db is not None:
+    if latest_attempt is None and load_latest_attempt and db is not None:
         latest_attempt = db.scalar(select(ApplicationAttempt).where(
             ApplicationAttempt.application_id == a.id
         ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
-    elif getattr(a, "attempts", None):
+    elif latest_attempt is None and load_latest_attempt and getattr(a, "attempts", None):
         latest_attempt = max(a.attempts, key=lambda item: (item.started_at, item.id))
 
     public_answers = {
         key: value for key, value in loads(a.answers_json, {}).items()
         if not str(key).startswith("__jobpilot_")
-    }
+    } if include_answers else {}
     return {
         "id": a.id, "job_id": a.job_id, "status": a.status, "mode": a.mode,
         "resume_path": a.resume_path, "answers": public_answers, "started_at": a.started_at,

@@ -34,7 +34,12 @@ def test_admin_preview_uses_regular_user_permissions_with_only_return_control_ex
     assert "הרשאות השרת שלך נשארו Admin" not in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.31.0" in HTML
+    assert "app.js?v=0.31.3" in HTML
+
+
+def test_local_admin_preview_uses_regular_application_workspace_permissions():
+    assert "!adminPreviewActive() && (authState.config?.mode !== 'supabase'" in JS
+    assert "X-JobPilot-Preview-Role" in JS
     assert "styles.css?v=0.52.1" in HTML
 
 

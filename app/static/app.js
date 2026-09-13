@@ -96,6 +96,7 @@ const parseJwt = (token = '') => {
 
 const authHeaders = () => authState.session?.access_token ? { Authorization: `Bearer ${authState.session.access_token}` } : {};
 const applicationAgentAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.application_agent !== false;
+const applicationsWorkspaceAllowed = () => !adminPreviewActive() && (authState.config?.mode !== 'supabase' || authState.capabilities?.applications_workspace === true);
 const manualScanAllowed = () => !adminPreviewActive() && (authState.config?.mode !== 'supabase' || authState.capabilities?.manual_scan === true);
 const sourceManagementAllowed = () => authState.config?.mode !== 'supabase' || authState.capabilities?.developer_tools === true;
 
@@ -1047,6 +1048,7 @@ document.addEventListener('keydown', (event) => {
 
 function switchView(view, options = {}) {
   persistCurrentProfileDraft();
+  if ((view === 'applications' || view === 'blockers') && !applicationsWorkspaceAllowed()) view = 'jobs';
   if (view !== 'applications') stopApplicationsRefresh();
   let applicationSection=options.applicationSection;
   if(view==='blockers'){view='applications';applicationSection='attention'}
@@ -1330,8 +1332,8 @@ async function loadDashboard() {
   }
   renderReadiness(dashboard.readiness || {});
   renderSourceErrorBadge(Number(dashboard.readiness?.sources_with_errors || 0));
-  const metrics = authState.user?.is_guest ? [
-    { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'מהקטלוג החי של האדמין', view: 'jobs', score: 0, status: '', tone: 'jobs' },
+  const metrics = (authState.user?.is_guest || !applicationsWorkspaceAllowed()) ? [
+    { label: 'משרות פעילות', value: dashboard.total_jobs, detail: authState.user?.is_guest ? 'מהקטלוג החי של האדמין' : 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
     { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
   ] : [
     { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
@@ -1928,6 +1930,22 @@ async function queueJob(id, mode = 'review', resumeId = null) {
     const missing = preview.missing || [];
     const warnings = preview.warnings || [];
     const safeguards = preview.safeguards || [];
+
+    // Choosing automatic submission on the job itself is the user's explicit,
+    // one-time approval. Keep the signed preview check behind the scenes so the
+    // safety contract remains enforced without asking for a duplicate click.
+    if (mode === 'auto') {
+      if (!preview.ready) {
+        const reason = missing.length
+          ? `חסרים פרטים להגשה אוטומטית: ${missing.map((item) => item.label).join(', ')}`
+          : (warnings[0] || 'המשרה או הפרופיל אינם מוכנים כרגע להגשה אוטומטית.');
+        toast(reason);
+        return;
+      }
+      await confirmApplicationPreview(id, 'auto', resumeId, preview.preview_token || '', true);
+      return;
+    }
+
     const token = encodeURIComponent(preview.preview_token || '');
     const adapter = preview.adapter || {};
     modal(`<span class="kicker">בדיקה לפני הגשה</span>
@@ -1941,9 +1959,7 @@ async function queueJob(id, mode = 'review', resumeId = null) {
       ${warnings.length ? `<div class="submission-preview-warnings"><strong>מה חשוב לדעת</strong><ul>${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></div>` : ''}
       <details class="submission-preview-safeguards"><summary>בלמי הבטיחות שיופעלו</summary><ul>${safeguards.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>
       <div class="modal-actions">
-        ${mode === 'audit'
-          ? `<button class="btn primary" type="button" onclick="confirmApplicationPreview(${id},'audit',${resumeId || 'null'},decodeURIComponent('${token}'),false)">פתח סוכן גלוי ומלא עד Submit</button>`
-          : `<button class="btn primary" type="button" ${preview.ready ? '' : 'disabled'} onclick="confirmApplicationPreview(${id},'auto',${resumeId || 'null'},decodeURIComponent('${token}'),true)">אשר הגשה אוטומטית חד־פעמית</button>`}
+        <button class="btn primary" type="button" onclick="confirmApplicationPreview(${id},'audit',${resumeId || 'null'},decodeURIComponent('${token}'),false)">פתח סוכן גלוי ומלא עד Submit</button>
       </div>`);
   } catch (error) {
     toast(error.message);
@@ -2197,7 +2213,7 @@ async function showJob(id) {
           <i class="application-option-icon">◉</i><span class="application-option-copy"><small>דפדפן גלוי · ללא שליחה</small><strong>אני רוצה לראות את הסוכן מגיש</strong><span>הסוכן המקומי ימלא את הטופס, ישאיר את עמוד Review פתוח ואתה תלחץ בעצמך על Submit.</span></span><b>←</b>
         </button>
         <button class="application-option application-option-auto" type="button" onclick="queueJob(${job.id},'auto',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
-          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>הכנס לתור ההגשות ותגיש ברקע</strong><span>ירוץ ב־worker ענן נסתר וילחץ על Submit לאחר אישור התצוגה המקדימה.</span></span><b>←</b>
+          <i class="application-option-icon">↗</i><span class="application-option-copy"><small>ברקע בלבד</small><strong>הגש אוטומטית עכשיו</strong><span>הלחיצה הזו מאשרת הגשה חד־פעמית. JobPilot יכניס את המשרה לתור וילחץ על Submit ברקע.</span></span><b>←</b>
         </button>
       </div>` : automaticSupported ? `<div class="agent-restricted-note"><strong>הסוכן האוטומטי סגור בשלב הבטא</strong><span>בחשבון הזה אפשר עדיין לפתוח את אתר החברה ולהגיש ידנית.</span></div>` : `<div class="agent-restricted-note manual-only-note"><strong>הגשה אוטומטית אינה נתמכת במשרה הזו</strong><span>${esc(job.application_adapter?.exclusion_reason || `מערכת ${job.application_adapter?.label || 'הגיוס'} מסומנת כרגע להגשה ידנית בלבד.`)} JobPilot לא יפתח עבורך חלון נסתר ולא יציג כאילו המשרה נשלחה.</span></div>`}
       <div class="card-actions modal-actions">
@@ -2253,6 +2269,7 @@ function syncApplicationsViewButtons() {
 }
 
 async function loadApplications({ silent = false } = {}) {
+  if (!applicationsWorkspaceAllowed()) return;
   stopApplicationsRefresh();
   syncApplicationsViewButtons();
   loadApplicationCampaign().catch((error) => console.warn('Campaign load failed', error));
@@ -2286,7 +2303,7 @@ async function loadApplications({ silent = false } = {}) {
 
 let applicationCampaign = null;
 async function loadApplicationCampaign() {
-  if (!applicationAgentAllowed() || !$('#campaign-controls')) return;
+  if (!applicationsWorkspaceAllowed() || !$('#campaign-controls')) return;
   applicationCampaign = await api('/api/application-campaign');
   $('#campaign-mode').value = applicationCampaign.mode || 'simple';
   $('#campaign-daily-cap').value = applicationCampaign.daily_cap || 5;
@@ -3805,10 +3822,12 @@ const NOTIFICATION_VIEWS = {
   sources: { icon: '↯', title: 'מקורות דורשים בדיקה', copy: 'מקור אחד או יותר דיווח על שגיאה' },
 };
 let trackedApplicationId=Number(localStorage.getItem('jobpilot-tracked-application')||0)||null;
-let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null,applicationTrackingVersion='',applicationTrackingPollBusy=false,trackingApplications=[],notificationTrackingRefreshTimer=null,trackingPinnedByUser=false;
+let applicationTrackingTimer=null,applicationTrackingData=null,applicationTrackingAdvanceTimer=null,applicationTrackingVersion='',applicationTrackingPollBusy=false,trackingApplications=[],notificationTrackingRefreshTimer=null,trackingPinnedByUser=false,applicationTrackingStartedAt=0,applicationTimelineFetchCount=0;
+const APPLICATION_TRACKING_MAX_MS=15*60*1000;
+const APPLICATION_TIMELINE_MAX_FETCHES=12;
 const applicationTextAnswerDrafts=new Map();
 const TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','manual_required','verification_pending','failed']);
-async function refreshTrackingApplications(){try{const currentId=Number(trackedApplicationId||state.autoApplyQueue?.current?.id||0),rows=await api(`/api/applications/tracking-list?current_id=${currentId}`);trackingApplications=rows.filter(item=>TRACKABLE_APPLICATION_STATUSES.has(item.status)||(item.status==='queued'&&(Number(item.attempt_count||0)>0||Number(item.id)===currentId))).sort((a,b)=>Number(a.id)-Number(b.id));return trackingApplications}catch{return trackingApplications}}
+async function refreshTrackingApplications(){if(!applicationsWorkspaceAllowed())return trackingApplications;try{const currentId=Number(trackedApplicationId||state.autoApplyQueue?.current?.id||0),rows=await api(`/api/applications/tracking-list?current_id=${currentId}`);trackingApplications=rows.filter(item=>TRACKABLE_APPLICATION_STATUSES.has(item.status)||(item.status==='queued'&&(Number(item.attempt_count||0)>0||Number(item.id)===currentId))).sort((a,b)=>Number(a.id)-Number(b.id));return trackingApplications}catch{return trackingApplications}}
 function trackedApplicationPosition(){const index=trackingApplications.findIndex(item=>Number(item.id)===Number(trackedApplicationId));return {index,total:trackingApplications.length}}
 function trackingNavigatorMarkup(status=''){const {index,total}=trackedApplicationPosition(),known=index>=0;if(!known||!total)return '';const attemptCount=Number(applicationTrackingData?.application?.attempt_count||0),retryable=['failed','needs_input','verification_pending'].includes(status)||(status==='queued'&&attemptCount>0);return `<nav class="application-tracker-navigator" aria-label="מעבר בין הגשות שלא הושלמו"><button type="button" onclick="moveTrackedApplication(-1)" aria-label="המשרה הקודמת" title="המשרה הקודמת">→</button><span><strong>משרה ${index+1} מתוך ${total}</strong><small>הגשות שטרם הושלמו</small></span>${retryable?`<button class="application-tracker-retry" type="button" onclick="retryTrackedApplication(${trackedApplicationId},this)" aria-label="הגשה מחדש" title="הגשה מחדש">↻</button>`:'<i></i>'}<button type="button" onclick="moveTrackedApplication(1)" aria-label="המשרה הבאה" title="המשרה הבאה">←</button></nav>`}
 async function moveTrackedApplication(direction){await refreshTrackingApplications();const {index,total}=trackedApplicationPosition();if(index<0||!total){renderNotificationCenter();return}const next=(index+Number(direction||0)+total)%total;startApplicationTracking(trackingApplications[next].id,false,true)}
@@ -3847,12 +3866,12 @@ function applicationDiagnosticText(item,index){
   ];
   return lines.join('\n');
 }
-async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],summary=payload.status_summary||{},header=[`JobPilot auto-apply diagnostics v5`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length} | queued: ${Number(summary.queued_total||0)} | dispatch_sent: ${Number(summary.queued_dispatch_sent||0)} | needs_dispatch: ${Number(summary.queued_needs_dispatch||0)} | not_dispatchable: ${Number(summary.queued_not_dispatchable||0)} | excluded_unsupported: ${Number(summary.excluded_unsupported_queued||0)} | excluded_inactive: ${Number(summary.excluded_inactive_queued||0)} | stuck_queued: ${Number(summary.stuck_queued||0)} | stuck_applying: ${Number(summary.stuck_applying||0)} | manual_required: ${Number(summary.manual_required||0)} | verification_pending: ${Number(summary.verification_pending||0)}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות פעילות הועתק — כולל את התור האוטומטי בפועל, מצב dispatch/worker, שאלות, שגיאות, ניסיונות ו־timeline`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
+async function copyApplicationFailureDiagnostics(){try{const applicationId=Number(trackedApplicationId||applicationTrackingData?.application?.id||0),query=applicationId?`?application_id=${applicationId}`:'',payload=await api(`/api/applications/failure-diagnostics${query}`),failures=Array.isArray(payload.applications)?payload.applications:[],summary=payload.status_summary||{},header=[`JobPilot auto-apply diagnostics v5`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length} | queued: ${Number(summary.queued_total||0)} | dispatch_sent: ${Number(summary.queued_dispatch_sent||0)} | needs_dispatch: ${Number(summary.queued_needs_dispatch||0)} | not_dispatchable: ${Number(summary.queued_not_dispatchable||0)} | excluded_unsupported: ${Number(summary.excluded_unsupported_queued||0)} | excluded_inactive: ${Number(summary.excluded_inactive_queued||0)} | stuck_queued: ${Number(summary.stuck_queued||0)} | stuck_applying: ${Number(summary.stuck_applying||0)} | manual_required: ${Number(summary.manual_required||0)} | verification_pending: ${Number(summary.verification_pending||0)}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(failures.length===1?'האבחון של ההגשה הנוכחית הועתק':`אבחון מפורט של ${failures.length} הגשות הועתק`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;window.copyApplicationFailureDiagnostics=copyApplicationFailureDiagnostics;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,running:Array.isArray(snapshot?.running)?snapshot.running:(snapshot?.current?.status==='applying'?[snapshot.current]:[]),running_count:Number(snapshot?.running_count??(snapshot?.current?.status==='applying'?1:0)),waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),attention:Array.isArray(snapshot?.attention)?snapshot.attention:[],attention_count:Number(snapshot?.attention_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
 function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}
 function otherAutoQueueItems(snapshot=state.autoApplyQueue,applicationId=trackedApplicationId){const queue=normalizeAutoApplyQueue(snapshot),items=[];if(queue.current&&Number(queue.current.id)!==Number(applicationId))items.push(queue.current);queue.waiting.forEach(item=>{if(Number(item.id)!==Number(applicationId))items.push(item)});return items}
-async function refreshAutoApplyQueue(){try{return setAutoApplyQueue(await api('/api/applications/auto-queue'))}catch{return setAutoApplyQueue(state.autoApplyQueue)}}
+async function refreshAutoApplyQueue(){if(!applicationsWorkspaceAllowed())return setAutoApplyQueue(state.autoApplyQueue);try{return setAutoApplyQueue(await api('/api/applications/auto-queue'))}catch{return setAutoApplyQueue(state.autoApplyQueue)}}
 function autoQueueRowActions(item,{isCurrent=false}={}){const running=item.status==='applying',queued=item.status==='queued',alreadyNext=isCurrent&&!running,retryable=['needs_input','failed','verification_pending'].includes(item.status);return `<div class="auto-queue-row-actions"><button class="btn secondary small" type="button" onclick="openAutoQueueApplication(${item.id})">פתח</button>${retryable?`<button class="application-tracker-retry auto-queue-retry" type="button" onclick="retryAutomaticApplication(${item.id},{status:'${item.status}',button:this,refreshQueue:true})" aria-label="הגשה מחדש" title="הגשה מחדש">↻</button>`:''}${queued?`<button class="btn secondary small" type="button" onclick="prioritizeAutoQueueApplication(${item.id})" ${running||alreadyNext?'disabled':''}>${alreadyNext?'הבא בתור':'הגש הבא בתור'}</button>`:''}<button class="btn danger-outline small" type="button" onclick="cancelAutoQueueApplication(${item.id})" ${running?'disabled title="לא ניתן לבטל worker שכבר רץ"':''}>ביטול</button></div>`}
 function securityCodeInputMarkup(applicationId){const draft=applicationSecurityCodeDrafts.get(Number(applicationId))||'';return `<div class="auto-queue-inline-answer security-code-answer"><strong>הדבק את קוד האבטחה האחרון שקיבלת במייל</strong><div><input type="text" inputmode="text" autocomplete="one-time-code" maxlength="16" value="${esc(draft)}" oninput="applicationSecurityCodeDrafts.set(${Number(applicationId)},this.value)" placeholder="קוד אבטחה"><button class="btn primary small" type="button" onclick="submitApplicationSecurityCode(${Number(applicationId)},this.previousElementSibling,this)">המשך הגשה</button></div><small>הקוד יועבר ישירות להגשה שממתינה כעת. לא ייפתח חלון נוסף ולא יתחיל ניסיון חדש.</small></div>`}
 function autoQueueRunningMarkup(item,index,total){const worker=String(item.agent_id||'').replace(/^github-actions-/,'GitHub Actions #'),duplicate=Number(item.duplicate_of||0),waitingCode=item.blocker?.kind==='security_code_required',serviceLabel=technicalDetailsAllowed()&&worker?`שירות הגשה פעיל · ${worker}`:'הגשה אוטומטית פעילה';return `<article class="auto-queue-current is-active is-running ${duplicate?'is-duplicate':''} ${waitingCode?'is-security-waiting':''}"><b>${waitingCode?'⌨':'▶'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${waitingCode?'ממתינה לקוד אבטחה':duplicate?`כפילות אפשרית של הגשה #${duplicate}`:esc(serviceLabel)}</small></span><em>${waitingCode?'מחכה לקוד':duplicate?'בדיקת כפילות':total>1?`רץ עכשיו · ${index+1}/${total}`:'רץ עכשיו'}</em>${waitingCode?securityCodeInputMarkup(item.id):''}${autoQueueRowActions(item,{isCurrent:true})}</article>`}
@@ -3873,7 +3892,7 @@ async function submitApplicationSecurityCode(applicationId,input,button){const c
 window.applicationSecurityCodeDrafts=applicationSecurityCodeDrafts;window.submitApplicationSecurityCode=submitApplicationSecurityCode;
 let lastAutomaticGmailVerification=0;
 async function verifyPendingApplicationsFromGmail(){const now=Date.now();if(now-lastAutomaticGmailVerification<300000)return;lastAutomaticGmailVerification=now;try{const connection=await api('/api/integrations/gmail');if(!connection.connected)return;const result=await api('/api/integrations/gmail/verify-applications',{method:'POST'});if(Number(result.verified_count||0)){toast(`${result.verified_count} הגשות אומתו ממיילי האישור`);await Promise.all([loadDashboard(),refreshTrackingApplications(),refreshAutoApplyQueue()]);renderNotificationCenter()}}catch(_){}}
-function openNotifications(){setMobileTabMenu(false);clearInterval(notificationTrackingRefreshTimer);refreshTrackingApplications().then(renderNotificationCenter);verifyPendingApplicationsFromGmail();notificationTrackingRefreshTimer=setInterval(()=>refreshTrackingApplications().then(renderNotificationCenter),5000);renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
+function openNotifications(){setMobileTabMenu(false);clearInterval(notificationTrackingRefreshTimer);if(applicationsWorkspaceAllowed()){refreshTrackingApplications().then(renderNotificationCenter);verifyPendingApplicationsFromGmail();notificationTrackingRefreshTimer=setInterval(()=>refreshTrackingApplications().then(renderNotificationCenter),5000)}renderNotificationCenter();$('#notification-center').classList.add('open');$('#notification-center').setAttribute('aria-hidden','false');$('#notification-trigger').setAttribute('aria-expanded','true')}
 function applicationProgressMarkup(){
   if(!applicationTrackingData)return '';
   const data=applicationTrackingData,events=data.events||[],latestAttemptId=Number(data.attempts?.[0]?.id||0),attemptEvents=latestAttemptId?events.filter(event=>['queued','worker_dispatched','grade_sheet_auto_requeued'].includes(event.event_type)||Number(event.details?.attempt_id||0)===latestAttemptId):events,types=new Set(attemptEvents.map(event=>event.event_type)),status=data.application?.status||'',blocker=data.application?.blocker||null;types.add('queued');
@@ -3896,14 +3915,15 @@ function applicationProgressMarkup(){
   return `<section class="application-live-tracker ${verified?'verified':attentionWaiting?'has-choice':queuedWaiting?'has-queue':duplicateRunning?'has-duplicate':isRunning?'has-running':verificationPending?'has-verification-wait':failed?'has-failure':''}"><div class="application-live-head"><span><b>${verified?'ההגשה הושלמה ואומתה':securityCodeWaiting?'ממתינה לקוד האבטחה שלך':choiceWaiting?'מחכה לבחירה שלך':textWaiting?'מחכה לתשובה קצרה':gradeSheetWaiting?(hasGradeSheet?'ההגשה נעצרה':'נדרש גיליון ציונים'):queuedWaiting?'ממתינה בתור להגשה אוטומטית':duplicateRunning?'רץ עכשיו — כפילות אפשרית':isRunning?'רץ עכשיו':verificationPending?'נשלחה בקשת Submit — ממתין לאימות':manualRequired?'נדרשת הגשה ידנית':failed?'ההגשה נעצרה':'מעקב הגשה חי'}</b><small>${esc(data.application?.job?.company||'')} · ${esc(data.application?.job?.title||'')}</small></span>${isRunning?`<span class="application-running-badge ${duplicateRunning?'duplicate':''}"><i></i> ${securityCodeWaiting?'מחכה לקוד':duplicateRunning?'כפילות אפשרית':'רץ עכשיו'}</span>`:''}<button type="button" onclick="showApplicationTimeline(${data.application.id})">היסטוריה</button></div><ol>${rows}</ol>${duplicateRunning?`<div class="application-live-warning">זוהתה הגשה פעילה נוספת עם אותה חברה, כותרת וקישור. ה־worker לא נעצר באמצע, אך הרשומה מסומנת לבדיקה כדי למנוע הגשה כפולה בעתיד.</div>`:verified?'<div class="application-live-success">✓ התקבל אישור שהמועמדות נקלטה.</div>':securityCodeWaiting?securityCodePanel:choiceWaiting?choicePanel:textWaiting?textPanel:gradeSheetWaiting?gradeSheetPanel:queuedWaiting?queuePanel:verificationPending?`<div class="application-live-verification">נלחץ Submit, אבל לא התקבלה ראיה שהמועמדות נקלטה. המשרה אינה מסומנת כהוגשה.<button type="button" onclick="retryTrackedApplication(${data.application.id})">לא התקבל אישור — נסה שוב</button></div>`:manualRequired?manualPanel:failed?`<div class="application-live-warning">לא סומן כהוגש. ${esc(data.application?.agent_failure_detail||'נדרשת בדיקה שלך.')}</div>`:'<div class="application-live-note"><span class="live-dot"></span> עובד ברקע ומתעדכן אוטומטית. רק כל השלבים בירוק משמעם שהוגש.</div>'}</section>`;
 }
 function stopApplicationTrackingPoll(){if(applicationTrackingTimer){clearTimeout(applicationTrackingTimer);applicationTrackingTimer=null}}
-function applicationTrackingPollDelay(status=''){if(document.visibilityState==='hidden')return 15000;return ['queued','applying'].includes(status)?2500:10000}
-function scheduleApplicationTrackingPoll(status=''){stopApplicationTrackingPoll();if(!trackedApplicationId)return;if(['submitted','verification_pending','failed','needs_input','manual_required','cancelled'].includes(status))return;applicationTrackingTimer=setTimeout(pollApplicationTrackingStatus,applicationTrackingPollDelay(status))}
-async function loadApplicationTimeline(forceVersion=''){if(!trackedApplicationId)return null;const [data]=await Promise.all([api(`/api/applications/${trackedApplicationId}/timeline`),refreshTrackingApplications()]);applicationTrackingData=data;if(data.auto_apply_queue)setAutoApplyQueue(data.auto_apply_queue);if(forceVersion)applicationTrackingVersion=forceVersion;renderNotificationCenter();return data}
+function applicationTrackingPollDelay(status=''){if(!applicationsWorkspaceAllowed())return document.visibilityState==='hidden'?30000:5000;if(document.visibilityState==='hidden')return 15000;return ['queued','applying'].includes(status)?2500:10000}
+function scheduleApplicationTrackingPoll(status=''){stopApplicationTrackingPoll();if(!trackedApplicationId)return;if(applicationTrackingStartedAt&&Date.now()-applicationTrackingStartedAt>=APPLICATION_TRACKING_MAX_MS)return;if(['submitted','verification_pending','failed','needs_input','manual_required','cancelled'].includes(status))return;applicationTrackingTimer=setTimeout(pollApplicationTrackingStatus,applicationTrackingPollDelay(status))}
+async function loadApplicationTimeline(forceVersion=''){if(!trackedApplicationId)return null;if(applicationTimelineFetchCount>=APPLICATION_TIMELINE_MAX_FETCHES&&applicationTrackingData)return applicationTrackingData;applicationTimelineFetchCount+=1;const data=await api(`/api/applications/${trackedApplicationId}/timeline`);if(applicationsWorkspaceAllowed())await refreshTrackingApplications();applicationTrackingData=data;if(data.auto_apply_queue)setAutoApplyQueue(data.auto_apply_queue);if(forceVersion)applicationTrackingVersion=forceVersion;renderNotificationCenter();return data}
 async function pollApplicationTrackingStatus(){if(!trackedApplicationId||applicationTrackingPollBusy)return;applicationTrackingPollBusy=true;try{const statusData=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(statusData.auto_apply_queue)setAutoApplyQueue(statusData.auto_apply_queue);const status=statusData.status||'',nextActiveId=Number(statusData.auto_apply_queue?.current?.id||0),version=String(statusData.timeline_version||'');if(!trackingPinnedByUser&&['submitted','verification_pending','failed','needs_input','manual_required'].includes(status)&&nextActiveId&&nextActiveId!==Number(trackedApplicationId)){startApplicationTracking(nextActiveId,false);return}if(!applicationTrackingData||!applicationTrackingVersion||version!==applicationTrackingVersion){await loadApplicationTimeline(version)}else{renderNotificationCenter()}if(status==='submitted'){clearTimeout(applicationTrackingAdvanceTimer);applicationTrackingAdvanceTimer=setTimeout(advanceTrackingToNextAutoQueue,2200)}scheduleApplicationTrackingPoll(status)}catch{stopApplicationTrackingPoll()}finally{applicationTrackingPollBusy=false}}
 async function refreshApplicationTracking(){if(!trackedApplicationId)return;try{const statusData=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(statusData.auto_apply_queue)setAutoApplyQueue(statusData.auto_apply_queue);const version=String(statusData.timeline_version||'');await loadApplicationTimeline(version);const status=applicationTrackingData?.application?.status||statusData.status||'',nextActiveId=Number(statusData.auto_apply_queue?.current?.id||0);if(!trackingPinnedByUser&&['verification_pending','failed','needs_input','manual_required'].includes(status)&&nextActiveId&&nextActiveId!==Number(trackedApplicationId)){startApplicationTracking(nextActiveId,false);return}if(status==='submitted'){clearTimeout(applicationTrackingAdvanceTimer);applicationTrackingAdvanceTimer=setTimeout(advanceTrackingToNextAutoQueue,2200)}scheduleApplicationTrackingPoll(status)}catch{stopApplicationTrackingPoll()}}
-function startApplicationTracking(id,autoOpen=false,pin=false){trackedApplicationId=Number(id);trackingPinnedByUser=Boolean(pin);localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;applicationTrackingVersion='';clearTimeout(applicationTrackingAdvanceTimer);stopApplicationTrackingPoll();refreshApplicationTracking();if(autoOpen)openNotifications()}
-async function syncPrimaryApplicationTracking(newApplicationId,autoOpen=false){const queue=await refreshAutoApplyQueue();let trackedStatus=applicationTrackingData?.application?.status||'';if(trackedApplicationId&&!applicationTrackingData){try{const tracking=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(tracking.auto_apply_queue)setAutoApplyQueue(tracking.auto_apply_queue);trackedStatus=tracking.status||''}catch{trackedStatus=''}}const preserveCurrent=Boolean(trackedApplicationId&&trackedStatus==='applying');if(!preserveCurrent){const primaryId=Number(queue.current?.id||newApplicationId||0);if(primaryId)startApplicationTracking(primaryId,false)}else{renderNotificationCenter()}if(autoOpen)openNotifications()}
+function startApplicationTracking(id,autoOpen=false,pin=false){trackedApplicationId=Number(id);trackingPinnedByUser=Boolean(pin);applicationTrackingStartedAt=Date.now();applicationTimelineFetchCount=0;localStorage.setItem('jobpilot-tracked-application',String(id));applicationTrackingData=null;applicationTrackingVersion='';clearTimeout(applicationTrackingAdvanceTimer);stopApplicationTrackingPoll();refreshApplicationTracking();if(autoOpen)openNotifications()}
+async function syncPrimaryApplicationTracking(newApplicationId,autoOpen=false){if(!applicationsWorkspaceAllowed()){if(newApplicationId)startApplicationTracking(Number(newApplicationId),false,true);if(autoOpen)openNotifications();return}const queue=await refreshAutoApplyQueue();let trackedStatus=applicationTrackingData?.application?.status||'';if(trackedApplicationId&&!applicationTrackingData){try{const tracking=await api(`/api/applications/${trackedApplicationId}/tracking-status`);if(tracking.auto_apply_queue)setAutoApplyQueue(tracking.auto_apply_queue);trackedStatus=tracking.status||''}catch{trackedStatus=''}}const preserveCurrent=Boolean(trackedApplicationId&&trackedStatus==='applying');if(!preserveCurrent){const primaryId=Number(queue.current?.id||newApplicationId||0);if(primaryId)startApplicationTracking(primaryId,false)}else{renderNotificationCenter()}if(autoOpen)openNotifications()}
 async function advanceTrackingToNextAutoQueue(){
+  if(!applicationsWorkspaceAllowed()){clearApplicationTracking();renderNotificationCenter();return}
   const finishedId=Number(trackedApplicationId||0);
   const [queue]=await Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()]);
   const queueNextId=Number(queue.current?.id||0);
@@ -3917,11 +3937,11 @@ async function advanceTrackingToNextAutoQueue(){
 function notificationItems() {
   const dashboard = state.dashboard || {};
   const items = [];
-  if (Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
+  if (applicationsWorkspaceAllowed() && Number(dashboard.open_blockers)) items.push({ view:'blockers', count:Number(dashboard.open_blockers) });
   const autoQueue=normalizeAutoApplyQueue(state.autoApplyQueue||dashboard.auto_apply_queue||{});
   const autoQueueCount=autoQueue.total_active_count;
-  items.push({ view:'applications', count:autoQueueCount, queue:true, persistent:true });
-  if (Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
+  if (applicationsWorkspaceAllowed()) items.push({ view:'applications', count:autoQueueCount, queue:true, persistent:true });
+  if (applicationsWorkspaceAllowed() && Number(dashboard.due_reminders)) items.push({ view:'applications', count:Number(dashboard.due_reminders), reminder:true });
   const fresh = Number(dashboard.scan?.last_result?.new || 0);
   if (fresh) items.push({ view:'jobs', count:fresh });
   const completion = Number($('#profile-completion-value')?.textContent?.replace('%','') || 100);
@@ -4745,6 +4765,7 @@ async function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW
 
 function configureDeveloperTools(){
   const allowed=!adminPreviewActive()&&(authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true);$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  $$('[data-view="applications"],[data-mobile-view="applications"]').forEach(el=>el.hidden=!applicationsWorkspaceAllowed());
   const importButton=$('#import-job-btn'); if(importButton) importButton.hidden=!allowed;
   const scanButton=$('#scan-btn');if(scanButton)scanButton.hidden=!manualScanAllowed();
   const workerSetting=$('#admin-worker-setting');if(workerSetting)workerSetting.hidden=!allowed;
@@ -4833,7 +4854,7 @@ $('#gmail-disconnect').onclick=disconnectGmail;
     if (authState.config?.mode === 'supabase') window.setInterval(refreshAgentStatus, 30_000);
     const savedView = localStorage.getItem('jobpilot-active-view');
     const validViews = new Set(['dashboard','jobs','preferences','applications','blockers','skills','sources','profile','settings','developer']);
-    if (validViews.has(savedView) && savedView !== 'dashboard') switchView(savedView);
+    if (validViews.has(savedView) && savedView !== 'dashboard' && (savedView !== 'applications' || applicationsWorkspaceAllowed())) switchView(savedView);
     const gmailResult=new URLSearchParams(location.search).get('gmail');
     if(gmailResult){
       toast(gmailResult==='connected'?'Gmail חובר בהצלחה':'חיבור Gmail לא הושלם');

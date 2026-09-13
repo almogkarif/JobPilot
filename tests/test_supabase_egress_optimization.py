@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.collectors.base import NormalizedJob
 from app.database import Base, SHARED_CATALOG_USER_ID, set_user_scope
-from app.models import Job, JobRanking, Profile, Source
+from app.models import AppIdentity, Job, JobRanking, Profile, Source
 from app.services import catalog_ranking, scanner
 from app.services.ranking.service import (
     get_ranking_engine,
@@ -27,6 +27,46 @@ def test_interactive_live_view_polling_is_bounded_and_payload_is_tiny():
     assert "attempt < 45" in polling
     assert "setTimeout(resolve, 2000)" in polling
     assert '/live-view`' in polling
+
+
+def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history():
+    javascript = (main_module.STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert "if(!applicationsWorkspaceAllowed())return trackingApplications" in javascript
+    assert "if(!applicationsWorkspaceAllowed())return setAutoApplyQueue(state.autoApplyQueue)" in javascript
+    assert "APPLICATION_TRACKING_MAX_MS=15*60*1000" in javascript
+    assert "APPLICATION_TIMELINE_MAX_FETCHES=12" in javascript
+    assert "document.visibilityState==='hidden'?30000:5000" in javascript
+    assert "?application_id=${applicationId}" in javascript
+
+    source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
+    assert "if guest_catalog or not applications_workspace:" in source
+    assert ".limit(100 if workspace_allowed else 50)).all()" in source
+    assert ".limit(25 if workspace_allowed else 10)).all()" in source
+    assert "joinedload(Application.job).defer(Job.description)" in source
+    assert "_auto_apply_queue_snapshot(db, application.job.career_track) if workspace_allowed else {}" in source
+    assert "statement = statement.where(Application.id == application_id)" in source
+
+
+def test_regular_cloud_user_cannot_auto_queue_catalog_jobs(monkeypatch):
+    monkeypatch.setattr(scanner.settings, "auth_mode", "supabase")
+    monkeypatch.setattr(scanner.settings, "owner_email", "owner@example.com")
+    monkeypatch.setattr(scanner.settings, "application_agent_owner_email", "owner@example.com")
+    engine, Session = _isolated_session_factory()
+    db = Session()
+    set_user_scope(db, "friend-user")
+    profile = Profile(auto_submit_enabled=True, auto_submit_opt_in_version=1)
+    db.add_all([
+        AppIdentity(auth_user_id="friend-user", email="friend@example.com", role="user"),
+        profile,
+    ])
+    db.commit()
+
+    statements: list[str] = []
+    event.listen(engine, "before_cursor_execute", lambda _c, _cu, statement, _p, _ctx, _many: statements.append(statement.lower()))
+    assert scanner.auto_queue_jobs(db, profile) == 0
+    job_selects = [statement for statement in statements if statement.lstrip().startswith("select") and " jobs" in statement]
+    assert job_selects == []
+    db.close()
 
 
 def _isolated_session_factory():

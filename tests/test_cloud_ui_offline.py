@@ -181,7 +181,7 @@ def test_cloud_regular_user_can_submit_but_cannot_manage_worker_credentials():
               window.fetch=async(input,options={})=>{
                 const url=String(input); let data={}; let status=200;
                 if(url==='/api/auth/config') data={mode:'supabase',supabase_url:'https://project.supabase.co',supabase_publishable_key:'publishable',google_enabled:true};
-                else if(url==='/api/auth/me') data={authenticated:true,mode:'supabase',user:{id:'friend-user',email:'friend@example.com',provider:'google',role:'user'},capabilities:{application_agent:true,developer_tools:false}};
+                else if(url==='/api/auth/me') data={authenticated:true,mode:'supabase',user:{id:'friend-user',email:'friend@example.com',provider:'google',role:'user'},capabilities:{application_agent:true,developer_tools:false,applications_workspace:false,automatic_campaigns:false}};
                 else if(url==='/api/security/status') data={configured:false,locked:false,cloud_auth:true};
                 else if(url==='/api/career-tracks') data=tracks;
                 else if(url==='/api/profile') data=profile;
@@ -197,9 +197,8 @@ def test_cloud_regular_user_can_submit_but_cannot_manage_worker_credentials():
         )
         page.add_script_tag(content=js)
         page.wait_for_function("document.querySelector('#account-chip') && !document.querySelector('#account-chip').hidden")
-        auto_submit = page.locator('input[name="auto_submit_enabled"]')
-        assert auto_submit.is_enabled()
-        assert auto_submit.is_checked()
+        assert page.locator('[data-view="applications"]').is_hidden()
+        assert page.locator('[data-mobile-view="applications"]').is_hidden()
         assert page.locator('#agent-state').inner_text() == 'מחובר · 0'
         assert page.locator('#admin-worker-setting').is_hidden()
         page.locator('#account-chip').click()

@@ -350,6 +350,21 @@ def test_failure_diagnostics_includes_fresh_dispatched_queue_rows_not_only_failu
         assert payload['status_summary']['queued_dispatch_sent'] >= 1
 
 
+def test_failure_diagnostics_can_be_scoped_to_the_application_being_viewed():
+    with TestClient(app) as client:
+        first_job = _job(client, 'Diagnostics current application')
+        second_job = _job(client, 'Diagnostics unrelated history')
+        first_id = _queued_auto(first_job['id'])
+        second_id = _queued_auto(second_job['id'])
+
+        response = client.get(f'/api/applications/failure-diagnostics?application_id={first_id}')
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert [item['application_id'] for item in payload['applications']] == [first_id]
+        assert payload['count'] == 1
+        assert all(item['application_id'] != second_id for item in payload['applications'])
+
+
 def test_old_running_attempt_does_not_claim_a_newer_queue_epoch():
     with TestClient(app) as client:
         job = _job(client, 'Requeued after dead running attempt')

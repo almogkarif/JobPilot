@@ -59,3 +59,27 @@ The organization reached 14.635 GB uncached egress against a 5 GB quota. A major
 cause found in code was deterministic whole-catalog maintenance on every process
 restart, including reading long job descriptions. Commit `063458e` removed those
 startup reads. This pattern must not be reintroduced.
+
+## Regular-user application budget — September 2026
+
+Regular cloud users do not receive the bulk Applications workspace or automatic
+campaign controls. They may explicitly approve one job from its job card, then the
+browser tracks only that application.
+
+- Dashboard refresh: zero application-history, queue-health, blocker, or reminder
+  reads for a regular account.
+- Active tracking: at most 180 lightweight status requests during a 15-minute
+  visible-page window (one every 5 seconds), or 30 while the page is hidden.
+- Timeline refresh: at most 12 responses per tracking window. Each response is
+  capped at 50 events and 10 attempts for regular users; long messages and errors
+  are capped at 1,000 characters and internal evidence/answer payloads are omitted.
+- Admin history: at most 100 applications per response, with only open blockers
+  and one latest attempt per application.
+
+At an estimated 2 KB per status response, status polling is bounded near 0.36 MB
+per explicitly approved application. A pessimistic 120 KB timeline response capped
+at 12 refreshes is 1.44 MB; normal attempts change state only a handful of times and
+should remain well below 1 MB. Ten friends making five explicit attempts per day
+therefore have a conservative ceiling near 0.09 GB/day and about 1.9 GB over a
+21-day active period; the expected case is far lower. Check the actual daily slope
+before increasing either the user count or these limits.
