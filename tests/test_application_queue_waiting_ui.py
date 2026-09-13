@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
@@ -157,3 +158,24 @@ def test_tracking_list_is_a_compact_payload_not_full_application_history():
         assert set(row["job"]) == {"title", "company"}
         assert "attempts" not in row
         assert "blocker" not in row
+
+
+def test_tracking_list_includes_active_interactive_review_application(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        unique = uuid4().hex
+        job = client.post("/api/jobs/import", json={
+            "title": "Interactive tracking regression",
+            "company": "Paragon",
+            "apply_url": f"https://boards.greenhouse.io/paragon/jobs/{unique}",
+            "location": "Tel Aviv",
+        }).json()
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        assert queued.status_code == 200, queued.text
+        application_id = queued.json()["id"]
+
+        response = client.get("/api/applications/tracking-list", params={"current_id": application_id})
+        assert response.status_code == 200
+        tracked = next(item for item in response.json() if item["id"] == application_id)
+        assert tracked["mode"] == "audit"
+        assert tracked["status"] == "queued"

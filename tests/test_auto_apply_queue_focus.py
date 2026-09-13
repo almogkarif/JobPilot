@@ -108,6 +108,8 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     css = (Path(__file__).resolve().parents[1] / 'app/static/styles.css').read_text(encoding='utf-8')
 
     assert "await syncPrimaryApplicationTracking(application.id, true)" in js
+    assert "requestedId||queue.current?.id" in js
+    assert "Boolean(requestedId)" in js
     assert "startApplicationTracking(application.id, true)" not in js
     assert "trackedStatus==='applying'" in js
     assert 'otherAutoQueueItems' in js

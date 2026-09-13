@@ -3703,8 +3703,10 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
         .where(
             Job.career_track == track,
             Job.is_active.is_(True),
-            Application.mode == "auto",
-            _automatic_application_query_filter(),
+            or_(
+                Application.mode == "audit",
+                (Application.mode == "auto") & _automatic_application_query_filter(),
+            ),
             Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "manual_required", "queued")),
         )
         .order_by(Application.id)
@@ -3716,7 +3718,7 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
             "job": {"title": row.title, "company": row.company},
         }
         for row in rows
-        if row.status != "queued" or int(row.attempt_count or 0) > 0 or row.id == current_id
+        if row.mode == "auto" or row.status != "queued" or int(row.attempt_count or 0) > 0 or row.id == current_id
     ]
 
 
