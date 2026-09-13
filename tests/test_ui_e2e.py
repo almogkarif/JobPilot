@@ -326,7 +326,6 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     automatic.wait_for(state="visible")
     page.get_by_role("button", name="אני רוצה לראות את הסוכן מגיש").wait_for(state="visible")
 
-    queued_requests = []
     page.route(
         f"**/api/jobs/{job['id']}/application-preview**",
         lambda route: route.fulfill(json={
@@ -339,18 +338,18 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     )
 
     def fulfill_queue(route):
-        queued_requests.append(route.request.post_data_json)
         route.fulfill(json={"id": 987, "queue_position": 1})
 
     page.route(f"**/api/jobs/{job['id']}/queue", fulfill_queue)
-    automatic.click()
+    with page.expect_request(f"**/api/jobs/{job['id']}/queue") as queue_request:
+        automatic.click()
     page.wait_for_function("() => !document.querySelector('#modal').classList.contains('open')")
-    assert queued_requests == [{
+    assert queue_request.value.post_data_json == {
         "mode": "auto",
         "resume_id": None,
         "preview_token": "signed-one-click-preview",
         "approve_submit": True,
-    }]
+    }
     assert page.get_by_role("heading", name="בדיקה לפני הגשה").count() == 0
 
 
