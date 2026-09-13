@@ -19,6 +19,7 @@ on:
           - audit
           - reconcile
           - applications
+          - queue-admin-once
 
 permissions:
   contents: read

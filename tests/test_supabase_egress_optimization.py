@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
@@ -67,6 +68,16 @@ def test_regular_cloud_user_cannot_auto_queue_catalog_jobs(monkeypatch):
     job_selects = [statement for statement in statements if statement.lstrip().startswith("select") and " jobs" in statement]
     assert job_selects == []
     db.close()
+
+
+def test_one_time_admin_queue_mode_is_explicit_and_restores_opt_in():
+    source = Path("scripts/run_cloud_scan.py").read_text()
+    body = source[source.index("def queue_admin_applications_once"):source.index("def progress_writer")]
+
+    assert 'AppIdentity.role == "admin"' in body
+    assert "auto_queue_jobs(db, profile)" in body
+    assert "profile.auto_submit_enabled = previous_enabled" in body
+    assert "profile.auto_submit_opt_in_version = previous_version" in body
 
 
 def _isolated_session_factory():

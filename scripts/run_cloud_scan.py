@@ -154,6 +154,47 @@ def audit_known_user_applications() -> int:
     print(f"[application-audit] complete accounts={checked}", flush=True)
     return checked
 
+
+def queue_admin_applications_once() -> int:
+    """Queue eligible supported roles for admins without enabling recurring bulk queueing."""
+    from app.services.career_tracks import AUTO_SUBMIT_OPT_IN_VERSION
+    from app.services.scanner import auto_queue_jobs
+
+    with SessionLocal() as db:
+        admin_ids = list(db.scalars(
+            select(AppIdentity.auth_user_id)
+            .where(AppIdentity.role == "admin")
+            .order_by(AppIdentity.id)
+        ).all())
+    queued_total = 0
+    for user_id in admin_ids:
+        with user_session(user_id) as db:
+            profile = get_user_profile(db)
+            if not profile:
+                continue
+            previous_enabled = bool(profile.auto_submit_enabled)
+            previous_version = int(profile.auto_submit_opt_in_version or 0)
+            try:
+                profile.auto_submit_enabled = True
+                profile.auto_submit_opt_in_version = AUTO_SUBMIT_OPT_IN_VERSION
+                db.commit()
+                queued = auto_queue_jobs(db, profile)
+                queued_total += queued
+                print(
+                    f"[one-time-queue] account={account_label(user_id)} "
+                    f"track={active_track(profile)} queued={queued}",
+                    flush=True,
+                )
+            finally:
+                db.rollback()
+                profile = get_user_profile(db)
+                if profile:
+                    profile.auto_submit_enabled = previous_enabled
+                    profile.auto_submit_opt_in_version = previous_version
+                    db.commit()
+    print(f"[one-time-queue] complete admins={len(admin_ids)} queued={queued_total}", flush=True)
+    return queued_total
+
 def progress_writer(run_id: str, career_track: str):
     def write(progress: dict) -> None:
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
@@ -389,7 +430,7 @@ async def reconcile_catalog_tracks() -> int:
 
 
 def work_available(mode: str) -> bool:
-    if mode in {"diagnose", "audit", "reconcile", "recover", "applications"}:
+    if mode in {"diagnose", "audit", "reconcile", "recover", "applications", "queue-admin-once"}:
         return True
     if mode == "all":
         return True
@@ -405,7 +446,7 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile", "applications"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile", "applications", "queue-admin-once"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
@@ -419,6 +460,10 @@ async def main() -> int:
     if args.mode == "applications":
         count = audit_known_user_applications()
         print(f"[scan] worker complete runs={count}", flush=True)
+        return 0
+    if args.mode == "queue-admin-once":
+        count = queue_admin_applications_once()
+        print(f"[scan] worker complete queued={count}", flush=True)
         return 0
     ensure_job_source_fingerprint_column()
     if args.mode == "diagnose":
