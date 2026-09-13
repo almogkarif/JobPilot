@@ -42,6 +42,11 @@ def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
         ("manual", "https://jobs.smartrecruiters.com/Example/5"),
         ("workday", "https://example.wd5.myworkdayjobs.com/jobs/6"),
         ("manual", "https://careers.example.com/jobs/7"),
+        ("manual", "https://www.aquasec.com/careers/position/example"),
+        ("manual", "https://www.camtek.com/careers/open-positions/example"),
+        ("manual", "https://www.nextsilicon.com/careers/example"),
+        ("manual", "https://www.proteantecs.com/careerinfo?job=example"),
+        ("manual", "https://monday.com/careers/example-role"),
     ]
     token = uuid4().hex
     with TestClient(app):
@@ -138,18 +143,32 @@ def test_auto_apply_sort_excludes_employers_with_proven_browser_blocks():
                 apply_url="https://jobs.smartrecruiters.com/ServiceNow/123-role",
                 source_url="https://jobs.smartrecruiters.com/ServiceNow/123-role", score=0, is_active=True,
             )
-            db.add_all([wix, workday, checkpoint, servicenow])
+            vast = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"vast-{token}",
+                title="VAST form", company="VAST Data", location="Israel", description="Software role",
+                apply_url="https://www.comeet.com/jobs/vastdata/43.001/example/AA.BBB",
+                source_url="https://www.comeet.com/jobs/vastdata/43.001/example/AA.BBB", score=0, is_active=True,
+            )
+            elbit = Job(
+                source_id=source.id, career_track="computer_science", external_id=f"elbit-{token}",
+                title="Elbit form", company="Elbit Systems", location="Israel", description="Software role",
+                apply_url="https://elbitsystemscareer.com/jobs/?jid=20711",
+                source_url="https://elbitsystemscareer.com/jobs/?jid=20711", score=0, is_active=True,
+            )
+            db.add_all([wix, workday, checkpoint, servicenow, vast, elbit])
             db.flush()
             try:
                 priorities = dict(db.execute(select(Job.id, _automatic_submit_sort_order()).where(
-                    Job.id.in_((wix.id, workday.id, checkpoint.id, servicenow.id))
+                    Job.id.in_((wix.id, workday.id, checkpoint.id, servicenow.id, vast.id, elbit.id))
                 )).all())
                 assert priorities[wix.id] == 0
                 assert priorities[checkpoint.id] == 0
                 assert priorities[servicenow.id] == 0
+                assert priorities[vast.id] == 0
                 assert priorities[workday.id] == 1
+                assert priorities[elbit.id] == 2
             finally:
-                for job in (wix, workday, checkpoint, servicenow):
+                for job in (wix, workday, checkpoint, servicenow, vast, elbit):
                     db.delete(job)
                 db.flush()
                 db.delete(source)

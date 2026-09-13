@@ -219,6 +219,7 @@ class AgentSecurityCodeRequest(BaseModel):
     token: str
     attempt_id: int | None = None
     confirm_not_submitted: bool = False
+    interactive: bool = False
 
 
 class SecurityCodeSubmitRequest(BaseModel):

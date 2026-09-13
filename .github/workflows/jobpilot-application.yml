@@ -88,7 +88,7 @@ jobs:
         run: |
           curl --fail-with-body --silent --show-error \
             -H 'Content-Type: application/json' \
-            -d "{\"token\":\"$JOBPILOT_AGENT_TOKEN\",\"confirm_not_submitted\":$CONFIRM_NOT_SUBMITTED}" \
+            -d "{\"token\":\"$JOBPILOT_AGENT_TOKEN\",\"confirm_not_submitted\":$CONFIRM_NOT_SUBMITTED,\"interactive\":${{ inputs.interactive }}}" \
             "$JOBPILOT_BASE_URL/api/agent/tasks/$REQUESTED_APPLICATION_ID/retry-stopped"
 
       - name: Process one queued application in the background

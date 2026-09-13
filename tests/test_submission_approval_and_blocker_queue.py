@@ -860,7 +860,16 @@ def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
             stored = db.get(Application, application_id)
             assert stored.status == "manual_required"
             assert stored.attempt_count == 1
+            stored.mode = "auto"
+            db.commit()
         assert client.post(f"/api/applications/{application_id}/retry", params={"auto_submit": True}).status_code == 409
+
+        interactive = client.post(
+            f"/api/agent/tasks/{application_id}/retry-stopped",
+            json={"token": "change-me", "confirm_not_submitted": True, "interactive": True},
+        )
+        assert interactive.status_code == 200, interactive.text
+        assert interactive.json()["status"] == "queued"
 
 
 def test_final_review_can_be_skipped_without_returning_to_queue():

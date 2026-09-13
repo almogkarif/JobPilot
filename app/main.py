@@ -908,11 +908,16 @@ def _automatic_application_query_filter():
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
     ))
     supported = (
-        apply_url.like("%elbitsystemscareer.com/job/%")
+        apply_url.like("%elbitsystemscareer.com/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
+        | apply_url.like("%aquasec.com/careers/%")
+        | apply_url.like("%camtek.com/careers/open-positions/%")
+        | apply_url.like("%nextsilicon.com/careers/%")
+        | apply_url.like("%proteantecs.com/careerinfo%")
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
+        | apply_url.like("%monday.com/careers/%")
         | apply_url.like("%smartrecruiters.com%") | source_kind.like("%smartrecruiters%")
         | apply_url.like("%myworkdayjobs.com%") | source_kind.like("%workday%")
     )
@@ -921,7 +926,8 @@ def _automatic_application_query_filter():
         (
             "intel", "applied materials", "applied material",
             "check point", "check point software", "check point software technologies",
-            "servicenow", "service now", "traild", "kla", "medtronic", "nvidia",
+            "servicenow", "service now", "traild", "claroty", "kla", "medtronic", "nvidia",
+            "vast data", "vastdata",
         )
     )
     return supported & ~excluded
@@ -935,11 +941,16 @@ def _automatic_submit_sort_order():
     ))
     supported = _automatic_application_query_filter()
     short_form = (
-        apply_url.like("%elbitsystemscareer.com/job/%")
+        apply_url.like("%elbitsystemscareer.com/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
+        | apply_url.like("%aquasec.com/careers/%")
+        | apply_url.like("%camtek.com/careers/open-positions/%")
+        | apply_url.like("%nextsilicon.com/careers/%")
+        | apply_url.like("%proteantecs.com/careerinfo%")
         | apply_url.like("%lever.co%") | (source_kind == "lever")
         | apply_url.like("%ashbyhq.com%") | (source_kind == "ashby")
+        | apply_url.like("%monday.com/careers/%")
     )
     return case((supported, case((short_form, 2), else_=1)), else_=0)
 
@@ -6091,15 +6102,19 @@ def agent_retry_stopped_application(
         raise HTTPException(404, "Application not found")
     if application.mode != "auto" or not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
-    if application.status == "manual_required" or any(
+    if not payload.interactive and (application.status == "manual_required" or any(
         blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
-    ):
-        raise HTTPException(409, "Ashby anti-spam requires manual submission")
-    if automatic_submission_pause(db, application.job):
-        raise HTTPException(409, "Ashby automatic submissions are temporarily paused after an anti-spam rejection")
+    )):
+        raise HTTPException(409, "Automatic submission was blocked; use an interactive manual review")
+    pause = automatic_submission_pause(db, application.job)
+    if pause and not payload.interactive:
+        raise HTTPException(409, pause["message"])
     if application.status == "verification_pending" and not payload.confirm_not_submitted:
         raise HTTPException(409, "Explicit confirmation of no submission receipt is required")
-    if application.status not in {"needs_input", "failed", "verification_pending"}:
+    retryable_statuses = {"needs_input", "failed", "verification_pending"}
+    if payload.interactive:
+        retryable_statuses.add("manual_required")
+    if application.status not in retryable_statuses:
         raise HTTPException(409, f"Application cannot be safely retried from status {application.status}")
     previous_status = application.status
     if previous_status == "verification_pending":
@@ -6118,6 +6133,7 @@ def agent_retry_stopped_application(
         details={
             "application_id": application.id,
             "confirmed_no_submission_receipt": bool(payload.confirm_not_submitted),
+            "interactive": bool(payload.interactive),
         },
     )
     db.commit()
