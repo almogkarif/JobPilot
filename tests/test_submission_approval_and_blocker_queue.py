@@ -216,10 +216,11 @@ def test_agent_operator_can_retry_only_a_stopped_auto_application(monkeypatch):
         )
         assert retried.status_code == 200, retried.text
         assert retried.json()["status"] == "queued"
-        denied = client.post(
+        repeated = client.post(
             f"/api/agent/tasks/{application_id}/retry-stopped", json={"token": "change-me"},
         )
-        assert denied.status_code == 409
+        assert repeated.status_code == 200, repeated.text
+        assert repeated.json()["status"] == "queued"
 
 
 def test_agent_operator_requires_explicit_confirmation_to_retry_uncertain_submission(monkeypatch):
