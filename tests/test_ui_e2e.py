@@ -501,6 +501,17 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     assert panel["x"] + panel["width"] <= trigger["x"] - 4
     page.locator("#notification-close").click()
 
+    # Short desktop viewports used to move only the notification button left,
+    # breaking its visual axis with the dock.
+    page.set_viewport_size({"width": 1440, "height": 700})
+    page.wait_for_timeout(100)
+    nav = page.locator("#nav").bounding_box()
+    trigger = page.locator("#notification-trigger").bounding_box()
+    assert nav and trigger
+    nav_center = nav["x"] + nav["width"] / 2
+    trigger_center = trigger["x"] + trigger["width"] / 2
+    assert abs(nav_center - trigger_center) <= 1
+
 
 def test_iem_light_and_dark_interactive_chrome_has_no_legacy_blue(browser_page):
     page, _ = browser_page

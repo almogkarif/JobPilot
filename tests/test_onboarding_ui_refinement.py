@@ -35,4 +35,4 @@ def test_logo_flight_dot_uses_the_same_animated_target_geometry_as_site_logo():
 
 def test_assets_bumped():
     assert "app.js?v=0.31.10" in HTML
-    assert "styles.css?v=0.52.2" in HTML
+    assert "styles.css?v=0.52.3" in HTML

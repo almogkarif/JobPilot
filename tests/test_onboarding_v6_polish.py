@@ -29,4 +29,4 @@ def test_ranking_waits_for_personal_catalog_ranking_before_declaring_completion(
 
 def test_assets_bumped():
     assert "app.js?v=0.31.10" in HTML
-    assert "styles.css?v=0.52.2" in HTML
+    assert "styles.css?v=0.52.3" in HTML
