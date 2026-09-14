@@ -2237,9 +2237,12 @@ body.theme-dark.track-industrial-engineering :where(.option-grid label:has(input
 }
 @media (max-height:760px) and (min-width:761px) {
   .sidebar nav button {
-    flex-basis:48px !important;
+    flex:0 0 46px !important;
     width:64px !important;
-    height:48px !important;
+    height:46px !important;
+    min-height:46px !important;
+    max-height:46px !important;
+    box-sizing:border-box !important;
     margin-block:0 !important;
   }
   .dock-utility { bottom:18px; }
