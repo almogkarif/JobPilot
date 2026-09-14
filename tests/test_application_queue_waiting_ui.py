@@ -101,8 +101,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "openInteractiveBlockedApplication(${data.application.id},this)" in js
     assert "פתח צפייה חיה" in js
     assert "viewInteractiveApplication(${data.application.id})" in js
-    assert "blindRetryBlocked=['submit_not_sent','anti_automation_blocked'].includes(blockerKind)" in js
-    assert "guidedFailureAction=failed&&!manualRequired&&['submit_not_sent','anti_automation_blocked'].includes(blocker?.kind)" in js
+    assert "blindRetryBlocked=['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blockerKind)" in js
+    assert "guidedFailureAction=failed&&!manualRequired&&['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blocker?.kind)" in js
     assert "data.application?.live_view_ready?'':`<button" in js
     assert "JobPilot לא יבצע retry אוטומטי נוסף" in js
     assert "status==='queued'&&attemptCount>0" in js
