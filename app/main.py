@@ -6504,8 +6504,8 @@ def _refresh_profile_derived_background(
                         _refresh_resume_analyses(db, profile, career_track=career_track)
                     if rank_v2 or rescore_jobs:
                         _rescore_v2_jobs(
-                            db, profile, career_track=career_track, commit_every=10,
-                            yield_seconds=0.15 if settings.auth_mode == "supabase" else 0.0,
+                            db, profile, career_track=career_track, commit_every=50, priority_limit=8,
+                            yield_seconds=0.03 if settings.auth_mode == "supabase" else 0.0,
                             stale_only=not rescore_jobs, progress_key=(user_id, career_track),
                         )
                     db.commit()
@@ -6520,6 +6520,7 @@ def _refresh_profile_derived_background(
 def _rescore_v2_jobs(
     db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0,
     yield_seconds: float = 0.0, stale_only: bool = False, progress_key: tuple[str, str] | None = None,
+    priority_limit: int = 0,
 ) -> None:
     track = normalize_track(career_track or active_track(profile))
     default_resume = db.scalar(select(ResumeProfile).where(
@@ -6541,9 +6542,16 @@ def _rescore_v2_jobs(
             )
         ).all()
     }
-    jobs = db.scalars(select(Job).where(*predicate)).yield_per(50)
+    # Rank the newest visible opportunities first. The dashboard shows five jobs,
+    # so its recommendations become useful after the small priority commit instead
+    # of waiting for an arbitrary part of the catalog to finish.
+    jobs = db.scalars(select(Job).where(*predicate).order_by(
+        desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id),
+    )).yield_per(50)
     if progress_key:
-        _set_ranking_refresh_progress(*progress_key, phase="v2", completed=0, total=total)
+        _set_ranking_refresh_progress(
+            *progress_key, phase="priority" if priority_limit else "v2", completed=0, total=total,
+        )
     for index, job in enumerate(jobs, start=1):
         should_rank = not stale_only or result_is_stale(existing.get(job.id), job, profile, ranking_settings)
         if should_rank:
@@ -6557,9 +6565,18 @@ def _rescore_v2_jobs(
                     message="V2 background ranking failed",
                     details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
                 ))
+        priority_complete = bool(priority_limit and index == priority_limit)
+        bulk_checkpoint = bool(
+            commit_every and index > priority_limit and (index - priority_limit) % commit_every == 0
+        )
+        if priority_complete:
+            db.commit()
         if progress_key:
-            _set_ranking_refresh_progress(*progress_key, phase="v2", completed=index, total=total)
-        if commit_every and index % commit_every == 0:
+            _set_ranking_refresh_progress(
+                *progress_key, phase="v2" if index >= priority_limit else "priority",
+                completed=index, total=total,
+            )
+        if bulk_checkpoint:
             db.commit()
             if yield_seconds > 0:
                 # Give request-handler threads CPU time on a single-core Render

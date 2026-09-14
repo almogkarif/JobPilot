@@ -263,3 +263,11 @@ def test_shared_catalog_startup_never_selects_jobs(monkeypatch):
     assert set(result) == {track.key for track in main_module.CAREER_TRACKS}
     job_selects = [statement for statement in statements if statement.lstrip().startswith("select") and " jobs" in statement]
     assert job_selects == []
+
+
+def test_two_stage_ranking_reuses_one_bounded_catalog_stream():
+    source = Path(main_module.__file__).read_text()
+    assert "priority_limit=8" in source
+    assert "commit_every=50" in source
+    assert "select(Job).where(*predicate).order_by(" in source
+    assert ").yield_per(50)" in source

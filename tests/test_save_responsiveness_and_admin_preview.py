@@ -15,8 +15,8 @@ def test_cloud_derived_refresh_is_detached_coalesced_and_incremental():
     assert hasattr(main, "_queue_profile_derived_refresh")
     assert "_profile_refresh_pending" in Path(main.__file__).read_text()
     source = Path(main.__file__).read_text()
-    assert "commit_every=25" not in source
-    assert "commit_every=10" in source
+    assert "commit_every=50" in source
+    assert "priority_limit=8" in source
     assert "yield_per(50)" in source
     assert "_global_profile_refresh_semaphore" in source
     assert "stale_only=not rescore_jobs" in source
@@ -34,7 +34,7 @@ def test_admin_preview_uses_regular_user_permissions_with_only_return_control_ex
     assert "הרשאות השרת שלך נשארו Admin" not in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.31.7" in HTML
+    assert "app.js?v=0.31.8" in HTML
 
 
 def test_local_admin_preview_uses_regular_application_workspace_permissions():

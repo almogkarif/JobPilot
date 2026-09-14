@@ -79,4 +79,8 @@ def test_engine_upgrade_is_low_priority_v2_only_and_serialized():
     assert "_global_profile_refresh_semaphore = threading.Semaphore(1)" in MAIN
     assert "existing_row=existing.get(job.id)" in MAIN
     assert "stale_only=not rescore_jobs" in MAIN
-    assert "yield_seconds=0.15" in MAIN
+    assert "priority_limit=8" in MAIN
+    assert "commit_every=50" in MAIN
+    assert "yield_seconds=0.03" in MAIN
+    assert 'phase="priority" if priority_limit else "v2"' in MAIN
+    assert "func.coalesce(Job.published_at, Job.discovered_at)" in MAIN
