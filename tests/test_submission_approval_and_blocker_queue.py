@@ -350,6 +350,33 @@ def test_explicit_auto_retry_reapproves_and_dispatches_failed_application(monkey
             assert loads(stored.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
 
 
+def test_explicit_auto_retry_restores_a_guided_review_application_to_background_auto(monkeypatch):
+    dispatched = []
+    monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Guided retry engineer", "company": "Guided Retry Co", "location": "Israel",
+            "apply_url": "https://boards.greenhouse.io/guidedretry/jobs/654",
+        }).json()
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"}).json()
+        with SessionLocal() as db:
+            stored = db.get(Application, application["id"])
+            stored.status = "failed"
+            stored.job.status = "failed"
+            db.commit()
+
+        retried = client.post(f"/api/applications/{application['id']}/retry?auto_submit=true")
+
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["mode"] == "auto"
+    assert dispatched == [application["id"]]
+    with SessionLocal() as db:
+        stored = db.get(Application, application["id"])
+        stored.status = "failed"
+        db.commit()
+
+
 def test_local_browser_handoff_is_claimed_only_by_local_agent(monkeypatch):
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))

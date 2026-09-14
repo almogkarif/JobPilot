@@ -4254,6 +4254,11 @@ async def retry_application(
     application.status = "queued"
     if interactive:
         application.mode = "audit"
+    elif auto_submit:
+        # A guided-review attempt temporarily changes the row to ``audit``.
+        # A later, explicit Auto Submit click must be able to return that same
+        # application to the normal background path.
+        application.mode = "auto"
     set_job_status(db, application.job, "queued")
     application.last_error = ""
     answers = loads(application.answers_json, {})
@@ -4262,7 +4267,7 @@ async def retry_application(
     answers.pop(LIVE_VIEW_URL_KEY, None)
     answers.pop(LIVE_VIEW_PUBLISHED_AT_KEY, None)
     if auto_submit:
-        if application.mode != "auto" or not _application_auto_submit_supported(application):
+        if not _application_auto_submit_supported(application):
             raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
         answers[ONE_TIME_SUBMIT_KEY] = True
         if prefer_local:
@@ -6182,7 +6187,7 @@ def agent_retry_stopped_application(
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
-    if (not payload.interactive and application.mode != "auto") or not _application_auto_submit_supported(application):
+    if not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
     if payload.interactive and application.status == "queued":
         application.mode = "audit"
@@ -6213,6 +6218,8 @@ def agent_retry_stopped_application(
     application.status = "queued"
     if payload.interactive:
         application.mode = "audit"
+    else:
+        application.mode = "auto"
     application.last_error = ""
     set_job_status(db, application.job, "queued")
     _record_application_event(

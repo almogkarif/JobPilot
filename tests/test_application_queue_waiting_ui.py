@@ -99,6 +99,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "פתח להגשה ידנית" in js
     assert "פתח בדיקה מונחית" in js
     assert "openInteractiveBlockedApplication(${data.application.id},this)" in js
+    assert "blocker?.kind==='review_before_submit'" in js
+    assert ">הגש אוטומטית</button>" in js
     assert "פתח צפייה חיה" in js
     assert "viewInteractiveApplication(${data.application.id})" in js
     assert "blindRetryBlocked=['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blockerKind)" in js
