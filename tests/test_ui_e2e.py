@@ -511,6 +511,7 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     nav_center = nav["x"] + nav["width"] / 2
     trigger_center = trigger["x"] + trigger["width"] / 2
     assert abs(nav_center - trigger_center) <= 1
+    assert trigger["y"] >= nav["y"] + nav["height"] + 8
 
 
 def test_iem_light_and_dark_interactive_chrome_has_no_legacy_blue(browser_page):

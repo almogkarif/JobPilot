@@ -51,6 +51,7 @@ def test_notifications_live_in_a_dedicated_dock_safe_zone():
     assert 'right:calc(6px + (84px - 48px) / 2)' in CSS
     short_desktop = CSS.split('@media (max-height:760px) and (min-width:761px)', 1)[1].split('}', 2)[0]
     assert 'right:104px' not in short_desktop
+    assert 'flex-basis:48px !important' in short_desktop
 
 
 def test_logout_uses_exit_icon_and_explicit_hover_tooltip():
@@ -138,7 +139,7 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
     assert 'app.js?v=0.31.11' in HTML
-    assert 'styles.css?v=0.52.3' in HTML
+    assert 'styles.css?v=0.52.4' in HTML
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
@@ -175,4 +176,4 @@ def test_iem_dock_active_label_and_jobs_filter_deck_have_explicit_contrast_guard
     assert "background-image:none !important;" in final
     assert ".jobs-toolbar .filter-control::after" in final
     assert "color:var(--ink) !important;" in final
-    assert 'styles.css?v=0.52.3' in HTML
+    assert 'styles.css?v=0.52.4' in HTML

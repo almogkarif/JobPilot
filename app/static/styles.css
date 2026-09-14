@@ -2236,6 +2236,12 @@ body.theme-dark.track-industrial-engineering :where(.option-grid label:has(input
   .notification-center { right:14px; bottom:76px; width:calc(100vw - 28px); max-height:calc(100vh - 96px); transform-origin:bottom right; }
 }
 @media (max-height:760px) and (min-width:761px) {
+  .sidebar nav button {
+    flex-basis:48px !important;
+    width:64px !important;
+    height:48px !important;
+    margin-block:0 !important;
+  }
   .dock-utility { bottom:18px; }
   .notification-center { right:94px; bottom:14px; max-height:calc(100vh - 28px); }
 }
