@@ -91,9 +91,11 @@ def test_interactive_worker_publishes_private_live_view_for_application_owner(mo
             json={"agent_id": "browserbase-test", "url": "https://www.browserbase.com/live/test"},
         )
         ready = client.get(f"/api/applications/{application['id']}/live-view")
+        timeline = client.get(f"/api/applications/{application['id']}/timeline")
 
     assert published.status_code == 200, published.text
     assert ready.json() == {"ready": True, "url": "https://www.browserbase.com/live/test"}
+    assert timeline.json()["application"]["live_view_ready"] is True
 
 
 def test_retrying_interactive_application_does_not_reuse_expired_live_view(monkeypatch):

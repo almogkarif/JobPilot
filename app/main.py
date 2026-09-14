@@ -6742,12 +6742,14 @@ def _application_dict(
     elif latest_attempt is None and load_latest_attempt and getattr(a, "attempts", None):
         latest_attempt = max(a.attempts, key=lambda item: (item.started_at, item.id))
 
+    stored_answers = loads(a.answers_json, {})
     public_answers = {
-        key: value for key, value in loads(a.answers_json, {}).items()
+        key: value for key, value in stored_answers.items()
         if not str(key).startswith("__jobpilot_")
     } if include_answers else {}
     return {
         "id": a.id, "job_id": a.job_id, "status": a.status, "mode": a.mode,
+        "live_view_ready": bool(str(stored_answers.get(LIVE_VIEW_URL_KEY) or "").strip()),
         "resume_path": a.resume_path, "answers": public_answers, "started_at": a.started_at,
         "submitted_at": a.submitted_at, "updated_at": a.updated_at, "last_error": a.last_error,
         "agent_id": a.agent_id, "attempt_count": a.attempt_count, "blocker": blocker_summary,
