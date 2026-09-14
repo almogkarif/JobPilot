@@ -837,7 +837,12 @@ def test_smartrecruiters_datadome_is_manual_required_and_cannot_auto_retry():
         assert retry.status_code == 409
 
 
-def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
+def test_comeet_http_423_is_manual_required_and_can_open_interactive_review(monkeypatch):
+    interactive_dispatched = []
+    monkeypatch.setattr(
+        "app.main.dispatch_interactive_application_workflow",
+        lambda application_id: interactive_dispatched.append(application_id),
+    )
     with TestClient(app) as client:
         job = _make_ats_job(client, "Comeet blocked engineer", "https://www.comeet.co/jobs/test/apply")
         application_id, task = _queue_and_claim(client, job)
@@ -864,21 +869,17 @@ def test_comeet_http_423_is_manual_required_and_cannot_auto_retry():
             db.commit()
         assert client.post(f"/api/applications/{application_id}/retry", params={"auto_submit": True}).status_code == 409
 
-        interactive = client.post(
-            f"/api/agent/tasks/{application_id}/retry-stopped",
-            json={"token": "change-me", "confirm_not_submitted": True, "interactive": True},
-        )
+        interactive = client.post(f"/api/applications/{application_id}/retry", params={"interactive": True})
         assert interactive.status_code == 200, interactive.text
         assert interactive.json()["status"] == "queued"
+        assert interactive_dispatched == [application_id]
         with SessionLocal() as db:
             assert db.get(Application, application_id).mode == "audit"
 
-        repeated = client.post(
-            f"/api/agent/tasks/{application_id}/retry-stopped",
-            json={"token": "change-me", "interactive": True},
-        )
+        repeated = client.post(f"/api/applications/{application_id}/retry", params={"interactive": True})
         assert repeated.status_code == 200
         assert repeated.json()["status"] == "queued"
+        assert interactive_dispatched == [application_id]
 
 
 def test_final_review_can_be_skipped_without_returning_to_queue():

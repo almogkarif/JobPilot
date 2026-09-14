@@ -174,6 +174,12 @@ def test_work_model_willingness_uses_saved_preferences():
     assert answer.source == "profile_work_mode"
 
 
+def test_short_hybrid_work_model_question_uses_israel_default():
+    answer = known_value("Hybrid work model", "radio", {}, {}, [])
+    assert answer.value == "Yes"
+    assert answer.source == "israel_work_model_default"
+
+
 def test_employment_sponsor_wording_uses_saved_sponsorship_setting():
     profile = {"needs_sponsorship": False}
     answer = known_value(

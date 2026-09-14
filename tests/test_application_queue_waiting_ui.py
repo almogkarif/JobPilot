@@ -3,7 +3,9 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.database import SessionLocal
 from app.main import app
+from app.models import Job
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -104,7 +106,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "copyApplicationFailureDiagnostics" in js
     assert "העתק אבחון של ההגשות שלא הושלמו" in js
     assert "/api/applications/failure-diagnostics" in js
-    assert "api('/api/applications/failure-diagnostics')" in js
+    assert "await refreshTrackingApplications()" in js
+    assert "?application_ids=${ids.join(',')}" in js
     assert "needs_input: ${Number(summary.needs_input||0)}" in js
     assert "YELLOW_QUESTION" in js
     assert "RED_ERROR" in js
@@ -183,3 +186,26 @@ def test_tracking_list_includes_active_interactive_review_application(monkeypatc
         tracked = next(item for item in response.json() if item["id"] == application_id)
         assert tracked["mode"] == "audit"
         assert tracked["status"] == "queued"
+
+
+def test_tracking_list_excludes_interactive_rows_for_unsupported_companies(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        unique = uuid4().hex
+        job = client.post("/api/jobs/import", json={
+            "title": "Unsupported interactive tracking regression",
+            "company": "Supported Before Policy Change",
+            "apply_url": f"https://boards.greenhouse.io/example/jobs/{unique}",
+            "location": "Rehovot",
+        }).json()
+        queued = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        assert queued.status_code == 200, queued.text
+        with SessionLocal() as db:
+            stored_job = db.get(Job, job["id"])
+            stored_job.company = "Applied Materials"
+            stored_job.apply_url = f"https://amat.wd1.myworkdayjobs.com/jobs/{unique}"
+            db.commit()
+
+        response = client.get("/api/applications/tracking-list", params={"current_id": queued.json()["id"]})
+        assert response.status_code == 200
+        assert all(item["id"] != queued.json()["id"] for item in response.json())

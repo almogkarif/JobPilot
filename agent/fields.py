@@ -143,6 +143,8 @@ def _current_country_answer(label: str, profile: dict) -> CandidateValue | None:
 def _work_model_answer(label: str, profile: dict) -> CandidateValue | None:
     """Answer explicit willingness to work in a saved work model/location."""
     key = normalize(label)
+    if key in {"hybrid work model", "hybrid working model"}:
+        return CandidateValue("Yes", "israel_work_model_default")
     willingness = any(term in key for term in ("open to working", "willing to work", "able to work"))
     if not willingness:
         return None

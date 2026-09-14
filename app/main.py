@@ -128,6 +128,7 @@ LIVE_VIEW_URL_KEY = "__jobpilot_live_view_url_v1__"
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
+HYBRID_WORK_MODEL_AUTO_RETRY_KEY = "__jobpilot_hybrid_work_model_retry_v1__"
 SMARTRECRUITERS_CAPTCHA_RECHECK_KEY = "__jobpilot_smartrecruiters_captcha_recheck_v1__"
 COMPANY_ANSWER_PREFIX = "company:"
 REVIEW_APPROVE_ACTION = "approve_submit"
@@ -2795,6 +2796,7 @@ def list_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort: str = Query("score_desc"),
+    automatic_only: bool = False,
     db: Session = Depends(get_db),
 ):
     profile = get_user_profile(db)
@@ -2865,6 +2867,10 @@ def list_jobs(
             query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
             statement = statement.where(query_filter)
             location_count_statement = location_count_statement.where(query_filter)
+        if automatic_only:
+            automatic_filter = _automatic_application_query_filter()
+            statement = statement.where(automatic_filter)
+            location_count_statement = location_count_statement.where(automatic_filter)
 
         # The location aggregation doubles as the paginated total-count query, so
         # adding the dynamic filter does not add another database round trip.
@@ -2945,6 +2951,7 @@ def list_jobs(
         "page_size": page_size,
         "pages": pages,
         "sort": sort,
+        "automatic_only": automatic_only,
         "location": selected_location,
         "location_options": location_options,
     }
@@ -3703,10 +3710,8 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
         .where(
             Job.career_track == track,
             Job.is_active.is_(True),
-            or_(
-                Application.mode == "audit",
-                (Application.mode == "auto") & _automatic_application_query_filter(),
-            ),
+            Application.mode.in_(("auto", "audit")),
+            _automatic_application_query_filter(),
             Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "manual_required", "queued")),
         )
         .order_by(Application.id)
@@ -3751,7 +3756,9 @@ def recover_automatic_application_queue(request: Request, db: Session = Depends(
 
 
 @app.get("/api/applications/failure-diagnostics")
-def application_failure_diagnostics(application_id: int | None = None, db: Session = Depends(get_db)):
+def application_failure_diagnostics(
+    application_id: int | None = None, application_ids: str = "", db: Session = Depends(get_db),
+):
     """Return a bounded, high-signal snapshot for troubleshooting auto-apply.
 
     The user-facing copy action requests the complete active notification set.
@@ -3771,6 +3778,14 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
         return {"truncated": True, "preview": serialized[:limit]}
 
     health_by_id = queue_health(db, track)
+    requested_ids = []
+    if application_ids:
+        try:
+            requested_ids = list(dict.fromkeys(int(value) for value in application_ids.split(",") if value.strip()))
+        except ValueError as exc:
+            raise HTTPException(400, "Invalid application ids") from exc
+        if not requested_ids or len(requested_ids) > 100 or any(value <= 0 for value in requested_ids):
+            raise HTTPException(400, "Invalid application ids")
     statement = (
         select(Application)
         .join(Job, Application.job_id == Job.id)
@@ -3784,6 +3799,8 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
     )
     if application_id is not None:
         statement = statement.where(Application.id == application_id)
+    elif requested_ids:
+        statement = statement.where(Application.id.in_(requested_ids))
     statement = statement.limit(100)
     all_rows = db.scalars(statement).unique().all()
     inactive_queued = [
@@ -4182,16 +4199,18 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 @app.post("/api/applications/{application_id}/retry")
 async def retry_application(
     application_id: int, auto_submit: bool = False, confirm_not_submitted: bool = False,
-    prefer_local: bool = False,
+    prefer_local: bool = False, interactive: bool = False,
     db: Session = Depends(get_db),
 ):
     _repair_existing_ashby_spam_blocks(db)
     application = _active_application_or_404(db, application_id)
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
-    if application.status == "manual_required" or any(
+    if interactive and not _application_auto_submit_supported(application):
+        raise HTTPException(409, "לא ניתן לפתוח סוכן גלוי עבור המשרה הזו")
+    if not interactive and (application.status == "manual_required" or any(
         blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
-    ):
+    )):
         raise HTTPException(409, "האתר חסם את ההגשה האוטומטית. יש לפתוח את הטופס ולהשלים ידנית.")
     pause = automatic_submission_pause(db, application.job)
     if auto_submit and pause:
@@ -4212,11 +4231,14 @@ async def retry_application(
                 blocker.remember_answer = False
                 blocker.resolved_at = utcnow()
     application.status = "queued"
+    if interactive:
+        application.mode = "audit"
     set_job_status(db, application.job, "queued")
     application.last_error = ""
     answers = loads(application.answers_json, {})
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
     answers.pop(LOCAL_BROWSER_HANDOFF_KEY, None)
+    answers.pop(LIVE_VIEW_URL_KEY, None)
     if auto_submit:
         if application.mode != "auto" or not _application_auto_submit_supported(application):
             raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
@@ -4231,7 +4253,20 @@ async def retry_application(
             message="המשתמש אישר שלא התקבל אישור הגשה וביקש ניסיון חוזר",
         )
     db.commit()
-    if auto_submit and not prefer_local:
+    if interactive:
+        try:
+            await run_in_threadpool(dispatch_interactive_application_workflow, application.id)
+            _record_application_event(
+                db, application, "interactive_retry_queued", from_status=previous_status, to_status="queued",
+                actor="user", message="נפתח סוכן גלוי למילוי הטופס עד שלב האישור",
+                details={"application_id": application.id, "trigger": "anti_automation_manual_review"},
+            )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            application.last_error = f"המשימה נשמרה בתור, אך פתיחת הסוכן הגלוי נכשלה: {exc}"[:2000]
+            db.commit()
+            raise HTTPException(503, "המשימה נשמרה בתור, אך לא ניתן היה לפתוח סוכן גלוי") from exc
+    elif auto_submit and not prefer_local:
         try:
             await run_in_threadpool(dispatch_application_workflow, application.id)
             _record_application_event(
@@ -4443,6 +4478,8 @@ def _submit_validation_field_label(blocker: Blocker | None) -> str:
 
 def _safe_default_blocker_answer(blocker: Blocker) -> tuple[str, str]:
     label = _normalize_company_memory_text(blocker.field_label or blocker.question)
+    if label in {"hybrid work model", "hybrid working model"}:
+        return "Yes", "israel_work_model_default"
     # Resolve required application-processing/privacy acknowledgements without
     # treating marketing, newsletters, or talent-community opt-ins as consent.
     consent_action = any(term in label for term in ("consent", "agree", "acknowledge", "accept"))
@@ -4587,14 +4624,27 @@ def _requeue_agent_form_repairs(db: Session, career_track: str) -> list[int]:
             )
         ) or (
             adapter == "greenhouse" and blocker.kind == "submit_not_sent"
-            and "gdpr" in _normalize_company_memory_text(
-                " ".join((blocker.field_label or "", blocker.question or "", blocker.explanation or ""))
+            and (
+                "gdpr" in _normalize_company_memory_text(
+                    " ".join((blocker.field_label or "", blocker.question or "", blocker.explanation or ""))
+                )
+                or _normalize_company_memory_text(_submit_validation_field_label(blocker))
+                in {"hybrid work model", "hybrid working model"}
             )
         ) or smartrecruiters_legacy_captcha
         if not retryable:
             continue
         answers = loads(application.answers_json, {})
-        repair_key = SMARTRECRUITERS_CAPTCHA_RECHECK_KEY if smartrecruiters_legacy_captcha else AGENT_FORM_REPAIR_AUTO_RETRY_KEY
+        hybrid_work_model_repair = (
+            adapter == "greenhouse"
+            and _normalize_company_memory_text(_submit_validation_field_label(blocker))
+            in {"hybrid work model", "hybrid working model"}
+        )
+        repair_key = (
+            SMARTRECRUITERS_CAPTCHA_RECHECK_KEY if smartrecruiters_legacy_captcha
+            else HYBRID_WORK_MODEL_AUTO_RETRY_KEY if hybrid_work_model_repair
+            else AGENT_FORM_REPAIR_AUTO_RETRY_KEY
+        )
         if answers.get(repair_key):
             continue
         answers[repair_key] = True

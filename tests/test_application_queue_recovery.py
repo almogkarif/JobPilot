@@ -365,6 +365,24 @@ def test_failure_diagnostics_can_be_scoped_to_the_application_being_viewed():
         assert all(item['application_id'] != second_id for item in payload['applications'])
 
 
+def test_failure_diagnostics_can_be_scoped_to_every_visible_notification_application():
+    with TestClient(app) as client:
+        visible_ids = [
+            _queued_auto(_job(client, f'Diagnostics visible {index}')['id'])
+            for index in range(3)
+        ]
+        unrelated_id = _queued_auto(_job(client, 'Diagnostics hidden history')['id'])
+
+        response = client.get(
+            '/api/applications/failure-diagnostics',
+            params={'application_ids': ','.join(str(value) for value in visible_ids)},
+        )
+        assert response.status_code == 200, response.text
+        returned_ids = [item['application_id'] for item in response.json()['applications']]
+        assert returned_ids == visible_ids
+        assert unrelated_id not in returned_ids
+
+
 def test_old_running_attempt_does_not_claim_a_newer_queue_epoch():
     with TestClient(app) as client:
         job = _job(client, 'Requeued after dead running attempt')

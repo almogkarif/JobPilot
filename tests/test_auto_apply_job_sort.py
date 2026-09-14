@@ -14,21 +14,45 @@ ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / "app" / "static" / "index.html").read_text()
 
 
-def test_jobs_sort_menu_exposes_auto_apply_first_option():
-    assert '<option value="auto_apply_first">הגשה אוטומטית קודם</option>' in HTML
+def test_jobs_menu_exposes_auto_apply_as_a_filter_not_a_sort():
+    assert '<span>סינון</span><select id="job-automatic-filter">' in HTML
+    assert '<option value="automatic">הגשה אוטומטית בלבד</option>' in HTML
+    assert '<option value="auto_apply_first">' not in HTML
 
 
-def test_auto_apply_first_sort_is_supported_by_jobs_api():
+def test_auto_apply_filter_returns_only_supported_jobs():
     with TestClient(app) as client:
+        token = uuid4().hex
+        supported = client.post("/api/jobs/import", json={
+            "title": f"Software Engineer {token}",
+            "company": "Automatic Filter Test",
+            "location": "Israel",
+            "description": "Software engineer role",
+            "apply_url": f"https://job-boards.greenhouse.io/example/jobs/{token}",
+        })
+        unsupported = client.post("/api/jobs/import", json={
+            "title": f"Software Engineer Manual {token}",
+            "company": "Automatic Filter Test",
+            "location": "Israel",
+            "description": "Software engineer role",
+            "apply_url": f"https://careers.example.com/jobs/{token}",
+        })
+        assert supported.status_code == 200, supported.text
+        assert unsupported.status_code == 200, unsupported.text
         response = client.get(
             "/api/jobs",
-            params={"paginated": "true", "page": 1, "page_size": 50, "sort": "auto_apply_first"},
+            params={
+                "paginated": "true", "page": 1, "page_size": 50,
+                "automatic_only": "true",
+            },
         )
         assert response.status_code == 200
         payload = response.json()
-        assert payload["sort"] == "auto_apply_first"
-        flags = [job["application_adapter"]["supports_automatic_submit"] for job in payload["items"]]
-        assert flags == sorted(flags, reverse=True)
+        assert payload["automatic_only"] is True
+        ids = {job["id"] for job in payload["items"]}
+        assert supported.json()["id"] in ids
+        assert unsupported.json()["id"] not in ids
+        assert all(job["application_adapter"]["supports_automatic_submit"] for job in payload["items"])
 
 
 def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():

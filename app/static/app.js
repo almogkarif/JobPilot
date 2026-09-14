@@ -942,7 +942,8 @@ function renderApplicationActions(application) {
       <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
   }
   if (blocker?.kind === 'anti_automation_blocked') {
-    return `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח להגשה ידנית</a>
+    return `<button class="btn primary small" type="button" onclick="event.stopPropagation();openInteractiveBlockedApplication(${application.id},this)">פתח סוכן למילוי ואישור ידני</button>
+      <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח את הטופס ישירות</a>
       <button class="btn secondary small" type="button" onclick="event.stopPropagation();markApplicationSubmitted(${application.id})">סמן כהוגש ידנית</button>
       <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
   }
@@ -1733,11 +1734,12 @@ async function loadJobs(options = {}) {
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
   const location = $('#job-location-filter')?.value || '';
+  const automaticOnly = $('#job-automatic-filter')?.value === 'automatic';
   const sort = $('#job-sort').value || 'score_desc';
   const pageSize = Number($('#jobs-page-size').value || 20);
   state.jobsPaging.sort = sort;
   state.jobsPaging.pageSize = pageSize;
-  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&location=${encodeURIComponent(location)}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}`);
+  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&location=${encodeURIComponent(location)}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}&automatic_only=${automaticOnly}`);
   if (Array.isArray(payload)) {
     state.jobs = payload;
     state.jobsPaging = { ...state.jobsPaging, page: 1, total: payload.length, pages: 1 };
@@ -1784,8 +1786,7 @@ function jobCardActions(job) {
   const appliedButton = job.status === 'submitted'
     ? '<button class="btn applied-job-button small" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
     : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
-  const antiAutomationBlocked = job.status === 'manual_required';
-  const automaticSupported = job.application_adapter?.supports_automatic_submit === true && !antiAutomationBlocked;
+  const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
@@ -1800,7 +1801,6 @@ function jobCardActions(job) {
 
 function automaticSubmissionBadge(job) {
   const adapter = job?.application_adapter || {};
-  if (job?.status === 'manual_required') return `<span class="auto-submit-badge manual" title="מערכת הגיוס חסמה את ההגשה האוטומטית עבור המשרה הזו">נדרשת הגשה ידנית</span>`;
   return adapter.supports_automatic_submit === true
     ? `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> ${adapter.form_flow === 'single_page' ? 'טופס קצר · ' : ''}תומך בהגשה אוטומטית</span>`
     : `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית בלבד</span>`;
@@ -1812,7 +1812,7 @@ function renderJobs() {
   setPageContext('jobs', state.jobsPaging.total);
   if (!state.jobs.length) {
     $('#jobs-pagination').innerHTML = '';
-    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value || $('#job-location-filter')?.value;
+    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value || $('#job-location-filter')?.value || $('#job-automatic-filter')?.value;
     root.innerHTML = hasFilters
       ? emptyState('⌕', 'לא נמצאו התאמות לסינון הזה', 'אפשר להסיר מסנן אחד או לנקות את החיפוש ולנסות שוב.', '<button class="btn secondary small" type="button" onclick="clearJobFilters()">נקה את כל המסננים</button>')
       : emptyState('＋', 'עדיין אין משרות להצגה', 'הוסף מקורות משרות והפעל סריקה ראשונה.', '<button class="btn primary small" type="button" onclick="switchView(\'sources\')">הגדר מקורות</button>');
@@ -1882,6 +1882,7 @@ $('#job-search').addEventListener('input', debounce(() => loadJobs({ resetPage: 
 $('#score-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-status-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-location-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-automatic-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-sort').onchange = () => loadJobs({ resetPage: true });
 $('#jobs-page-size').onchange = () => loadJobs({ resetPage: true });
 
@@ -1892,10 +1893,12 @@ function renderActiveFilters() {
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
   const location = $('#job-location-filter')?.value || '';
+  const automatic = $('#job-automatic-filter')?.value || '';
   if (query) filters.push({ key: 'query', label: `חיפוש: ${query}` });
   if (score !== '0') filters.push({ key: 'score', label: `התאמה ${score}+` });
   if (status) filters.push({ key: 'status', label: `סטטוס: ${statusLabel(status)}` });
   if (location) filters.push({ key: 'location', label: `מיקום: ${$('#job-location-filter').selectedOptions[0]?.textContent || 'נבחר'}` });
+  if (automatic) filters.push({ key: 'automatic', label: 'הגשה אוטומטית בלבד' });
   root.innerHTML = filters.length ? `<span>מסננים פעילים</span>${filters.map((filter) => `<button type="button" data-clear-filter="${filter.key}">${esc(filter.label)} <b>×</b></button>`).join('')}<button type="button" class="clear-all-filters" data-clear-filter="all">נקה הכול</button>` : '';
   $$('[data-clear-filter]', root).forEach((button) => { button.onclick = () => clearJobFilters(button.dataset.clearFilter); });
 }
@@ -1905,6 +1908,7 @@ function clearJobFilters(key = 'all') {
   if (key === 'all' || key === 'score') $('#score-filter').value = '0';
   if (key === 'all' || key === 'status') $('#job-status-filter').value = '';
   if (key === 'all' || key === 'location') $('#job-location-filter').value = '';
+  if (key === 'all' || key === 'automatic') $('#job-automatic-filter').value = '';
   loadJobs({ resetPage: true });
 }
 window.clearJobFilters = clearJobFilters;
@@ -2187,8 +2191,8 @@ async function showJob(id) {
   try {
     const [job, resumes] = await Promise.all([api(`/api/jobs/${id}`), api(`/api/resumes?job_id=${id}`)]);
     const alreadySubmitted = job.status === 'submitted';
-    const antiAutomationBlocked = job.status === 'manual_required';
-    const automaticSupported = job.application_adapter?.supports_automatic_submit === true && !antiAutomationBlocked;
+    const antiAutomationBlocked = false;
+    const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
     const breakdownEntries=job.ranking_engine==='v2'
       ? Object.entries({role:'התאמת תפקיד',skills:'כישורים וטכנולוגיות',requirements:'דרישות מקצועיות',preferences:'העדפות'}).map(([key,label])=>{const part=job.match_breakdown?.[key]||{},maximum=Number(part.max)||1,points=Number(part.score)||0;return `<div><span>${label}</span><i><b style="width:${Math.max(0,Math.min(100,Math.round(points/maximum*100)))}%"></b></i><strong>${points}/${maximum}</strong></div>`})
       : Object.entries({title:'כותרת',skills:'סקילים',experience:'ניסיון',location:'מיקום',freshness:'עדכניות'}).map(([key,label]) => `<div><span>${label}</span><i><b style="width:${job.match_breakdown?.[key] ?? 50}%"></b></i><strong>${job.match_breakdown?.[key] ?? 50}</strong></div>`);
@@ -2471,6 +2475,23 @@ async function retryApp(id) {
   }
 }
 
+async function openInteractiveBlockedApplication(id, button=null) {
+  const liveWindow = window.open('about:blank', '_blank');
+  const original = button?.textContent || '';
+  if (button) { button.disabled = true; button.textContent = 'פותח סוכן…'; }
+  try {
+    await api(`/api/applications/${id}/retry?interactive=true`, { method: 'POST' });
+    toast('הסוכן ימלא את הטופס ויעצור לפני Submit כדי שתוכל לבדוק ולאשר');
+    await Promise.all([refreshTrackingApplications(), loadDashboard()]);
+    await openInteractiveLiveView(id, liveWindow);
+  } catch (error) {
+    if (liveWindow && !liveWindow.closed) liveWindow.close();
+    toast(error.message);
+  } finally {
+    if (button?.isConnected) { button.disabled = false; button.textContent = original; }
+  }
+}
+
 async function removeApplication(id) {
   if (!confirm('להסיר את המשרה מתור ההגשות? המשרה עצמה תישאר ברשימת המשרות.')) return;
   try {
@@ -2499,7 +2520,7 @@ function renderBlockerCard(blocker) {
   } else if (blocker.kind === 'file_required') {
     interaction = `<div class="blocker-manual-note">הטופס דורש מסמך נוסף שאינו קורות חיים או גיליון ציונים. כרגע יש להשלים את המסמך הזה ידנית.</div>`;
   } else if (blocker.kind === 'anti_automation_blocked') {
-    interaction = `<div class="blocker-manual-note"><strong>ההגשה האוטומטית נעצרה לצמיתות עבור הניסיון הזה.</strong><br>Ashby סימן את ההגשה כחשודה בספאם. JobPilot לא יבצע retry אוטומטי נוסף; פתח את הטופס והגש ידנית.</div>`;
+    interaction = `<div class="blocker-manual-note"><strong>מערכת הגיוס דורשת אישור אנושי.</strong><br>אפשר לפתוח סוכן גלוי שימלא את הטופס ויעצור לפני Submit.</div><div class="blocker-decision"><button class="btn primary" type="button" onclick="openInteractiveBlockedApplication(${blocker.application_id},this)">פתח סוכן למילוי ואישור ידני</button></div>`;
   } else if (blocker.kind === 'submit_not_sent') {
     interaction = `<div class="blocker-manual-note">לא זוהתה בקשת הגשה שיצאה מהדפדפן. אפשר לפתוח את הטופס כדי לראות את החסימה, או לנסות שוב אחרי תיקון הפרט שמוצג.</div><div class="blocker-decision"><button class="btn secondary" type="button" onclick="retryApp(${blocker.application_id})">נסה שוב</button></div>`;
   } else if (blocker.kind === 'captcha' || blocker.kind === 'linkedin_manual' || blocker.kind === 'confirmation_missing') {
@@ -3866,7 +3887,7 @@ function applicationDiagnosticText(item,index){
   ];
   return lines.join('\n');
 }
-async function copyApplicationFailureDiagnostics(){try{const payload=await api('/api/applications/failure-diagnostics'),failures=Array.isArray(payload.applications)?payload.applications:[],summary=payload.status_summary||{},header=[`JobPilot auto-apply diagnostics v5`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length} | queued: ${Number(summary.queued_total||0)} | dispatch_sent: ${Number(summary.queued_dispatch_sent||0)} | needs_dispatch: ${Number(summary.queued_needs_dispatch||0)} | not_dispatchable: ${Number(summary.queued_not_dispatchable||0)} | excluded_unsupported: ${Number(summary.excluded_unsupported_queued||0)} | excluded_inactive: ${Number(summary.excluded_inactive_queued||0)} | stuck_queued: ${Number(summary.stuck_queued||0)} | stuck_applying: ${Number(summary.stuck_applying||0)} | needs_input: ${Number(summary.needs_input||0)} | failed: ${Number(summary.failed||0)} | manual_required: ${Number(summary.manual_required||0)} | verification_pending: ${Number(summary.verification_pending||0)}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
+async function copyApplicationFailureDiagnostics(){try{await refreshTrackingApplications();const ids=trackingApplications.map(item=>Number(item.id)).filter(Boolean),query=ids.length?`?application_ids=${ids.join(',')}`:'',payload=await api(`/api/applications/failure-diagnostics${query}`),failures=Array.isArray(payload.applications)?payload.applications:[],summary=payload.status_summary||{},header=[`JobPilot auto-apply diagnostics v5`,`generated_at: ${payload.generated_at||new Date().toISOString()} | career_track: ${payload.career_track||'—'} | incomplete: ${failures.length} | queued: ${Number(summary.queued_total||0)} | dispatch_sent: ${Number(summary.queued_dispatch_sent||0)} | needs_dispatch: ${Number(summary.queued_needs_dispatch||0)} | not_dispatchable: ${Number(summary.queued_not_dispatchable||0)} | excluded_unsupported: ${Number(summary.excluded_unsupported_queued||0)} | excluded_inactive: ${Number(summary.excluded_inactive_queued||0)} | stuck_queued: ${Number(summary.stuck_queued||0)} | stuck_applying: ${Number(summary.stuck_applying||0)} | needs_input: ${Number(summary.needs_input||0)} | failed: ${Number(summary.failed||0)} | manual_required: ${Number(summary.manual_required||0)} | verification_pending: ${Number(summary.verification_pending||0)}`,`profile_readiness: ${compactDiagnosticValue(payload.profile_readiness||{})}`].join('\n'),text=[header,...failures.map(applicationDiagnosticText)].join('\n\n');await navigator.clipboard.writeText(text);toast(`אבחון מפורט של ${failures.length} הגשות הועתק`)}catch(error){toast(`העתקת האבחון נכשלה: ${error.message}`)}}
 window.moveTrackedApplication=moveTrackedApplication;window.retryTrackedApplication=retryTrackedApplication;window.copyApplicationFailureDiagnostics=copyApplicationFailureDiagnostics;
 function normalizeAutoApplyQueue(snapshot={}){return {current:snapshot?.current||null,running:Array.isArray(snapshot?.running)?snapshot.running:(snapshot?.current?.status==='applying'?[snapshot.current]:[]),running_count:Number(snapshot?.running_count??(snapshot?.current?.status==='applying'?1:0)),waiting:Array.isArray(snapshot?.waiting)?snapshot.waiting:[],waiting_count:Number(snapshot?.waiting_count||0),attention:Array.isArray(snapshot?.attention)?snapshot.attention:[],attention_count:Number(snapshot?.attention_count||0),queued_count:Number(snapshot?.queued_count||0),total_active_count:Number(snapshot?.total_active_count||0)}}
 function setAutoApplyQueue(snapshot={}){state.autoApplyQueue=normalizeAutoApplyQueue(snapshot);return state.autoApplyQueue}
