@@ -3754,10 +3754,8 @@ def recover_automatic_application_queue(request: Request, db: Session = Depends(
 def application_failure_diagnostics(application_id: int | None = None, db: Session = Depends(get_db)):
     """Return a bounded, high-signal snapshot for troubleshooting auto-apply.
 
-    The live tracker requests one application explicitly.  Keeping the broader
-    snapshot available for administrator investigations preserves the existing
-    endpoint while preventing a user-facing copy action from exporting years of
-    unrelated unfinished attempts.
+    The user-facing copy action requests the complete active notification set.
+    The optional application id remains available for targeted worker diagnostics.
     """
     _repair_existing_ashby_spam_blocks(db)
     profile = get_user_profile(db)
@@ -3765,6 +3763,13 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
     profile_extra = loads(profile.application_profile_json, {}) if profile else {}
     if not isinstance(profile_extra, dict):
         profile_extra = {}
+    def bounded_detail(value, limit: int = 2000):
+        encoded = jsonable_encoder(value)
+        serialized = dumps(encoded)
+        if len(serialized) <= limit:
+            return encoded
+        return {"truncated": True, "preview": serialized[:limit]}
+
     health_by_id = queue_health(db, track)
     statement = (
         select(Application)
@@ -3772,13 +3777,14 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
         .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
         .where(
             Job.career_track == track,
-            Application.mode == "auto",
+            Application.mode.in_(("auto", "audit")),
             Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")),
         )
         .order_by(Application.id)
     )
     if application_id is not None:
         statement = statement.where(Application.id == application_id)
+    statement = statement.limit(100)
     all_rows = db.scalars(statement).unique().all()
     inactive_queued = [
         item for item in all_rows
@@ -3803,10 +3809,10 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
     if application_ids:
         attempts = db.scalars(select(ApplicationAttempt).where(
             ApplicationAttempt.application_id.in_(application_ids)
-        ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id))).all()
+        ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(len(application_ids) * 3)).all()
         events = db.scalars(select(ApplicationEvent).where(
             ApplicationEvent.application_id.in_(application_ids)
-        ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id))).all()
+        ).order_by(desc(ApplicationEvent.created_at), desc(ApplicationEvent.id)).limit(len(application_ids) * 10)).all()
         for attempt in attempts:
             attempts_by_application[attempt.application_id].append(attempt)
         for event in events:
@@ -3855,7 +3861,7 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
             "mode": application.mode,
             "attempt_count": int(application.attempt_count or 0),
             "agent_id": application.agent_id,
-            "last_error": application.last_error,
+            "last_error": str(application.last_error or "")[:2000],
             "started_at": application.started_at,
             "updated_at": application.updated_at,
             "adapter": {"key": adapter["key"], "label": adapter["label"],
@@ -3875,13 +3881,14 @@ def application_failure_diagnostics(application_id: int | None = None, db: Sessi
                 "explanation": blocker.get("explanation", "") if blocker else "",
                 "last_error": application.last_error,
             },
-            "blocker_diagnostics": blocker_diagnostics,
-            "queue_health": health_by_id.get(application.id, {}),
-            "saved_answers": answers,
-            "attempts": [_attempt_dict(item) for item in recent_attempts],
+            "blocker_diagnostics": bounded_detail(blocker_diagnostics),
+            "queue_health": bounded_detail(health_by_id.get(application.id, {})),
+            "saved_answers": bounded_detail(answers),
+            "attempts": [bounded_detail(_attempt_dict(item)) for item in recent_attempts],
             "events": [{
                 "event_type": item.event_type, "from_status": item.from_status, "to_status": item.to_status,
-                "actor": item.actor, "message": item.message, "details": loads(item.details_json, {}),
+                "actor": item.actor, "message": str(item.message or "")[:2000],
+                "details": bounded_detail(loads(item.details_json, {})),
                 "created_at": item.created_at,
             } for item in recent_events],
         })

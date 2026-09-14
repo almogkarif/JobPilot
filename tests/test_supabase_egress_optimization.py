@@ -37,7 +37,7 @@ def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history
     assert "APPLICATION_TRACKING_MAX_MS=15*60*1000" in javascript
     assert "APPLICATION_TIMELINE_MAX_FETCHES=12" in javascript
     assert "document.visibilityState==='hidden'?30000:5000" in javascript
-    assert "?application_id=${applicationId}" in javascript
+    assert "api('/api/applications/failure-diagnostics')" in javascript
 
     source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
     assert "if guest_catalog or not applications_workspace:" in source
@@ -46,6 +46,18 @@ def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history
     assert "joinedload(Application.job).defer(Job.description)" in source
     assert "_auto_apply_queue_snapshot(db, application.job.career_track) if workspace_allowed else {}" in source
     assert "statement = statement.where(Application.id == application_id)" in source
+
+
+def test_application_diagnostics_export_is_bounded():
+    source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
+    body = source[
+        source.index("def application_failure_diagnostics"):
+        source.index('@app.post("/api/applications/{application_id}/prioritize")')
+    ]
+    assert ".limit(100)" in body
+    assert ".limit(len(application_ids) * 3)" in body
+    assert ".limit(len(application_ids) * 10)" in body
+    assert "def bounded_detail(value, limit: int = 2000)" in body
 
 
 def test_regular_cloud_user_cannot_auto_queue_catalog_jobs(monkeypatch):

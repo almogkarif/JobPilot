@@ -16,7 +16,7 @@ def test_auto_apply_queue_has_persistent_visual_waiting_state():
     assert "תופעל אוטומטית ברצף" in js
     assert "autoQueue.total_active_count" in js
     assert "otherAutoQueueItems" in js
-    assert "ממתינות להגשה אוטומטית" in js
+    assert "משרות ממתינות בתור" in js
     assert "queue_position" in js
     assert "application-live-queue" in js
     assert ".application-live-queue" in css
@@ -42,19 +42,22 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     assert "items.push({ view:'applications', count:autoQueueCount, queue:true, persistent:true })" in js
     assert "משרות ממתינות בתור" in js
     assert "אין כרגע משרות בתור — לחץ כדי לפתוח את התור" in js
-    assert "התור ריק" in js
+    assert "אין הגשות פעילות" in js
     assert "actionableItems=items.filter(item=>!item.queue||Number(item.count)>0)" in js
     assert "queueNotices=items.filter(item=>item.queue).map(notificationMarkup).join('')" in js
     assert "root.innerHTML=tracker+queueNotices+otherNotices" in js
     assert "notification-queue-shortcut" in js
     assert ".notification-queue-shortcut" in css
     assert ".notification-queue-shortcut { position:relative" in css
-    assert "ירוק מציין הגשה שרצה" in js
-    assert "צהוב מציין המתנה או שאלה" in js
+    assert "הגשות שרצות, ממתינות או דורשות טיפול" in js
+    assert "דורשות טיפול" in js
     assert "attention:Array.isArray" in js
     assert "data-choice-blocker" in js
     assert "workers פעילים" in js
     assert "queue.running" in js
+    assert "function combinedApplicationQueue" in js
+    assert "Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()])" in js
+    assert "הרשימה כוללת את כל ההגשות שמופיעות במרכז ההתראות" in js
     assert "running_count" in js
     assert "tone-${tone}" in js
     assert ".auto-apply-queue-list article.tone-danger" in css
@@ -101,7 +104,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "copyApplicationFailureDiagnostics" in js
     assert "העתק אבחון של ההגשות שלא הושלמו" in js
     assert "/api/applications/failure-diagnostics" in js
-    assert "?application_id=${applicationId}" in js
+    assert "api('/api/applications/failure-diagnostics')" in js
+    assert "needs_input: ${Number(summary.needs_input||0)}" in js
     assert "YELLOW_QUESTION" in js
     assert "RED_ERROR" in js
     assert "recent_timeline" in js
@@ -119,7 +123,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "technicalDetailsAllowed()" in js
     assert "dispatch_sent_waiting" in js
     assert "needs_redispatch" in js
-    assert "ירוק מציין הגשה שרצה" in js
+    assert "הגשות שרצות, ממתינות או דורשות טיפול" in js
     assert "autoQueueAttentionMarkup" in js
     assert "retryAutomaticApplication" in js
     assert "automaticRetryInFlight" in js
