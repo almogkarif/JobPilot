@@ -125,6 +125,8 @@ startup_retry_tasks: set[asyncio.Task] = set()
 ONE_TIME_SUBMIT_KEY = "__jobpilot_submit_approved_once__"
 LOCAL_BROWSER_HANDOFF_KEY = "__jobpilot_local_browser_handoff_v1__"
 LIVE_VIEW_URL_KEY = "__jobpilot_live_view_url_v1__"
+LIVE_VIEW_PUBLISHED_AT_KEY = "__jobpilot_live_view_published_at_v1__"
+LIVE_VIEW_TTL_SECONDS = 14 * 60
 PROFILE_GRADE_SHEET_AUTO_RETRY_KEY = "__jobpilot_profile_grade_sheet_auto_retry_v4__"
 GREENHOUSE_NATIVE_URL_AUTO_RETRY_KEY = "__jobpilot_greenhouse_native_url_retry_v1__"
 AGENT_FORM_REPAIR_AUTO_RETRY_KEY = "__jobpilot_agent_form_repair_v1__"
@@ -140,6 +142,18 @@ GRADE_SHEET_SUFFIXES = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt"
 
 def _normalize_company_memory_text(value: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9א-ת+/# ]", " ", str(value or "").casefold())).strip()
+
+
+def _live_view_is_ready(answers: dict) -> bool:
+    if not str(answers.get(LIVE_VIEW_URL_KEY) or "").strip():
+        return False
+    try:
+        published_at = datetime.fromisoformat(str(answers.get(LIVE_VIEW_PUBLISHED_AT_KEY) or ""))
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return datetime.now(timezone.utc) - published_at <= timedelta(seconds=LIVE_VIEW_TTL_SECONDS)
 
 
 def _company_answer_prefix(job: Job | None) -> str:
@@ -3278,6 +3292,7 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         # A Browserbase debugger URL belongs to one short-lived session. Never
         # let a retry return a disconnected URL from the previous attempt.
         answers.pop(LIVE_VIEW_URL_KEY, None)
+        answers.pop(LIVE_VIEW_PUBLISHED_AT_KEY, None)
         application.answers_json = dumps(answers)
     if payload.approve_submit:
         answers = loads(application.answers_json, {})
@@ -3337,8 +3352,9 @@ def application_live_view(application_id: int, db: Session = Depends(get_db)):
     )
     if answers_json is None:
         raise HTTPException(404, "Application not found")
-    url = str(loads(answers_json, {}).get(LIVE_VIEW_URL_KEY) or "")
-    return {"ready": bool(url), "url": url}
+    answers = loads(answers_json, {})
+    ready = _live_view_is_ready(answers)
+    return {"ready": ready, "url": str(answers.get(LIVE_VIEW_URL_KEY) or "") if ready else ""}
 
 
 @app.get("/api/jobs/{job_id}/application-preview")
@@ -4239,6 +4255,7 @@ async def retry_application(
     answers.pop(ONE_TIME_SUBMIT_KEY, None)
     answers.pop(LOCAL_BROWSER_HANDOFF_KEY, None)
     answers.pop(LIVE_VIEW_URL_KEY, None)
+    answers.pop(LIVE_VIEW_PUBLISHED_AT_KEY, None)
     if auto_submit:
         if application.mode != "auto" or not _application_auto_submit_supported(application):
             raise HTTPException(409, "לא ניתן להגיש מחדש את המשרה הזו אוטומטית")
@@ -5920,6 +5937,7 @@ def agent_publish_live_view(application_id: int, request: Request, payload: dict
         raise HTTPException(400, "Invalid live view URL")
     answers = loads(application.answers_json, {})
     answers[LIVE_VIEW_URL_KEY] = url
+    answers[LIVE_VIEW_PUBLISHED_AT_KEY] = datetime.now(timezone.utc).isoformat()
     application.answers_json = dumps(answers)
     db.commit()
     return {"ready": True}
@@ -6749,7 +6767,7 @@ def _application_dict(
     } if include_answers else {}
     return {
         "id": a.id, "job_id": a.job_id, "status": a.status, "mode": a.mode,
-        "live_view_ready": bool(str(stored_answers.get(LIVE_VIEW_URL_KEY) or "").strip()),
+        "live_view_ready": _live_view_is_ready(stored_answers),
         "resume_path": a.resume_path, "answers": public_answers, "started_at": a.started_at,
         "submitted_at": a.submitted_at, "updated_at": a.updated_at, "last_error": a.last_error,
         "agent_id": a.agent_id, "attempt_count": a.attempt_count, "blocker": blocker_summary,

@@ -1,8 +1,8 @@
 from agent import run_agent
 from app.database import SessionLocal
-from app.main import ONE_TIME_SUBMIT_KEY, app
+from app.main import LIVE_VIEW_PUBLISHED_AT_KEY, ONE_TIME_SUBMIT_KEY, app
 from app.models import Application
-from app.utils import loads
+from app.utils import dumps, loads
 from fastapi.testclient import TestClient
 from uuid import uuid4
 
@@ -113,6 +113,29 @@ def test_retrying_interactive_application_does_not_reuse_expired_live_view(monke
 
     assert retried.status_code == 200, retried.text
     assert live_view.json() == {"ready": False, "url": ""}
+
+
+def test_expired_interactive_live_view_is_not_offered_for_reconnect(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        job = _make_job(client, "Expired Live View Engineer")
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"}).json()
+        client.post(
+            f"/api/agent/tasks/{application['id']}/live-view",
+            headers={"X-JobPilot-Agent-Token": "change-me"},
+            json={"agent_id": "browserbase-test", "url": "https://www.browserbase.com/live/expired"},
+        )
+        with SessionLocal() as db:
+            row = db.get(Application, application["id"])
+            answers = loads(row.answers_json, {})
+            answers[LIVE_VIEW_PUBLISHED_AT_KEY] = "2020-01-01T00:00:00+00:00"
+            row.answers_json = dumps(answers)
+            db.commit()
+        live_view = client.get(f"/api/applications/{application['id']}/live-view")
+        timeline = client.get(f"/api/applications/{application['id']}/timeline")
+
+    assert live_view.json() == {"ready": False, "url": ""}
+    assert timeline.json()["application"]["live_view_ready"] is False
 
 
 def test_fill_audit_stops_then_explicit_approval_dispatches_one_submit_attempt(monkeypatch):
