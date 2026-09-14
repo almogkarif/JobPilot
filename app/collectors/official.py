@@ -129,7 +129,11 @@ PRESETS = {
     "exodigo": _comeet_preset("exodigo", "89.005", "Exodigo"),
     "paragon": {**_comeet_preset("paragon", "76.006", "Paragon"), "data_url": "https://www.comeet.co/careers-api/2.0/company/76.006/positions?token=67626C46762D3A33B02D3A204E26C4676676&details=true", "data_only": True},
     "legitsecurity": _comeet_preset("legitsecurity.com", "37.004", "Legit Security"),
-    "voyantis": _comeet_preset("voyantis", "86.00B", "Voyantis"),
+    "voyantis": {
+        **_comeet_preset("voyantis", "86.00B", "Voyantis"),
+        "data_url": "https://www.comeet.co/careers-api/2.0/company/86.00B/positions?token=68B2742D1600D16020B71A2C2742&details=true",
+        "data_only": True,
+    },
     "sunflower": {"url": "https://www.comeet.com/jobs/sunflower/AA.009", "selector": 'a[href*="/jobs/sunflower/AA.009/"]', "id_pattern": r"/jobs/sunflower/AA\.009/[^/?#\s]+/([^/?#\s]+)", "company": "Sunflower", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "preserve_on_empty": True},
     "moonactive": {"url": "https://www.moonactive.com/careers/", "selector": 'a[href*="moonactive-position"], a[href*="/careers/"][href*="uid="]', "id_pattern": r"[?&]uid=([^&#\s]+)", "company": "Moon Active", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "dynamic_scroll": True, "preserve_on_empty": True},
     "connecteam": {"url": "https://connecteam.com/careers/", "selector": 'a[href*="/careers/"][href*="gh_jid="], a[href*="/careers/"]', "id_pattern": r"(?:[?&]gh_jid=|/careers/)(\d+)", "company": "Connecteam", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 120, "preserve_on_empty": True},
@@ -229,7 +233,7 @@ class OfficialCareersCollector:
                 location = "Israel"
             results[match.group(1)] = NormalizedJob(
                 external_id=match.group(1), title=title, company=company_name or preset["company"],
-                location=location, workplace="onsite", description=text,
+                location=location, workplace=_normalized_workplace(row.get("workplace")), description=text,
                 apply_url=href, source_url=href,
             )
         normalized = list(results.values())
@@ -719,6 +723,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                 rows.append({
                     "href": href, "onclick": "",
                     "title": title, "linkText": title, "text": clean_job_text("\n".join(text_parts))[:12000],
+                    "workplace": scalar(node.get("workplace_type")),
                 })
             for value in node.values():
                 walk(value)
@@ -1056,3 +1061,12 @@ def _extract_israel_location(text: str) -> str:
     if re.search(r"(?<![A-Za-z])Israel(?![A-Za-z])", compact, re.IGNORECASE) or "ישראל" in compact:
         return "Israel"
     return ""
+
+
+def _normalized_workplace(value: object) -> str:
+    normalized = " ".join(str(value or "").split()).casefold()
+    if "hybrid" in normalized or "היבריד" in normalized:
+        return "hybrid"
+    if "remote" in normalized or "מרחוק" in normalized:
+        return "remote"
+    return "onsite"

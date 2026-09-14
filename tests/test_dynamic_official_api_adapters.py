@@ -155,6 +155,29 @@ def test_comeet_api_extracts_full_details_and_city_from_location_object():
     assert "Python experience" in row["text"]
 
 
+def test_voyantis_comeet_feed_keeps_full_description_requirements_and_workplace():
+    payload = json.dumps([{
+        "uid": "89.E6C",
+        "name": "AI-native software Engineer",
+        "location": {"name": "Tel Aviv, Israel", "city": "Tel Aviv-Yafo"},
+        "employment_type": "Full-time",
+        "experience_level": "Mid",
+        "workplace_type": "Hybrid",
+        "details": [
+            {"name": "Description", "value": "<p>Build ML and data pipelines on AWS.</p>"},
+            {"name": "Requirements", "value": "<ul><li>Strong Python</li><li>3+ years of experience</li></ul>"},
+        ],
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/voyantis/86.00B/ai-native-software-engineer/89.E6C",
+    }])
+    row, href, external_id = _one("voyantis", payload)
+    assert external_id == "89.E6C"
+    assert href.endswith("/ai-native-software-engineer/89.E6C")
+    assert "Build ML and data pipelines on AWS" in row["text"]
+    assert "Strong Python" in row["text"]
+    assert "3+ years of experience" in row["text"]
+    assert row["workplace"] == "Hybrid"
+
+
 def test_comeet_hydration_keeps_feed_route_when_branded_shell_has_template_heading(monkeypatch):
     from app.collectors.official import _hydrate_detail_rows
 
@@ -193,7 +216,7 @@ def test_unstable_large_boards_use_their_public_data_feeds():
 
 
 def test_problematic_comeet_boards_request_complete_structured_details():
-    for identifier in ("vastdata", "silverfort", "paragon"):
+    for identifier in ("vastdata", "silverfort", "paragon", "voyantis"):
         preset = PRESETS[identifier]
         assert preset["data_only"] is True
         assert "details=true" in preset["data_url"]
