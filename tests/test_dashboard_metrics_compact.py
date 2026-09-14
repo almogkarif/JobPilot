@@ -32,6 +32,12 @@ def test_metrics_stay_one_row_on_mobile_and_support_dark_mode():
     assert "body.theme-dark #view-dashboard .metric" in CSS
 
 
+def test_submitted_and_attention_metrics_use_semantic_colors():
+    assert '#view-dashboard .metric[data-metric-tone="submitted"] { --metric-accent:#2f9368; }' in CSS
+    assert '#view-dashboard .metric[data-metric-tone="attention"] { --metric-accent:var(--danger); }' in CSS
+    assert '.metric:is([data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b' in CSS
+
+
 def test_v0111_asset_versions_are_bumped():
     assert 'styles.css?v=0.52.5' in HTML
     assert 'app.js?v=0.31.12' in HTML

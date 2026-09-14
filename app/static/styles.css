@@ -4503,8 +4503,10 @@ body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field inp
 #view-dashboard .metric[data-metric-tone="strong"] { --metric-accent:var(--accent); }
 #view-dashboard .metric[data-metric-tone="queue"] { --metric-accent:color-mix(in srgb,var(--muted) 82%,var(--accent)); }
 #view-dashboard .metric[data-metric-tone="submitted"] { --metric-accent:#2f9368; }
-#view-dashboard .metric[data-metric-tone="attention"] { --metric-accent:var(--muted); }
-#view-dashboard .metric[data-metric-tone="attention"][data-has-value="true"] { --metric-accent:var(--danger); }
+#view-dashboard .metric[data-metric-tone="attention"] { --metric-accent:var(--danger); }
+#view-dashboard .metric:is([data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b {
+  color:var(--metric-accent);
+}
 
 #view-dashboard .two-col {
   grid-template-columns:minmax(0,1.55fr) minmax(300px,.8fr);
