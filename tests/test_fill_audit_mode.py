@@ -23,6 +23,14 @@ def _make_job(client: TestClient, title: str) -> dict:
     return response.json()
 
 
+def _stop_unclaimed_application(application_id: int) -> None:
+    with SessionLocal() as db:
+        application = db.get(Application, application_id)
+        if application and application.status == "queued":
+            application.status = "failed"
+            db.commit()
+
+
 def test_fill_audit_never_authorizes_submit_even_with_global_override(monkeypatch):
     monkeypatch.setattr(run_agent, "AUTO_SUBMIT", True)
     task = {"application": {"mode": "audit"}, "submit_approved_once": True}
@@ -35,6 +43,7 @@ def test_queue_accepts_fill_audit_mode(monkeypatch):
     with TestClient(app) as client:
         job = _make_job(client, "Fill Audit Engineer")
         response = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        _stop_unclaimed_application(response.json()["id"])
 
     assert response.status_code == 200, response.text
     assert response.json()["mode"] == "audit"
@@ -71,6 +80,7 @@ def test_fill_audit_dispatches_interactive_cloud_browser(monkeypatch):
     with TestClient(app) as client:
         job = _make_job(client, "Visible Local Review Engineer")
         response = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
+        _stop_unclaimed_application(response.json()["id"])
 
     assert response.status_code == 200, response.text
     assert response.json()["mode"] == "audit"
@@ -92,6 +102,7 @@ def test_interactive_worker_publishes_private_live_view_for_application_owner(mo
         )
         ready = client.get(f"/api/applications/{application['id']}/live-view")
         timeline = client.get(f"/api/applications/{application['id']}/timeline")
+        _stop_unclaimed_application(application["id"])
 
     assert published.status_code == 200, published.text
     assert ready.json() == {"ready": True, "url": "https://www.browserbase.com/live/test"}
@@ -110,6 +121,7 @@ def test_retrying_interactive_application_does_not_reuse_expired_live_view(monke
         )
         retried = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
         live_view = client.get(f"/api/applications/{first['id']}/live-view")
+        _stop_unclaimed_application(first["id"])
 
     assert retried.status_code == 200, retried.text
     assert live_view.json() == {"ready": False, "url": ""}
@@ -133,6 +145,7 @@ def test_expired_interactive_live_view_is_not_offered_for_reconnect(monkeypatch)
             db.commit()
         live_view = client.get(f"/api/applications/{application['id']}/live-view")
         timeline = client.get(f"/api/applications/{application['id']}/timeline")
+        _stop_unclaimed_application(application["id"])
 
     assert live_view.json() == {"ready": False, "url": ""}
     assert timeline.json()["application"]["live_view_ready"] is False
@@ -187,3 +200,5 @@ def test_fill_audit_stops_then_explicit_approval_dispatches_one_submit_attempt(m
         application = db.get(Application, application_id)
         assert application.mode == "review"
         assert loads(application.answers_json, {})[ONE_TIME_SUBMIT_KEY] is True
+        application.status = "failed"
+        db.commit()

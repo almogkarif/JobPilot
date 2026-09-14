@@ -654,7 +654,7 @@ def test_jobs_support_paginated_sorting_without_breaking_legacy_list_response():
         payload = response.json()
         assert set(payload) == {
             "items", "total", "page", "page_size", "pages", "sort",
-            "location", "location_options",
+            "location", "location_options", "automatic_only",
         }
         assert payload["page"] == 1
         assert payload["page_size"] == 2
