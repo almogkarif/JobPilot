@@ -377,6 +377,27 @@ def test_explicit_auto_retry_restores_a_guided_review_application_to_background_
         db.commit()
 
 
+def test_operator_worker_can_convert_an_already_queued_guided_attempt_to_auto(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        job = client.post("/api/jobs/import", json={
+            "title": "Queued guided retry engineer", "company": "Queued Guided Co", "location": "Israel",
+            "apply_url": "https://boards.greenhouse.io/queuedguided/jobs/321",
+        }).json()
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"}).json()
+        retried = client.post(
+            f"/api/agent/tasks/{application['id']}/retry-stopped",
+            json={"token": "change-me", "interactive": False},
+        )
+
+    assert retried.status_code == 200, retried.text
+    with SessionLocal() as db:
+        stored = db.get(Application, application["id"])
+        assert stored.mode == "auto"
+        stored.status = "failed"
+        db.commit()
+
+
 def test_local_browser_handoff_is_claimed_only_by_local_agent(monkeypatch):
     dispatched = []
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: dispatched.append(application_id))

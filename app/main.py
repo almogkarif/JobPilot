@@ -4239,7 +4239,10 @@ async def retry_application(
     # The same circular-arrow action is exposed in more than one UI surface.
     # A second click that arrives after the first request queued/claimed the job
     # must be a no-op, otherwise it dispatches a duplicate GitHub worker.
-    if application.status == "applying" or (application.status == "queued" and not application.last_error):
+    if application.status == "applying" or (
+        application.status == "queued" and not application.last_error
+        and (not auto_submit or application.mode == "auto")
+    ):
         return _application_dict(application, db)
     if application.status == "verification_pending" and not confirm_not_submitted:
         raise HTTPException(409, "נדרש אישור מפורש שלא התקבל אישור הגשה לפני ניסיון חוזר")
@@ -6189,8 +6192,12 @@ def agent_retry_stopped_application(
         raise HTTPException(404, "Application not found")
     if not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
-    if payload.interactive and application.status == "queued":
-        application.mode = "audit"
+    if application.status == "queued":
+        application.mode = "audit" if payload.interactive else "auto"
+        answers = loads(application.answers_json, {})
+        answers.pop(LIVE_VIEW_URL_KEY, None)
+        answers.pop(LIVE_VIEW_PUBLISHED_AT_KEY, None)
+        application.answers_json = dumps(answers)
         db.commit()
         return {"application_id": application.id, "status": application.status}
     if not payload.interactive and (application.status == "manual_required" or any(
