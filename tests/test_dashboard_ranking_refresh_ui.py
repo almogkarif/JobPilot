@@ -28,3 +28,6 @@ def test_dashboard_keeps_loading_notice_visible_when_recommendations_are_unranke
     assert "api('/api/ranking/refresh', {method:'POST'})" in JS
     assert "דורגו ${Math.min(completed,total)} מתוך ${total}" in JS
     assert "function rankingEtaLabel(seconds)" in JS
+    assert "Number(dashboard.total_jobs)||0" in JS
+    assert "setInterval(updateDashboardRankingCountdown,1000)" in JS
+    assert "זמן משוער: ${String(minutes).padStart(2,'0')}:${String(remaining).padStart(2,'0')}" in JS

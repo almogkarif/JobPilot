@@ -1321,14 +1321,28 @@ $('#save-answer-pane').onclick = saveAllAnswers;
 
 let dashboardRankingRefreshTimer = null;
 let dashboardRankingRefreshPolls = 0;
+let dashboardRankingCountdownTimer = null;
+let dashboardRankingEtaDeadline = 0;
+let dashboardRankingEtaTrack = '';
 const dashboardRankingRecoveryTracks = new Set();
 
 function rankingEtaLabel(seconds) {
-  const value=Math.max(0,Number(seconds)||0);
+  const value=Math.max(0,Math.ceil(Number(seconds)||0));
   if (!value) return '';
-  if (value < 60) return 'זמן משוער: פחות מדקה';
-  const minutes=Math.max(1,Math.ceil(value/60));
-  return `זמן משוער: כ־${minutes} דקות`;
+  const minutes=Math.floor(value/60),remaining=value%60;
+  return `זמן משוער: ${String(minutes).padStart(2,'0')}:${String(remaining).padStart(2,'0')}`;
+}
+
+function updateDashboardRankingCountdown() {
+  const details=$('#recommendations-ranking-details');
+  if (!details) {
+    clearInterval(dashboardRankingCountdownTimer);
+    dashboardRankingCountdownTimer=null;
+    return;
+  }
+  const remaining=Math.max(0,Math.ceil((dashboardRankingEtaDeadline-Date.now())/1000));
+  const eta=rankingEtaLabel(remaining);
+  details.textContent=[details.dataset.progress,eta,details.dataset.message].filter(Boolean).join(' · ');
 }
 
 async function loadDashboard() {
@@ -1382,14 +1396,37 @@ async function loadDashboard() {
   const rankingRefresh = dashboard.ranking_refresh || {};
   const recommendationsPending = !dashboard.guest_catalog && (dashboard.recent_jobs || []).some((job) => job.ranking_pending);
   const rankingIsLoading = Boolean(rankingRefresh.running || recommendationsPending);
-  const completed=Math.max(0,Number(rankingRefresh.completed)||0),total=Math.max(0,Number(rankingRefresh.total)||0);
+  const completed=Math.max(0,Number(rankingRefresh.completed)||0);
+  const total=Math.max(0,Number(rankingRefresh.total)||0,Number(dashboard.total_jobs)||0);
   const progressLabel=total?`דורגו ${Math.min(completed,total)} מתוך ${total}`:'';
-  const etaLabel=rankingEtaLabel(rankingRefresh.eta_seconds);
+  const remainingJobs=Math.max(0,total-completed);
+  const serverEta=Math.max(0,Number(rankingRefresh.eta_seconds)||0);
+  const rankingTrack=String(dashboard.career_track||'');
+  if (rankingIsLoading) {
+    if (serverEta) dashboardRankingEtaDeadline=Date.now()+(serverEta*1000);
+    else if (dashboardRankingEtaTrack!==rankingTrack || !dashboardRankingEtaDeadline || dashboardRankingEtaDeadline<=Date.now()) {
+      // Until a measured rate exists, use a conservative one-job-per-second estimate.
+      dashboardRankingEtaDeadline=Date.now()+(Math.max(1,remainingJobs)*1000);
+    }
+    dashboardRankingEtaTrack=rankingTrack;
+  }
   rankingStatus.hidden = !rankingIsLoading;
   rankingStatus.innerHTML = rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
-    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small>${esc([progressLabel,etaLabel,rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.'].filter(Boolean).join(' · '))}</small></span>
+    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small id="recommendations-ranking-details"></small></span>
   ` : '';
+  clearInterval(dashboardRankingCountdownTimer);
+  dashboardRankingCountdownTimer=null;
+  if (rankingIsLoading) {
+    const details=$('#recommendations-ranking-details');
+    details.dataset.progress=progressLabel;
+    details.dataset.message=rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.';
+    updateDashboardRankingCountdown();
+    dashboardRankingCountdownTimer=setInterval(updateDashboardRankingCountdown,1000);
+  } else {
+    dashboardRankingEtaDeadline=0;
+    dashboardRankingEtaTrack='';
+  }
   if (recommendationsPending && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
     dashboardRankingRecoveryTracks.add(dashboard.career_track);
     api('/api/ranking/refresh', {method:'POST'}).catch((error) => toast(error.message));

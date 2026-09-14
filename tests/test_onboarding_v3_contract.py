@@ -41,5 +41,5 @@ def test_developer_users_panel_is_scroll_limited():
     assert 'max-height:292px' in CSS
 
 def test_assets_bumped():
-    assert 'app.js?v=0.31.10' in HTML
+    assert 'app.js?v=0.31.11' in HTML
     assert 'styles.css?v=0.52.3' in HTML
