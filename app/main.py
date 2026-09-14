@@ -1729,7 +1729,7 @@ def _degree_visibility_condition(profile: Profile | None):
 
 def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str, dict[str, int]]:
     stats = {
-        track.key: {"enabled_sources": 0, "source_errors": 0, "jobs": 0, "strong_matches": 0}
+        track.key: {"enabled_sources": 0, "source_errors": 0, "jobs": 0, "eligible_jobs": 0, "strong_matches": 0}
         for track in CAREER_TRACKS
     }
     source_rows = db.execute(
@@ -1745,6 +1745,7 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
             stats[key]["enabled_sources"] = int(enabled_sources or 0)
             stats[key]["source_errors"] = int(source_errors or 0)
 
+    catalog_condition = Job.is_active.is_(True) & Job.source.has(Source.kind != "demo")
     degree_condition = _degree_visibility_condition(profile) & Job.source.has(Source.kind != "demo")
 
     ranking_settings = get_ranking_settings(db)
@@ -1759,10 +1760,13 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
     job_rows = db.execute(
         select(
             Job.career_track,
-            # Track totals describe the active catalog, not only jobs that currently
-            # pass personalized eligibility. Ranking affects recommendations/strong
-            # matches, while the catalog count remains stable during reranks.
-            func.sum(case((degree_condition, 1), else_=0)),
+            func.sum(case((catalog_condition, 1), else_=0)),
+            func.sum(case((
+                degree_condition
+                & JobRanking.id.is_not(None)
+                & (JobRanking.eligibility_state != "excluded"),
+                1,
+            ), else_=0)),
             func.sum(case((
                 degree_condition
                 & JobRanking.id.is_not(None)
@@ -1772,10 +1776,11 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
             ), else_=0)),
         ).outerjoin(JobRanking, valid_ranking_join).group_by(Job.career_track)
     ).all()
-    for track_key, jobs, strong_matches in job_rows:
+    for track_key, jobs, eligible_jobs, strong_matches in job_rows:
         key = normalize_track(track_key)
         if key in stats:
             stats[key]["jobs"] = int(jobs or 0)
+            stats[key]["eligible_jobs"] = int(eligible_jobs or 0)
             stats[key]["strong_matches"] = int(strong_matches or 0)
     return stats
 
@@ -1909,6 +1914,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         career_stats = _career_track_stats(catalog_db, profile=profile)
         current_stats = career_stats.get(career_track, {})
         total_jobs = int(current_stats.get("jobs", 0))
+        eligible_jobs = total_jobs if guest_catalog else int(current_stats.get("eligible_jobs", 0))
         strong_matches = int(current_stats.get("strong_matches", 0))
 
         # Dashboard recommendations are the strongest active opportunities in the
@@ -2004,6 +2010,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     }
     return {
         "total_jobs": total_jobs,
+        "eligible_jobs": eligible_jobs,
         "strong_matches": strong_matches,
         "queued": auto_apply_queue["queued_count"],
         "auto_apply_queue": auto_apply_queue,

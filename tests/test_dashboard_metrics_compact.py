@@ -6,15 +6,17 @@ CSS = (ROOT / 'app' / 'static' / 'styles.css').read_text()
 HTML = (ROOT / 'app' / 'static' / 'index.html').read_text()
 
 
-def test_dashboard_uses_all_five_metrics_in_one_joined_strip():
+def test_dashboard_uses_all_six_metrics_in_one_joined_strip():
     dashboard_css = CSS.split("#view-dashboard .metrics {", 1)[1].split("#view-dashboard .two-col {", 1)[0]
-    assert "grid-template-columns:repeat(5,minmax(0,1fr))" in dashboard_css
+    assert "grid-template-columns:repeat(6,minmax(0,1fr))" in dashboard_css
     assert "gap:0" in dashboard_css
     assert "border-radius:20px" in dashboard_css
     assert "metric:not(:last-child)::after" in dashboard_css
     assert "metric-link i { display:none; }" in dashboard_css
     assert 'class="metric-copy"' in JS
-    assert "skeleton(5, 'metrics')" in JS
+    assert "skeleton(6, 'metrics')" in JS
+    assert "עברו את הסינון" in JS
+    assert "בהתאם להעדפות שהגדרת" in JS
 
 
 def test_dashboard_metrics_keep_navigation_functionality():

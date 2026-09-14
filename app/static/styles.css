@@ -4424,7 +4424,7 @@ body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field inp
    Deliberately non-metallic: the active career-track color remains the material accent. */
 #view-dashboard .metrics {
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(6,minmax(0,1fr));
   gap:0;
   margin-bottom:16px;
   padding:6px 8px;

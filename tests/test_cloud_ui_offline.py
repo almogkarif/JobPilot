@@ -197,6 +197,8 @@ def test_cloud_regular_user_can_submit_but_cannot_manage_worker_credentials():
         )
         page.add_script_tag(content=js)
         page.wait_for_function("document.querySelector('#account-chip') && !document.querySelector('#account-chip').hidden")
+        page.get_by_text('עברו את הסינון', exact=True).wait_for()
+        assert page.locator('#metrics .metric').count() == 6
         assert page.locator('[data-view="applications"]').is_hidden()
         assert page.locator('[data-mobile-view="applications"]').is_hidden()
         assert page.locator('#agent-state').inner_text() == 'מחובר · 0'

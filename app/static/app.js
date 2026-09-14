@@ -1347,7 +1347,7 @@ function updateDashboardRankingCountdown() {
 
 async function loadDashboard() {
   if (state.activeView === 'dashboard') {
-    $('#metrics').innerHTML = skeleton(5, 'metrics');
+    $('#metrics').innerHTML = skeleton(6, 'metrics');
     $('#recent-jobs').innerHTML = skeleton(3, 'rows');
   }
   state.dashboard = await api('/api/dashboard');
@@ -1360,11 +1360,9 @@ async function loadDashboard() {
   }
   renderReadiness(dashboard.readiness || {});
   renderSourceErrorBadge(Number(dashboard.readiness?.sources_with_errors || 0));
-  const metrics = (authState.user?.is_guest || !applicationsWorkspaceAllowed()) ? [
-    { label: 'משרות פעילות', value: dashboard.total_jobs, detail: authState.user?.is_guest ? 'מהקטלוג החי של האדמין' : 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
-    { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
-  ] : [
+  const metrics = [
     { label: 'משרות פעילות', value: dashboard.total_jobs, detail: 'בכל המקורות', view: 'jobs', score: 0, status: '', tone: 'jobs' },
+    { label: 'עברו את הסינון', value: dashboard.eligible_jobs ?? dashboard.total_jobs, detail: 'בהתאם להעדפות שהגדרת', view: 'jobs', score: 0, status: '', tone: 'eligible' },
     { label: 'התאמות חזקות', value: dashboard.strong_matches, detail: 'ציון 80 ומעלה', view: 'jobs', score: 80, status: '', tone: 'strong' },
     { label: 'בתור להגשה', value: dashboard.queued, detail: 'ממתינות ל־Agent', view: 'applications', tone: 'queue' },
     { label: 'הוגשו', value: dashboard.submitted, detail: 'מועמדויות מתועדות', view: 'applications', tone: 'submitted' },
@@ -1381,7 +1379,8 @@ async function loadDashboard() {
   `).join('');
   $$('#metrics [data-metric-view]').forEach((button) => {
     button.onclick = () => {
-      if (button.dataset.metricTone === 'queue') return showAutoApplyQueue();
+      if (button.dataset.metricTone === 'queue') return applicationsWorkspaceAllowed() ? showAutoApplyQueue() : openNotifications();
+      if (!applicationsWorkspaceAllowed() && ['submitted','attention'].includes(button.dataset.metricTone)) return openNotifications();
       switchView(button.dataset.metricView, {
         minScore: button.dataset.minScore === '' ? undefined : Number(button.dataset.minScore),
         status: button.dataset.status === '' ? undefined : button.dataset.status,

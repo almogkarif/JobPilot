@@ -58,6 +58,14 @@ def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history
     assert "_automatic_application_query_filter()," in source
 
 
+def test_dashboard_filtered_job_count_uses_the_existing_bounded_aggregate():
+    source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
+    stats = source[source.index("def _career_track_stats"):source.index("def _career_tracks_payload")]
+    assert '"eligible_jobs": 0' in stats
+    assert "JobRanking.eligibility_state != \"excluded\"" in stats
+    assert "for track_key, jobs, eligible_jobs, strong_matches in job_rows" in stats
+
+
 def test_application_diagnostics_export_is_bounded():
     source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
     body = source[

@@ -480,6 +480,7 @@ def test_repeated_profile_saves_and_rescoring_remain_stable():
             dashboard = client.get("/api/dashboard")
             assert dashboard.status_code == 200
             assert dashboard.json()["total_jobs"] >= 3
+            assert 0 <= dashboard.json()["eligible_jobs"] <= dashboard.json()["total_jobs"]
 
 
 def test_scan_reports_no_sources_instead_of_ambiguous_zero():
