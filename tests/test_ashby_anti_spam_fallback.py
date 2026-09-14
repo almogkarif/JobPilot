@@ -34,6 +34,12 @@ def _make_ashby_job(client: TestClient, title: str) -> dict:
 
 
 def _queue_and_claim_review(client: TestClient, job_id: int) -> tuple[int, dict]:
+    # The local worker intentionally claims the oldest queued task. Isolate this
+    # test from unrelated workflow tests that deliberately leave a task queued.
+    with SessionLocal() as db:
+        for stale in db.scalars(select(Application).where(Application.status == "queued")).all():
+            stale.status = "failed"
+        db.commit()
     queued = client.post(f"/api/jobs/{job_id}/queue", json={"mode": "review"})
     assert queued.status_code == 200, queued.text
     application_id = queued.json()["id"]
