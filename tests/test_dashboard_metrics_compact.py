@@ -35,14 +35,15 @@ def test_metrics_stay_one_row_on_mobile_and_support_dark_mode():
 def test_submitted_and_attention_metrics_use_semantic_colors():
     assert '#view-dashboard .metric[data-metric-tone="submitted"] { --metric-accent:#2f9368; }' in CSS
     assert '#view-dashboard .metric[data-metric-tone="attention"] { --metric-accent:var(--danger); }' in CSS
-    assert '.metric:is([data-metric-tone="eligible"],[data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b' in CSS
+    assert '.metric:is([data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b' in CSS
 
 
-def test_eligible_jobs_metric_uses_a_darker_accent():
-    assert '#view-dashboard .metric[data-metric-tone="eligible"] { --metric-accent:var(--accent-strong); }' in CSS
-    assert 'body.theme-dark #view-dashboard .metric[data-metric-tone="eligible"]' in CSS
+def test_eligible_jobs_metric_keeps_original_fill_with_darker_number_outline():
+    assert '#view-dashboard .metric[data-metric-tone="eligible"] { --metric-accent:var(--accent); }' in CSS
+    assert '-webkit-text-stroke:.65px var(--accent-strong);' in CSS
+    assert 'body.theme-dark #view-dashboard .metric[data-metric-tone="eligible"] strong' in CSS
 
 
 def test_v0111_asset_versions_are_bumped():
-    assert 'styles.css?v=0.52.5' in HTML
+    assert 'styles.css?v=0.52.6' in HTML
     assert 'app.js?v=0.31.12' in HTML
