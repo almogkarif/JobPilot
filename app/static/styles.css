@@ -4501,10 +4501,11 @@ body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field inp
 }
 #view-dashboard .metric[data-metric-tone="jobs"],
 #view-dashboard .metric[data-metric-tone="strong"] { --metric-accent:var(--accent); }
+#view-dashboard .metric[data-metric-tone="eligible"] { --metric-accent:var(--accent-strong); }
 #view-dashboard .metric[data-metric-tone="queue"] { --metric-accent:color-mix(in srgb,var(--muted) 82%,var(--accent)); }
 #view-dashboard .metric[data-metric-tone="submitted"] { --metric-accent:#2f9368; }
 #view-dashboard .metric[data-metric-tone="attention"] { --metric-accent:var(--danger); }
-#view-dashboard .metric:is([data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b {
+#view-dashboard .metric:is([data-metric-tone="eligible"],[data-metric-tone="submitted"],[data-metric-tone="attention"]) .metric-copy b {
   color:var(--metric-accent);
 }
 
@@ -4753,6 +4754,7 @@ body.theme-dark #view-dashboard .metric-copy b { color:var(--ink); }
 body.theme-dark #view-dashboard .metric-copy small { color:var(--muted); }
 body.theme-dark #view-dashboard .metric[data-metric-tone="jobs"],
 body.theme-dark #view-dashboard .metric[data-metric-tone="strong"] { --metric-accent:color-mix(in srgb,var(--accent) 76%,white); }
+body.theme-dark #view-dashboard .metric[data-metric-tone="eligible"] { --metric-accent:color-mix(in srgb,var(--accent) 64%,white); }
 body.theme-dark #view-dashboard .metric[data-metric-tone="queue"] { --metric-accent:color-mix(in srgb,var(--muted) 72%,white); }
 body.theme-dark #view-dashboard .metric[data-metric-tone="submitted"] { --metric-accent:#70c9a7; }
 body.theme-dark #view-dashboard .metric[data-metric-tone="attention"][data-has-value="true"] { --metric-accent:#ff8f82; }
