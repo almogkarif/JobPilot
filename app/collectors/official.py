@@ -140,6 +140,76 @@ PRESETS = {
 }
 
 
+def _bounded_official_board(url: str, company: str, *, trusted_israel_feed: bool = False) -> dict:
+    """A cheap static-first adapter for smaller official employer boards.
+
+    These sources deliberately avoid launching Chromium. If a board changes to a
+    client-only shell, the scan yields no rows instead of consuming minutes of
+    browser time for every career track.
+    """
+    return {
+        "url": url,
+        "selector": 'a[href*="job"], a[href*="career"], a[href*="position"], a[href*="דרוש"]',
+        "id_pattern": r"(?:jobs?|careers?|positions?|jobId|job_id)[^A-Za-z0-9]+([A-Za-z0-9][A-Za-z0-9._-]{2,80})",
+        "company": company,
+        "prefer_link_text": True,
+        "http_first": True,
+        "static_only": True,
+        "allow_empty": True,
+        "trusted_israel_feed": trusted_israel_feed,
+    }
+
+
+# Additional official employers requested for the Industrial Engineering track.
+# The adapters are intentionally bounded and shareable by CS/EE catalogs where
+# the employer also publishes relevant technical roles.
+PRESETS.update({
+    "playtika": _bounded_official_board("https://www.playtika.com/careers/", "Playtika"),
+    "fiverr": _bounded_official_board("https://www.fiverr.com/jobs", "Fiverr"),
+    "ministry-of-defense-il": _bounded_official_board("https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx", "משרד הביטחון", trusted_israel_feed=True),
+    "tower-semiconductor": _bounded_official_board("https://towersemi.com/careers/", "Tower Semiconductor"),
+    "icl": _bounded_official_board("https://careers.icl-group.com/", "ICL"),
+    "teva": _bounded_official_board("https://careers.teva/", "Teva"),
+    "strauss": _bounded_official_board("https://www.strauss-group.com/career/", "Strauss Group", trusted_israel_feed=True),
+    "osem-nestle": _bounded_official_board("https://www.osem-nestle.co.il/career", "Osem-Nestle", trusted_israel_feed=True),
+    "cocacola-israel": _bounded_official_board("https://careers.cocacola.co.il/", "החברה המרכזית למשקאות", trusted_israel_feed=True),
+    "fox-group": _bounded_official_board("https://www.foxhr.2.idus.co.il/", "Fox Group", trusted_israel_feed=True),
+    "shufersal": _bounded_official_board("https://career.shufersal.co.il/", "Shufersal", trusted_israel_feed=True),
+    "super-pharm": _bounded_official_board("https://jobs.super-pharm.co.il/careers/", "Super-Pharm", trusted_israel_feed=True),
+    "deloitte-israel": _bounded_official_board("https://www.deloitte.com/il/en/careers.html", "Deloitte Israel"),
+    "ey-israel": _bounded_official_board("https://www.ey.com/en_il/careers", "EY Israel"),
+    "pwc-israel": _bounded_official_board("https://www.pwc.com/il/he/career.html", "PwC Israel"),
+    "kpmg-israel": _bounded_official_board("https://kpmg.com/il/en/home/careers.html", "KPMG Israel"),
+    "tefen": _bounded_official_board("https://www.tefen.com/careers/", "Tefen"),
+    "niram-gitan": _bounded_official_board("https://www.niramgitan.com/", "Niram Gitan", trusted_israel_feed=True),
+    "ness-israel": _bounded_official_board("https://www.ness-tech.co.il/careers", "Ness", trusted_israel_feed=True),
+    "matrix-israel": _bounded_official_board("https://www.matrix.co.il/jobs/", "Matrix", trusted_israel_feed=True),
+    "malam-team": _bounded_official_board("https://www.malamteam.com/careers/", "Malam Team", trusted_israel_feed=True),
+    "one-technologies": _bounded_official_board("https://www.one1.co.il/careers/", "ONE Technologies", trusted_israel_feed=True),
+    "elad-systems": _bounded_official_board("https://www.eladsoft.com/careers/", "Elad Systems", trusted_israel_feed=True),
+    "israel-post": _bounded_official_board("https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/", "Israel Post", trusted_israel_feed=True),
+    "ups-israel": _bounded_official_board("https://www.jobs-ups.com/", "UPS"),
+    "dhl-israel": _bounded_official_board("https://careers.dhl.com/global/en", "DHL"),
+    "israel-railways": _bounded_official_board("https://www.rail.co.il/?page=career", "Israel Railways", trusted_israel_feed=True),
+    "ashdod-port": _bounded_official_board("https://www.ashdodport.co.il/about/careers/", "Ashdod Port", trusted_israel_feed=True),
+    "haifa-port": _bounded_official_board("https://www.haifaport.co.il/jobs/", "Haifa Port", trusted_israel_feed=True),
+    "friedenson": _bounded_official_board("https://fridenson.co.il/careers/", "Fridenson", trusted_israel_feed=True),
+    "bank-leumi": _bounded_official_board("https://www.leumi.co.il/he/about-leumi/career", "Bank Leumi", trusted_israel_feed=True),
+    "bank-hapoalim": _bounded_official_board("https://www.bankhapoalim.co.il/he/about/careers", "Bank Hapoalim", trusted_israel_feed=True),
+    "discount-bank": _bounded_official_board("https://www.discountbank.co.il/private/general-information/careers/", "Israel Discount Bank", trusted_israel_feed=True),
+    "cal": _bounded_official_board("https://www.cal-online.co.il/about/careers/", "Cal", trusted_israel_feed=True),
+    "max": _bounded_official_board("https://www.max.co.il/careers", "Max", trusted_israel_feed=True),
+    "isracard": _bounded_official_board("https://www.isracard.co.il/pages/careers/", "Isracard", trusted_israel_feed=True),
+    "harel": _bounded_official_board("https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx", "Harel", trusted_israel_feed=True),
+    "phoenix": _bounded_official_board("https://www.fnx.co.il/about-us/careers/", "The Phoenix", trusted_israel_feed=True),
+    "migdal": _bounded_official_board("https://www.migdal.co.il/about/careers", "Migdal", trusted_israel_feed=True),
+    "clalit": _bounded_official_board("https://jobs.clalitapps.co.il/", "Clalit", trusted_israel_feed=True),
+    "maccabi-health": _bounded_official_board("https://www.maccabi4u.co.il/careers/", "Maccabi Healthcare", trusted_israel_feed=True),
+    "sheba": _bounded_official_board("https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D", "Sheba Medical Center", trusted_israel_feed=True),
+    "ichilov": _bounded_official_board("https://www.tasmc.org.il/careers/", "Ichilov Medical Center", trusted_israel_feed=True),
+})
+
+
 class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 

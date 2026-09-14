@@ -281,3 +281,19 @@ def test_two_stage_ranking_reuses_one_bounded_catalog_stream():
     assert ").yield_per(50)" in source
     assert "dashboardRankingRecoveryTracks" in Path("app/static/app.js").read_text()
     assert "rescore_jobs=False, refresh_resumes=False, rank_v2=True" in source
+
+
+def test_requested_employer_expansion_is_bounded_and_static_only():
+    from app.collectors.official import PRESETS
+    from app.services.source_catalog import IEM_RECOMMENDED_SOURCES, _REQUESTED_EMPLOYER_SOURCES
+
+    # Keep reconciliation bounded. New boards perform one static listing request
+    # and never hydrate every job or launch a browser during scheduled scans.
+    assert len(IEM_RECOMMENDED_SOURCES) <= 100
+    for identifier, _company, _tracks in _REQUESTED_EMPLOYER_SOURCES:
+        if identifier == "apple":  # Existing dynamic adapter, tested separately.
+            continue
+        preset = PRESETS[identifier]
+        assert preset["http_first"] is True
+        assert preset["static_only"] is True
+        assert not preset.get("hydrate_details")

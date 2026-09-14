@@ -345,6 +345,35 @@ def test_iem_catalog_uses_only_supported_collector_identifiers():
             assert item["identifier"] in WORKDAY_PRESETS
 
 
+def test_requested_employers_are_track_scoped_and_have_bounded_collectors():
+    from app.collectors.official import PRESETS as OFFICIAL_PRESETS
+    from app.services.source_catalog import (
+        CS_RECOMMENDED_SOURCES,
+        EE_RECOMMENDED_SOURCES,
+        IEM_RECOMMENDED_SOURCES,
+        _REQUESTED_EMPLOYER_SOURCES,
+    )
+
+    catalogs = {
+        "cs": CS_RECOMMENDED_SOURCES,
+        "iem": IEM_RECOMMENDED_SOURCES,
+        "ee": EE_RECOMMENDED_SOURCES,
+    }
+    for identifier, _company, tracks in _REQUESTED_EMPLOYER_SOURCES:
+        assert identifier in OFFICIAL_PRESETS
+        if identifier not in {"apple"}:
+            assert OFFICIAL_PRESETS[identifier]["static_only"] is True
+            assert OFFICIAL_PRESETS[identifier]["http_first"] is True
+        for track in tracks.split(","):
+            assert any(row["identifier"] == identifier for row in catalogs[track])
+
+    # Every employer in the requested expansion belongs to IEM, while the
+    # technical catalogs only receive employers explicitly tagged for them.
+    assert all("iem" in tracks.split(",") for _, _, tracks in _REQUESTED_EMPLOYER_SOURCES)
+    assert not any(row["identifier"] == "tefen" for row in CS_RECOMMENDED_SOURCES)
+    assert not any(row["identifier"] == "bank-leumi" for row in EE_RECOMMENDED_SOURCES)
+
+
 def test_agent_api_claims_only_from_current_professional_track():
     with TestClient(app) as client, SessionLocal() as db:
         cs_source = Source(name="Agent CS API", kind="fixture", identifier="agent-api-cs", company_name="AgentCS", career_track=COMPUTER_SCIENCE, enabled=False)

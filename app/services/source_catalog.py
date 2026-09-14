@@ -194,6 +194,79 @@ EE_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name":"NeuroBlade — Israel","kind":"official_careers","identifier":"neuroblade","company_name":"NeuroBlade"},
 )
 
+
+# Large Israeli employers requested for the Industrial Engineering catalog.
+# `tracks` documents where the same official board is also useful: `cs` for
+# software/data/IT roles and `ee` for electrical, hardware, controls and systems.
+_REQUESTED_EMPLOYER_SOURCES: tuple[tuple[str, str, str], ...] = (
+    ("apple", "Apple", "iem,cs,ee"),
+    ("playtika", "Playtika", "iem,cs"),
+    ("fiverr", "Fiverr", "iem,cs"),
+    ("ministry-of-defense-il", "משרד הביטחון", "iem,cs,ee"),
+    ("tower-semiconductor", "Tower Semiconductor", "iem,cs,ee"),
+    ("icl", "ICL", "iem,cs,ee"),
+    ("teva", "Teva", "iem,cs,ee"),
+    ("strauss", "Strauss Group", "iem,cs,ee"),
+    ("osem-nestle", "Osem-Nestle", "iem,cs,ee"),
+    ("cocacola-israel", "החברה המרכזית למשקאות", "iem,cs,ee"),
+    ("fox-group", "Fox Group", "iem,cs"),
+    ("shufersal", "Shufersal", "iem,cs"),
+    ("super-pharm", "Super-Pharm", "iem,cs"),
+    ("deloitte-israel", "Deloitte Israel", "iem,cs"),
+    ("ey-israel", "EY Israel", "iem,cs"),
+    ("pwc-israel", "PwC Israel", "iem,cs"),
+    ("kpmg-israel", "KPMG Israel", "iem,cs"),
+    ("tefen", "Tefen", "iem"),
+    ("niram-gitan", "Niram Gitan", "iem"),
+    ("ness-israel", "Ness", "iem,cs,ee"),
+    ("matrix-israel", "Matrix", "iem,cs,ee"),
+    ("malam-team", "Malam Team", "iem,cs,ee"),
+    ("one-technologies", "ONE Technologies", "iem,cs,ee"),
+    ("elad-systems", "Elad Systems", "iem,cs"),
+    ("israel-post", "Israel Post", "iem,cs"),
+    ("ups-israel", "UPS", "iem,cs"),
+    ("dhl-israel", "DHL", "iem,cs"),
+    ("israel-railways", "Israel Railways", "iem,cs,ee"),
+    ("ashdod-port", "Ashdod Port", "iem,cs,ee"),
+    ("haifa-port", "Haifa Port", "iem,cs,ee"),
+    ("friedenson", "Fridenson", "iem"),
+    ("bank-leumi", "Bank Leumi", "iem,cs"),
+    ("bank-hapoalim", "Bank Hapoalim", "iem,cs"),
+    ("discount-bank", "Israel Discount Bank", "iem,cs"),
+    ("cal", "Cal", "iem,cs"),
+    ("max", "Max", "iem,cs"),
+    ("isracard", "Isracard", "iem,cs"),
+    ("harel", "Harel", "iem,cs"),
+    ("phoenix", "The Phoenix", "iem,cs"),
+    ("migdal", "Migdal", "iem,cs"),
+    ("clalit", "Clalit", "iem,cs"),
+    ("maccabi-health", "Maccabi Healthcare", "iem,cs"),
+    ("sheba", "Sheba Medical Center", "iem,cs,ee"),
+    ("ichilov", "Ichilov Medical Center", "iem,cs,ee"),
+)
+
+
+def _with_requested_employers(
+    catalog: tuple[dict[str, str], ...], track_tag: str,
+) -> tuple[dict[str, str], ...]:
+    existing = {(row["kind"], row["identifier"]) for row in catalog}
+    additions = tuple(
+        {
+            "name": f"{company} — {track_tag.upper()} Israel",
+            "kind": "official_careers",
+            "identifier": identifier,
+            "company_name": company,
+        }
+        for identifier, company, tracks in _REQUESTED_EMPLOYER_SOURCES
+        if track_tag in tracks.split(",") and ("official_careers", identifier) not in existing
+    )
+    return catalog + additions
+
+
+CS_RECOMMENDED_SOURCES = _with_requested_employers(CS_RECOMMENDED_SOURCES, "cs")
+IEM_RECOMMENDED_SOURCES = _with_requested_employers(IEM_RECOMMENDED_SOURCES, "iem")
+EE_RECOMMENDED_SOURCES = _with_requested_employers(EE_RECOMMENDED_SOURCES, "ee")
+
 RECOMMENDED_SOURCES_BY_TRACK = {
     COMPUTER_SCIENCE: CS_RECOMMENDED_SOURCES,
     INDUSTRIAL_ENGINEERING: IEM_RECOMMENDED_SOURCES,
