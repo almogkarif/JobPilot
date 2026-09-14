@@ -96,7 +96,10 @@ def score_skills(job, candidate_skills: set[str], maximum: int, required_share: 
     else:
         required_ratio = .65 if not (preferred or supporting) else 1.0
     optional_pool = preferred | supporting
-    optional_ratio = len(matched_preferred) / len(optional_pool) if optional_pool else .7
+    # Do not deduct points for optional technologies the posting never names. If
+    # every detected requirement is satisfied, the skills component is complete.
+    # A posting with no detectable technologies remains intentionally uncertain.
+    optional_ratio = len(matched_preferred) / len(optional_pool) if optional_pool else (1.0 if required else .7)
     score = round(required_points * required_ratio + preferred_points * optional_ratio)
     reasons = []
     if matched_required:
@@ -111,5 +114,6 @@ def score_skills(job, candidate_skills: set[str], maximum: int, required_share: 
         "score": max(0, min(maximum, score)), "max": maximum,
         "matched_required": matched_required, "missing_required": missing_required,
         "matched_preferred": matched_preferred, "required": sorted(required),
-        "preferred": sorted(preferred), "supporting": sorted(supporting), "reasons": reasons,
+        "preferred": sorted(preferred), "supporting": sorted(supporting),
+        "unmatched_optional": sorted(optional_pool - candidate_skills), "reasons": reasons,
     }

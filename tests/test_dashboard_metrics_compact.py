@@ -31,5 +31,5 @@ def test_metrics_stay_one_row_on_mobile_and_support_dark_mode():
 
 
 def test_v0111_asset_versions_are_bumped():
-    assert 'styles.css?v=0.52.1' in HTML
-    assert 'app.js?v=0.31.8' in HTML
+    assert 'styles.css?v=0.52.2' in HTML
+    assert 'app.js?v=0.31.9' in HTML

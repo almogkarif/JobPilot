@@ -16,6 +16,9 @@ def test_v2_job_modal_uses_structured_explanation_instead_of_zero_point_reasons(
     assert "התאמות לציון הסופי" in JS
     assert "מסנן בפרופיל:" in JS
     assert "profile_experience_options" in JS
+    assert "function v2DeductionDetail(job,key,part)" in JS
+    assert "ירדו ${deducted} נקודות:" in JS
+    assert "unmatched_optional" in JS
 
 
 def test_v2_explanation_has_separate_filter_and_weighted_score_layouts():
@@ -26,6 +29,7 @@ def test_v2_explanation_has_separate_filter_and_weighted_score_layouts():
         ".ranking-score-grid",
         ".ranking-score-card",
         ".ranking-adjustments",
+        ".ranking-score-card>em",
     ):
         assert selector in CSS
 

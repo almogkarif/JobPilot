@@ -166,6 +166,29 @@ def test_missing_required_cpp_is_not_hidden_by_python_advantage():
     assert skills["penalty"] > 0
 
 
+def test_complete_detected_skills_and_matching_degree_receive_full_component_scores():
+    candidate = profile(skills=["c++"], titles=["software engineer"])
+    candidate.application_profile_json = '{"degree_level":"bachelor"}'
+    opening = job(
+        "Software Engineer III, Technical Infrastructure",
+        "Bachelor's degree or equivalent practical experience. "
+        "2 years of experience with software development in C++.",
+    )
+
+    result = score(candidate, opening)
+
+    assert result.breakdown["skills"]["missing_required"] == []
+    assert result.breakdown["skills"]["score"] == result.breakdown["skills"]["max"] == 35
+    assert result.breakdown["requirements"]["degree_status"] == "match"
+    assert result.breakdown["requirements"]["score"] == result.breakdown["requirements"]["max"] == 15
+
+
+def test_unconfigured_preference_keywords_do_not_silently_reduce_score():
+    result = score(profile(titles=["backend software engineer"]), job("Backend Software Engineer", "Python services"))
+    assert result.breakdown["preferences"]["configured_keywords"] == []
+    assert result.breakdown["preferences"]["score"] == result.breakdown["preferences"]["max"] == 10
+
+
 def test_unknown_data_reduces_confidence_without_inventing_mismatch():
     opening = SimpleNamespace(id=1, title="Backend Software Engineer", description="", career_track="computer_science", location="", workplace="unknown", published_at=None, updated_at=NOW)
     result = score(profile(titles=["backend software engineer"]), opening)

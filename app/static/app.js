@@ -2180,6 +2180,31 @@ function v2PreferencesDetail(job,part) {
   return chunks.join(' · ');
 }
 
+function v2DeductionDetail(job,key,part) {
+  if (key==='role') return v2RoleDetail(part);
+  if (key==='skills') {
+    if (part?.missing_required?.length) return `חסרים סקילי חובה: ${part.missing_required.join(', ')}`;
+    if (part?.unmatched_optional?.length) return `לא נמצאה התאמה לסקילים תומכים: ${part.unmatched_optional.join(', ')}`;
+    return 'לא זוהו מספיק טכנולוגיות במודעה כדי להעניק ניקוד מלא';
+  }
+  if (key==='requirements') {
+    const status=part?.degree_status;
+    if (part?.mandatory_prerequisites?.length) return `זוהתה דרישת חובה שצריך לאמת: ${part.mandatory_prerequisites.join(', ')}`;
+    if (status==='alternative') return 'התואר אינו תואם ישירות, אך המשרה מאפשרת ניסיון מקביל';
+    if (status==='not_configured') return 'לא הוגדר תואר בפרופיל לצורך אימות הדרישה';
+    if (status==='mismatch') return 'התואר בפרופיל אינו עומד בדרישה שזוהתה';
+    return 'דרישות ההשכלה או החובה במודעה לא זוהו במלואן';
+  }
+  if (key==='preferences') {
+    const e=job.eligibility||{},reasons=[];
+    if (e.location_status!=='match') reasons.push('המיקום אינו תואם להעדפות');
+    if (e.work_mode_status!=='match') reasons.push('מודל העבודה אינו תואם להעדפות');
+    if (part?.configured_keywords?.length && !part?.keyword_hits?.length) reasons.push('לא נמצאו מילות ההעדפה שהוגדרו');
+    return reasons.join(' · ') || 'לא נמצאה התאמה מלאה להעדפות שהוגדרו';
+  }
+  return 'לא התקבל מלוא הניקוד ברכיב הזה';
+}
+
 function v2WarningHebrew(value) {
   const text=String(value||'');
   let match=text.match(/^Experience gap of ([0-9.]+) years$/i); if(match) return `פער ניסיון של ${match[1]} שנים`;
@@ -2210,7 +2235,7 @@ function renderV2RankingExplanation(job) {
     ['כישורים וטכנולוגיות','skills',v2SkillsDetail(b.skills)],
     ['דרישות מקצועיות','requirements',v2RequirementsDetail(b.requirements)],
     ['העדפות','preferences',v2PreferencesDetail(job,b.preferences)],
-  ].map(([label,key,detail])=>{const part=b[key]||{},score=Number(part.score)||0,max=Number(part.max)||0,pct=max?Math.max(0,Math.min(100,Math.round(score/max*100))):0;return `<article class="ranking-score-card"><header><span>${esc(label)}</span><strong>${score}/${max}</strong></header><i><b style="width:${pct}%"></b></i><small>${esc(detail)}</small></article>`}).join('');
+  ].map(([label,key,detail])=>{const part=b[key]||{},score=Number(part.score)||0,max=Number(part.max)||0,pct=max?Math.max(0,Math.min(100,Math.round(score/max*100))):0,deducted=Math.max(0,max-score);return `<article class="ranking-score-card"><header><span>${esc(label)}</span><strong>${score}/${max}</strong></header><i><b style="width:${pct}%"></b></i><small>${esc(detail)}</small>${deducted?`<em><b>ירדו ${deducted} נקודות:</b> ${esc(v2DeductionDetail(job,key,part))}</em>`:''}</article>`}).join('');
   const adjustments=[];
   if (Number(b.skills?.penalty)>0) adjustments.push(`חסרים סקילי חובה: הופחתו ${Number(b.skills.penalty)} נקודות והציון הוגבל לכל היותר ל־69`);
   for (const warning of (job.ranking_warnings||[])) { const label=v2WarningHebrew(warning); if(label&&!adjustments.includes(label)) adjustments.push(label); }

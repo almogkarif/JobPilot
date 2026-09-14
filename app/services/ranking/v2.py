@@ -19,7 +19,7 @@ MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certifica
 
 class EligibilityRankingEngine(RankingEngine):
     key = "v2"
-    version = 6
+    version = 7
 
     def rank_job(self, job, profile, config=None, *, context=None) -> RankingResult:
         config = config if isinstance(config, RankingV2Config) else RankingV2Config.from_dict(config) if config else DEFAULT_V2_CONFIG
@@ -39,7 +39,13 @@ class EligibilityRankingEngine(RankingEngine):
         has_degree = bool(required_degree)
         mandatory = [term for term in MANDATORY_TERMS if term in text]
         if has_degree:
-            requirement_ratio = .88
+            degree_status = eligibility.get("degree_status")
+            requirement_ratio = {
+                "match": 1.0,
+                "alternative": .88,
+                "not_configured": .65,
+                "mismatch": .35,
+            }.get(degree_status, .70)
             requirement_reasons.append(
                 "Academic requirement: " + degree_requirement_label(
                     required_degree,
@@ -67,7 +73,12 @@ class EligibilityRankingEngine(RankingEngine):
         if keyword_hits:
             preference_score += config.preferences_weight - preference_score
             preference_reasons.append(f"Preference keywords: {', '.join(keyword_hits[:4])}")
-        preferences = {"score": min(config.preferences_weight, preference_score), "max": config.preferences_weight, "keyword_hits": keyword_hits, "reasons": preference_reasons}
+        elif not keywords:
+            # An optional preference the user did not configure must not silently
+            # lower an otherwise complete location/work-mode match.
+            preference_score += config.preferences_weight - preference_score
+            preference_reasons.append("No preference keywords configured")
+        preferences = {"score": min(config.preferences_weight, preference_score), "max": config.preferences_weight, "keyword_hits": keyword_hits, "configured_keywords": keywords, "reasons": preference_reasons}
 
         breakdown = {"role": role, "skills": skills, "requirements": requirements, "preferences": preferences}
         score = sum(int(part["score"]) for part in breakdown.values())
