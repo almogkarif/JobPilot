@@ -191,7 +191,19 @@ IEM_CONTEXT_TERMS = {
 IEM_GENERIC_TITLE_TERMS = {"analyst", "operations", "project", "program", "planner", "planning", "coordinator", "quality", "business", "strategy", "אנליסט", "פרויקט", "תפעול", "תכנון", "איכות"}
 IEM_NON_PROFESSIONAL_TITLE_TERMS = {
     "warehouse worker", "warehouse associate", "picker", "order picker", "store associate",
+    "control center operator", "security operator",
     "מחסנאי", "מחסנאית", "מחסנאים", "מלקט", "מלקטת", "מלקטים",
+    "maintenance worker", "maintenance technician", "machine maintenance", "אחזקת מכונות",
+    "עובד אחזקה", "עובדת אחזקה", "עובד.ת אחזקה",
+}
+IEM_DISCIPLINE_SPECIFIC_ENGINEERING_TITLE_TERMS = {
+    "manufacturing engineer", "production engineer", "composite manufacturing engineer",
+    "program quality engineer (mechanical)", "hardware project manager",
+    "מהנדס ייצור", "מהנדסת ייצור", "מהנדס.ת ייצור",
+}
+IEM_INSPECTION_TITLE_TERMS = {
+    "quality inspector", "quality control inspector", "מבקר איכות", "מבקרת איכות", "מבקר.ת איכות",
+    "מבקר/ת איכות",
 }
 
 
@@ -691,16 +703,20 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         return False, "outside_ee_scope"
     if "software quality" in title or "software infrastructure engineer" in title or "מהנדס.ת תשתיות תוכנה" in title:
         return False, "software_role_outside_iem_scope"
+    degree_signal = any(term in text for term in (
+        "industrial engineering", "industrial & management engineering", "industrial and management engineering",
+        "הנדסת תעשייה וניהול", "תואר ראשון בהנדסת תעשייה", "תעשייה וניהול",
+    ))
     if any(term in title for term in IEM_NON_PROFESSIONAL_TITLE_TERMS):
         return False, "iem_non_professional_operations_role"
+    if any(term in title for term in IEM_DISCIPLINE_SPECIFIC_ENGINEERING_TITLE_TERMS) and not degree_signal:
+        return False, "non_iem_engineering_discipline"
+    if any(term in title for term in IEM_INSPECTION_TITLE_TERMS) and not degree_signal:
+        return False, "iem_inspection_role_without_iem_signal"
     if any(term in title for term in IEM_STRONG_TITLE_TERMS):
         return True, "iem_title"
     context_hits = sum(1 for term in IEM_CONTEXT_TERMS if term in text)
     generic_title = any(term in title for term in IEM_GENERIC_TITLE_TERMS)
-    degree_signal = any(term in text for term in (
-        "industrial engineering", "industrial & management engineering", "industrial and management engineering",
-        "הנדסת תעשייה וניהול", "תואר ראשון בהנדסת תעשייה",
-    ))
     if degree_signal and (generic_title or context_hits >= 2):
         return True, "iem_degree_signal"
     if generic_title and context_hits >= 3:
