@@ -161,11 +161,8 @@ def test_compact_blockers_and_handoff_links_render_inside_application_queue():
 
         review_row = page.locator("#applications-list tbody tr").filter(has_text="Review Role")
         assert review_row.get_by_text("ממתין לאישור", exact=True).is_visible()
-        page.once("dialog", lambda dialog: dialog.accept())
-        review_row.get_by_role("button", name="סמן כהוגש").click()
-        page.wait_for_timeout(100)
-        calls = page.evaluate("window.__calls()")
-        submit_calls = [call for call in calls if call["url"] == "/api/applications/802/mark-submitted"]
-        assert submit_calls
+        assert review_row.get_by_role("button", name="פתח בדיקה מונחית").is_visible()
+        assert review_row.get_by_role("link", name="פתח את הטופס").get_attribute("href") == "https://careers.example.com/apply/review"
+        assert review_row.get_by_role("button", name="סמן כהוגש").count() == 0
         assert errors == []
         browser.close()
