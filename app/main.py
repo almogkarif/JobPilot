@@ -1900,7 +1900,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     if not guest_catalog and applications_workspace:
         _repair_existing_ashby_spam_blocks(db)
     ranking_refresh = {"running": False, "message": ""} if guest_catalog else _ranking_refresh_status(
-        current_user_id(db), career_track,
+        current_user_id(db), career_track, include_progress=True,
     )
 
     # Guest mode mirrors the primary admin's live opportunity catalog while every
@@ -2721,7 +2721,7 @@ def refresh_personal_ranking(db: Session = Depends(get_db)):
     track = active_track(profile)
     get_ranking_settings(db)
     _queue_profile_derived_refresh(
-        user_id, track, rescore_jobs=True, refresh_resumes=False, rank_v2=True,
+        user_id, track, rescore_jobs=False, refresh_resumes=False, rank_v2=True,
     )
     return {"status": "queued", "career_track": track}
 
@@ -6407,10 +6407,18 @@ def _ranking_refresh_status(user_id: str, career_track: str, *, include_progress
         ) if running else "",
     }
     if include_progress:
+        completed = int(progress.get("completed") or 0)
+        total = int(progress.get("total") or 0)
+        started_at = float(progress.get("started_at") or 0)
+        elapsed = max(0.0, time.monotonic() - started_at) if started_at else 0.0
+        eta_seconds = None
+        if running and completed > 0 and total > completed and elapsed > 0:
+            eta_seconds = max(1, int(((total - completed) * elapsed / completed) + .999))
         payload.update({
             "phase": str(progress.get("phase") or ("queued" if running else "")),
-            "completed": int(progress.get("completed") or 0),
-            "total": int(progress.get("total") or 0),
+            "completed": completed,
+            "total": total,
+            "eta_seconds": eta_seconds,
         })
     return payload
 
@@ -6420,8 +6428,10 @@ def _set_ranking_refresh_progress(
 ) -> None:
     key = (user_id, normalize_track(career_track))
     with _profile_refresh_queue_lock:
+        previous = _profile_refresh_progress.get(key, {})
         _profile_refresh_progress[key] = {
             "phase": phase, "completed": max(0, int(completed)), "total": max(0, int(total)),
+            "started_at": float(previous.get("started_at") or time.monotonic()),
         }
 
 
@@ -6442,7 +6452,9 @@ def _queue_profile_derived_refresh(
         pending["refresh_resumes"] = pending["refresh_resumes"] or bool(refresh_resumes)
         pending["rank_v2"] = pending["rank_v2"] or bool(rank_v2)
         if rescore_jobs or rank_v2:
-            _profile_refresh_progress[key] = {"phase": "queued", "completed": 0, "total": 0}
+            _profile_refresh_progress[key] = {
+                "phase": "queued", "completed": 0, "total": 0, "started_at": time.monotonic(),
+            }
         worker = _profile_refresh_workers.get(key)
         if worker and worker.is_alive():
             return

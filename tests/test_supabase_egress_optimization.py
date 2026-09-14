@@ -271,3 +271,5 @@ def test_two_stage_ranking_reuses_one_bounded_catalog_stream():
     assert "commit_every=50" in source
     assert "select(Job).where(*predicate).order_by(" in source
     assert ").yield_per(50)" in source
+    assert "dashboardRankingRecoveryTracks" in Path("app/static/app.js").read_text()
+    assert "rescore_jobs=False, refresh_resumes=False, rank_v2=True" in source

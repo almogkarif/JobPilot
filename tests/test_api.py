@@ -41,7 +41,10 @@ def test_health_and_dashboard():
         dashboard = client.get("/api/dashboard").json()
         assert dashboard["total_jobs"] >= 3
         assert "strong_matches" in dashboard
-        assert dashboard["ranking_refresh"] == {"running": False, "message": ""}
+        assert dashboard["ranking_refresh"] == {
+            "running": False, "message": "", "phase": "", "completed": 0,
+            "total": 0, "eta_seconds": None,
+        }
         assert set(dashboard["readiness"]) >= {
             "ready", "profile_complete", "resume_uploaded", "sources_enabled", "agent_token_secure"
         }
@@ -376,7 +379,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.31.9" in index.text
+        assert "app.js?v=0.31.10" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 

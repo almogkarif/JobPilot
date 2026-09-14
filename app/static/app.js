@@ -1321,6 +1321,15 @@ $('#save-answer-pane').onclick = saveAllAnswers;
 
 let dashboardRankingRefreshTimer = null;
 let dashboardRankingRefreshPolls = 0;
+const dashboardRankingRecoveryTracks = new Set();
+
+function rankingEtaLabel(seconds) {
+  const value=Math.max(0,Number(seconds)||0);
+  if (!value) return '';
+  if (value < 60) return 'זמן משוער: פחות מדקה';
+  const minutes=Math.max(1,Math.ceil(value/60));
+  return `זמן משוער: כ־${minutes} דקות`;
+}
 
 async function loadDashboard() {
   if (state.activeView === 'dashboard') {
@@ -1371,13 +1380,20 @@ async function loadDashboard() {
   $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
   const rankingStatus = $('#recommendations-ranking-status');
   const rankingRefresh = dashboard.ranking_refresh || {};
-  const recommendationsPending = (dashboard.recent_jobs || []).some((job) => job.ranking_pending);
+  const recommendationsPending = !dashboard.guest_catalog && (dashboard.recent_jobs || []).some((job) => job.ranking_pending);
   const rankingIsLoading = Boolean(rankingRefresh.running || recommendationsPending);
+  const completed=Math.max(0,Number(rankingRefresh.completed)||0),total=Math.max(0,Number(rankingRefresh.total)||0);
+  const progressLabel=total?`דורגו ${Math.min(completed,total)} מתוך ${total}`:'';
+  const etaLabel=rankingEtaLabel(rankingRefresh.eta_seconds);
   rankingStatus.hidden = !rankingIsLoading;
   rankingStatus.innerHTML = rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
-    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small>${esc(rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.')}</small></span>
+    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small>${esc([progressLabel,etaLabel,rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.'].filter(Boolean).join(' · '))}</small></span>
   ` : '';
+  if (recommendationsPending && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
+    dashboardRankingRecoveryTracks.add(dashboard.career_track);
+    api('/api/ranking/refresh', {method:'POST'}).catch((error) => toast(error.message));
+  }
   clearTimeout(dashboardRankingRefreshTimer);
   if (!rankingIsLoading) dashboardRankingRefreshPolls = 0;
   if (rankingIsLoading && dashboardRankingRefreshPolls < 45) {

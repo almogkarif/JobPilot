@@ -23,3 +23,8 @@ def test_dashboard_keeps_loading_notice_visible_when_recommendations_are_unranke
     assert "rankingRefresh.running || recommendationsPending" in JS
     assert "המשרות עדיין נטענות ומדורגות" in JS
     assert "dashboardRankingRefreshPolls < 45" in JS
+    assert "!dashboard.guest_catalog" in JS
+    assert "dashboardRankingRecoveryTracks" in JS
+    assert "api('/api/ranking/refresh', {method:'POST'})" in JS
+    assert "דורגו ${Math.min(completed,total)} מתוך ${total}" in JS
+    assert "function rankingEtaLabel(seconds)" in JS
