@@ -94,7 +94,7 @@ PRESETS = {
     "microsoft": {"url": "https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/(\d+)", "company": "Microsoft", "prefer_link_text": True, "settle_ms": 4500, "selector_timeout_ms": 25000, "dynamic_scroll": True},
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2, "hydrate_details": True, "max_detail_jobs": 180},
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
-    "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120},
+    "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120, "validate_detail_redirects": True},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco", "hydrate_details": True, "max_detail_jobs": 120},
@@ -934,8 +934,17 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
             try:
                 async with semaphore:
                     response = await client.get(href)
+                if response.status_code in {404, 410}:
+                    return {**row, "_invalid_detail": True}
                 if response.status_code >= 400:
                     return row
+                final_href = str(response.url)
+                if preset.get("validate_detail_redirects") and not re.search(
+                    str(preset["id_pattern"]), final_href,
+                ):
+                    # A successful redirect to the careers home page is the
+                    # provider's tombstone for a role that no longer exists.
+                    return {**row, "_invalid_detail": True}
                 soup = BeautifulSoup(response.text, "html.parser")
                 heading = soup.select_one("h1, main h2, article h2, [role='main'] h2")
                 title = heading.get_text(" ", strip=True) if heading else ""
@@ -950,7 +959,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 # and its heading still contains template placeholders.  Keep the
                 # structured-feed values in that case instead of turning every job
                 # into an unusable row during detail hydration.
-                hydrated_href = canonical_href or str(response.url)
+                hydrated_href = canonical_href or final_href
                 hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
                 hydrated_title = title.strip()
                 title_is_template = "{{" in hydrated_title or "}}" in hydrated_title
@@ -964,26 +973,55 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 return result
             except Exception:
                 return row
-        return await asyncio.gather(*(one(row) for row in rows))
+        hydrated = await asyncio.gather(*(one(row) for row in rows))
+        return [row for row in hydrated if not row.get("_invalid_detail")]
 
 
 def _apple_embedded_detail_text(document: str) -> str:
     """Extract Apple's qualification JSON that is absent from the rendered shell."""
-    fields = ("description", "minimumQualifications", "preferredQualifications")
-    values: dict[str, str] = {}
-    for field in fields:
-        match = re.search(
-            rf'\\?"{field}\\?"\s*:\s*\\?"((?:\\\\.|[^"\\])*)',
-            str(document or ""),
-        )
-        if not match:
-            continue
+    match = re.search(r'JSON\.parse\(("(?:\\.|[^"\\])*")\)', str(document or ""))
+    jobs_data: dict = {}
+    if match:
         try:
-            value = json.loads('"' + match.group(1) + '"')
-            values[field] = value.encode("utf-8").decode("unicode_escape")
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            continue
-    parts = [values[field] for field in fields if values.get(field)]
+            state = json.loads(json.loads(match.group(1)))
+            queue = [state]
+            while queue:
+                node = queue.pop()
+                if isinstance(node, dict):
+                    candidate = node.get("jobsData")
+                    if isinstance(candidate, dict):
+                        jobs_data = candidate
+                        break
+                    queue.extend(node.values())
+                elif isinstance(node, list):
+                    queue.extend(node)
+        except (TypeError, json.JSONDecodeError):
+            jobs_data = {}
+
+    fields = ("jobSummary", "description", "minimumQualifications", "preferredQualifications")
+    parts = [str(jobs_data[field]) for field in fields if jobs_data.get(field)]
+    locations = jobs_data.get("locations") or jobs_data.get("location") or []
+    if isinstance(locations, dict):
+        locations = [locations]
+    if isinstance(locations, list):
+        for location in locations:
+            if not isinstance(location, dict):
+                continue
+            city = " ".join(str(location.get("city") or location.get("name") or "").split())
+            country = " ".join(str(location.get("countryName") or "").split())
+            if city:
+                parts.append(", ".join(value for value in (city, country) if value))
+
+    # Retain compatibility with older Apple pages that exposed isolated escaped
+    # fields instead of one decodable router-state object.
+    if not parts:
+        for field in ("description", "minimumQualifications", "preferredQualifications"):
+            legacy = re.search(rf'\\?"{field}\\?"\s*:\s*\\?"((?:\\\\.|[^"\\])*)', str(document or ""))
+            if legacy:
+                try:
+                    parts.append(json.loads('"' + legacy.group(1) + '"'))
+                except json.JSONDecodeError:
+                    pass
     return clean_job_text("\n".join(parts)) if parts else ""
 
 
@@ -1088,7 +1126,7 @@ _ISRAEL_CITY_NAMES = (
     "Raanana", "Rehovot", "Netanya", "Caesarea", "Bnei Brak", "Rishon Lezion",
     "Kfar Saba", "Hod Hasharon", "Modiin", "Nes Ziona", "Or Yehuda", "Yehud",
     "Migdal Haemek", "Migdal Ha'Emek", "Ramat-Gan", "Tel Aviv-Yafo",
-    "Kiryat Bialik", "Karmiel", "Misgav",
+    "Kiryat Bialik", "Karmiel", "Misgav", "Holon", "Petach Tikva",
 )
 
 _HEBREW_ISRAEL_LOCATIONS = {
@@ -1105,6 +1143,7 @@ _HEBREW_ISRAEL_LOCATIONS = {
     "קריות": "Krayot, Israel", "קריית ביאליק": "Kiryat Bialik, Israel",
     "קרית ביאליק": "Kiryat Bialik, Israel", "כרמיאל": "Karmiel, Israel",
     "גוש שגב": "Misgav, Israel", "משגב": "Misgav, Israel",
+    'נתב"ג': "Ben Gurion Airport, Israel", "נתב״ג": "Ben Gurion Airport, Israel",
 }
 
 
@@ -1121,7 +1160,7 @@ def _extract_israel_location(text: str) -> str:
             return canonical
     for city in _ISRAEL_CITY_NAMES:
         if re.search(rf"(?<![A-Za-z]){re.escape(city)}(?![A-Za-z])", compact, re.IGNORECASE):
-            canonical = city.replace("Beer Sheva", "Be'er Sheva").replace("Raanana", "Ra'anana").replace("Yoqneam", "Yokneam")
+            canonical = city.replace("Beer Sheva", "Be'er Sheva").replace("Raanana", "Ra'anana").replace("Yoqneam", "Yokneam").replace("Petach Tikva", "Petah Tikva")
             return f"{canonical}, Israel"
     # Several Israeli startup boards use ISO country codes instead of spelling out
     # the country (for example ``location_on IL`` or ``Tel Aviv · IL``). Require a

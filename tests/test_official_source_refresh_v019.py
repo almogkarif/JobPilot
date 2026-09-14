@@ -1,3 +1,5 @@
+import json
+
 from app.collectors.official import (
     PRESETS, _apple_embedded_detail_text, _extract_israel_location,
     _extract_raw_rows, _extract_text_id_rows, _resolve_row_href,
@@ -53,6 +55,22 @@ def test_apple_embedded_qualifications_are_extracted_from_detail_response():
     assert "MSc or PhD" in text
 
 
+def test_apple_router_state_keeps_city_and_complete_degree_requirements():
+    payload = {
+        "loaderData": {"root": {"jobDetails": {"jobsData": {
+            "jobSummary": "Build backend systems",
+            "minimumQualifications": "Experience & proficiency in C++\nB.Sc/M.Sc in Computer Science",
+            "preferredQualifications": "Strong communication skills",
+            "locations": [{"city": "Herzliya", "countryName": "Israel"}],
+        }}}}
+    }
+    document = f'window.__staticRouterHydrationData = JSON.parse({json.dumps(json.dumps(payload))});'
+    text = _apple_embedded_detail_text(document)
+    assert "Experience & proficiency in C++" in text
+    assert "B.Sc/M.Sc in Computer Science" in text
+    assert _extract_israel_location(text) == "Herzliya, Israel"
+
+
 def test_rafael_and_appsflyer_current_job_urls():
     _, external_id = _id("rafael", "https://career.rafael.co.il/job/5353/?referid=324")
     assert external_id == "5353"
@@ -71,6 +89,9 @@ def test_hebrew_job_card_locations_are_normalized_to_israel():
     assert _extract_israel_location("קריית ביאליק") == "Kiryat Bialik, Israel"
     assert _extract_israel_location("כרמיאל") == "Karmiel, Israel"
     assert _extract_israel_location("משגב") == "Misgav, Israel"
+    assert _extract_israel_location('אתר נתב"ג') == "Ben Gurion Airport, Israel"
+    assert _extract_israel_location("For our site in Holon") == "Holon, Israel"
+    assert _extract_israel_location("Petach Tikva, Israel") == "Petah Tikva, Israel"
 
 
 def test_script_json_job_urls_are_recovered_when_dom_selectors_change():

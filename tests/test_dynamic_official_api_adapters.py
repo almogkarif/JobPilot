@@ -203,6 +203,27 @@ def test_comeet_hydration_keeps_feed_route_when_branded_shell_has_template_headi
     assert hydrated["title"] == "Backend Engineer"
 
 
+def test_palo_alto_hydration_drops_jobs_redirected_to_careers_home(monkeypatch):
+    from app.collectors.official import _hydrate_detail_rows
+
+    class Response:
+        status_code = 200
+        text = "<html><body><main><h1>Careers</h1></main></body></html>"
+        url = "https://jobs.paloaltonetworks.com/en"
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *_args): return None
+        async def get(self, _url): return Response()
+
+    monkeypatch.setattr("app.collectors.official.httpx.AsyncClient", lambda **_kwargs: Client())
+    row = {
+        "href": "https://jobs.paloaltonetworks.com/en/job/petah-tikva/data-engineer/47263/98323656112",
+        "title": "Data Engineer", "linkText": "Data Engineer", "text": "Petach Tikva, Israel",
+    }
+    assert asyncio.run(_hydrate_detail_rows([row], PRESETS["paloalto"])) == []
+
+
 def test_structured_adapter_rejects_unrelated_numeric_objects_without_job_title():
     payload = '{"analytics":{"id":76048939,"name":""},"page":{"id":76040000,"label":"Jobs"}}'
     assert _extract_structured_job_rows(payload, PRESETS["iai"]) == []

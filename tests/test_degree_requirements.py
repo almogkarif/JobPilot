@@ -198,3 +198,11 @@ def test_real_elbit_hebrew_requirements_detect_bachelor_as_mandatory():
     assert requirement.required is True
     assert requirement.experience_alternative is False
     assert "תואר ראשון" in requirement.evidence
+
+
+def test_required_engineering_education_is_treated_as_bachelor_degree():
+    requirement = extract_degree_requirement_details(
+        "מה אנחנו מחפשים: השכלה הנדסית בתחומים: הנדסת תוכנה / מדעי המחשב / הנדסת חשמל - חובה"
+    )
+    assert requirement.level == "bachelor"
+    assert requirement.required is True

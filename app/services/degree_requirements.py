@@ -188,7 +188,7 @@ def _clause_requirement(kind: str, clause: str) -> DegreeRequirement | None:
         # first academic degree unless explicitly qualified as advanced/graduate.
         if re.search(r"(?i)(?:^|\b)(?:university\s+)?degree\s+in\s+[A-Za-z]", normalized):
             levels = ["bachelor"]
-        elif re.search(r"(?:תואר|השכלה\s+אקדמית)\s+(?:ב|בתחום)\S+", normalized):
+        elif re.search(r"(?:תואר|השכלה\s+(?:אקדמית|הנדסית))\s+(?:ב|בתחום)\S+", normalized):
             levels = ["bachelor"]
         else:
             return None
