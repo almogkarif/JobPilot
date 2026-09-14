@@ -130,6 +130,9 @@ def test_cross_track_expansion_targets_relevant_boards():
     ee_companies = {row["company_name"] for row in EE_RECOMMENDED_SOURCES}
     assert {"ServiceNow", "VAST Data", "Gloat", "Exodigo", "Claroty", "Silverfort"} <= iem_companies
     assert {"VAST Data", "Exodigo", "Arbe Robotics"} <= ee_companies
-    assert len(CS_RECOMMENDED_SOURCES) == 83
-    assert len(IEM_RECOMMENDED_SOURCES) == 45
-    assert len(EE_RECOMMENDED_SOURCES) == 43
+    # Catalogs are intentionally expandable. Their behavioral membership is
+    # asserted above and in test_requested_employers_are_track_scoped..., while
+    # these lower bounds still catch an accidental loss of the original boards.
+    assert len(CS_RECOMMENDED_SOURCES) >= 83
+    assert len(IEM_RECOMMENDED_SOURCES) >= 45
+    assert len(EE_RECOMMENDED_SOURCES) >= 43
