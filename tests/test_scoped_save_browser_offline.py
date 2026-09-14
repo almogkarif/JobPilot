@@ -95,5 +95,17 @@ def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():
         second = page.evaluate('window.__patchBodies[1]')
         assert set(second) == {'skills'}
         assert second['skills'] == ['Python', 'Rust']
+
+        # Some browsers restore/autofill a country without firing input/change.
+        # The section save must remain clickable and persist the live value.
+        page.locator('[data-view="profile"]').click()
+        country = page.locator('input[name="extra_country"]')
+        country.evaluate("(input) => { input.value = 'Germany'; }")
+        address_save = page.get_by_role('button', name='שמור כתובת')
+        assert address_save.is_enabled()
+        address_save.click()
+        page.wait_for_function('window.__patchBodies.length === 3')
+        third = page.evaluate('window.__patchBodies[2]')
+        assert third == {'application_profile': {'country': 'Germany'}}
         assert errors == []
         browser.close()

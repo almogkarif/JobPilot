@@ -3363,7 +3363,10 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   allProfileSaveButtons().forEach((button) => {
     const owned = profileSaveFieldsForButton(button);
     const hasOwnedDirty = owned.some((field) => dirtyFields.includes(field));
-    button.disabled = authState.user?.is_guest || !hasOwnedDirty;
+    // Keep Save actionable even when browser autofill changes a control without
+    // dispatching input/change. The submit handler recalculates the current values
+    // and persists only this button's section.
+    button.disabled = Boolean(authState.user?.is_guest);
     button.classList.toggle('save-ready', hasOwnedDirty && !authState.user?.is_guest);
     button.title = authState.user?.is_guest ? 'מצב אורח הוא לקריאה בלבד' : '';
   });
@@ -3918,8 +3921,9 @@ profileElement.onsubmit = async (event) => {
   $('#toast').textContent = '';
   const dirty = new Set(getDirtyProfileFields());
   const ownedFields = profileSaveFieldsForButton(submitter);
-  const fields = ownedFields.filter((field) => dirty.has(field));
-  if (!fields.length) { toast('אין שינויים בכרטיס הזה'); updateProfileDirtyState(); return; }
+  const dirtyOwnedFields = ownedFields.filter((field) => dirty.has(field));
+  const fields = dirtyOwnedFields.length ? dirtyOwnedFields : ownedFields;
+  if (!fields.length) { toast('אין בכרטיס הזה פרטים לשמירה'); updateProfileDirtyState(); return; }
   const originalText = submitter.textContent;
   submitter.disabled = true;
   submitter.textContent = 'שומר…';

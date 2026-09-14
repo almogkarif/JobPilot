@@ -514,6 +514,29 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     assert trigger["y"] >= nav["y"] + nav["height"] + 8
 
 
+def test_iem_country_card_saves_browser_autofill_value_without_input_event(browser_page):
+    page, _ = browser_page
+    switched = page.request.put(f"{page.url.rstrip('/')}/api/career-tracks/active", data={"track": "industrial_engineering"})
+    assert switched.ok
+    page.reload(wait_until="networkidle")
+    page.locator('#nav button[data-view="profile"]').click()
+    country = page.locator('input[name="extra_country"]')
+    country.wait_for(state="visible")
+    country.evaluate("(input) => { input.value = 'Germany'; }")
+    save = page.get_by_role("button", name="שמור כתובת")
+    assert save.is_enabled()
+    save.click()
+    page.get_by_text("ההגדרה נשמרה", exact=True).wait_for()
+    saved = page.request.get(f"{page.url.rstrip('/')}/api/profile").json()
+    assert saved["application_profile"]["country"] == "Germany"
+
+    country.fill("Israel")
+    save.click()
+    page.get_by_text("ההגדרה נשמרה", exact=True).wait_for()
+    restored = page.request.put(f"{page.url.rstrip('/')}/api/career-tracks/active", data={"track": "computer_science"})
+    assert restored.ok
+
+
 def test_iem_light_and_dark_interactive_chrome_has_no_legacy_blue(browser_page):
     page, _ = browser_page
     _open_profile(page)
