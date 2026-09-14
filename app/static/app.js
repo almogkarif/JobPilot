@@ -2003,6 +2003,11 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
 window.confirmApplicationPreview = confirmApplicationPreview;
 
 async function openInteractiveLiveView(applicationId, liveWindow) {
+  if (liveWindow && !liveWindow.closed) {
+    liveWindow.document.open();
+    liveWindow.document.write(`<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><title>JobPilot — פתיחת סוכן</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#f7fafc;color:#17324d;font-family:system-ui"><main style="text-align:center;padding:32px"><div id="jobpilot-live-countdown" style="width:74px;height:74px;margin:auto;border:8px solid #d9edf9;border-top-color:#197db7;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:800">90</div><h1 style="font-size:28px">ממתין לדפדפן המאובטח</h1><p id="jobpilot-live-status">הסוכן מופעל והחלון ייפתח כאן כשהוא יהיה מוכן.</p></main></body></html>`);
+    liveWindow.document.close();
+  }
   for (let attempt = 0; attempt < 45; attempt += 1) {
     const session = await api(`/api/applications/${applicationId}/live-view`);
     if (session.ready && session.url) {
@@ -2010,9 +2015,24 @@ async function openInteractiveLiveView(applicationId, liveWindow) {
       else window.open(session.url, '_blank', 'noopener');
       return;
     }
+    if (session.failed) {
+      if (liveWindow && !liveWindow.closed) {
+        const status = liveWindow.document.getElementById('jobpilot-live-status');
+        if (status) { status.textContent = session.message || 'לא ניתן לפתוח את הדפדפן המאובטח'; status.style.color = '#b42318'; }
+      }
+      toast(session.message || 'לא ניתן לפתוח את הדפדפן המאובטח');
+      return;
+    }
+    if (liveWindow && !liveWindow.closed) {
+      const countdown = liveWindow.document.getElementById('jobpilot-live-countdown');
+      if (countdown) countdown.textContent = String(Math.max(0, 88 - attempt * 2));
+    }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  if (liveWindow && !liveWindow.closed) liveWindow.close();
+  if (liveWindow && !liveWindow.closed) {
+    const status = liveWindow.document.getElementById('jobpilot-live-status');
+    if (status) status.textContent = 'הדפדפן המאובטח עדיין לא מוכן. אפשר לסגור חלון זה ולנסות שוב מאוחר יותר.';
+  }
   toast('הדפדפן המאובטח עדיין לא מוכן. המשימה נשמרה; אפשר להמתין מעט ולנסות לפתוח אותה שוב.');
 }
 function viewInteractiveApplication(applicationId) {

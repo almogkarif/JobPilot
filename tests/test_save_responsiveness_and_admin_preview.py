@@ -34,7 +34,7 @@ def test_admin_preview_uses_regular_user_permissions_with_only_return_control_ex
     assert "הרשאות השרת שלך נשארו Admin" not in JS
 
 def test_assets_bumped():
-    assert "app.js?v=0.31.5" in HTML
+    assert "app.js?v=0.31.6" in HTML
 
 
 def test_local_admin_preview_uses_regular_application_workspace_permissions():

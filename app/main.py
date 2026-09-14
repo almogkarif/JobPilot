@@ -3343,18 +3343,23 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
 @app.get("/api/applications/{application_id}/live-view")
 def application_live_view(application_id: int, db: Session = Depends(get_db)):
     track = active_track(get_user_profile(db))
-    answers_json = db.scalar(
-        select(Application.answers_json).join(Job, Application.job_id == Job.id).where(
+    row = db.execute(
+        select(Application.answers_json, Application.status, Application.last_error)
+        .join(Job, Application.job_id == Job.id).where(
             Application.id == application_id,
             Job.career_track == track,
             Job.is_active.is_(True),
         )
-    )
-    if answers_json is None:
+    ).one_or_none()
+    if row is None:
         raise HTTPException(404, "Application not found")
+    answers_json, status, last_error = row
     answers = loads(answers_json, {})
     ready = _live_view_is_ready(answers)
-    return {"ready": ready, "url": str(answers.get(LIVE_VIEW_URL_KEY) or "") if ready else ""}
+    result = {"ready": ready, "url": str(answers.get(LIVE_VIEW_URL_KEY) or "") if ready else ""}
+    if status == "failed":
+        result.update({"failed": True, "message": str(last_error or "לא ניתן לפתוח את הדפדפן המאובטח")[:500]})
+    return result
 
 
 @app.get("/api/jobs/{job_id}/application-preview")

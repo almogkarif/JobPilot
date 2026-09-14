@@ -96,6 +96,24 @@ def create_browserbase_session() -> dict:
     return session
 
 
+def report_browser_startup_failure(application_id: int, exc: Exception) -> None:
+    """Make a pre-claim cloud-browser failure visible instead of leaving a queued zombie."""
+    if not application_id:
+        return
+    detail = str(exc)
+    if "402" in detail or "payment required" in detail.casefold():
+        message = "שירות הדפדפן המאובטח אינו זמין כרגע בגלל מגבלת החשבון. לא בוצעה שליחה."
+    else:
+        message = f"לא ניתן היה להקים את הדפדפן המאובטח. לא בוצעה שליחה. ({type(exc).__name__})"
+    try:
+        api(
+            "POST", f"/api/agent/tasks/{application_id}/failed",
+            json={"token": TOKEN, "message": message, "page_url": ""},
+        )
+    except Exception as report_exc:  # noqa: BLE001
+        print(f"[startup failure report warning] {report_exc}", file=sys.stderr)
+
+
 def prepare_resume(task: dict) -> str:
     application = task.get("application") or {}
     application_id = application.get("id")
@@ -338,7 +356,11 @@ def main():
     with sync_playwright() as playwright:
         remote_browser = None
         if INTERACTIVE_BROWSER:
-            session = create_browserbase_session()
+            try:
+                session = create_browserbase_session()
+            except Exception as exc:
+                report_browser_startup_failure(APPLICATION_ID, exc)
+                raise
             remote_browser = playwright.chromium.connect_over_cdp(session["connectUrl"])
             context = remote_browser.contexts[0]
             if APPLICATION_ID and session.get("liveViewUrl"):

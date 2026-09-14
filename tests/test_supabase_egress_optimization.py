@@ -28,6 +28,13 @@ def test_interactive_live_view_polling_is_bounded_and_payload_is_tiny():
     assert "attempt < 45" in polling
     assert "setTimeout(resolve, 2000)" in polling
     assert '/live-view`' in polling
+    assert "if (session.failed)" in polling
+    assert "jobpilot-live-countdown" in polling
+
+    source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
+    endpoint = source[source.index("def application_live_view"):source.index('@app.get("/api/jobs/{job_id}/application-preview")')]
+    assert "Application.answers_json, Application.status, Application.last_error" in endpoint
+    assert ".one_or_none()" in endpoint
 
 
 def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history():

@@ -71,6 +71,18 @@ def test_interactive_worker_drives_the_live_view_tab_instead_of_a_hidden_second_
     assert "if not INTERACTIVE_BROWSER:" in source
 
 
+def test_interactive_browser_startup_failure_is_reported_without_exposing_provider_details(monkeypatch):
+    reports = []
+    monkeypatch.setattr(run_agent, "api", lambda method, path, **kwargs: reports.append((method, path, kwargs)))
+
+    run_agent.report_browser_startup_failure(123, RuntimeError("402 Payment Required secret provider detail"))
+
+    assert reports[0][0:2] == ("POST", "/api/agent/tasks/123/failed")
+    message = reports[0][2]["json"]["message"]
+    assert "מגבלת החשבון" in message
+    assert "provider detail" not in message
+
+
 def test_fill_audit_dispatches_interactive_cloud_browser(monkeypatch):
     dispatched = []
     monkeypatch.setattr(
@@ -107,6 +119,26 @@ def test_interactive_worker_publishes_private_live_view_for_application_owner(mo
     assert published.status_code == 200, published.text
     assert ready.json() == {"ready": True, "url": "https://www.browserbase.com/live/test"}
     assert timeline.json()["application"]["live_view_ready"] is True
+
+
+def test_interactive_browser_startup_failure_stops_live_view_wait_immediately(monkeypatch):
+    monkeypatch.setattr("app.main.dispatch_interactive_application_workflow", lambda _application_id: None)
+    with TestClient(app) as client:
+        job = _make_job(client, "Unavailable Live View Engineer")
+        application = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"}).json()
+        failed = client.post(
+            f"/api/agent/tasks/{application['id']}/failed",
+            json={"token": "change-me", "message": "שירות הדפדפן המאובטח אינו זמין כרגע", "page_url": ""},
+        )
+        live_view = client.get(f"/api/applications/{application['id']}/live-view")
+
+    assert failed.status_code == 200, failed.text
+    assert live_view.json() == {
+        "ready": False,
+        "url": "",
+        "failed": True,
+        "message": "שירות הדפדפן המאובטח אינו זמין כרגע",
+    }
 
 
 def test_retrying_interactive_application_does_not_reuse_expired_live_view(monkeypatch):
