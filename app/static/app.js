@@ -1320,6 +1320,7 @@ $('#save-all-answers').onclick = saveAllAnswers;
 $('#save-answer-pane').onclick = saveAllAnswers;
 
 let dashboardRankingRefreshTimer = null;
+let dashboardRankingRefreshPolls = 0;
 
 async function loadDashboard() {
   if (state.activeView === 'dashboard') {
@@ -1370,13 +1371,17 @@ async function loadDashboard() {
   $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
   const rankingStatus = $('#recommendations-ranking-status');
   const rankingRefresh = dashboard.ranking_refresh || {};
-  rankingStatus.hidden = !rankingRefresh.running;
-  rankingStatus.innerHTML = rankingRefresh.running ? `
+  const recommendationsPending = (dashboard.recent_jobs || []).some((job) => job.ranking_pending);
+  const rankingIsLoading = Boolean(rankingRefresh.running || recommendationsPending);
+  rankingStatus.hidden = !rankingIsLoading;
+  rankingStatus.innerHTML = rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
-    <span><strong>מתבצע דירוג מחדש של המשרות</strong><small>${esc(rankingRefresh.message || 'ההתאמות יתעדכנו אוטומטית עם השלמת התהליך.')}</small></span>
+    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small>${esc(rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.')}</small></span>
   ` : '';
   clearTimeout(dashboardRankingRefreshTimer);
-  if (rankingRefresh.running) {
+  if (!rankingIsLoading) dashboardRankingRefreshPolls = 0;
+  if (rankingIsLoading && dashboardRankingRefreshPolls < 45) {
+    dashboardRankingRefreshPolls += 1;
     dashboardRankingRefreshTimer = setTimeout(() => {
       if (state.activeView === 'dashboard') loadDashboard().catch((error) => toast(error.message));
     }, 8000);

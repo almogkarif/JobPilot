@@ -15,3 +15,11 @@ def test_dashboard_displays_and_polls_professional_reranking_status():
     assert "}, 8000);" in JS
     assert ".recommendations-ranking-status strong{font-size:14px;font-weight:950;color:var(--danger)}" in STYLES
     assert "border-top-color:var(--danger)" in STYLES
+
+
+def test_dashboard_keeps_loading_notice_visible_when_recommendations_are_unranked():
+    assert "recommendationsPending" in JS
+    assert "job.ranking_pending" in JS
+    assert "rankingRefresh.running || recommendationsPending" in JS
+    assert "המשרות עדיין נטענות ומדורגות" in JS
+    assert "dashboardRankingRefreshPolls < 45" in JS
