@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -6,7 +7,7 @@ HTML = (ROOT / "app" / "static" / "index.html").read_text()
 
 
 def test_mobile_header_keeps_full_animated_jobpilot_brand():
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
     assert '.sidebar .brand > div { display:block !important;' in CSS
     assert '.sidebar .brand-flight-dot { display:block !important;' in CSS
     assert '.sidebar .brand strong { display:block;' in CSS

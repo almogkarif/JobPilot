@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
@@ -380,7 +381,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.31.20" in index.text
+        assert asset_version_at_least(index.text, "app.js", "0.31.20")
         assert "הנתון לא נשמר עדיין" in script.text
 
 

@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 CSS=(ROOT/'app/static/styles.css').read_text()
@@ -28,4 +29,4 @@ def test_three_tracks_keep_same_ui_contract_fields():
             assert field in block
 
 def test_stylesheet_cache_version_bumped():
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")

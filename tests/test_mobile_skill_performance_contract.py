@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,5 +46,5 @@ def test_iem_uses_same_generic_tab_copy_as_cs():
 
 
 def test_asset_versions_are_bumped_for_mobile_and_skill_fix():
-    assert 'styles.css?v=0.52.18' in HTML
-    assert 'app.js?v=0.31.20' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")

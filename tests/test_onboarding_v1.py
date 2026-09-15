@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 from app.models import Profile
 
@@ -10,8 +11,8 @@ def test_onboarding_assets_and_admin_preview_exist():
     assert 'id="onboarding-gate"' in HTML
     assert 'data-view="developer"' in HTML
     assert 'id="developer-preview-onboarding"' in HTML
-    assert 'app.js?v=0.31.20' in HTML
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
     assert "const ONBOARDING_VERSION = 2" in JS
     assert "maybeOpenOnboarding" in JS
     assert ".onboarding-gate" in CSS

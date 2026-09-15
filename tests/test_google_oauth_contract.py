@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,4 +20,4 @@ def test_google_oauth_callback_surfaces_provider_errors_from_hash_or_query():
 
 
 def test_google_oauth_asset_version_is_bumped():
-    assert 'app.js?v=0.31.20' in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")

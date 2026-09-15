@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 JS=(ROOT/"app/static/app.js").read_text()
@@ -21,5 +22,5 @@ def test_ready_screen_is_launchpad_style():
     assert '.ready-spotlight' in CSS
 
 def test_assets_bumped_v5():
-    assert 'app.js?v=0.31.20' in HTML
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")

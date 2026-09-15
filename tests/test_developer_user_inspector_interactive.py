@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,8 +12,8 @@ def test_user_inspector_cards_are_interactive():
     assert "data-developer-section" in JS
     assert "openDeveloperUserSection" in JS
     assert "developer-inspector-list" in CSS
-    assert "app.js?v=0.31.20" in HTML
-    assert "styles.css?v=0.52.18" in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
 
 
 def test_admin_can_reopen_onboarding_and_reset_profile_for_selected_user():

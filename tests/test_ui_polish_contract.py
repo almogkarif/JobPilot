@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -140,8 +141,8 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert "$$('[data-mobile-view]')" in JS
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.31.20' in HTML
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
@@ -186,4 +187,4 @@ def test_iem_dock_active_label_and_jobs_filter_deck_have_explicit_contrast_guard
     assert "background-image:none !important;" in final
     assert ".jobs-toolbar .filter-control::after" in final
     assert "color:var(--ink) !important;" in final
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")

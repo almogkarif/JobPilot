@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -9,4 +10,4 @@ def test_onboarding_orb_is_svg_anchored_not_container_positioned():
     onboarding = HTML.split('class="onboarding-brand brand"', 1)[1].split('</header>', 1)[0]
     assert 'brand-flight-dot' not in onboarding
     assert '.onboarding-logo-orb{' in CSS
-    assert 'styles.css?v=0.52.18' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")

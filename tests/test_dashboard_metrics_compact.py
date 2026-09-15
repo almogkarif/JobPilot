@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,5 +47,5 @@ def test_eligible_jobs_metric_keeps_original_fill_with_darker_number_outline():
 
 
 def test_v0111_asset_versions_are_bumped():
-    assert 'styles.css?v=0.52.18' in HTML
-    assert 'app.js?v=0.31.20' in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")

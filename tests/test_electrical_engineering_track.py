@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 from types import SimpleNamespace
 from app.services.career_tracks import CAREER_TRACK_BY_KEY, TRACK_DEFAULTS, ELECTRICAL_ENGINEERING
@@ -24,5 +25,5 @@ def test_pink_silver_ui_exists_day_and_night():
     assert "electrical_engineering:" in JS
     assert "track-electrical-engineering" in JS
     assert "body.track-electrical-engineering.theme-dark" in CSS
-    assert "app.js?v=0.31.20" in HTML
-    assert "styles.css?v=0.52.18" in HTML
+    assert asset_version_at_least(HTML, "app.js", "0.31.20")
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")

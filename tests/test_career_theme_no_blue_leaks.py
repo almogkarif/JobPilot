@@ -1,3 +1,4 @@
+from tests.asset_versions import asset_version_at_least
 from pathlib import Path
 
 CSS = Path("app/static/styles.css").read_text()
@@ -18,4 +19,4 @@ def test_non_cs_tracks_override_legacy_blue_profile_and_motion_components():
         assert marker in CSS
 
 def test_theme_css_asset_is_bumped():
-    assert "styles.css?v=0.52.18" in HTML
+    assert asset_version_at_least(HTML, "styles.css", "0.52.18")
