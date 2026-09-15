@@ -585,10 +585,12 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
   .job-swipe-action:last-child { border-radius:16px 0 0 16px; }
 }
 @container (max-width:900px) {
-  .job-swipe-label-full { display:none; }
-  .job-swipe-label-short { display:block; }
   .job-swipe-action { border-radius:12px; padding:3px; }
   .job-swipe-action b { font-size:10px; }
+}
+@container (max-width:360px) {
+  .job-swipe-label-full { display:none; }
+  .job-swipe-label-short { display:block; }
 }
 .job-swipe-action.is-automatic { background:linear-gradient(165deg,#1b995e,#126b43); color:#fff; }
 .job-swipe-action.is-manual { background:linear-gradient(165deg,#6b7a86,#4e5e69); color:#fff; }

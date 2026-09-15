@@ -382,6 +382,68 @@ def test_job_card_reveals_one_third_with_mouse_and_closes_with_touch(browser_pag
     assert abs(dashboard_action_boxes[1]["x"] - (dashboard_action_boxes[2]["x"] + dashboard_action_boxes[2]["width"])) <= 2
 
 
+def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(browser_page):
+    page, errors = browser_page
+    job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        title:'Swipe Discovery Hint Software Engineer', company:'Swipe Test', location:'Tel Aviv, Israel',
+        apply_url:'https://boards.greenhouse.io/example/jobs/112234'
+      })
+    })).json()""")
+    page.evaluate("""() => {
+      localStorage.setItem('jobpilot-swipe-discovered-v1:local-owner', '1');
+      localStorage.removeItem('jobpilot-swipe-discovered-admin-v2:local-owner');
+      localStorage.setItem('jobpilot-active-view', 'jobs');
+    }""")
+    page.add_init_script("""(() => {
+      window.__swipeHintAnimations = [];
+      const animate = Element.prototype.animate;
+      Element.prototype.animate = function(frames, options) {
+        if (this.classList.contains('job-swipe-card')) window.__swipeHintAnimations.push({frames, options});
+        return animate.call(this, frames, options);
+      };
+    })();""")
+    page.emulate_media(reduced_motion="reduce")
+    page.reload(wait_until="networkidle")
+    page.locator('#jobs-list .job-swipe-card').first.wait_for(state="visible")
+    page.wait_for_timeout(1400)
+    assert page.evaluate("window.__swipeHintAnimations.length") == 0
+
+    page.emulate_media(reduced_motion="no-preference")
+    page.reload(wait_until="networkidle")
+    assert page.evaluate("document.hidden") is False
+    page.wait_for_function("window.__swipeHintAnimations.length >= 1")
+    hint = page.evaluate("window.__swipeHintAnimations[0]")
+    frames = hint["frames"]
+    assert hint["options"]["duration"] >= 1500
+    assert frames[0]["transform"] == "translate3d(0,0,0)"
+    assert frames[1]["transform"].startswith("translate3d(-")
+    assert frames[2]["transform"] == "translate3d(0,0,0)"
+    assert frames[3]["transform"].startswith("translate3d(-")
+    assert frames[5]["transform"].startswith("translate3d(9px")
+    assert frames[-1]["transform"] == "translate3d(0,0,0)"
+    assert page.evaluate("localStorage.getItem('jobpilot-swipe-discovered-admin-v2:local-owner')") is None
+    page.wait_for_function("window.__swipeHintAnimations.length >= 2", timeout=10000)
+
+    card = page.locator(f'#jobs-list .job-swipe-card[data-job-id="{job["id"]}"]')
+    card.wait_for(state="visible")
+    shell = card.locator("xpath=..").first
+    box = card.bounding_box()
+    assert box
+    page.mouse.move(box["x"] + box["width"] * .75, box["y"] + box["height"] * .5)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 4, box["y"] + box["height"] * .5, steps=8)
+    page.mouse.up()
+    assert "is-open" in (shell.get_attribute("class") or "")
+    assert page.evaluate("localStorage.getItem('jobpilot-swipe-discovered-admin-v2:local-owner')") == "1"
+
+    page.reload(wait_until="networkidle")
+    page.locator('#jobs-list .job-swipe-card').first.wait_for(state="visible")
+    page.wait_for_timeout(1400)
+    assert page.evaluate("window.__swipeHintAnimations.length") == 0
+    assert not errors
+
+
 def test_submitted_and_deleted_jobs_animate_after_success(browser_page):
     page, _ = browser_page
     jobs = []

@@ -6,13 +6,18 @@ import shutil
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _chromium_path() -> str | None:
-    return shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+    system = shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("google-chrome")
+    if system:
+        return system
+    with sync_playwright() as playwright:
+        bundled = Path(playwright.chromium.executable_path)
+        return str(bundled) if bundled.exists() else None
 
 
 def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
@@ -91,7 +96,7 @@ def test_delete_buttons_and_israel_scan_report_in_real_browser_without_server():
         page.locator("#jobs-list .job-card").get_by_role("button", name="מחק", exact=True).click()
         page.get_by_text("המשרה נמחקה לצמיתות", exact=True).wait_for()
         assert page.evaluate("window.__jobIds()") == []
-        assert page.locator("#jobs-list .job-card").count() == 0
+        expect(page.locator("#jobs-list .job-card")).to_have_count(0)
 
         # The scan report explicitly distinguishes Israel jobs from filtered foreign jobs.
         page.evaluate(

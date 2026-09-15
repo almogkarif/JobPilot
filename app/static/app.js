@@ -1574,17 +1574,94 @@ function swipeJobActions(job) {
   const automaticSupported = applicationAgentAllowed()
     && job.application_adapter?.supports_automatic_submit === true;
   const primaryAction = automaticSupported
-    ? `<button class="job-swipe-action job-swipe-primary-action is-automatic has-tooltip" aria-label="הגשה אוטומטית" data-tooltip="מכניס את המשרה לתור ומגיש אותה אוטומטית ברקע" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">הגשה אוטומטית</b><b class="job-swipe-label-short" aria-hidden="true">הגש</b></button>`
-    : `<a class="job-swipe-action job-swipe-primary-action is-manual has-tooltip" aria-label="הגשה ידנית" data-tooltip="פותח את טופס ההגשה באתר החברה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()"><b class="job-swipe-label-full">הגשה ידנית</b><b class="job-swipe-label-short" aria-hidden="true">הגש</b></a>`;
+    ? `<button class="job-swipe-action job-swipe-primary-action is-automatic has-tooltip" aria-label="הגשה אוטומטית" data-tooltip="מכניס את המשרה לתור ומגיש אותה אוטומטית ברקע" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">הגשה אוטומטית</b><b class="job-swipe-label-short" aria-hidden="true">אוטומטית</b></button>`
+    : `<a class="job-swipe-action job-swipe-primary-action is-manual has-tooltip" aria-label="הגשה ידנית" data-tooltip="פותח את טופס ההגשה באתר החברה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()"><b class="job-swipe-label-full">הגשה ידנית</b><b class="job-swipe-label-short" aria-hidden="true">ידנית</b></a>`;
   return `<div class="job-swipe-actions" data-no-card-click aria-hidden="true">
     ${primaryAction}
-    <button class="job-swipe-action is-submitted has-tooltip" aria-label="הגשתי כבר למשרה הזאת" data-tooltip="מסמן שהמועמדות כבר הוגשה ומעדכן את המעקב" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">${job.status === 'submitted' ? 'המשרה כבר סומנה כהוגשה' : 'הגשתי כבר למשרה הזאת'}</b><b class="job-swipe-label-short" aria-hidden="true">הוגש</b></button>
-    <button class="job-swipe-action is-delete has-tooltip" aria-label="מחק משרה לצמיתות" data-tooltip="מסתיר את המשרה לצמיתות מהרשימה שלך, לאחר אישור" type="button" onclick="event.stopPropagation();deleteJob(${job.id})"><b class="job-swipe-label-full">מחק משרה לצמיתות</b><b class="job-swipe-label-short" aria-hidden="true">מחק</b></button>
+    <button class="job-swipe-action is-submitted has-tooltip" aria-label="הגשתי כבר למשרה הזאת" data-tooltip="מסמן שהמועמדות כבר הוגשה ומעדכן את המעקב" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">${job.status === 'submitted' ? 'כבר סומן כהוגש' : 'סמן כהוגש'}</b><b class="job-swipe-label-short" aria-hidden="true">הוגש</b></button>
+    <button class="job-swipe-action is-delete has-tooltip" aria-label="מחק משרה לצמיתות" data-tooltip="מסתיר את המשרה לצמיתות מהרשימה שלך, לאחר אישור" type="button" onclick="event.stopPropagation();deleteJob(${job.id})"><b class="job-swipe-label-full">מחק לצמיתות</b><b class="job-swipe-label-short" aria-hidden="true">מחק</b></button>
   </div>`;
 }
 
 let openJobSwipeShell = null;
 let openJobSwipeJobId = null;
+const swipeDiscoveredThisSession = new Set();
+let swipeHintTimer = null;
+let swipeHintScheduledRoot = null;
+let swipeHintAnimation = null;
+// Bump this when the swipe-hint animation changes so admins can review it again.
+const SWIPE_HINT_ADMIN_VERSION = 2;
+
+function swipeHintKey() {
+  if (authState.user?.is_guest) return null;
+  const userId = authState.user?.id || (authState.config?.mode !== 'supabase' ? 'local-owner' : null);
+  if (!userId) return null;
+  return authState.user?.role === 'admin' || authState.config?.mode !== 'supabase'
+    ? `jobpilot-swipe-discovered-admin-v${SWIPE_HINT_ADMIN_VERSION}:${userId}`
+    : `jobpilot-swipe-discovered-v1:${userId}`;
+}
+
+function cancelSwipeHint() {
+  if (swipeHintTimer) clearTimeout(swipeHintTimer);
+  swipeHintTimer = null;
+  swipeHintScheduledRoot = null;
+  swipeHintAnimation?.cancel();
+  swipeHintAnimation = null;
+}
+
+function recordSwipeDiscovery() {
+  const key = swipeHintKey();
+  if (!key) return;
+  cancelSwipeHint();
+  swipeDiscoveredThisSession.add(key);
+  try { localStorage.setItem(key, '1'); } catch { /* Storage may be unavailable. */ }
+}
+
+function scheduleSwipeHint(root, delay = 1100) {
+  const key = swipeHintKey();
+  if (!key || swipeDiscoveredThisSession.has(key) || document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try { if (localStorage.getItem(key) === '1') return; } catch { /* Storage may be unavailable. */ }
+  if (!root?.closest('.view.active') || !$('#onboarding-gate')?.hidden) return;
+  const shell = $$('.job-swipe-shell:not(.is-open)', root).find((candidate) => {
+    const bounds = candidate.getBoundingClientRect();
+    return bounds.bottom > 0 && bounds.top < innerHeight && bounds.right > 0 && bounds.left < innerWidth;
+  });
+  if (!shell || !shell.querySelector('.job-swipe-actions')) return;
+  if (swipeHintTimer && swipeHintScheduledRoot !== root) {
+    clearTimeout(swipeHintTimer);
+    swipeHintTimer = null;
+  }
+  if (swipeHintTimer || swipeHintAnimation) return;
+  swipeHintScheduledRoot = root;
+  swipeHintTimer = setTimeout(() => {
+    swipeHintTimer = null;
+    swipeHintScheduledRoot = null;
+    if (document.hidden || !shell.isConnected || !root.closest('.view.active') || !$('#onboarding-gate')?.hidden || shell.classList.contains('is-open')) return;
+    const card = shell.querySelector('.job-swipe-card');
+    const bounds = shell.getBoundingClientRect();
+    if (!card || bounds.bottom <= 0 || bounds.top >= innerHeight || bounds.right <= 0 || bounds.left >= innerWidth) return;
+    const distance = Math.min(110, bounds.width * .17);
+    swipeHintAnimation = card.animate([
+      { transform: 'translate3d(0,0,0)', offset: 0 },
+      { transform: 'translate3d(-18px,0,0)', offset: .17 },
+      { transform: 'translate3d(0,0,0)', offset: .29 },
+      { transform: `translate3d(${-distance}px,0,0)`, offset: .54 },
+      { transform: `translate3d(${-distance}px,0,0)`, offset: .64 },
+      { transform: 'translate3d(9px,0,0)', offset: .83 },
+      { transform: 'translate3d(-3px,0,0)', offset: .93 },
+      { transform: 'translate3d(0,0,0)', offset: 1 },
+    ], { duration: 1550, easing: 'ease-in-out' });
+    swipeHintAnimation.onfinish = () => {
+      swipeHintAnimation = null;
+      scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'), 5000);
+    };
+  }, delay);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) cancelSwipeHint();
+  else scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'), 5000);
+});
 
 function setJobSwipeOpen(shell, open) {
   if (!shell) return;
@@ -1635,6 +1712,7 @@ function initializeJobSwipeActions(root) {
     const begin = (event, allowActionSurface = false) => {
       if (event.button !== undefined && event.button !== 0) return;
       if (!allowActionSurface && event.target.closest('[data-no-card-click],button,a,input,select,textarea')) return;
+      if (swipeHintAnimation?.effect?.target === card) cancelSwipeHint();
       pointerId = event.pointerId;
       startX = event.clientX;
       startY = event.clientY;
@@ -1687,6 +1765,8 @@ function initializeJobSwipeActions(root) {
         actions.dataset.swipeSuppressUntil = suppressUntil;
       }
       setJobSwipeOpen(shell, shouldOpen);
+      if (!wasOpen && shouldOpen && event.type === 'pointerup') recordSwipeDiscovery();
+      else scheduleSwipeHint(root, 5000);
       if (captured) {
         try { shell.releasePointerCapture(pointerId); } catch { /* already released */ }
       }
@@ -1707,6 +1787,7 @@ function initializeJobSwipeActions(root) {
       }
     }, true);
   });
+  scheduleSwipeHint(root);
 }
 
 document.addEventListener('pointerdown', (event) => {
@@ -5059,6 +5140,7 @@ async function onboardingFinish(skipped=false){
   if(onboardingState.scanTimer){clearTimeout(onboardingState.scanTimer);onboardingState.scanTimer=null}
   if(!onboardingState.preview)await api('/api/onboarding',{method:'PUT',body:JSON.stringify({completed:!skipped,skipped,step:'done'})});
   $('#onboarding-gate').hidden=true;$('#onboarding-gate').setAttribute('aria-hidden','true');document.body.classList.remove('onboarding-open');onboardingState.preview=false;
+  scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'));
 }
 function renderOnboardingRankingStatus(status){
   const target=$('#onboarding-ranking-status'); if(!target)return;
