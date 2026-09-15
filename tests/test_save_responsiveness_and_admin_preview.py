@@ -40,7 +40,7 @@ def test_assets_bumped():
 def test_local_admin_preview_uses_regular_application_workspace_permissions():
     assert "!adminPreviewActive() && (authState.config?.mode !== 'supabase'" in JS
     assert "X-JobPilot-Preview-Role" in JS
-    assert "styles.css?v=0.52.5" in HTML
+    assert "styles.css?v=0.52.6" in HTML
 
 
 def test_preferences_do_not_expand_past_the_profile_shell():

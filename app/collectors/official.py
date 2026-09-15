@@ -94,9 +94,9 @@ PRESETS = {
     "microsoft": {"url": "https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/(\d+)", "company": "Microsoft", "prefer_link_text": True, "settle_ms": 4500, "selector_timeout_ms": 25000, "dynamic_scroll": True},
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2, "hydrate_details": True, "max_detail_jobs": 180},
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
-    "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120, "validate_detail_redirects": True},
+    "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120, "validate_detail_redirects": True, "detail_title_selector": ".section30__job-title", "detail_body_selector": ".section30__job-description"},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
-    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
+    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco", "hydrate_details": True, "max_detail_jobs": 120},
     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
     # Salesforce can expose more than 1,500 global roles. Hydrating 80 detail
@@ -126,9 +126,9 @@ PRESETS = {
     "gloat": {**_comeet_preset("gloat", "E5.000", "Gloat"), "data_url": "https://www.comeet.co/careers-api/2.0/company/E5.000/positions?token=5E02340002F0017800234011A01780&details=true", "data_only": True},
     "silverfort": {**_comeet_preset("silverfort", "54.007", "Silverfort"), "data_url": "https://www.comeet.co/careers-api/2.0/company/54.007/positions?token=45715B315B38AE22B8D051A0A457D051E61&details=true", "data_only": True},
     "4manalytics": _comeet_preset("4Manalytics", "B6.00F", "4M Analytics"),
-    "exodigo": _comeet_preset("exodigo", "89.005", "Exodigo"),
+    "exodigo": {**_comeet_preset("exodigo", "89.005", "Exodigo"), "data_url": "https://www.comeet.co/careers-api/2.0/company/89.005/positions?token=98542A398504C28391E130A391E391E2614&details=true", "data_only": True},
     "paragon": {**_comeet_preset("paragon", "76.006", "Paragon"), "data_url": "https://www.comeet.co/careers-api/2.0/company/76.006/positions?token=67626C46762D3A33B02D3A204E26C4676676&details=true", "data_only": True},
-    "legitsecurity": _comeet_preset("legitsecurity.com", "37.004", "Legit Security"),
+    "legitsecurity": {**_comeet_preset("legitsecurity.com", "37.004", "Legit Security"), "data_url": "https://www.comeet.co/careers-api/2.0/company/37.004/positions?token=7342B38159C159C40D41CD0073440D42404&details=true", "data_only": True},
     "voyantis": {
         **_comeet_preset("voyantis", "86.00B", "Voyantis"),
         "data_url": "https://www.comeet.co/careers-api/2.0/company/86.00B/positions?token=68B2742D1600D16020B71A2C2742&details=true",
@@ -946,9 +946,10 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                     # provider's tombstone for a role that no longer exists.
                     return {**row, "_invalid_detail": True}
                 soup = BeautifulSoup(response.text, "html.parser")
-                heading = soup.select_one("h1, main h2, article h2, [role='main'] h2")
+                heading = soup.select_one(str(preset.get("detail_title_selector") or "h1, main h2, article h2, [role='main'] h2"))
                 title = heading.get_text(" ", strip=True) if heading else ""
-                body = soup.select_one("main, article, [role='main']") or soup.body
+                body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
+                body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
                 if preset.get("company") == "Apple":
                     text = _apple_embedded_detail_text(response.text) or text
@@ -1126,7 +1127,8 @@ _ISRAEL_CITY_NAMES = (
     "Raanana", "Rehovot", "Netanya", "Caesarea", "Bnei Brak", "Rishon Lezion",
     "Kfar Saba", "Hod Hasharon", "Modiin", "Nes Ziona", "Or Yehuda", "Yehud",
     "Migdal Haemek", "Migdal Ha'Emek", "Ramat-Gan", "Tel Aviv-Yafo",
-    "Kiryat Bialik", "Karmiel", "Misgav", "Holon", "Petach Tikva",
+    "Kiryat Bialik", "Karmiel", "Misgav", "Holon", "Petach Tikva", "Ashdod", "Yavne",
+    "Be'er Yaakov", "Beer Yaakov",
 )
 
 _HEBREW_ISRAEL_LOCATIONS = {
@@ -1143,6 +1145,7 @@ _HEBREW_ISRAEL_LOCATIONS = {
     "קריות": "Krayot, Israel", "קריית ביאליק": "Kiryat Bialik, Israel",
     "קרית ביאליק": "Kiryat Bialik, Israel", "כרמיאל": "Karmiel, Israel",
     "גוש שגב": "Misgav, Israel", "משגב": "Misgav, Israel",
+    "באר יעקב": "Be'er Yaakov, Israel", "אשדוד": "Ashdod, Israel", "יבנה": "Yavne, Israel",
     'נתב"ג': "Ben Gurion Airport, Israel", "נתב״ג": "Ben Gurion Airport, Israel",
 }
 

@@ -40,6 +40,7 @@ _STRONG_HEADINGS: tuple[tuple[str, str], ...] = (
     ("required", r"what\s+you\s+bring"),
     ("required", r"what\s+we(?:'|’)re\s+looking\s+for"),
     ("required", r"what\s+we\s+are\s+looking\s+for"),
+    ("required", r"מה\s+אנחנו\s+מחפשים"),
     ("required", r"must[- ]haves?"),
     ("required", r"skills?\s+(?:and|&)\s+experience"),
     ("required", r"experience\s+(?:and|&)\s+qualifications?"),

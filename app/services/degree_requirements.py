@@ -190,6 +190,14 @@ def _clause_requirement(kind: str, clause: str) -> DegreeRequirement | None:
             levels = ["bachelor"]
         elif re.search(r"(?:תואר|השכלה\s+(?:אקדמית|הנדסית))\s+(?:ב|בתחום)\S+", normalized):
             levels = ["bachelor"]
+        # Israeli engineering boards often state the mandatory academic
+        # credential by profession ("electronics engineer - required") without
+        # repeating the word "degree". Keep practical engineers/technicians out.
+        elif (
+            re.search(r"מהנדס(?:ת|\.ת|/ת)?\s+[^.\n]{1,100}(?:חובה|נדרש|נדרשת)", normalized)
+            and not re.search(r"הנדסאי|טכנאי", normalized)
+        ):
+            levels = ["bachelor"]
         else:
             return None
 

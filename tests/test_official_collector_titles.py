@@ -75,6 +75,9 @@ def test_official_location_requires_israel_evidence():
     assert _extract_israel_location("Ad Operation Specialist Service & Solutions Tel Aviv, Israel") == "Tel Aviv, Israel"
     assert _extract_israel_location("Accounts Payable Specialist Finance Gurugram, India") == ""
     assert _extract_israel_location("Software Engineer Jerusalem") == "Jerusalem, Israel"
+    assert _extract_israel_location("לאתר החברה ביבנה דרוש.ה מהנדס.ת") == "Yavne, Israel"
+    assert _extract_israel_location("למרכז באשדוד דרוש/ה Data Scientist") == "Ashdod, Israel"
+    assert _extract_israel_location("מהנדס/ת הנחיה ובקרה באר יעקב") == "Be'er Yaakov, Israel"
 
 
 def test_summary_card_sources_hydrate_detail_pages_before_persistence():

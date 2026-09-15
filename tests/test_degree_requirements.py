@@ -206,3 +206,21 @@ def test_required_engineering_education_is_treated_as_bachelor_degree():
     )
     assert requirement.level == "bachelor"
     assert requirement.required is True
+
+
+def test_hebrew_looking_for_heading_ends_responsibilities_section():
+    requirement = extract_degree_requirement_details(
+        "תיאור התפקיד: פיתוח ואימות מערכות. מה אנחנו מחפשים "
+        "תואר ראשון בהנדסת מחשבים - חובה. תואר שני - יתרון."
+    )
+    assert requirement.level == "bachelor"
+    assert requirement.required is True
+
+
+def test_mandatory_engineer_profession_implies_academic_degree_but_practical_engineer_does_not():
+    requirement = extract_degree_requirement_details(
+        "דרישות התפקיד: מהנדס.ת אלקטרוניקה - חובה. ניסיון במערכות בדיקה - יתרון"
+    )
+    assert requirement.level == "bachelor"
+    assert requirement.required is True
+    assert extract_degree_requirement("דרישות: הנדסאי/ת אלקטרוניקה - חובה") == ""

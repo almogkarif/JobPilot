@@ -141,7 +141,7 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
     assert 'app.js?v=0.31.12' in HTML
-    assert 'styles.css?v=0.52.5' in HTML
+    assert 'styles.css?v=0.52.6' in HTML
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
@@ -178,4 +178,4 @@ def test_iem_dock_active_label_and_jobs_filter_deck_have_explicit_contrast_guard
     assert "background-image:none !important;" in final
     assert ".jobs-toolbar .filter-control::after" in final
     assert "color:var(--ink) !important;" in final
-    assert 'styles.css?v=0.52.5' in HTML
+    assert 'styles.css?v=0.52.6' in HTML

@@ -224,6 +224,40 @@ def test_palo_alto_hydration_drops_jobs_redirected_to_careers_home(monkeypatch):
     assert asyncio.run(_hydrate_detail_rows([row], PRESETS["paloalto"])) == []
 
 
+def test_palo_alto_hydration_uses_job_heading_and_body_not_marketing_hero(monkeypatch):
+    from app.collectors.official import _hydrate_detail_rows
+
+    class Response:
+        status_code = 200
+        text = """
+            <html><body><main>
+              <h1>Revolutionizing protection.</h1>
+              <section class="job-description section30__job-description">
+                <h2 class="section30__job-title">Backend Engineer</h2>
+                <span class="section30__job-info-location">Petach Tikva, Israel</span>
+                <div class="ats-description">Build Python services. Requirements: 3+ years.</div>
+              </section>
+              <h3>Related Jobs</h3><p>Sales Manager in California</p>
+            </main></body></html>
+        """
+        url = "https://jobs.paloaltonetworks.com/en/job/petah-tikva/backend-engineer/47263/100361908672"
+
+    class Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *_args): return None
+        async def get(self, _url): return Response()
+
+    monkeypatch.setattr("app.collectors.official.httpx.AsyncClient", lambda **_kwargs: Client())
+    row = {
+        "href": Response.url,
+        "title": "Backend Engineer", "linkText": "Backend Engineer", "text": "Israel",
+    }
+    hydrated = asyncio.run(_hydrate_detail_rows([row], PRESETS["paloalto"]))[0]
+    assert hydrated["title"] == "Backend Engineer"
+    assert "Petach Tikva, Israel" in hydrated["text"]
+    assert "California" not in hydrated["text"]
+
+
 def test_structured_adapter_rejects_unrelated_numeric_objects_without_job_title():
     payload = '{"analytics":{"id":76048939,"name":""},"page":{"id":76040000,"label":"Jobs"}}'
     assert _extract_structured_job_rows(payload, PRESETS["iai"]) == []
@@ -237,10 +271,16 @@ def test_unstable_large_boards_use_their_public_data_feeds():
 
 
 def test_problematic_comeet_boards_request_complete_structured_details():
-    for identifier in ("vastdata", "silverfort", "paragon", "voyantis"):
+    for identifier in ("vastdata", "silverfort", "paragon", "voyantis", "exodigo", "legitsecurity"):
         preset = PRESETS[identifier]
         assert preset["data_only"] is True
         assert "details=true" in preset["data_url"]
+
+
+def test_monday_detail_hydration_is_not_skipped_when_listing_already_has_a_title():
+    preset = PRESETS["monday"]
+    assert preset["hydrate_details"] is True
+    assert not preset.get("hydrate_missing_title_only")
 
 
 def test_aqua_uses_the_job_slug_instead_of_the_full_card_as_title():
