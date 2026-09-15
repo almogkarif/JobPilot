@@ -63,7 +63,7 @@ def test_dashboard_filtered_job_count_uses_the_existing_bounded_aggregate():
     stats = source[source.index("def _career_track_stats"):source.index("def _career_tracks_payload")]
     assert '"eligible_jobs": 0' in stats
     assert "JobRanking.eligibility_state != \"excluded\"" in stats
-    assert "for track_key, jobs, eligible_jobs, strong_matches in job_rows" in stats
+    assert "for track_key, jobs, eligible_jobs, strong_matches, ranking_pending_jobs in job_rows" in stats
 
 
 def test_application_diagnostics_export_is_bounded():
@@ -297,3 +297,28 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
         assert preset["http_first"] is True
         assert preset["static_only"] is True
         assert not preset.get("hydrate_details")
+
+
+def test_new_source_expansion_does_not_enable_unbounded_official_pages():
+    from collections import Counter
+
+    from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
+
+    active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
+    counts = Counter(item["track"] for item in active)
+    # Only the active professional track is scanned. The expansion adds at most
+    # 35 bounded ATS calls per scan and performs no Supabase reads/downloads.
+    assert max(counts.values()) <= 35
+    assert all(
+        item["kind"] != "official_careers"
+        or item["identifier"] in {"cyera", "grip-security", "reco"}
+        for item in active
+    )
+
+
+def test_dashboard_pending_ranking_uses_existing_aggregate_query():
+    source = Path(main_module.__file__).read_text()
+    stats_body = source.split("def _career_track_stats", 1)[1].split("def _career_tracks_payload", 1)[0]
+    assert '"ranking_pending_jobs": 0' in stats_body
+    assert "catalog_condition & JobRanking.id.is_(None)" in stats_body
+    assert '"ranking_pending_jobs": ranking_pending_jobs' in source

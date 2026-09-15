@@ -14,6 +14,7 @@ from playwright.async_api import async_playwright
 
 from .base import NormalizedJob, PreserveExistingJobs
 from ..services.job_text import clean_job_text, job_text_quality
+from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
 
 
 def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
@@ -96,7 +97,7 @@ PRESETS = {
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120, "validate_detail_redirects": True, "detail_title_selector": ".section30__job-title", "detail_body_selector": ".section30__job-description"},
     "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
-    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
+    "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80, "location_from_detail_header": True},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco", "hydrate_details": True, "max_detail_jobs": 120},
     "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
     # Salesforce can expose more than 1,500 global roles. Hydrating 80 detail
@@ -158,6 +159,22 @@ def _bounded_official_board(url: str, company: str, *, trusted_israel_feed: bool
         "allow_empty": True,
         "trusted_israel_feed": trusted_israel_feed,
     }
+
+
+PRESETS.update({
+    item["identifier"]: _bounded_official_board(item["url"], item["company_name"])
+    for item in EXPANDED_EMPLOYER_SOURCES
+    if item["kind"] == "official_careers" and item["url"]
+})
+
+# These three sites expose stable Comeet boards.  Keep their official collector
+# kind for compatibility with the application adapter, but parse the actual job
+# cards instead of generic navigation links from the marketing careers page.
+PRESETS.update({
+    "cyera": _comeet_preset("cyera", "17.008", "Cyera"),
+    "grip-security": _comeet_preset("grip", "A8.001", "Grip Security"),
+    "reco": _comeet_preset("reco", "3A.00D", "Reco"),
+})
 
 
 # Additional official employers requested for the Industrial Engineering track.
@@ -298,7 +315,11 @@ class OfficialCareersCollector:
                 # Never persist Wix infrastructure IDs (oracle/seat/REF) as titles.
                 # A later scan can recover the job once its detail page is readable.
                 continue
-            location = _extract_israel_location(text)
+            # monday's detail body mentions offices around the world. Its own
+            # location is in the compact header, so do not let a later office
+            # name turn a US/UK role into an Israeli role.
+            location_text = text[:500] if preset.get("location_from_detail_header") else text
+            location = _extract_israel_location(location_text)
             if not location and preset.get("trusted_israel_feed"):
                 location = "Israel"
             results[match.group(1)] = NormalizedJob(
@@ -1122,7 +1143,7 @@ def _repair_known_listing_title(identifier: str, title: str, text: str) -> str:
     return title
 
 _ISRAEL_CITY_NAMES = (
-    "Tel Aviv", "Tel Aviv-Yafo", "Haifa", "Herzliya", "Jerusalem", "Ramat Gan", "Petah Tikva",
+    "Tel Aviv", "Tel-Aviv", "Tel Aviv-Yafo", "Haifa", "Herzliya", "Jerusalem", "Ramat Gan", "Petah Tikva",
     "Kiryat Gat", "Beer Sheva", "Be'er Sheva", "Yokneam", "Yoqneam", "Ra'anana",
     "Raanana", "Rehovot", "Netanya", "Caesarea", "Bnei Brak", "Rishon Lezion",
     "Kfar Saba", "Hod Hasharon", "Modiin", "Nes Ziona", "Or Yehuda", "Yehud",
@@ -1163,7 +1184,7 @@ def _extract_israel_location(text: str) -> str:
             return canonical
     for city in _ISRAEL_CITY_NAMES:
         if re.search(rf"(?<![A-Za-z]){re.escape(city)}(?![A-Za-z])", compact, re.IGNORECASE):
-            canonical = city.replace("Beer Sheva", "Be'er Sheva").replace("Raanana", "Ra'anana").replace("Yoqneam", "Yokneam").replace("Petach Tikva", "Petah Tikva")
+            canonical = city.replace("Tel-Aviv", "Tel Aviv").replace("Beer Sheva", "Be'er Sheva").replace("Raanana", "Ra'anana").replace("Yoqneam", "Yokneam").replace("Petach Tikva", "Petah Tikva")
             return f"{canonical}, Israel"
     # Several Israeli startup boards use ISO country codes instead of spelling out
     # the country (for example ``location_on IL`` or ``Tel Aviv · IL``). Require a
@@ -1181,4 +1202,6 @@ def _normalized_workplace(value: object) -> str:
         return "hybrid"
     if "remote" in normalized or "מרחוק" in normalized:
         return "remote"
-    return "onsite"
+    if any(term in normalized for term in ("onsite", "on-site", "on site", "office", "משרד")):
+        return "onsite"
+    return ""

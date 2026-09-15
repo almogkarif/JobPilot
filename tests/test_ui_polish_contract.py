@@ -140,21 +140,29 @@ def test_mobile_redesign_uses_simple_fixed_bottom_dock_and_phone_first_job_layou
     assert "$$('[data-mobile-view]')" in JS
     assert 'scrollIntoView' in JS
     assert "function jobCardActions(job)" in JS
-    assert 'app.js?v=0.31.12' in HTML
-    assert 'styles.css?v=0.52.6' in HTML
+    assert 'app.js?v=0.31.17' in HTML
+    assert 'styles.css?v=0.52.11' in HTML
 
 
 def test_jobs_toolbar_has_dynamic_location_filter_and_trimmed_sort_menu():
     jobs_view = HTML[HTML.index('id="view-jobs"'):HTML.index('id="view-applications"')]
     assert 'id="job-location-filter"' in jobs_view
-    assert '<option value="__all_israel__">כל הארץ</option>' in jobs_view
+    assert 'id="job-location-options"' in jobs_view
+    assert 'id="job-admin-filter-control" hidden' in jobs_view
+    assert 'value="experience_unknown"' in jobs_view
+    assert 'value="degree_unknown"' in jobs_view
+    assert 'class="filter-control admin-only-control job-admin-control"' in jobs_view
     assert '<option value="score_desc">המומלצות ביותר</option>' in jobs_view
     assert '<option value="newest">החדשות ביותר</option>' in jobs_view
     assert 'value="score_asc"' not in jobs_view
     assert 'value="oldest"' not in jobs_view
     assert 'value="discovered_desc"' not in jobs_view
     assert 'value="title_asc"' not in jobs_view
-    assert "updateJobLocationOptions(payload.location_options || [], payload.location || '')" in JS
+    assert "payload.locations || (payload.location ? [payload.location] : locations)" in JS
+    assert '.jobs-toolbar:has(.location-filter-trigger[aria-expanded="true"]) { z-index:85 !important; }' in CSS
+    assert '.job-location-control,.job-admin-control { position:relative; }' in CSS
+    assert 'const adminJobsFilterAllowed = () =>' in JS
+    assert 'return adminJobsFilterAllowed()' in JS
 
 
 def test_jobs_offer_manual_applied_action_and_distinct_applied_state():
@@ -178,4 +186,4 @@ def test_iem_dock_active_label_and_jobs_filter_deck_have_explicit_contrast_guard
     assert "background-image:none !important;" in final
     assert ".jobs-toolbar .filter-control::after" in final
     assert "color:var(--ink) !important;" in final
-    assert 'styles.css?v=0.52.6' in HTML
+    assert 'styles.css?v=0.52.11' in HTML

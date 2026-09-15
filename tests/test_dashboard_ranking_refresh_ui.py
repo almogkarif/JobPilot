@@ -19,6 +19,8 @@ def test_dashboard_displays_and_polls_professional_reranking_status():
 
 def test_dashboard_keeps_loading_notice_visible_when_recommendations_are_unranked():
     assert "recommendationsPending" in JS
+    assert "dashboard.ranking_pending_jobs" in JS
+    assert "pendingRankingJobs > 0" in JS
     assert "job.ranking_pending" in JS
     assert "rankingRefresh.running || recommendationsPending" in JS
     assert "המשרות עדיין נטענות ומדורגות" in JS

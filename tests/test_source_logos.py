@@ -21,7 +21,7 @@ def test_every_recommended_company_has_a_logo_domain():
         item["company_name"]
         for sources in RECOMMENDED_SOURCES_BY_TRACK.values()
         for item in sources
-        if item["company_name"].strip().lower() not in logos
+        if not item.get("logo_domain") and item["company_name"].strip().lower() not in logos
     })
     assert missing == []
 

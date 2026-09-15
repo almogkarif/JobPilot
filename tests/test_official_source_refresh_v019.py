@@ -2,7 +2,7 @@ import json
 
 from app.collectors.official import (
     PRESETS, _apple_embedded_detail_text, _extract_israel_location,
-    _extract_raw_rows, _extract_text_id_rows, _resolve_row_href,
+    _extract_raw_rows, _extract_text_id_rows, _normalized_workplace, _resolve_row_href,
 )
 
 
@@ -92,6 +92,17 @@ def test_hebrew_job_card_locations_are_normalized_to_israel():
     assert _extract_israel_location('אתר נתב"ג') == "Ben Gurion Airport, Israel"
     assert _extract_israel_location("For our site in Holon") == "Holon, Israel"
     assert _extract_israel_location("Petach Tikva, Israel") == "Petah Tikva, Israel"
+    assert _extract_israel_location("FullTime Tel-Aviv, IL") == "Tel Aviv, Israel"
+
+
+def test_unknown_workplace_is_not_invented_as_onsite():
+    assert _normalized_workplace("") == ""
+    assert _normalized_workplace("Hybrid") == "hybrid"
+    assert _normalized_workplace("On-site") == "onsite"
+
+
+def test_monday_uses_only_detail_header_as_location_evidence():
+    assert PRESETS["monday"]["location_from_detail_header"] is True
 
 
 def test_script_json_job_urls_are_recovered_when_dom_selectors_change():

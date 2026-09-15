@@ -26,7 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.responses import RedirectResponse
 import httpx
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import asc, case, desc, func, literal, or_, select, update
+from sqlalchemy import and_, asc, case, desc, func, literal, or_, select, update
 from sqlalchemy.orm import Session, defer, joinedload, load_only, selectinload
 from starlette.concurrency import run_in_threadpool
 
@@ -1729,7 +1729,10 @@ def _degree_visibility_condition(profile: Profile | None):
 
 def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str, dict[str, int]]:
     stats = {
-        track.key: {"enabled_sources": 0, "source_errors": 0, "jobs": 0, "eligible_jobs": 0, "strong_matches": 0}
+        track.key: {
+            "enabled_sources": 0, "source_errors": 0, "jobs": 0,
+            "eligible_jobs": 0, "strong_matches": 0, "ranking_pending_jobs": 0,
+        }
         for track in CAREER_TRACKS
     }
     source_rows = db.execute(
@@ -1774,14 +1777,16 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
                 & JobRanking.tier.in_(("top_match", "strong_match")),
                 1,
             ), else_=0)),
+            func.sum(case((catalog_condition & JobRanking.id.is_(None), 1), else_=0)),
         ).outerjoin(JobRanking, valid_ranking_join).group_by(Job.career_track)
     ).all()
-    for track_key, jobs, eligible_jobs, strong_matches in job_rows:
+    for track_key, jobs, eligible_jobs, strong_matches, ranking_pending_jobs in job_rows:
         key = normalize_track(track_key)
         if key in stats:
             stats[key]["jobs"] = int(jobs or 0)
             stats[key]["eligible_jobs"] = int(eligible_jobs or 0)
             stats[key]["strong_matches"] = int(strong_matches or 0)
+            stats[key]["ranking_pending_jobs"] = int(ranking_pending_jobs or 0)
     return stats
 
 
@@ -1916,6 +1921,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         total_jobs = int(current_stats.get("jobs", 0))
         eligible_jobs = total_jobs if guest_catalog else int(current_stats.get("eligible_jobs", 0))
         strong_matches = int(current_stats.get("strong_matches", 0))
+        ranking_pending_jobs = 0 if guest_catalog else int(current_stats.get("ranking_pending_jobs", 0))
 
         # Dashboard recommendations are the strongest active opportunities in the
         # entire catalog. Recency is only a tie-breaker; an excellent older role
@@ -2012,6 +2018,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "total_jobs": total_jobs,
         "eligible_jobs": eligible_jobs,
         "strong_matches": strong_matches,
+        "ranking_pending_jobs": ranking_pending_jobs,
         "queued": auto_apply_queue["queued_count"],
         "auto_apply_queue": auto_apply_queue,
         "applying": status_counts.get("applying", 0),
@@ -2809,7 +2816,7 @@ def list_jobs(
     request: Request,
     min_score: int = Query(0, ge=0, le=100),
     status: str | None = None,
-    location: str | None = None,
+    location: list[str] | None = Query(None),
     query: str | None = None,
     active_only: bool = True,
     limit: int = Query(200, ge=1, le=1000),
@@ -2818,16 +2825,27 @@ def list_jobs(
     page_size: int = Query(20, ge=1, le=100),
     sort: str = Query("score_desc"),
     automatic_only: bool = False,
+    admin_filter: list[str] | None = Query(None),
     db: Session = Depends(get_db),
 ):
     profile = get_user_profile(db)
     career_track = active_track(profile)
     guest_catalog = _request_is_guest(request)
+    selected_admin_filters = list(dict.fromkeys(
+        str(value).strip() for value in (admin_filter or []) if str(value).strip()
+    ))
+    allowed_admin_filters = {"experience_unknown", "degree_unknown"}
+    if any(value not in allowed_admin_filters for value in selected_admin_filters):
+        raise HTTPException(400, "Unsupported admin jobs filter")
+    if selected_admin_filters and not _developer_tools_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "סינון האדמין זמין למנהל בלבד")
 
     with _job_catalog_session(request, db) as catalog_db:
         ranking_settings = get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
-        selected_location = str(location or "").strip()
+        selected_locations = list(dict.fromkeys(
+            str(value).strip() for value in (location or []) if str(value).strip()
+        ))
         location_options: list[dict] = []
         location_raw_map: dict[str, list[str]] = {}
         statement = select(Job).options(
@@ -2892,17 +2910,27 @@ def list_jobs(
             automatic_filter = _automatic_application_query_filter()
             statement = statement.where(automatic_filter)
             location_count_statement = location_count_statement.where(automatic_filter)
+        if selected_admin_filters:
+            admin_conditions = []
+            if "experience_unknown" in selected_admin_filters:
+                admin_conditions.append(and_(Job.experience_min.is_(None), Job.experience_max.is_(None)))
+            if "degree_unknown" in selected_admin_filters:
+                admin_conditions.append(or_(Job.degree_requirement.is_(None), Job.degree_requirement == ""))
+            admin_filter_condition = or_(*admin_conditions)
+            statement = statement.where(admin_filter_condition)
+            location_count_statement = location_count_statement.where(admin_filter_condition)
 
         # The location aggregation doubles as the paginated total-count query, so
         # adding the dynamic filter does not add another database round trip.
-        if paginated or selected_location:
+        if paginated or selected_locations:
             location_options, location_raw_map = _jobs_location_filter_options(
                 catalog_db, location_count_statement
             )
-            if selected_location not in location_raw_map:
-                selected_location = ""
-        if selected_location:
-            raw_locations = location_raw_map.get(selected_location, [])
+            selected_locations = [value for value in selected_locations if value in location_raw_map]
+        if selected_locations:
+            raw_locations = list(dict.fromkeys(
+                raw for value in selected_locations for raw in location_raw_map.get(value, [])
+            ))
             if raw_locations:
                 statement = statement.where(Job.location.in_(raw_locations))
             else:
@@ -2940,11 +2968,9 @@ def list_jobs(
         statement = statement.order_by(*sort_map[sort])
 
         if paginated:
-            if selected_location:
-                total = next(
-                    (int(item["count"]) for item in location_options if item["value"] == selected_location),
-                    0,
-                )
+            if selected_locations:
+                selected_set = set(selected_locations)
+                total = sum(int(item["count"]) for item in location_options if item["value"] in selected_set)
             else:
                 total = sum(int(item["count"]) for item in location_options)
             pages = max(1, (total + page_size - 1) // page_size)
@@ -2973,7 +2999,9 @@ def list_jobs(
         "pages": pages,
         "sort": sort,
         "automatic_only": automatic_only,
-        "location": selected_location,
+        "admin_filters": selected_admin_filters,
+        "location": selected_locations[0] if len(selected_locations) == 1 else "",
+        "locations": selected_locations,
         "location_options": location_options,
     }
     if guest_catalog:
@@ -6649,12 +6677,15 @@ def _agent_profile_dict(p: Profile, *, identity_email: str = "") -> dict:
 
 
 def _source_dict(s: Source) -> dict:
+    metadata = loads(s.metadata_json, {})
     return {
         "id": s.id, "name": s.name, "kind": s.kind, "identifier": s.identifier,
         "company_name": s.company_name, "enabled": s.enabled, "last_scanned_at": s.last_scanned_at,
         "last_error": s.last_error, "created_at": s.created_at,
         "health_score": s.health_score, "consecutive_failures": s.consecutive_failures,
         "disabled_until": s.disabled_until, "career_track": s.career_track,
+        "logo_domain": metadata.get("logo_domain", "") if isinstance(metadata, dict) else "",
+        "validation_status": metadata.get("validation_status", "") if isinstance(metadata, dict) else "",
     }
 
 

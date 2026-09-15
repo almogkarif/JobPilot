@@ -169,7 +169,9 @@ const api = async (path, options = {}) => {
   return response.json();
 };
 
-const technicalDetailsAllowed = () => authState.user?.capabilities?.developer_tools === true && !adminPreviewActive();
+const technicalDetailsAllowed = () => authState.capabilities?.developer_tools === true && !adminPreviewActive();
+const adminJobsFilterAllowed = () => !adminPreviewActive()
+  && (authState.config?.mode !== 'supabase' || authState.capabilities?.developer_tools === true);
 
 function professionalMessage(value = '') {
   const raw = String(value || '').replace(/^\[blocked:[^\]]+\]\s*/i, '').trim();
@@ -848,6 +850,8 @@ function normalizeSourceBrand(value = '') {
 }
 
 function sourceLogoDomain(source) {
+  const declaredDomain = String(source?.logo_domain || '').trim();
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(declaredDomain)) return declaredDomain.replace(/^www\./i, '');
   const candidates = [source?.company_name, source?.identifier, source?.name]
     .map(normalizeSourceBrand)
     .filter(Boolean);
@@ -1436,9 +1440,14 @@ async function loadDashboard() {
   $('#daily-recommendations-title').textContent = 'המשרות עם ההתאמה הגבוהה ביותר';
   const rankingStatus = $('#recommendations-ranking-status');
   const rankingRefresh = dashboard.ranking_refresh || {};
-  const recommendationsPending = !dashboard.guest_catalog && (dashboard.recent_jobs || []).some((job) => job.ranking_pending);
+  // The five recommendation cards are only a preview. Ranking can still be
+  // active elsewhere in the catalog, so rely on the server-side aggregate.
+  const pendingRankingJobs = Math.max(0, Number(dashboard.ranking_pending_jobs) || 0);
+  const recommendationsPending = !dashboard.guest_catalog && pendingRankingJobs > 0;
   const rankingIsLoading = Boolean(rankingRefresh.running || recommendationsPending);
-  const completed=Math.max(0,Number(rankingRefresh.completed)||0);
+  const completed=Math.max(0,rankingRefresh.running
+    ? Number(rankingRefresh.completed)||0
+    : (Number(dashboard.total_jobs)||0)-pendingRankingJobs);
   const total=Math.max(0,Number(rankingRefresh.total)||0,Number(dashboard.total_jobs)||0);
   const progressLabel=total?`דורגו ${Math.min(completed,total)} מתוך ${total}`:'';
   const remainingJobs=Math.max(0,total-completed);
@@ -1836,19 +1845,22 @@ async function loadJobs(options = {}) {
   const query = encodeURIComponent($('#job-search').value || '');
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
-  const location = $('#job-location-filter')?.value || '';
+  const locations = selectedJobLocations();
+  const adminFilters = selectedJobAdminFilters();
   const automaticOnly = $('#job-automatic-filter')?.value === 'automatic';
   const sort = $('#job-sort').value || 'score_desc';
   const pageSize = Number($('#jobs-page-size').value || 20);
   state.jobsPaging.sort = sort;
   state.jobsPaging.pageSize = pageSize;
-  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&location=${encodeURIComponent(location)}&query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}&automatic_only=${automaticOnly}`);
+  const locationQuery = locations.map((value) => `location=${encodeURIComponent(value)}`).join('&');
+  const adminFilterQuery = adminFilters.map((value) => `admin_filter=${encodeURIComponent(value)}`).join('&');
+  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&${locationQuery ? `${locationQuery}&` : ''}${adminFilterQuery ? `${adminFilterQuery}&` : ''}query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}&automatic_only=${automaticOnly}`);
   if (Array.isArray(payload)) {
     state.jobs = payload;
     state.jobsPaging = { ...state.jobsPaging, page: 1, total: payload.length, pages: 1 };
   } else {
     state.jobs = payload.items || [];
-    updateJobLocationOptions(payload.location_options || [], payload.location || '');
+    updateJobLocationOptions(payload.location_options || [], payload.locations || (payload.location ? [payload.location] : locations));
     state.jobsPaging = {
       page: payload.page || 1,
       pageSize: payload.page_size || pageSize,
@@ -1860,23 +1872,50 @@ async function loadJobs(options = {}) {
   renderJobs();
 }
 
-function updateJobLocationOptions(options, selectedValue = '') {
-  const select = $('#job-location-filter');
-  if (!select) return;
+function selectedJobLocations() {
+  return $$('input[type="checkbox"]', $('#job-location-options')).filter((input) => input.checked).map((input) => input.value);
+}
+
+function selectedJobAdminFilters() {
+  return adminJobsFilterAllowed()
+    ? $$('input[type="checkbox"]:checked', $('#job-admin-filter-options')).map((input) => input.value)
+    : [];
+}
+
+function updateAdminFilterLabel() {
+  const trigger = $('#job-admin-filter');
+  const selected = $$('input[type="checkbox"]:checked', $('#job-admin-filter-options'));
+  if (!trigger) return;
+  trigger.textContent = selected.length === 0 ? 'ללא סינון' : selected.length === 1 ? selected[0].dataset.label : `${selected.length} מסננים נבחרו`;
+}
+
+function updateLocationFilterLabel() {
+  const trigger = $('#job-location-filter');
+  const selected = $$('input[type="checkbox"]:checked', $('#job-location-options'));
+  if (!trigger) return;
+  trigger.textContent = selected.length === 0 ? 'כל המקומות' : selected.length === 1 ? selected[0].dataset.label : `${selected.length} מיקומים נבחרו`;
+}
+
+function updateJobLocationOptions(options, selectedValues = []) {
+  const root = $('#job-location-options');
+  if (!root) return;
+  const selected = new Set(Array.isArray(selectedValues) ? selectedValues : [selectedValues].filter(Boolean));
   const fragment = document.createDocumentFragment();
-  const all = document.createElement('option');
-  all.value = '';
-  all.textContent = 'כל המקומות';
-  fragment.appendChild(all);
   (Array.isArray(options) ? options : []).forEach((item) => {
-    const option = document.createElement('option');
-    option.value = String(item?.value || '');
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = String(item?.value || '');
     const count = Math.max(0, Number(item?.count || 0));
-    option.textContent = `${String(item?.label || 'מיקום')}${count ? ` (${count})` : ''}`;
-    fragment.appendChild(option);
+    const text = String(item?.label || 'מיקום');
+    input.dataset.label = text;
+    input.checked = selected.has(input.value);
+    input.onchange = () => { updateLocationFilterLabel(); loadJobs({ resetPage: true }); };
+    label.append(input, document.createTextNode(`${text}${count ? ` (${count})` : ''}`));
+    fragment.appendChild(label);
   });
-  select.replaceChildren(fragment);
-  select.value = [...select.options].some((option) => option.value === selectedValue) ? selectedValue : '';
+  root.replaceChildren(fragment);
+  updateLocationFilterLabel();
 }
 
 function jobCardActions(job) {
@@ -1915,7 +1954,7 @@ function renderJobs() {
   setPageContext('jobs', state.jobsPaging.total);
   if (!state.jobs.length) {
     $('#jobs-pagination').innerHTML = '';
-    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value || $('#job-location-filter')?.value || $('#job-automatic-filter')?.value;
+    const hasFilters = $('#job-search').value || $('#score-filter').value !== '0' || $('#job-status-filter').value || selectedJobLocations().length || selectedJobAdminFilters().length || $('#job-automatic-filter')?.value;
     root.innerHTML = hasFilters
       ? emptyState('⌕', 'לא נמצאו התאמות לסינון הזה', 'אפשר להסיר מסנן אחד או לנקות את החיפוש ולנסות שוב.', '<button class="btn secondary small" type="button" onclick="clearJobFilters()">נקה את כל המסננים</button>')
       : emptyState('＋', 'עדיין אין משרות להצגה', 'הוסף מקורות משרות והפעל סריקה ראשונה.', '<button class="btn primary small" type="button" onclick="switchView(\'sources\')">הגדר מקורות</button>');
@@ -1984,7 +2023,33 @@ window.goToJobsPage = goToJobsPage;
 $('#job-search').addEventListener('input', debounce(() => loadJobs({ resetPage: true }), 300));
 $('#score-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-status-filter').onchange = () => loadJobs({ resetPage: true });
-$('#job-location-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-location-filter').onclick = (event) => {
+  event.stopPropagation();
+  const options = $('#job-location-options');
+  const open = options.hidden;
+  options.hidden = !open;
+  $('#job-location-filter').setAttribute('aria-expanded', String(open));
+};
+$('#job-location-options').onclick = (event) => event.stopPropagation();
+$('#job-admin-filter').onclick = (event) => {
+  event.stopPropagation();
+  const options = $('#job-admin-filter-options');
+  const open = options.hidden;
+  options.hidden = !open;
+  $('#job-admin-filter').setAttribute('aria-expanded', String(open));
+};
+$('#job-admin-filter-options').onclick = (event) => event.stopPropagation();
+$$('input[type="checkbox"]', $('#job-admin-filter-options')).forEach((input) => {
+  input.onchange = () => { updateAdminFilterLabel(); loadJobs({ resetPage: true }); };
+});
+document.addEventListener('click', () => {
+  const options = $('#job-location-options');
+  const adminOptions = $('#job-admin-filter-options');
+  if (options && !options.hidden) options.hidden = true;
+  if (adminOptions && !adminOptions.hidden) adminOptions.hidden = true;
+  $('#job-location-filter')?.setAttribute('aria-expanded', 'false');
+  $('#job-admin-filter')?.setAttribute('aria-expanded', 'false');
+});
 $('#job-automatic-filter').onchange = () => loadJobs({ resetPage: true });
 $('#job-sort').onchange = () => loadJobs({ resetPage: true });
 $('#jobs-page-size').onchange = () => loadJobs({ resetPage: true });
@@ -1995,12 +2060,14 @@ function renderActiveFilters() {
   const query = $('#job-search').value.trim();
   const score = $('#score-filter').value;
   const status = $('#job-status-filter').value;
-  const location = $('#job-location-filter')?.value || '';
+  const locations = selectedJobLocations();
+  const adminFilters = selectedJobAdminFilters();
   const automatic = $('#job-automatic-filter')?.value || '';
   if (query) filters.push({ key: 'query', label: `חיפוש: ${query}` });
   if (score !== '0') filters.push({ key: 'score', label: `התאמה ${score}+` });
   if (status) filters.push({ key: 'status', label: `סטטוס: ${statusLabel(status)}` });
-  if (location) filters.push({ key: 'location', label: `מיקום: ${$('#job-location-filter').selectedOptions[0]?.textContent || 'נבחר'}` });
+  if (locations.length) filters.push({ key: 'location', label: locations.length === 1 ? `מיקום: ${$('#job-location-filter').textContent}` : `מיקומים: ${locations.length} נבחרו` });
+  if (adminFilters.length) filters.push({ key: 'admin', label: adminFilters.length === 1 ? `סינון אדמין: ${$('#job-admin-filter').textContent}` : `סינון אדמין: ${adminFilters.length} נבחרו` });
   if (automatic) filters.push({ key: 'automatic', label: 'הגשה אוטומטית בלבד' });
   root.innerHTML = filters.length ? `<span>מסננים פעילים</span>${filters.map((filter) => `<button type="button" data-clear-filter="${filter.key}">${esc(filter.label)} <b>×</b></button>`).join('')}<button type="button" class="clear-all-filters" data-clear-filter="all">נקה הכול</button>` : '';
   $$('[data-clear-filter]', root).forEach((button) => { button.onclick = () => clearJobFilters(button.dataset.clearFilter); });
@@ -2010,7 +2077,10 @@ function clearJobFilters(key = 'all') {
   if (key === 'all' || key === 'query') $('#job-search').value = '';
   if (key === 'all' || key === 'score') $('#score-filter').value = '0';
   if (key === 'all' || key === 'status') $('#job-status-filter').value = '';
-  if (key === 'all' || key === 'location') $('#job-location-filter').value = '';
+  if (key === 'all' || key === 'location') $$('input[type="checkbox"]', $('#job-location-options')).forEach((input) => { input.checked = false; });
+  if (key === 'all' || key === 'admin') $$('input[type="checkbox"]', $('#job-admin-filter-options')).forEach((input) => { input.checked = false; });
+  updateLocationFilterLabel();
+  updateAdminFilterLabel();
   if (key === 'all' || key === 'automatic') $('#job-automatic-filter').value = '';
   loadJobs({ resetPage: true });
 }
@@ -4951,7 +5021,8 @@ async function enterNonAdminPreview(){try{sessionStorage.setItem(ADMIN_PREVIEW_K
 async function exitNonAdminPreview(){try{sessionStorage.removeItem(ADMIN_PREVIEW_KEY)}catch{}configureDeveloperTools();try{await refreshPreviewIdentity();toast('חזרת לתצוגת Admin')}catch(error){toast(error.message)}}
 
 function configureDeveloperTools(){
-  const allowed=!adminPreviewActive()&&(authState.config?.mode!=='supabase'||authState.capabilities?.developer_tools === true);$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  const allowed=adminJobsFilterAllowed();$$('.admin-only-nav').forEach(el=>el.hidden=!allowed);
+  const adminJobFilter=$('#job-admin-filter-control');if(adminJobFilter)adminJobFilter.hidden=!allowed;
   $$('[data-view="applications"],[data-mobile-view="applications"]').forEach(el=>el.hidden=!applicationsWorkspaceAllowed());
   const importButton=$('#import-job-btn'); if(importButton) importButton.hidden=!allowed;
   const scanButton=$('#scan-btn');if(scanButton)scanButton.hidden=!manualScanAllowed();

@@ -46,6 +46,8 @@ def test_missing_or_stale_v2_ranking_never_hides_job_from_board():
             assert rows[0]["id"] == job_id
             assert rows[0]["ranking_engine"] == "v2"
             assert rows[0]["ranking_pending"] is True
+            dashboard = client.get("/api/dashboard").json()
+            assert dashboard["ranking_pending_jobs"] >= 1
 
             # A current excluded result intentionally hides it.
             with SessionLocal() as db:

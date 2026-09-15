@@ -68,9 +68,9 @@ def employment_type(job) -> str | None:
     mappings = {
         "student": ("student", "סטודנט"),
         "internship": ("internship", "intern ", "מתמחה"),
-        "part_time": ("part-time", "part time", "משרה חלקית"),
-        "temporary": ("temporary", "temp.", "contract", "משרה זמנית", 'החלפה לחל"ד', "החלפה לחלד"),
-        "full_time": ("full-time", "full time", "משרה מלאה"),
+        "part_time": ("part-time", "part time", "parttime", "משרה חלקית"),
+        "temporary": ("temporary", "temp.", "fixed-term", "fixed term", "contract position", "contract role", "משרה זמנית", 'החלפה לחל"ד', "החלפה לחלד"),
+        "full_time": ("full-time", "full time", "fulltime", "משרה מלאה"),
     }
     for key, variants in mappings.items():
         if any(value in text for value in variants):

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import AuditLog, Source
+from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, DEFAULT_TRACK, normalize_track
 from ..utils import dumps, loads
 
@@ -263,9 +264,35 @@ def _with_requested_employers(
     return catalog + additions
 
 
+def _with_expanded_employers(
+    catalog: tuple[dict[str, str], ...], track_tag: str,
+) -> tuple[dict[str, str], ...]:
+    """Append the researched expansion without leaking collector-only fields."""
+    existing = {(row["kind"], row["identifier"]) for row in catalog}
+    additions = tuple(
+        {
+            "name": item["name"],
+            "kind": item["kind"],
+            "identifier": item["identifier"],
+            "company_name": item["company_name"],
+            "logo_domain": item["logo_domain"],
+            "enabled": item["enabled"],
+            "validation_status": item["validation_status"],
+        }
+        for item in EXPANDED_EMPLOYER_SOURCES
+        if item["track"] == track_tag
+        and (item["kind"], item["identifier"]) not in existing
+    )
+    return catalog + additions
+
+
 CS_RECOMMENDED_SOURCES = _with_requested_employers(CS_RECOMMENDED_SOURCES, "cs")
 IEM_RECOMMENDED_SOURCES = _with_requested_employers(IEM_RECOMMENDED_SOURCES, "iem")
 EE_RECOMMENDED_SOURCES = _with_requested_employers(EE_RECOMMENDED_SOURCES, "ee")
+
+CS_RECOMMENDED_SOURCES = _with_expanded_employers(CS_RECOMMENDED_SOURCES, "cs")
+IEM_RECOMMENDED_SOURCES = _with_expanded_employers(IEM_RECOMMENDED_SOURCES, "iem")
+EE_RECOMMENDED_SOURCES = _with_expanded_employers(EE_RECOMMENDED_SOURCES, "ee")
 
 RECOMMENDED_SOURCES_BY_TRACK = {
     COMPUTER_SCIENCE: CS_RECOMMENDED_SOURCES,
@@ -404,8 +431,25 @@ def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) 
                 existing.name = item["name"]
                 existing.company_name = item["company_name"]
                 reconciled += 1
+            logo_domain = str(item.get("logo_domain") or "").strip()
+            if logo_domain and metadata.get("logo_domain") != logo_domain:
+                metadata["logo_domain"] = logo_domain
+                metadata.setdefault("preset", "recommended")
+                existing.metadata_json = dumps(metadata)
+                reconciled += 1
             continue
-        source = Source(**item, career_track=career_track, enabled=True, metadata_json='{"preset":"recommended"}')
+        model_item = {key: item[key] for key in ("name", "kind", "identifier", "company_name")}
+        metadata = {"preset": "recommended"}
+        if item.get("logo_domain"):
+            metadata["logo_domain"] = item["logo_domain"]
+        if item.get("validation_status"):
+            metadata["validation_status"] = item["validation_status"]
+        source = Source(
+            **model_item,
+            career_track=career_track,
+            enabled=bool(item.get("enabled", True)),
+            metadata_json=dumps(metadata),
+        )
         db.add(source)
         db.flush()
         existing_by_pair[pair] = source

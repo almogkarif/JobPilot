@@ -41,6 +41,7 @@ def test_health_and_dashboard():
         dashboard = client.get("/api/dashboard").json()
         assert dashboard["total_jobs"] >= 3
         assert "strong_matches" in dashboard
+        assert "ranking_pending_jobs" in dashboard
         assert dashboard["ranking_refresh"] == {
             "running": False, "message": "", "phase": "", "completed": 0,
             "total": 0, "eta_seconds": None,
@@ -379,7 +380,7 @@ def test_frontend_assets_are_never_stale_after_an_update():
         assert "no-store" in index.headers["cache-control"]
         assert "no-store" in script.headers["cache-control"]
         assert "no-store" in stylesheet.headers["cache-control"]
-        assert "app.js?v=0.31.12" in index.text
+        assert "app.js?v=0.31.17" in index.text
         assert "הנתון לא נשמר עדיין" in script.text
 
 
@@ -658,7 +659,7 @@ def test_jobs_support_paginated_sorting_without_breaking_legacy_list_response():
         payload = response.json()
         assert set(payload) == {
             "items", "total", "page", "page_size", "pages", "sort",
-            "location", "location_options", "automatic_only",
+            "location", "locations", "location_options", "automatic_only", "admin_filters",
         }
         assert payload["page"] == 1
         assert payload["page_size"] == 2
@@ -710,6 +711,16 @@ def test_jobs_location_filter_is_dynamic_and_keeps_all_israel_bucket():
         assert haifa["items"]
         assert all(job_location_filter_bucket(item["location"])[0] == "haifa" for item in haifa["items"])
 
+        combined = client.get("/api/jobs", params=[
+            ("paginated", "true"), ("page_size", "100"),
+            ("location", "haifa"), ("location", ALL_ISRAEL_LOCATION_FILTER),
+        ]).json()
+        assert set(combined["locations"]) == {"haifa", ALL_ISRAEL_LOCATION_FILTER}
+        assert combined["items"]
+        assert {
+            job_location_filter_bucket(item["location"])[0] for item in combined["items"]
+        } <= {"haifa", ALL_ISRAEL_LOCATION_FILTER}
+
         nationwide = client.get("/api/jobs", params={
             "paginated": "true", "page": 1, "page_size": 100,
             "location": ALL_ISRAEL_LOCATION_FILTER,
@@ -720,3 +731,31 @@ def test_jobs_location_filter_is_dynamic_and_keeps_all_israel_bucket():
             job_location_filter_bucket(item["location"])[0] == ALL_ISRAEL_LOCATION_FILTER
             for item in nationwide["items"]
         )
+
+
+def test_admin_jobs_filter_combines_unknown_experience_and_degree():
+    with TestClient(app) as client:
+        unknown = client.post("/api/jobs/import", json={
+            "title": "Software Engineer Unknown Requirements",
+            "company": "Admin Filter Fixture",
+            "location": "Tel Aviv, Israel",
+            "description": "Build reliable Python services.",
+            "apply_url": "https://admin-filter.invalid/unknown",
+        }).json()
+        known = client.post("/api/jobs/import", json={
+            "title": "Software Engineer Known Requirements",
+            "company": "Admin Filter Fixture",
+            "location": "Tel Aviv, Israel",
+            "description": "Requires a bachelor's degree and 2 years of experience building Python services.",
+            "apply_url": "https://admin-filter.invalid/known",
+        }).json()
+
+        payload = client.get("/api/jobs", params=[
+            ("paginated", "true"), ("page_size", "100"),
+            ("admin_filter", "experience_unknown"),
+            ("admin_filter", "degree_unknown"),
+        ]).json()
+        ids = {item["id"] for item in payload["items"]}
+        assert unknown["id"] in ids
+        assert known["id"] not in ids
+        assert set(payload["admin_filters"]) == {"experience_unknown", "degree_unknown"}

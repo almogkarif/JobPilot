@@ -401,5 +401,6 @@ def test_admin_view_as_user_is_server_side_regular_user_preview(monkeypatch):
         assert devices.json()["devices"] == []
 
         assert client.get("/api/admin/users", headers=preview_headers).status_code == 403
+        assert client.get("/api/jobs?admin_filter=experience_unknown", headers=preview_headers).status_code == 403
         assert client.post("/api/agent-devices", headers=preview_headers, json={"name": "Should not exist"}).status_code == 403
         assert client.delete(f"/api/agent-devices/{protected_device_id}", headers=preview_headers).status_code == 403

@@ -60,6 +60,22 @@ cause found in code was deterministic whole-catalog maintenance on every process
 restart, including reading long job descriptions. Commit `063458e` removed those
 startup reads. This pattern must not be reintroduced.
 
+## Source expansion budget — September 2026
+
+The 100-employer catalog expansion enables only 33 sources with verified,
+structured public boards: 32 for Computer Science and one for Electrical
+Engineering. The other 67 researched official pages remain disabled until a
+reliable adapter is available. Because only the active professional track is
+scanned, the worst added network cost is 32 bounded ATS requests per scheduled
+scan (32/hour, 768/day, and 16,128 over a 21-day active period). These requests
+go to employer ATS services and add zero Supabase egress directly.
+
+The scanner filters foreign vacancies before persistence and continues to read
+the existing-job index without `Job.description`. API results remain paginated
+to at most 100 jobs, so the expansion does not introduce an unbounded Supabase
+response. `test_new_source_expansion_does_not_enable_unbounded_official_pages`
+protects the active-source ceiling and rejects unverified generic careers pages.
+
 ## Regular-user application budget — September 2026
 
 Regular cloud users do not receive the bulk Applications workspace or automatic
