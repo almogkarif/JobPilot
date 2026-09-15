@@ -507,6 +507,127 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
 
 .jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .job-card { padding: 15px; display: flex; flex-direction: column; gap: 12px; position: relative; background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%); }
+.job-swipe-shell {
+  container-type:inline-size;
+  position:relative;
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  border-radius:20px;
+  isolation:isolate;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--surface-soft) 74%,var(--panel)),color-mix(in srgb,var(--panel) 90%,var(--surface-soft)));
+  box-shadow:0 5px 16px color-mix(in srgb,var(--accent-glow) 16%,transparent),inset 0 1px color-mix(in srgb,var(--panel) 92%,white);
+}
+.job-swipe-shell:hover { box-shadow:0 9px 22px color-mix(in srgb,var(--accent-glow) 24%,transparent),inset 0 1px color-mix(in srgb,var(--panel) 92%,white); }
+.job-swipe-card {
+  position:relative;
+  z-index:2;
+  width:100%;
+  min-height:100%;
+  margin:0;
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
+  will-change:transform;
+  transition:transform 360ms var(--ease-apple-out);
+}
+.job-swipe-card.is-dragging { transition:none!important; cursor:grabbing; }
+.job-swipe-shell.is-open .job-swipe-card { transform:translate3d(-34%,0,0); }
+.job-swipe-shell.is-open > .job-swipe-card:not(.is-dragging) { transform:translate3d(-34%,0,0)!important; }
+.job-swipe-actions {
+  position:absolute;
+  z-index:1;
+  inset:0 0 0 auto;
+  width:34%;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr);
+  align-items:center;
+  justify-items:center;
+  gap:3px;
+  padding:10px 12px;
+  direction:rtl;
+  border-radius:20px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 84%,var(--surface-soft)),color-mix(in srgb,var(--surface-soft) 90%,var(--panel)));
+  box-shadow:inset 0 1px 3px color-mix(in srgb,var(--ink) 10%,transparent),0 4px 15px color-mix(in srgb,var(--accent-glow) 18%,transparent);
+  pointer-events:none;
+}
+.job-swipe-shell.is-open > .job-swipe-actions { pointer-events:auto; }
+.job-swipe-action {
+  min-width:0;
+  width:min(100%,108px);
+  aspect-ratio:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:7px;
+  border:1px solid transparent;
+  border-radius:18px;
+  box-shadow:inset 0 1px rgba(255,255,255,.35),inset 0 -3px rgba(0,0,0,.13),0 5px 12px color-mix(in srgb,var(--ink) 15%,transparent);
+  background:var(--panel);
+  color:var(--ink);
+  text-align:center;
+  text-decoration:none;
+  cursor:pointer;
+  transition:filter var(--motion-base) var(--ease-apple),box-shadow var(--motion-base) var(--ease-apple);
+}
+.job-swipe-action b { font-size:12px; font-weight:900; line-height:1.2; }
+.job-swipe-label-short { display:none; }
+@container (min-width:901px) {
+  .job-swipe-actions { gap:0; }
+  .job-swipe-action {
+    width:100%; height:100%; max-height:100%; aspect-ratio:auto;
+    border-radius:0;
+    box-shadow:inset 0 1px rgba(255,255,255,.32),inset 0 -2px rgba(0,0,0,.12);
+  }
+  .job-swipe-action:first-child { border-radius:0 16px 16px 0; }
+  .job-swipe-action:last-child { border-radius:16px 0 0 16px; }
+}
+@container (max-width:900px) {
+  .job-swipe-label-full { display:none; }
+  .job-swipe-label-short { display:block; }
+  .job-swipe-action { border-radius:12px; padding:3px; }
+  .job-swipe-action b { font-size:10px; }
+}
+.job-swipe-action.is-automatic { background:linear-gradient(165deg,#1b995e,#126b43); color:#fff; }
+.job-swipe-action.is-manual { background:linear-gradient(165deg,#6b7a86,#4e5e69); color:#fff; }
+.job-swipe-action.is-submitted { background:linear-gradient(165deg,#2585c8,#155d99); color:#fff; }
+.job-swipe-action.is-delete { background:linear-gradient(165deg,#d25248,#aa302a); color:#fff; }
+.job-swipe-action:hover,.job-swipe-action:focus-visible { filter:brightness(1.08); box-shadow:inset 0 1px rgba(255,255,255,.42),inset 0 -3px rgba(0,0,0,.13),0 7px 17px color-mix(in srgb,var(--ink) 20%,transparent),var(--focus-ring); outline:none; }
+.job-swipe-action:active { filter:brightness(.94); box-shadow:inset 0 2px 6px rgba(0,0,0,.2),0 2px 6px color-mix(in srgb,var(--ink) 12%,transparent); }
+@container (min-width:901px) {
+  .job-swipe-action:hover,.job-swipe-action:focus-visible {
+    box-shadow:inset 0 1px rgba(255,255,255,.42),inset 0 -2px rgba(0,0,0,.12),inset 0 0 0 2px rgba(255,255,255,.28);
+  }
+  .job-swipe-action:active { box-shadow:inset 0 2px 6px rgba(0,0,0,.18); }
+}
+.job-swipe-action:disabled { cursor:not-allowed; opacity:.58; }
+.card-actions .has-tooltip::after,
+.job-swipe-actions .has-tooltip::after {
+  right:50%;
+  bottom:calc(100% + 8px);
+  width:max-content;
+  max-width:min(260px,70vw);
+  white-space:normal;
+  text-align:center;
+  line-height:1.45;
+  transform:translate(50%,4px);
+}
+.card-actions .has-tooltip:hover::after,
+.card-actions .has-tooltip:focus-visible::after,
+.job-swipe-actions .has-tooltip:hover::after,
+.job-swipe-actions .has-tooltip:focus-visible::after { transform:translate(50%,0); }
+.job-swipe-actions .has-tooltip::after { top:10px; bottom:auto; }
+body.theme-dark .job-swipe-actions { background:var(--surface-soft); }
+body.theme-dark .job-swipe-action.is-automatic { background:linear-gradient(165deg,#218258,#125a3d); color:#fff; }
+body.theme-dark .job-swipe-action.is-manual { background:linear-gradient(165deg,#647580,#43545f); color:#fff; }
+body.theme-dark .job-swipe-action.is-submitted { background:linear-gradient(165deg,#2277af,#124e83); color:#fff; }
+body.theme-dark .job-swipe-action.is-delete { background:linear-gradient(165deg,#bd4a42,#8f302d); color:#fff; }
+@media (max-width:720px) {
+  .job-swipe-actions { gap:4px; padding:5px; }
+  .job-swipe-action { border-radius:9px; }
+}
 .job-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .job-card h3 { margin: 0; font-size: 16px; }
 .company { font-size: 13px; color: var(--muted); }
@@ -545,6 +666,8 @@ body.theme-dark .applied-job-button { background: #1d4935 !important; border-col
 .interactive-row:hover, .interactive-row:focus-visible, .interactive-card:hover, .interactive-card:focus-visible, .interactive-table-row:hover, .interactive-table-row:focus-visible {
   transform: translateY(-1px); box-shadow: 0 10px 24px rgba(23, 105, 170, 0.09); outline: none; border-color: #8fc3e7;
 }
+.job-swipe-shell:not(.is-open) > .job-swipe-card:hover,
+.job-swipe-shell:not(.is-open) > .job-swipe-card:focus-visible { transform:none!important; }
 
 .modal { position: fixed; inset: 0; background: rgba(12, 35, 56, 0.48); display: grid; place-items: center; padding: 18px; opacity: 0; pointer-events: none; transition: opacity var(--motion-base) var(--ease-apple); }
 .modal.open { opacity: 1; pointer-events: auto; }
@@ -4550,6 +4673,7 @@ body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field inp
 #view-dashboard .panel-head h2 { margin:2px 0 0; font-size:18px; letter-spacing:-.02em; }
 #view-dashboard .panel-head .text-btn { color:var(--accent); font-size:10px; font-weight:900; }
 #view-dashboard .job-stack { display:grid; gap:8px; }
+#view-dashboard .job-swipe-shell { border-radius:17px; }
 
 #view-dashboard .dashboard-job-card {
   width:100%;
@@ -4567,7 +4691,6 @@ body.track-industrial-engineering #app-shell .jobs-toolbar .job-search-field inp
 }
 #view-dashboard .dashboard-job-card:hover,
 #view-dashboard .dashboard-job-card:focus-visible {
-  transform:translateY(-2px);
   border-color:var(--accent-border);
   box-shadow:0 11px 25px var(--accent-glow);
 }

@@ -276,7 +276,7 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     card = page.locator("#jobs-list .job-card").first
     card.wait_for(state="visible")
     assert card.locator(".auto-submit-badge").is_visible()
-    card.click(position={"x": 250, "y": 80})
+    card.locator("h3").click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     # The seeded custom career page is deliberately background-ineligible. It
     # must be visibly manual-only and must not offer an automatic action.
@@ -304,6 +304,127 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     assert page.locator(".source-detail-grid").is_visible()
 
 
+def test_job_card_reveals_one_third_with_mouse_and_closes_with_touch(browser_page):
+    page, _ = browser_page
+    job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+        title:'Swipe Gesture Test Software Engineer', company:'Swipe Test', location:'Tel Aviv, Israel',
+        apply_url:'https://boards.greenhouse.io/example/jobs/112233'
+      })
+    })).json()""")
+    page.locator('button[data-view="jobs"]').click()
+    page.locator("#job-search").fill("Swipe Gesture Test")
+    page.locator("#job-search").dispatch_event("input")
+    card = page.locator(f'#jobs-list .job-swipe-card[data-job-id="{job["id"]}"]')
+    card.wait_for(state="visible")
+    shell = card.locator("xpath=..").first
+    box = card.bounding_box()
+    assert box
+    save_button = card.locator(".card-actions button").filter(has_text="שמור").first
+    save_button.hover()
+    tooltip = save_button.evaluate("el => { const style = getComputedStyle(el, '::after'); return {width:parseFloat(style.width), height:parseFloat(style.height)}; }")
+    assert tooltip["width"] >= 150
+    assert tooltip["height"] < 80
+    hover_shift = card.evaluate("el => new DOMMatrix(getComputedStyle(el).transform).m42")
+    assert abs(hover_shift) < 1
+    box = card.bounding_box()
+    assert box
+
+    # Desktop pointer: about a third of the card moves aside, leaving it visible.
+    page.mouse.move(box["x"] + box["width"] * .75, box["y"] + box["height"] * .5)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 4, box["y"] + box["height"] * .5, steps=8)
+    page.mouse.up()
+    shell.wait_for(state="visible")
+    assert "is-open" in (shell.get_attribute("class") or "")
+    page.wait_for_timeout(420)
+    translate_x = card.evaluate("el => new DOMMatrix(getComputedStyle(el).transform).m41")
+    assert -(box["width"] * .38) <= translate_x <= -(box["width"] * .30)
+    actions_width = shell.locator(".job-swipe-actions").bounding_box()["width"]
+    assert box["width"] * .30 <= actions_width <= box["width"] * .38
+    action_boxes = [item.bounding_box() for item in shell.locator(".job-swipe-action").all()]
+    assert len(action_boxes) == 3
+    assert all(item and abs(item["width"] - item["height"]) <= 2 for item in action_boxes)
+    assert action_boxes[0]["x"] > action_boxes[1]["x"] > action_boxes[2]["x"]
+    assert shell.locator(".job-swipe-primary-action").is_visible()
+    assert shell.get_by_role("button", name="מחק משרה לצמיתות", exact=False).is_visible()
+
+    # A rightward touch gesture on the revealed action surface restores the card.
+    actions = shell.locator(".job-swipe-actions")
+    actions.evaluate("""(el) => {
+      const r = el.getBoundingClientRect();
+      const event = (type, x) => el.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 77, pointerType: 'touch',
+        clientX: x, clientY: r.top + r.height / 2, button: 0,
+      }));
+      event('pointerdown', r.left + 10);
+      event('pointermove', r.right - 10);
+      event('pointerup', r.right - 10);
+    }""")
+    page.wait_for_timeout(420)
+    assert "is-open" not in (shell.get_attribute("class") or "")
+
+    # On a wide dashboard card the large keys must remain inside the rounded bottom.
+    page.set_viewport_size({"width": 2200, "height": 900})
+    page.locator('button[data-view="dashboard"]').click()
+    dashboard_shell = page.locator("#recent-jobs .job-swipe-shell").first
+    dashboard_shell.wait_for(state="visible")
+    dashboard_box = dashboard_shell.bounding_box()
+    assert dashboard_box and dashboard_box["width"] > 900
+    dashboard_actions = dashboard_shell.locator(".job-swipe-action").all()
+    dashboard_action_boxes = []
+    for action in dashboard_actions:
+        action_box = action.bounding_box()
+        assert action_box
+        assert action_box["y"] + action_box["height"] <= dashboard_box["y"] + dashboard_box["height"] - 5
+        dashboard_action_boxes.append(action_box)
+    assert abs(dashboard_action_boxes[0]["x"] - (dashboard_action_boxes[1]["x"] + dashboard_action_boxes[1]["width"])) <= 2
+    assert abs(dashboard_action_boxes[1]["x"] - (dashboard_action_boxes[2]["x"] + dashboard_action_boxes[2]["width"])) <= 2
+
+
+def test_submitted_and_deleted_jobs_animate_after_success(browser_page):
+    page, _ = browser_page
+    jobs = []
+    for suffix in ("Submitted", "Deleted", "Failed"):
+        job = page.evaluate("""async suffix => await (await fetch('/api/jobs/import', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+            title:`Exit Animation ${suffix} Software Engineer`, company:'Swipe Test', location:'Israel',
+            apply_url:`https://boards.greenhouse.io/example/jobs/exit-${suffix.toLowerCase()}`
+          })
+        })).json()""", suffix)
+        jobs.append(job)
+    page.locator('button[data-view="jobs"]').click()
+    page.locator("#job-search").fill("Exit Animation")
+    page.locator("#job-search").dispatch_event("input")
+    page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[0]["id"]}"]').wait_for(state="visible")
+    page.evaluate("""() => {
+      window.__jobExitAnimations = [];
+      const original = Element.prototype.animate;
+      Element.prototype.animate = function(frames, options) {
+        if (this.classList.contains('job-swipe-shell'))
+          window.__jobExitAnimations.push({id:this.dataset.swipeJobId, leaving:frames.at(-1).opacity === 0});
+        return original.call(this, frames, options);
+      };
+    }""")
+
+    page.evaluate("async id => await markJobSubmitted(id)", jobs[0]["id"])
+    assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && item.leaving)", jobs[0]["id"])
+    assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && !item.leaving)", jobs[0]["id"])
+    page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[0]["id"]}"]').wait_for(state="visible")
+
+    page.evaluate("() => { window.confirm = () => true; }")
+    page.evaluate("async id => await deleteJob(id)", jobs[1]["id"])
+    assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && item.leaving)", jobs[1]["id"])
+    assert page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[1]["id"]}"]').count() == 0
+
+    page.route(f'**/api/jobs/{jobs[2]["id"]}/mark-submitted', lambda route: route.fulfill(
+        status=200, content_type="application/json", body='not-json'
+    ))
+    page.evaluate("async id => await markJobSubmitted(id)", jobs[2]["id"])
+    assert not page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && item.leaving)", jobs[2]["id"])
+    assert page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[2]["id"]}"]').is_visible()
+
+
 def test_supported_job_shows_automatic_submission_badge_and_action(browser_page):
     page, _ = browser_page
     job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {
@@ -320,7 +441,7 @@ def test_supported_job_shows_automatic_submission_badge_and_action(browser_page)
     badge = card.locator(".auto-submit-badge.supported")
     badge.wait_for(state="visible")
     assert "תומך בהגשה אוטומטית" in badge.text_content()
-    card.click(position={"x": 250, "y": 80})
+    card.locator("h3").click()
     page.get_by_role("heading", name="אפשרויות הגשה").wait_for(state="visible")
     automatic = page.get_by_role("button", name="הגש אוטומטית עכשיו")
     automatic.wait_for(state="visible")

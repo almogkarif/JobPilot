@@ -1569,13 +1569,159 @@ function dashboardSubmissionBadge(job) {
   return `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית</span>`;
 }
 
+function swipeJobActions(job) {
+  if (authState.user?.is_guest) return '';
+  const automaticSupported = applicationAgentAllowed()
+    && job.application_adapter?.supports_automatic_submit === true;
+  const primaryAction = automaticSupported
+    ? `<button class="job-swipe-action job-swipe-primary-action is-automatic has-tooltip" aria-label="הגשה אוטומטית" data-tooltip="מכניס את המשרה לתור ומגיש אותה אוטומטית ברקע" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">הגשה אוטומטית</b><b class="job-swipe-label-short" aria-hidden="true">הגש</b></button>`
+    : `<a class="job-swipe-action job-swipe-primary-action is-manual has-tooltip" aria-label="הגשה ידנית" data-tooltip="פותח את טופס ההגשה באתר החברה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()"><b class="job-swipe-label-full">הגשה ידנית</b><b class="job-swipe-label-short" aria-hidden="true">הגש</b></a>`;
+  return `<div class="job-swipe-actions" data-no-card-click aria-hidden="true">
+    ${primaryAction}
+    <button class="job-swipe-action is-submitted has-tooltip" aria-label="הגשתי כבר למשרה הזאת" data-tooltip="מסמן שהמועמדות כבר הוגשה ומעדכן את המעקב" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">${job.status === 'submitted' ? 'המשרה כבר סומנה כהוגשה' : 'הגשתי כבר למשרה הזאת'}</b><b class="job-swipe-label-short" aria-hidden="true">הוגש</b></button>
+    <button class="job-swipe-action is-delete has-tooltip" aria-label="מחק משרה לצמיתות" data-tooltip="מסתיר את המשרה לצמיתות מהרשימה שלך, לאחר אישור" type="button" onclick="event.stopPropagation();deleteJob(${job.id})"><b class="job-swipe-label-full">מחק משרה לצמיתות</b><b class="job-swipe-label-short" aria-hidden="true">מחק</b></button>
+  </div>`;
+}
+
+let openJobSwipeShell = null;
+let openJobSwipeJobId = null;
+
+function setJobSwipeOpen(shell, open) {
+  if (!shell) return;
+  if (open && openJobSwipeShell && openJobSwipeShell !== shell) setJobSwipeOpen(openJobSwipeShell, false);
+  shell.classList.toggle('is-open', open);
+  const actions = shell.querySelector('.job-swipe-actions');
+  if (actions) {
+    actions.setAttribute('aria-hidden', String(!open));
+    $$('button,a', actions).forEach((control) => { control.tabIndex = open ? 0 : -1; });
+  }
+  if (open) {
+    openJobSwipeShell = shell;
+    openJobSwipeJobId = shell.dataset.swipeJobId || null;
+  } else if (openJobSwipeShell === shell) {
+    openJobSwipeShell = null;
+    openJobSwipeJobId = null;
+  }
+}
+
+function jobSwipeConsumesClick(card) {
+  const shell = card?.closest('.job-swipe-shell');
+  if (!shell) return false;
+  if (Number(card.dataset.swipeSuppressUntil || 0) > Date.now()) return true;
+  if (shell.classList.contains('is-open')) {
+    setJobSwipeOpen(shell, false);
+    return true;
+  }
+  return false;
+}
+
+function initializeJobSwipeActions(root) {
+  $$('.job-swipe-shell', root).forEach((shell) => {
+    const card = shell.querySelector('.job-swipe-card');
+    const actions = shell.querySelector('.job-swipe-actions');
+    if (!card || !actions) return;
+    $$('button,a', actions).forEach((control) => { control.tabIndex = -1; });
+    if (openJobSwipeJobId && shell.dataset.swipeJobId === openJobSwipeJobId) {
+      setJobSwipeOpen(shell, true);
+    }
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let horizontal = false;
+    let moved = false;
+    let captured = false;
+
+    const begin = (event, allowActionSurface = false) => {
+      if (event.button !== undefined && event.button !== 0) return;
+      if (!allowActionSurface && event.target.closest('[data-no-card-click],button,a,input,select,textarea')) return;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      startTime = performance.now();
+      horizontal = false;
+      moved = false;
+      captured = false;
+      card.classList.add('is-dragging');
+    };
+    card.addEventListener('pointerdown', (event) => begin(event));
+    actions.addEventListener('pointerdown', (event) => begin(event, true));
+    shell.addEventListener('pointermove', (event) => {
+      if (pointerId !== event.pointerId) return;
+      const clientX = Number.isFinite(event.clientX) ? event.clientX : startX;
+      const dx = clientX - startX;
+      const dy = event.clientY - startY;
+      if (!horizontal && Math.abs(dx) > 9 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        horizontal = true;
+        try {
+          shell.setPointerCapture(pointerId);
+          captured = true;
+        } catch { /* capture is best effort */ }
+      }
+      if (!horizontal) return;
+      if (event.cancelable) event.preventDefault();
+      moved = moved || Math.abs(dx) > 14;
+      const width = Math.max(1, shell.getBoundingClientRect().width);
+      const reveal = width * .34;
+      const base = shell.classList.contains('is-open') ? -reveal : 0;
+      const offset = Math.max(-reveal, Math.min(0, base + dx));
+      card.style.transform = `translate3d(${offset}px,0,0)`;
+    });
+    const finish = (event) => {
+      if (pointerId !== event.pointerId) return;
+      const clientX = Number.isFinite(event.clientX) ? event.clientX : startX;
+      const dx = clientX - startX;
+      const elapsed = Math.max(1, performance.now() - startTime);
+      const velocity = dx / elapsed;
+      const width = Math.max(1, shell.getBoundingClientRect().width);
+      const wasOpen = shell.classList.contains('is-open');
+      const deliberateSwipe = horizontal && Math.abs(dx) > 14;
+      const shouldOpen = event.type === 'pointercancel' ? wasOpen : wasOpen
+        ? !(deliberateSwipe && (dx > Math.min(90, width * .18) || velocity > .45))
+        : (deliberateSwipe && (dx < -Math.min(90, width * .18) || velocity < -.45));
+      card.classList.remove('is-dragging');
+      card.style.transform = '';
+      if (deliberateSwipe) {
+        const suppressUntil = String(Date.now() + 900);
+        card.dataset.swipeSuppressUntil = suppressUntil;
+        actions.dataset.swipeSuppressUntil = suppressUntil;
+      }
+      setJobSwipeOpen(shell, shouldOpen);
+      if (captured) {
+        try { shell.releasePointerCapture(pointerId); } catch { /* already released */ }
+      }
+      pointerId = null;
+    };
+    shell.addEventListener('pointerup', finish);
+    shell.addEventListener('pointercancel', finish);
+    card.addEventListener('click', (event) => {
+      if (Number(card.dataset.swipeSuppressUntil || 0) > Date.now()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    actions.addEventListener('click', (event) => {
+      if (Number(actions.dataset.swipeSuppressUntil || 0) > Date.now()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+  });
+}
+
+document.addEventListener('pointerdown', (event) => {
+  if (openJobSwipeShell && !event.target.closest('.job-swipe-shell')) setJobSwipeOpen(openJobSwipeShell, false);
+});
+
 function renderRecent(jobs) {
   const root = $('#recent-jobs');
   root.innerHTML = jobs.length ? jobs.map((job) => {
     const score = Math.max(0, Math.min(100, Number(job.score || 0)));
     const skills = Array.isArray(job.skills) ? job.skills.slice(0, 5) : [];
     return `
-      <article class="job-row dashboard-job-card interactive-row" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+      <div class="job-swipe-shell" data-swipe-job-id="${job.id}">
+      ${swipeJobActions(job)}
+      <article class="job-row dashboard-job-card interactive-row job-swipe-card" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
         <div class="dashboard-score-block">
           <div class="dashboard-score-ring ${job.ranking_pending ? 'is-pending' : ''}" style="--dashboard-score:${job.ranking_pending ? 0 : score}%" title="${esc(dashboardMatchLabel(job))} · ${job.ranking_pending ? 'ממתין לדירוג' : `${score}%`}">
             ${sourceLogoMarkup({ company_name: job.company, name: job.company }, 'dashboard-company-logo')}
@@ -1591,11 +1737,12 @@ function renderRecent(jobs) {
           <div class="dashboard-job-capabilities">${dashboardSubmissionBadge(job)}</div>
           <button class="btn primary small" type="button" data-no-card-click onclick="event.stopPropagation();showJob(${job.id})">פתח משרה</button>
         </div>
-      </article>`;
+      </article></div>`;
   }).join('') : emptyState('⌁', 'עוד אין משרות מדורגות', 'לאחר הסריקה יוצגו כאן המשרות בעלות ציון ההתאמה הגבוה ביותר מכל המאגר.', '<button class="btn secondary small" type="button" onclick="switchView(\'sources\')">בדוק מקורות</button>');
   $$('[data-job-id]', root).forEach((element) => {
     element.onclick = (event) => {
       if (event.target.closest('[data-no-card-click]')) return;
+      if (jobSwipeConsumesClick(element)) return;
       showJob(Number(element.dataset.jobId));
     };
     element.onkeydown = (event) => {
@@ -1605,6 +1752,7 @@ function renderRecent(jobs) {
       }
     };
   });
+  initializeJobSwipeActions(root);
 }
 
 function scanResultSummary(result) {
@@ -1921,23 +2069,23 @@ function updateJobLocationOptions(options, selectedValues = []) {
 function jobCardActions(job) {
   if (authState.user?.is_guest) {
     return `<div class="card-actions guest-job-actions" data-no-card-click>
-      <button class="btn primary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטי המשרה</button>
-      <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר החברה</a>
+      <button class="btn primary small has-tooltip" data-tooltip="מציג את פרטי המשרה ואפשרויות ההגשה" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטי המשרה</button>
+      <a class="btn secondary small has-tooltip" data-tooltip="פותח את המשרה באתר החברה בלשונית חדשה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר החברה</a>
     </div>`;
   }
   const appliedButton = job.status === 'submitted'
-    ? '<button class="btn applied-job-button small" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
-    : `<button class="btn secondary small" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
+    ? '<button class="btn applied-job-button small has-tooltip" data-tooltip="המועמדות מסומנת כהוגשה במעקב שלך" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
+    : `<button class="btn secondary small has-tooltip" data-tooltip="מסמן שהמועמדות כבר הוגשה ומעדכן את המעקב" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
   const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
-    <button class="btn secondary small" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
-    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>הכנס לתור והגש ברקע</button>` : `<a class="btn primary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
-    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn secondary small" type="button" onclick="event.stopPropagation();queueJob(${job.id},'audit')" ${job.status === 'submitted' ? 'disabled' : ''}>צפה בסוכן ומלא עד Submit</button>` : ''}
-    <button class="btn secondary small" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
-    <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
-    <button class="btn danger small" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
-    <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
+    <button class="btn secondary small has-tooltip" data-tooltip="שומר את המשרה ברשימה שלך להמשך טיפול" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
+    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn primary small has-tooltip" data-tooltip="מכניס את המשרה לתור ומגיש אותה אוטומטית ברקע" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}>הכנס לתור והגש ברקע</button>` : `<a class="btn primary small has-tooltip" data-tooltip="פותח את טופס ההגשה באתר החברה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">הגש ידנית</a>`}
+    ${applicationAgentAllowed() && automaticSupported ? `<button class="btn secondary small has-tooltip" data-tooltip="פותח סשן צפייה וממלא את הטופס עד שלב השליחה" type="button" onclick="event.stopPropagation();queueJob(${job.id},'audit')" ${job.status === 'submitted' ? 'disabled' : ''}>צפה בסוכן ומלא עד Submit</button>` : ''}
+    <button class="btn secondary small has-tooltip" data-tooltip="מציג את פרטי המשרה ואת כל אפשרויות ההגשה" type="button" onclick="event.stopPropagation();showJob(${job.id})">פרטים ואפשרויות</button>
+    <a class="btn secondary small has-tooltip" data-tooltip="פותח את המשרה באתר החברה בלשונית חדשה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()">פתח באתר</a>
+    <button class="btn danger small has-tooltip" data-tooltip="מסיר את המשרה מהתוצאות הנוכחיות" type="button" onclick="event.stopPropagation();skipJob(${job.id})">דלג</button>
+    <button class="btn danger-outline small has-tooltip" data-tooltip="מסתיר את המשרה לצמיתות מהרשימה שלך, לאחר אישור" type="button" onclick="event.stopPropagation();deleteJob(${job.id})">מחק</button>
   </div>`;
 }
 
@@ -1964,7 +2112,9 @@ function renderJobs() {
   const last = Math.min(state.jobsPaging.total, first + state.jobs.length - 1);
   const sortLabel = $('#job-sort').selectedOptions[0]?.textContent || 'מיון';
   root.innerHTML = `<div class="results-summary">מציג ${first}–${last} מתוך ${state.jobsPaging.total} משרות · ${esc(sortLabel)}</div>` + state.jobs.map((job) => `
-    <article class="job-card interactive-card ${job.status === 'submitted' ? 'is-applied' : ''}" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
+    <div class="job-swipe-shell" data-swipe-job-id="${job.id}">
+    ${swipeJobActions(job)}
+    <article class="job-card interactive-card job-swipe-card ${job.status === 'submitted' ? 'is-applied' : ''}" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
       <div class="job-card-head"><div><h3 dir="auto">${esc(job.title)}</h3><div class="company">${esc(job.company)}</div></div><div class="score-badge">${job.ranking_pending?'…':job.score}</div></div>
       <div class="job-capabilities">${automaticSubmissionBadge(job)}</div>
       <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${esc(job.workplace)}</span><span>${statusLabel(job.status)}</span>${job.source ? `<span>${esc(job.source.kind)}</span>` : ''}</div>
@@ -1972,11 +2122,12 @@ function renderJobs() {
       ${job.skill_gaps?.length ? `<button class="skill-gap-alert" type="button" data-no-card-click onclick="event.stopPropagation();showSkillGaps(${job.id})">יש במשרה הזאת ${job.skill_gaps.length} סקילים שאין לך</button>` : ''}
       <div class="reason-list">${job.ranking_pending?'<div class="reason neutral">ממתין לדירוג</div>':job.score_reasons.slice(0, 3).map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)}</div>`).join('')}</div>
       ${jobCardActions(job)}
-    </article>
+    </article></div>
   `).join('');
   $$('.interactive-card', root).forEach((card) => {
     card.onclick = (event) => {
       if (event.target.closest('[data-no-card-click]')) return;
+      if (jobSwipeConsumesClick(card)) return;
       showJob(Number(card.dataset.jobId));
     };
     card.onkeydown = (event) => {
@@ -1986,6 +2137,7 @@ function renderJobs() {
       }
     };
   });
+  initializeJobSwipeActions(root);
   renderJobsPagination();
 }
 
@@ -2219,9 +2371,37 @@ function viewInteractiveApplication(applicationId) {
 window.viewInteractiveApplication = viewInteractiveApplication;
 async function saveJob(id){await api(`/api/jobs/${id}/save`,{method:'POST'});toast('המשרה נשמרה ב-Kanban');if(state.activeView==='jobs')await loadJobs();}
 
+async function animateJobCardExit(id) {
+  if (openJobSwipeJobId === String(id)) {
+    openJobSwipeShell = null;
+    openJobSwipeJobId = null;
+  }
+  const shells = $$('.job-swipe-shell').filter((shell) => Number(shell.dataset.swipeJobId) === Number(id));
+  if (!shells.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const animations = shells.map((shell) => {
+    shell.style.pointerEvents = 'none';
+    return shell.animate([
+      { opacity: 1, transform: 'translate3d(0,0,0) scale(1)' },
+      { opacity: 0, transform: 'translate3d(-24px,0,0) scale(.96)' },
+    ], { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' });
+  });
+  await Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
+}
+
+function animateSubmittedCardReturn(id) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  $$('.job-swipe-shell').filter((shell) => Number(shell.dataset.swipeJobId) === Number(id)).forEach((shell) => {
+    shell.animate([
+      { opacity: 0, transform: 'translate3d(14px,0,0) scale(.98)' },
+      { opacity: 1, transform: 'translate3d(0,0,0) scale(1)' },
+    ], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' });
+  });
+}
+
 async function markJobSubmitted(id) {
   try {
     await api(`/api/jobs/${id}/mark-submitted`, { method: 'POST' });
+    await animateJobCardExit(id);
     toast('המשרה סומנה כהוגשה והוסרה מהדאשבורד');
     closeModal();
     await Promise.all([
@@ -2230,6 +2410,7 @@ async function markJobSubmitted(id) {
       state.activeView === 'applications' && state.applicationSection==='queue' ? loadApplications() : Promise.resolve(),
       state.activeView === 'applications' && state.applicationSection==='attention' ? loadBlockers() : Promise.resolve(),
     ]);
+    animateSubmittedCardReturn(id);
   } catch (error) {
     toast(error.message);
   }
@@ -2247,9 +2428,10 @@ async function skipJob(id) {
 }
 
 async function deleteJob(id) {
-  if (!confirm('למחוק את המשרה לצמיתות? גם הגשה או חסימה ששייכות אליה יימחקו.')) return;
+  if (!confirm('למחוק את המשרה לצמיתות מהרשימה שלך? היא תוסתר עבורך ולא תחזור בסריקות הבאות.')) return;
   try {
     await api(`/api/jobs/${id}`, { method: 'DELETE' });
+    await animateJobCardExit(id);
     closeModal();
     state.jobs = state.jobs.filter((job) => job.id !== id);
     toast('המשרה נמחקה לצמיתות');

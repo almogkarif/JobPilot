@@ -66,6 +66,19 @@ def test_dashboard_filtered_job_count_uses_the_existing_bounded_aggregate():
     assert "for track_key, jobs, eligible_jobs, strong_matches, ranking_pending_jobs in job_rows" in stats
 
 
+def test_personal_delete_visibility_keeps_existing_bounded_job_reads():
+    source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
+    jobs = source[source.index("def list_jobs("):source.index('@app.get("/api/jobs/{job_id}")')]
+    assert 'visible_to_user = func.coalesce(UserJobState.status, "new") != "hidden"' in jobs
+    assert 'statement = statement.where(visible_to_user)' in jobs
+    assert 'location_count_statement = location_count_statement.where(visible_to_user)' in jobs
+    assert 'page_size: int = Query(20, ge=1, le=100)' in jobs
+    assert 'defer(Job.description)' in jobs
+    dashboard = source[source.index("def dashboard("):source.index('@app.get("/api/jobs")')]
+    assert 'func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden"])' in dashboard
+    assert 'top_jobs_statement.limit(5)' in dashboard
+
+
 def test_application_diagnostics_export_is_bounded():
     source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
     body = source[

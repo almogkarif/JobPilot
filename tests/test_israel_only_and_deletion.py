@@ -265,7 +265,7 @@ def test_manual_import_rejects_foreign_or_ambiguous_locations():
             assert "בישראל" in response.json()["detail"]
 
 
-def test_delete_job_api_deletes_job_application_and_blocker():
+def test_delete_job_api_hides_personal_job_but_preserves_shared_history():
     with TestClient(app) as client:
         imported = client.post(
             "/api/jobs/import",
@@ -301,7 +301,7 @@ def test_delete_job_api_deletes_job_application_and_blocker():
         assert deleted.json()["deleted"] is True
         assert deleted.json()["hidden"] is True
 
-        # Jobs are shared. Deleting from one workspace only hides/skips it for that
+        # Jobs are shared. Deleting from one workspace only hides it for that
         # user and must preserve the shared listing plus application history.
         with SessionLocal() as db:
             job = db.get(Job, job_id)
@@ -311,7 +311,13 @@ def test_delete_job_api_deletes_job_application_and_blocker():
             from app.services.user_job_state import get_user_job_state
             state = get_user_job_state(db, job_id, create=False)
             assert state is not None
-            assert state.status == "skipped"
+            assert state.status == "hidden"
+        listed = client.get("/api/jobs", params={"query": "Delete Me Junior Developer", "paginated": "true"})
+        assert listed.status_code == 200
+        assert all(row["id"] != job_id for row in listed.json()["items"])
+        dashboard = client.get("/api/dashboard")
+        assert dashboard.status_code == 200
+        assert all(row["id"] != job_id for row in dashboard.json()["recent_jobs"])
 
 
 

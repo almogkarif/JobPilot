@@ -1945,9 +1945,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             )
             # Keep jobs visible while automatic submission is still in progress.
             # Queued/applying/needs-input/verification-pending/failed/manual-required
-            # are all unfinished states. Only a fully submitted job leaves the dashboard.
+            # are all unfinished states. Submitted and personally hidden jobs leave the dashboard.
             top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
-                func.coalesce(UserJobState.status, "new") != "submitted"
+                func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden"])
             ).where(_degree_visibility_condition(profile)).outerjoin(JobRanking, valid_ranking_join).where(
                 or_(JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded")
             ).order_by(
@@ -2896,6 +2896,11 @@ def list_jobs(
         if active_only:
             statement = statement.where(Job.is_active.is_(True))
             location_count_statement = location_count_statement.where(Job.is_active.is_(True))
+        if ranking_active:
+            # A personal delete hides the shared listing for this account only.
+            visible_to_user = func.coalesce(UserJobState.status, "new") != "hidden"
+            statement = statement.where(visible_to_user)
+            location_count_statement = location_count_statement.where(visible_to_user)
         # A guest sees neutral read-only opportunities, not the admin's private
         # saved/submitted state. Ignore the status filter in shared-catalog mode.
         if status and ranking_active:
@@ -3273,8 +3278,8 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
         details_json=dumps({"title": title, "company": company, "location": location}),
     ))
     # The Job row belongs to the shared catalog. A user's delete action therefore
-    # means "hide/skip for me" and must never remove the listing for other users.
-    set_job_status(db, job, "skipped")
+    # means "hide for me" and must never remove the listing for other users.
+    set_job_status(db, job, "hidden")
     db.commit()
     return {"deleted": True, "hidden": True, "id": job_id, "title": title, "company": company}
 
