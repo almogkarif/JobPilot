@@ -330,6 +330,20 @@ def test_job_card_reveals_one_third_with_mouse_and_closes_with_touch(browser_pag
     box = card.bounding_box()
     assert box
 
+    # Jobs retains normal actions and must never expose a swipe tray.
+    assert page.locator('#jobs-list .job-swipe-actions').count() == 0
+    page.mouse.move(box["x"] + box["width"] * .75, box["y"] + box["height"] * .5)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 4, box["y"] + box["height"] * .5, steps=8)
+    page.mouse.up()
+    assert "is-open" not in (shell.get_attribute("class") or "")
+    page.locator('button[data-view="dashboard"]').click()
+    card = page.locator(f'#recent-jobs .job-swipe-card[data-job-id="{job["id"]}"]')
+    card.wait_for(state="visible")
+    shell = card.locator("xpath=..").first
+    box = card.bounding_box()
+    assert box
+
     # Desktop pointer: about a third of the card moves aside, leaving it visible.
     page.mouse.move(box["x"] + box["width"] * .75, box["y"] + box["height"] * .5)
     page.mouse.down()
@@ -393,7 +407,7 @@ def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(brows
     page.evaluate("""() => {
       localStorage.setItem('jobpilot-swipe-discovered-v1:local-owner', '1');
       localStorage.removeItem('jobpilot-swipe-discovered-admin-v2:local-owner');
-      localStorage.setItem('jobpilot-active-view', 'jobs');
+      localStorage.setItem('jobpilot-active-view', 'dashboard');
     }""")
     page.add_init_script("""(() => {
       window.__swipeHintAnimations = [];
@@ -405,7 +419,7 @@ def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(brows
     })();""")
     page.emulate_media(reduced_motion="reduce")
     page.reload(wait_until="networkidle")
-    page.locator('#jobs-list .job-swipe-card').first.wait_for(state="visible")
+    page.locator('#recent-jobs .job-swipe-card').first.wait_for(state="visible")
     page.wait_for_timeout(1400)
     assert page.evaluate("window.__swipeHintAnimations.length") == 0
 
@@ -425,7 +439,7 @@ def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(brows
     assert page.evaluate("localStorage.getItem('jobpilot-swipe-discovered-admin-v2:local-owner')") is None
     page.wait_for_function("window.__swipeHintAnimations.length >= 2", timeout=10000)
 
-    card = page.locator(f'#jobs-list .job-swipe-card[data-job-id="{job["id"]}"]')
+    card = page.locator(f'#recent-jobs .job-swipe-card[data-job-id="{job["id"]}"]')
     card.wait_for(state="visible")
     shell = card.locator("xpath=..").first
     box = card.bounding_box()
@@ -438,7 +452,7 @@ def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(brows
     assert page.evaluate("localStorage.getItem('jobpilot-swipe-discovered-admin-v2:local-owner')") == "1"
 
     page.reload(wait_until="networkidle")
-    page.locator('#jobs-list .job-swipe-card').first.wait_for(state="visible")
+    page.locator('#recent-jobs .job-swipe-card').first.wait_for(state="visible")
     page.wait_for_timeout(1400)
     assert page.evaluate("window.__swipeHintAnimations.length") == 0
     assert not errors

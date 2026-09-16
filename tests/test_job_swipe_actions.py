@@ -41,8 +41,8 @@ def test_swipe_actions_have_expected_tones_and_personal_delete_confirmation():
     assert '@container (max-width:360px)' in CSS
 
 
-def test_swipe_actions_are_added_to_dashboard_and_full_jobs_view():
-    assert JS.count('${swipeJobActions(job)}') >= 2
+def test_swipe_actions_are_added_only_to_dashboard():
+    assert JS.count('${swipeJobActions(job)}') == 1
     assert 'dashboard-job-card interactive-row job-swipe-card' in JS
     assert 'job-card interactive-card job-swipe-card' in JS
     assert "if (openJobSwipeShell && !event.target.closest('.job-swipe-shell'))" in JS
@@ -76,5 +76,14 @@ def test_swipe_discovery_hint_is_account_scoped_and_only_real_open_swipe_persist
     assert "if (!wasOpen && shouldOpen && event.type === 'pointerup') recordSwipeDiscovery();" in JS
     assert "window.matchMedia('(prefers-reduced-motion: reduce)').matches" in JS
     assert "swipeHintAnimation = card.animate" in JS
-    assert "scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'), 5000)" in JS
+    assert "scheduleSwipeHint($('#recent-jobs'), 5000)" in JS
     assert "if (swipeHintTimer && swipeHintScheduledRoot !== root)" in JS
+
+
+def test_swipe_actions_are_only_rendered_and_initialized_on_dashboard():
+    jobs = JS.split('function renderJobs()', 1)[1].split('function renderJobsPagination()', 1)[0]
+    assert 'swipeJobActions(job)' not in jobs
+    assert 'initializeJobSwipeActions(root)' not in jobs
+    assert "if (!root?.closest('#view-dashboard')) return" in JS
+    assert "state.activeView !== 'dashboard'" in JS
+    assert '${jobCardActions(job)}' in jobs

@@ -1634,6 +1634,7 @@ function recordSwipeDiscovery() {
 }
 
 function scheduleSwipeHint(root, delay = 1100) {
+  if (state.activeView !== 'dashboard' || !root?.closest('#view-dashboard')) return;
   const key = swipeHintKey();
   if (!key || swipeDiscoveredThisSession.has(key) || document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   try { if (localStorage.getItem(key) === '1') return; } catch { /* Storage may be unavailable. */ }
@@ -1669,14 +1670,14 @@ function scheduleSwipeHint(root, delay = 1100) {
     ], { duration: 1550, easing: 'ease-in-out' });
     swipeHintAnimation.onfinish = () => {
       swipeHintAnimation = null;
-      scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'), 5000);
+      scheduleSwipeHint($('#recent-jobs'), 5000);
     };
   }, delay);
 }
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) cancelSwipeHint();
-  else scheduleSwipeHint(state.activeView === 'jobs' ? $('#jobs-list') : $('#recent-jobs'), 5000);
+  else scheduleSwipeHint($('#recent-jobs'), 5000);
 });
 
 function setJobSwipeOpen(shell, open) {
@@ -1709,6 +1710,7 @@ function jobSwipeConsumesClick(card) {
 }
 
 function initializeJobSwipeActions(root) {
+  if (!root?.closest('#view-dashboard')) return;
   $$('.job-swipe-shell', root).forEach((shell) => {
     const card = shell.querySelector('.job-swipe-card');
     const actions = shell.querySelector('.job-swipe-actions');
@@ -2212,7 +2214,6 @@ function renderJobs() {
   const sortLabel = $('#job-sort').selectedOptions[0]?.textContent || 'מיון';
   root.innerHTML = `<div class="results-summary">מציג ${first}–${last} מתוך ${state.jobsPaging.total} משרות · ${esc(sortLabel)}</div>` + state.jobs.map((job) => `
     <div class="job-swipe-shell" data-swipe-job-id="${job.id}">
-    ${swipeJobActions(job)}
     <article class="job-card interactive-card job-swipe-card ${job.status === 'submitted' ? 'is-applied' : ''}" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
       <div class="job-card-head"><div><h3 dir="auto">${esc(job.title)}</h3><div class="company">${esc(job.company)}</div></div><div class="score-badge">${job.ranking_pending?'…':job.score}</div></div>
       <div class="job-capabilities">${automaticSubmissionBadge(job)}</div>
@@ -2236,7 +2237,6 @@ function renderJobs() {
       }
     };
   });
-  initializeJobSwipeActions(root);
   renderJobsPagination();
 }
 
