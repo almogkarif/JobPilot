@@ -51,6 +51,8 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
     page.evaluate("state.activeCareerTrack = 'industrial_engineering'; applyCareerTrackTheme()")
     button = page.locator('#nav [data-view="skills"]')
     initial_height = button.bounding_box()['height']
+    assert initial_height == pytest.approx(64, abs=1)
+    assert button.locator('.nav-icon').evaluate('(icon) => parseFloat(getComputedStyle(icon).width)') == 46
     button.hover()
     page.wait_for_timeout(650)
     result = button.evaluate('''button => {
@@ -70,7 +72,7 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
         assert result['height'] > initial_height + 10
         assert not result['title']
     page.locator('#nav [data-view="settings"]').scroll_into_view_if_needed()
-    assert page.locator('#nav [data-view="settings"]').evaluate('(button) => button.getBoundingClientRect().bottom <= innerHeight')
+    assert page.locator('#nav [data-view="settings"]').evaluate('(button) => button.getBoundingClientRect().bottom <= document.querySelector(".dock-utility").getBoundingClientRect().top')
 
 
 def test_edit_during_save_is_not_overwritten_by_normalized_response(browser_page):
