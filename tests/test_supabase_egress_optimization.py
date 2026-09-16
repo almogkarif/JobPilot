@@ -363,3 +363,51 @@ def test_queue_snapshot_and_health_do_not_read_job_descriptions():
     import inspect
     assert 'defer(Job.description)' in inspect.getsource(main_module._auto_apply_queue_snapshot)
     assert 'defer(Job.description)' in inspect.getsource(application_queue_recovery.queue_health)
+
+
+def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descriptions(monkeypatch):
+    from tests.test_iem_discipline_filter import HQA_REQUIREMENTS
+
+    class IemCollector:
+        async def collect(self, identifier, company_name=''):
+            return [NormalizedJob(
+                external_id='hqa', title='(HQA) Design Quality Engineer', company='Fixture',
+                location='Haifa, Israel', workplace='onsite', description=HQA_REQUIREMENTS,
+                apply_url='https://example.com/hqa',
+            ), NormalizedJob(
+                external_id='analyst', title='Data Analyst', company='Fixture',
+                location='Haifa, Israel', workplace='onsite', description='SQL, reporting and data analysis',
+                apply_url='https://example.com/analyst',
+            )]
+
+    monkeypatch.setitem(scanner.COLLECTORS, 'greenhouse', IemCollector)
+    engine, Session = _isolated_session_factory()
+    with Session() as db:
+        set_user_scope(db, SHARED_CATALOG_USER_ID)
+        source = Source(name='IEM fixture', kind='greenhouse', identifier='iem-fixture',
+                        company_name='Fixture', career_track='industrial_engineering', enabled=True)
+        db.add(source)
+        db.flush()
+        old = Job(source_id=source.id, career_track='industrial_engineering', external_id='hqa',
+                  title='(HQA) Design Quality Engineer', company='Fixture', location='Haifa, Israel',
+                  description=HQA_REQUIREMENTS, apply_url='https://example.com/hqa', is_active=True)
+        db.add(old)
+        db.commit()
+        old_id = old.id
+        db.expunge_all()
+        statements = []
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            statements.append(statement.lower())
+        event.listen(engine, 'before_cursor_execute', capture)
+        try:
+            result = asyncio.run(scanner.scan_all_sources(db, career_track='industrial_engineering', catalog_only=True))
+        finally:
+            event.remove(engine, 'before_cursor_execute', capture)
+        assert result['filtered_mismatch'] == 1, result
+        assert result['removed'] == 1
+        assert result['new'] == 1
+        job_selects = [statement for statement in statements if statement.lstrip().startswith('select') and ' jobs' in statement]
+        assert job_selects
+        assert all('jobs.description' not in statement for statement in job_selects)
+        assert db.scalar(select(Job.is_active).where(Job.id == old_id)) is False
+        assert db.scalar(select(Job.is_active).where(Job.external_id == 'analyst')) is True

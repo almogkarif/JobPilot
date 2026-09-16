@@ -6,8 +6,8 @@ from functools import lru_cache
 from datetime import datetime, timezone
 from ..utils import loads
 from .career_tracks import COMPUTER_SCIENCE, ELECTRICAL_ENGINEERING, active_track
-from .degree_requirements import profile_degree_level
-from .job_requirements import normalize_requirement_text, section_kind_at
+from .degree_requirements import extract_degree_requirement_details, profile_degree_level
+from .job_requirements import iter_requirement_clauses, normalize_requirement_text, section_kind_at
 
 KNOWN_SKILLS = {
     "c++": ["c++", "cpp"],
@@ -199,13 +199,60 @@ IEM_NON_PROFESSIONAL_TITLE_TERMS = {
 }
 IEM_DISCIPLINE_SPECIFIC_ENGINEERING_TITLE_TERMS = {
     "manufacturing engineer", "production engineer", "composite manufacturing engineer",
-    "program quality engineer (mechanical)", "hardware project manager",
+    "program quality engineer (mechanical)", "hardware project manager", "soc silicon",
     "מהנדס ייצור", "מהנדסת ייצור", "מהנדס.ת ייצור",
 }
 IEM_INSPECTION_TITLE_TERMS = {
     "quality inspector", "quality control inspector", "מבקר איכות", "מבקרת איכות", "מבקר.ת איכות",
     "מבקר/ת איכות",
 }
+
+IEM_DEGREE_TERMS = (
+    "industrial engineering", "industrial and management engineering", "industrial & management engineering",
+    "industrial management", "industrial management and engineering", "תעשייה וניהול", "תעשיה וניהול", 'תעו"נ',
+)
+IEM_OTHER_PROFESSION_TITLE_TERMS = (
+    "hr business partner", "human resources", "people operations", "hr operations", "legal operations",
+    "security operations", "network analyst", "sotif analyst", "software quality", "quality engineering director",
+    "director of quality engineering", "director of engineering", "software project manager",
+    "software execution", "משאבי אנוש",
+)
+_ACADEMIC_MARKER = re.compile(
+    r"\b(?:bachelor(?:'s)?|master(?:'s)?|b\.?\s*sc\.?|m\.?\s*sc\.?|b\.?s\.?|degree\s+in)\b|תואר\s+(?:ראשון|שני|ב\S+)", re.I,
+)
+_OTHER_DEGREE = re.compile(
+    r"\b(?:(?:mechanical|electrical|electronics?|optical|aerospace|aeronautical|chemical|civil|computer|software)\s+engineering|"
+    r"computer science|physics|chemistry|materials science|law|ll\.?b)\b|"
+    r"הנדסת\s+(?:מכונות|חשמל|אלקטרוניקה|מחשבים|תוכנה|חומרים|אווירונאוטיקה)|מדעי המחשב|משפטים", re.I,
+)
+_IEM_RELATED_DEGREE = re.compile(
+    r"\b(?:economics|statistics|mathematics|business|logistics|supply chain|information systems|quality engineering)\b|"
+    r"כלכלה|סטטיסטיקה|מנהל עסקים|לוגיסטיקה|מערכות מידע|"
+    r"\b(?:in|or|and)\s+engineering\b|(?:^|[,/])\s*engineering\b|בהנדסה(?:\s*[,/]|\s+(?:או|[-–]|חובה)|$)", re.I,
+)
+
+
+def _iem_degree_mismatch(description: str) -> bool:
+    """Reject explicit mandatory specialisms, not preferences or workplace context.
+
+    Keep alternatives in the same academic clause together. A company mentioning
+    industrial engineers elsewhere cannot override a mechanical-only requirement.
+    """
+    for _, clause in iter_requirement_clauses(description):
+        marker = _ACADEMIC_MARKER.search(clause)
+        if not marker:
+            continue
+        academic = clause[marker.start():]
+        # Collapsed ATS descriptions often append the next requirement without a
+        # newline. Do not treat its skills/team names as alternative degree fields.
+        academic = re.split(r"\s+(?=\d+\+?\s*(?:years|שנות)|experience\s+(?:in|with|of)\b|knowledge\b|proficiency\b)", academic, maxsplit=1, flags=re.I)[0]
+        requirement = extract_degree_requirement_details(academic)
+        lowered = academic.casefold()
+        if (requirement.required and _OTHER_DEGREE.search(academic)
+                and not any(term in lowered for term in IEM_DEGREE_TERMS)
+                and not _IEM_RELATED_DEGREE.search(academic)):
+            return True
+    return False
 
 
 @dataclass(slots=True)
@@ -704,10 +751,11 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
         return False, "outside_ee_scope"
     if "software quality" in title or "software infrastructure engineer" in title or "מהנדס.ת תשתיות תוכנה" in title:
         return False, "software_role_outside_iem_scope"
-    degree_signal = any(term in text for term in (
-        "industrial engineering", "industrial & management engineering", "industrial and management engineering",
-        "הנדסת תעשייה וניהול", "תואר ראשון בהנדסת תעשייה", "תעשייה וניהול",
-    ))
+    degree_signal = any(term in text for term in IEM_DEGREE_TERMS)
+    if _iem_degree_mismatch(description):
+        return False, "iem_required_degree_discipline_mismatch"
+    if any(term in title for term in IEM_OTHER_PROFESSION_TITLE_TERMS) and not degree_signal:
+        return False, "other_profession_outside_iem_scope"
     if any(term in title for term in IEM_NON_PROFESSIONAL_TITLE_TERMS):
         return False, "iem_non_professional_operations_role"
     if any(term in title for term in IEM_DISCIPLINE_SPECIFIC_ENGINEERING_TITLE_TERMS) and not degree_signal:
