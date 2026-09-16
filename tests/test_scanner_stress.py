@@ -147,11 +147,14 @@ def test_temporary_access_block_preserves_last_good_source_snapshot(monkeypatch)
 
     result = asyncio.run(scanner.scan_all_sources(db))
 
-    assert result["status"] == "ok"
+    assert result["status"] == "partial"
+    assert result["successful_sources"] == 0
+    assert result["deferred_sources"] == 1
     assert result["errors"] == []
     assert result["per_source"][0]["deferred"] is True
     assert db.get(Job, job.id).is_active is True
-    assert db.get(Source, source.id).last_error == ""
+    assert db.get(Source, source.id).last_error == "temporary bot protection"
+    assert db.get(Source, source.id).health_score <= 50
     db.close()
 
 
@@ -258,4 +261,35 @@ def test_targeted_scan_refreshes_only_selected_sources(monkeypatch):
     assert result["new"] == 1
     assert db.scalar(select(func.count()).select_from(Job).where(Job.source_id == source_a.id)) == 1
     assert db.scalar(select(func.count()).select_from(Job).where(Job.source_id == source_b.id)) == 0
+    db.close()
+
+
+def test_partial_scan_preserves_absent_jobs_and_last_complete_timestamp(monkeypatch):
+    from app.collectors.base import JobCollection
+    from app.utils import loads
+
+    class PartialCollector:
+        async def collect(self, identifier, company_name=''):
+            return JobCollection([], complete=False)
+
+    monkeypatch.setitem(scanner.COLLECTORS, 'greenhouse', PartialCollector)
+    db = _session()
+    db.add(_profile())
+    source = Source(name='Partial', kind='greenhouse', identifier='partial', enabled=True,
+                    metadata_json=dumps({'last_success_at': '2026-09-01T00:00:00+00:00'}))
+    db.add(source)
+    db.flush()
+    job = Job(source_id=source.id, external_id='old', title='Software Engineer', company='Partial',
+              location='Haifa, Israel', description='Python software development',
+              apply_url='https://example.com/jobs/old', is_active=True)
+    db.add(job)
+    db.commit()
+    result = asyncio.run(scanner.scan_all_sources(db, catalog_only=True))
+    assert result['status'] == 'partial'
+    assert result['partial_sources'] == 1
+    assert result['successful_sources'] == 0
+    assert result['removed'] == 0
+    assert db.get(Job, job.id).is_active
+    assert source.health_score == 75
+    assert loads(source.metadata_json, {})['last_success_at'] == '2026-09-01T00:00:00+00:00'
     db.close()

@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-09-16T10:54:36.593579+00:00",
+  "runs": [
+    {
+      "name": "full_intermediate",
+      "tests": 870,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 513.85
+    },
+    {
+      "name": "final_queue",
+      "tests": 86,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 11.52
+    },
+    {
+      "name": "final_sources",
+      "tests": 81,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 31.32
+    },
+    {
+      "name": "browser_and_source_followup",
+      "tests": 76,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 23.15
+    },
+    {
+      "name": "full_combined",
+      "tests": 877,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 509.99
+    },
+    {
+      "name": "full_with_initial_test_fixtures",
+      "tests": 888,
+      "failures": 3,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 718.567
+    },
+    {
+      "name": "final_core",
+      "tests": 791,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 237.426
+    },
+    {
+      "name": "final_profile_regressions",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 28.541
+    },
+    {
+      "name": "final_compact_dock_contract",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 0.056
+    }
+  ],
+  "final_source_diagnostic_recheck": {
+    "tests": 18,
+    "failures": 0,
+    "skipped": 0
+  },
+  "final_verified_unique_tests": 889,
+  "verification_note": "Combined final coverage: full run included outdated country-test URL fixtures and dock CSS parser; corrected fixtures rerun successfully. Final core had only the outdated dock contract, subsequently passed in its 13-test rerun. No unresolved failing or skipped tests in final combined coverage."
+}

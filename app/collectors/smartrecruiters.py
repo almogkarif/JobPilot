@@ -4,7 +4,7 @@ import asyncio
 
 import httpx
 
-from .base import NormalizedJob
+from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from ..utils import html_to_text, parse_datetime
 
 
@@ -29,10 +29,14 @@ class SmartRecruitersCollector:
                 })
                 response.raise_for_status()
                 payload = response.json()
+                if "totalFound" not in payload or not isinstance(payload.get("content"), list):
+                    raise PreserveExistingJobs("SmartRecruiters returned an unrecognized job-list payload")
                 page_rows = payload.get("content") or []
                 total = int(payload.get("totalFound") or 0)
                 rows.extend(page_rows)
-                offset += len(page_rows) or 100
+                if not page_rows:
+                    break
+                offset += len(page_rows)
                 if offset >= 500:  # defensive cap; Israel-specific query should be far smaller.
                     break
 
@@ -95,4 +99,4 @@ class SmartRecruitersCollector:
             jobs = await asyncio.gather(*(normalize(row) for row in rows))
 
         unique = {job.external_id: job for job in jobs if job}
-        return list(unique.values())
+        return JobCollection(unique.values(), complete=offset >= total and len(unique) == len(rows))

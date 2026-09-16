@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import pytest
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -129,12 +130,14 @@ def _isolated_session_factory():
     return engine, sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def test_catalog_rescan_does_not_select_persisted_job_descriptions(monkeypatch):
+@pytest.mark.parametrize("complete", [True, False])
+def test_catalog_rescan_does_not_select_persisted_job_descriptions(monkeypatch, complete):
     stable_published = datetime(2026, 8, 20, 10, 0, tzinfo=timezone.utc)
 
     class StableCollector:
         async def collect(self, identifier: str, company_name: str = ""):
-            return [
+            from app.collectors.base import JobCollection
+            return JobCollection([
                 NormalizedJob(
                     external_id=f"{identifier}-1",
                     title="Software Engineer",
@@ -145,7 +148,7 @@ def test_catalog_rescan_does_not_select_persisted_job_descriptions(monkeypatch):
                     apply_url=f"https://example.com/{identifier}/1",
                     published_at=stable_published,
                 )
-            ]
+            ], complete=complete)
 
     monkeypatch.setitem(scanner.COLLECTORS, "greenhouse", StableCollector)
     engine, Session = _isolated_session_factory()
@@ -300,8 +303,8 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
     from app.collectors.official import PRESETS
     from app.services.source_catalog import IEM_RECOMMENDED_SOURCES, _REQUESTED_EMPLOYER_SOURCES
 
-    # Keep reconciliation bounded. New boards perform one static listing request
-    # and never hydrate every job or launch a browser during scheduled scans.
+    # Generic links must be verified against bounded HTTP detail pages.
+    # They still never launch Chromium or perform unbounded detail hydration.
     assert len(IEM_RECOMMENDED_SOURCES) <= 100
     for identifier, _company, _tracks in _REQUESTED_EMPLOYER_SOURCES:
         if identifier == "apple":  # Existing dynamic adapter, tested separately.
@@ -309,7 +312,15 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
         preset = PRESETS[identifier]
         assert preset["http_first"] is True
         assert preset["static_only"] is True
-        assert not preset.get("hydrate_details")
+        if identifier == "teva":
+            assert preset.get("embedded_positions") is True
+            assert preset.get("detail_api_template")
+        elif identifier == "one-technologies":
+            assert preset.get("inline_accordion") is True
+            assert not preset.get("hydrate_details")
+        else:
+            assert preset.get("require_job_schema") is True
+        assert 0 < preset.get("max_detail_jobs", 0) <= 40
 
 
 def test_new_source_expansion_does_not_enable_unbounded_official_pages():
@@ -335,3 +346,20 @@ def test_dashboard_pending_ranking_uses_existing_aggregate_query():
     assert '"ranking_pending_jobs": 0' in stats_body
     assert "catalog_condition & JobRanking.id.is_(None)" in stats_body
     assert '"ranking_pending_jobs": ranking_pending_jobs' in source
+
+
+def test_guided_review_stops_polling_when_popup_closes_without_extra_queue_reads():
+    javascript = (main_module.STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    polling = javascript.split('async function openInteractiveLiveView(', 1)[1].split('\nfunction viewInteractiveApplication', 1)[0]
+    assert 'attempt < 45' in polling
+    assert 'if (!liveWindow || liveWindow.closed) return;' in polling
+    assert polling.index('if (!liveWindow || liveWindow.closed) return;') < polling.index('session = await api(')
+    guided = javascript.split('async function openInteractiveBlockedApplication(', 1)[1].split('\nasync function removeApplication', 1)[0]
+    assert 'refreshAutoApplyQueue()' not in guided
+
+
+def test_queue_snapshot_and_health_do_not_read_job_descriptions():
+    from app.services import application_queue_recovery
+    import inspect
+    assert 'defer(Job.description)' in inspect.getsource(main_module._auto_apply_queue_snapshot)
+    assert 'defer(Job.description)' in inspect.getsource(application_queue_recovery.queue_health)

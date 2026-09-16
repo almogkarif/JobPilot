@@ -60,10 +60,14 @@ def test_guest_workspace_reads_shared_catalog_without_creating_private_catalog(m
     ))
     headers = {'Authorization': 'Bearer guest-demo-token'}
     created_job_ids = []
+    created_source_ids = []
     try:
         with user_session(SHARED_CATALOG_USER_ID) as db:
             for track, suffix in [('computer_science', 'cs'), ('industrial_engineering', 'iem')]:
-                source = db.scalar(select(Source).where(Source.career_track == track))
+                source = Source(name=f'Guest Shared {suffix}', kind='greenhouse',
+                                identifier=f'guest-shared-{suffix}', company_name='SharedCo',
+                                career_track=track, enabled=True)
+                db.add(source); db.flush(); created_source_ids.append(source.id)
                 job = Job(source_id=source.id, career_track=track, external_id=f'guest-shared-{suffix}',
                           title=f'Guest Shared {suffix.upper()} Job', company='SharedCo', location='Tel Aviv, Israel',
                           apply_url=f'https://example.com/guest-shared-{suffix}')
@@ -72,12 +76,12 @@ def test_guest_workspace_reads_shared_catalog_without_creating_private_catalog(m
 
         with TestClient(main.app) as client:
             assert client.get('/api/profile', headers=headers).status_code == 200
-            cs_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':100}).json()
+            cs_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','query':'Guest Shared CS Job','page_size':100}).json()
             assert any(item['id'] == created_job_ids[0] for item in cs_jobs['items'])
 
             switched = client.put('/api/career-tracks/active', headers=headers, json={'track':'industrial_engineering'})
             assert switched.status_code == 200
-            iem_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','page':1,'page_size':100}).json()
+            iem_jobs = client.get('/api/jobs', headers=headers, params={'paginated':'true','query':'Guest Shared IEM Job','page_size':100}).json()
             assert any(item['id'] == created_job_ids[1] for item in iem_jobs['items'])
 
             assert client.post('/api/profile/skills', headers=headers, json={'skill':'Forbidden'}).status_code == 403
@@ -91,6 +95,7 @@ def test_guest_workspace_reads_shared_catalog_without_creating_private_catalog(m
         if created_job_ids:
             with SessionLocal() as db:
                 db.execute(delete(Job).where(Job.id.in_(created_job_ids)))
+                db.execute(delete(Source).where(Source.id.in_(created_source_ids)))
                 db.commit()
 
 def test_guest_workspace_repairs_partial_profile_without_seeding_private_catalog(monkeypatch):

@@ -10,3 +10,7 @@ def test_job_text_cleans_ats_html_noise_and_duplicate_lines():
 def test_job_text_marks_detail_ctas_as_missing():
     assert job_text_quality("See full role description") == "missing"
     assert job_text_quality("Save for Later") == "missing"
+
+
+def test_short_job_card_is_partial_even_when_readable():
+    assert job_text_quality("Software Engineer · Tel Aviv, Israel · Full time · Engineering") == "partial"

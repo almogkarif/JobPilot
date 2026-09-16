@@ -107,7 +107,8 @@ def test_ui_keeps_first_tracker_and_exposes_clickable_waiting_queue():
     js = (Path(__file__).resolve().parents[1] / 'app/static/app.js').read_text(encoding='utf-8')
     css = (Path(__file__).resolve().parents[1] / 'app/static/styles.css').read_text(encoding='utf-8')
 
-    assert "await syncPrimaryApplicationTracking(application.id, true)" in js
+    assert "syncPrimaryApplicationTracking(application.id, true)" in js
+    assert "await Promise.allSettled([loadDashboard()" in js
     assert "requestedId||queue.current?.id" in js
     assert "Boolean(requestedId)" in js
     assert "startApplicationTracking(application.id, true)" not in js

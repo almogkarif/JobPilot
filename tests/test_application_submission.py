@@ -239,7 +239,7 @@ def test_preview_token_is_scoped_expires_and_rejects_tampering(monkeypatch):
 
 def test_application_preview_api_exposes_adapter_and_short_lived_approval():
     with TestClient(app) as client:
-        job = next(item for item in client.get("/api/jobs").json() if item["status"] != "submitted")
+        job = _import_preview_job(client, "preview")
         response = client.get(f"/api/jobs/{job['id']}/application-preview")
         assert response.status_code == 200
         payload = response.json()
@@ -251,20 +251,32 @@ def test_application_preview_api_exposes_adapter_and_short_lived_approval():
 
 def test_jobs_api_exposes_automatic_submission_capability():
     with TestClient(app) as client:
-        jobs = client.get("/api/jobs").json()
-    assert jobs
+        imported = _import_preview_job(client, "capability")
+        jobs = client.get("/api/jobs", params={"query": imported["title"]}).json()
+    assert any(job["id"] == imported["id"] for job in jobs)
     assert all("application_adapter" in job for job in jobs)
     assert all(isinstance(job["application_adapter"]["supports_automatic_submit"], bool) for job in jobs)
 
 
 def test_automatic_queue_rejects_missing_or_unapproved_preview():
     with TestClient(app) as client:
-        job = next(item for item in client.get("/api/jobs").json() if item["status"] != "submitted")
+        job = _import_preview_job(client, "approval")
         response = client.post(
             f"/api/jobs/{job['id']}/queue",
             json={"mode": "auto", "approve_submit": True, "preview_token": "invalid"},
         )
         assert response.status_code == 409
+
+
+def _import_preview_job(client, suffix):
+    # The product no longer seeds demo jobs; each API test owns its input.
+    response = client.post("/api/jobs/import", json={
+        "title": f"QA Preview Backend Engineer {suffix}",
+        "company": "QA Preview", "location": "Tel Aviv, Israel",
+        "apply_url": f"https://boards.greenhouse.io/qa-preview/jobs/{suffix}",
+    })
+    assert response.status_code == 200
+    return response.json()
 
 
 def test_campaign_config_dry_run_and_activation_require_exact_preview_token(monkeypatch):

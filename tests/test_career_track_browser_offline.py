@@ -17,7 +17,9 @@ def _chromium_path() -> str | None:
         path = shutil.which(candidate)
         if path:
             return path
-    return None
+    with sync_playwright() as playwright:
+        bundled = Path(playwright.chromium.executable_path)
+        return str(bundled) if bundled.exists() else None
 
 
 def test_real_browser_switches_profession_theme_options_and_agent_state():

@@ -191,8 +191,8 @@ async def scan_all_sources(
                 return snapshot, items, None
             except asyncio.TimeoutError:
                 return snapshot, [], f"Source scan timed out after {source_timeout} seconds"
-            except PreserveExistingJobs:
-                return snapshot, None, None
+            except PreserveExistingJobs as exc:
+                return snapshot, None, str(exc)[:1000]
             except Exception as exc:  # noqa: BLE001 - one collector must not stop the rest
                 return snapshot, [], str(exc)
             finally:
@@ -217,9 +217,9 @@ async def scan_all_sources(
 
             if items is None:
                 source.last_scanned_at = datetime.now(timezone.utc)
-                source.last_error = ""
-                source.consecutive_failures = 0
-                source.health_score = max(80, int(source.health_score or 100))
+                source.last_error = collect_error or "Source could not be verified; previous jobs preserved"
+                source.health_score = min(50, int(source.health_score or 100))
+                _record_source_scan_state(source, "deferred")
                 source.disabled_until = None
                 db.add(AuditLog(
                     event_type="source_scan_deferred",
@@ -232,7 +232,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": source.name, "collected": 0, "israel_found": 0, "found": 0,
                     "filtered_foreign": 0, "filtered_mismatch": 0,
-                    "new": 0, "updated": 0, "removed": 0, "error": "", "deferred": True,
+                    "new": 0, "updated": 0, "removed": 0, "error": "", "deferred": True, "message": source.last_error,
                 }
                 per_source.append(source_result)
                 completed_count += 1
@@ -245,6 +245,7 @@ async def scan_all_sources(
                 if source:
                     source.last_scanned_at = datetime.now(timezone.utc)
                     source.last_error = str(collect_error)[:1000]
+                    _record_source_scan_state(source, "failed")
                     source.consecutive_failures = int(source.consecutive_failures or 0) + 1
                     if isinstance(collect_error, SourceDataQualityError) or str(collect_error).startswith("Unreliable source data:"):
                         source.health_score = min(int(source.health_score or 100), 40)
@@ -273,6 +274,7 @@ async def scan_all_sources(
                 continue
 
             try:
+                complete = bool(getattr(items, "complete", True))
                 total_collected += len(items)
                 israel_items = [item for item in items if is_israel_location(item.location)]
                 source_filtered_foreign = len(items) - len(israel_items)
@@ -434,7 +436,7 @@ async def scan_all_sources(
                     elif (not catalog_only) and not track_job_relevance(old, career_track)[0]:
                         # Reconcile jobs saved under older/broader track rules too.
                         removal_reason = "track_mismatch"
-                    elif old.external_id not in seen_external_ids:
+                    elif complete and old.external_id not in seen_external_ids:
                         removal_reason = "no_longer_listed"
 
                     if removal_reason:
@@ -477,7 +479,8 @@ async def scan_all_sources(
                 source.last_scanned_at = datetime.now(timezone.utc)
                 source.last_error = ""
                 source.consecutive_failures = 0
-                source.health_score = 100
+                source.health_score = 100 if complete else 75
+                _record_source_scan_state(source, "complete" if complete else "partial")
                 source.disabled_until = None
                 db.add(AuditLog(
                     event_type="source_scanned",
@@ -498,6 +501,7 @@ async def scan_all_sources(
                 source_result = {
                     "source": source.name,
                     "collected": len(items),
+                    "partial": not complete,
                     "israel_found": len(israel_items),
                     "found": len(eligible_items),
                     "filtered_foreign": source_filtered_foreign,
@@ -516,6 +520,7 @@ async def scan_all_sources(
                 if source:
                     source.last_scanned_at = datetime.now(timezone.utc)
                     source.last_error = str(exc)[:1000]
+                    _record_source_scan_state(source, "failed")
                     source.consecutive_failures = int(source.consecutive_failures or 0) + 1
                     source.health_score = max(5, 100 - source.consecutive_failures * 24)
                     if source.consecutive_failures >= 3:
@@ -564,12 +569,16 @@ async def scan_all_sources(
         # Final pass is cheap and catches any eligible job that was already present before
         # this scan. Per-source auto-queueing above means new jobs do not wait for this step.
         total_auto_queued += auto_queue_jobs(db, profile)
-    successful = len(snapshots) - len(errors)
-    status = "ok" if not errors else ("partial" if successful else "failed")
+    deferred = sum(bool(item.get("deferred")) for item in per_source)
+    partial = sum(bool(item.get("partial")) for item in per_source)
+    successful = len(snapshots) - len(errors) - deferred - partial
+    status = "ok" if not (errors or deferred or partial) else ("failed" if len(errors) == len(snapshots) else "partial")
     return {
         "status": status,
         "sources": len(snapshots),
         "successful_sources": successful,
+        "deferred_sources": deferred,
+        "partial_sources": partial,
         "failed_sources": len(errors),
         "collected": total_collected,
         "found": total_found,
@@ -688,3 +697,13 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
                     ))
                     db.commit()
     return count
+
+
+def _record_source_scan_state(source: Source, state: str) -> None:
+    metadata = loads(source.metadata_json, {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata["scan_status"] = state
+    if state == "complete":
+        metadata["last_success_at"] = source.last_scanned_at.isoformat()
+    source.metadata_json = dumps(metadata)

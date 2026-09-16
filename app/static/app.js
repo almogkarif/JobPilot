@@ -299,6 +299,8 @@ function renderCloudAccount() {
     return;
   }
   const guest = Boolean(authState.user.is_guest);
+  const scoreSort = $('#job-sort option[value="score_desc"]');
+  if (scoreSort) scoreSort.textContent = guest ? 'סדר קטלוג' : 'המומלצות ביותר';
   button.hidden = false;
   if (logout) logout.hidden = false;
   if (guestBanner) guestBanner.hidden = !guest;
@@ -974,6 +976,11 @@ function renderApplicationStatus(application) {
 }
 
 function renderApplicationActions(application) {
+  if (['queued','applying'].includes(application.status)) {
+    return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();showApplicationTimeline(${application.id})">היסטוריה ומעקב</button>
+      ${application.live_view_ready ? `<button class="btn primary small" type="button" onclick="event.stopPropagation();viewInteractiveApplication(${application.id})">פתח צפייה חיה</button>` : ''}
+      <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})" ${application.status === 'applying' ? 'disabled title="לא ניתן לבטל הגשה שכבר רצה"' : ''}>הסר מהתור</button>`;
+  }
   const blocker = application.blocker;
   if (blocker?.kind === 'review_before_submit') {
     return `<button class="btn primary small" type="button" onclick="event.stopPropagation();retryAutomaticApplication(${application.id},{status:'failed',button:this})">הגש אוטומטית</button>
@@ -984,7 +991,7 @@ function renderApplicationActions(application) {
   }
   if (blocker?.kind === 'grade_sheet_required') {
     const hasGradeSheet = Boolean(state.profile?.grade_sheet_uploaded);
-    if (hasGradeSheet) return `<span class="blocker-auto-resolving"><span class="live-dot"></span> גיליון הציונים כבר שמור · ממשיך אוטומטית</span>`;
+    if (hasGradeSheet) return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();openGradeSheetProfile()">בדוק את גיליון הציונים השמור</button><small>המסמך שמור, אך צירופו לטופס טרם הושלם</small>`;
     return `<button class="btn primary small" type="button" onclick="event.stopPropagation();openGradeSheetProfile()">העלה גיליון ציונים</button>
       <a class="btn secondary small" target="_blank" rel="noopener" href="${safeUrl(blockerTarget(blocker, application))}" onclick="event.stopPropagation()">פתח את הטופס</a>
       <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
@@ -1015,7 +1022,10 @@ function renderApplicationActions(application) {
   if (application.status === 'submitted' || application.status === 'verification_pending') {
     return `<button class="btn ${application.status === 'submitted' ? 'primary' : 'secondary'} small" type="button" onclick="event.stopPropagation();showApplicationTimeline(${application.id})">${application.status === 'submitted' ? 'קבלה ואימות' : 'בדוק אימות'}</button>`;
   }
-  return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();retryApp(${application.id})">נסה שוב</button>
+  const retryAction = application.mode === 'auto'
+    ? `retryAutomaticApplication(${application.id},{status:'${application.status}',button:this})`
+    : application.mode === 'audit' ? `openInteractiveBlockedApplication(${application.id},this)` : `retryApp(${application.id})`;
+  return `<button class="btn secondary small" type="button" onclick="event.stopPropagation();${retryAction}">${application.mode === 'audit' ? 'פתח בדיקה מונחית' : 'הגשה מחדש'}</button>
     <button class="btn secondary small" type="button" onclick="event.stopPropagation();showApplicationTimeline(${application.id})">היסטוריה</button>
     <button class="btn danger-outline small" type="button" onclick="event.stopPropagation();removeApplication(${application.id})">הסר מהתור</button>`;
 }
@@ -1142,11 +1152,11 @@ function switchView(view, options = {}) {
     loadGmailIntegration();
   }
   if (view === 'developer') loadDeveloperCenter();
-  if (view === 'preferences') { switchProfileSection('preferences'); loadProfile(); }
+  if (view === 'preferences') { switchProfileSection('preferences'); return loadProfile(); }
   if (view === 'profile') {
     const savedSection = options.profileSection || localStorage.getItem('jobpilot-profile-section') || 'personal';
     switchProfileSection(['personal', 'automation'].includes(savedSection) ? savedSection : 'personal');
-    loadProfile();
+    return loadProfile();
   }
 }
 
@@ -1196,6 +1206,7 @@ function initMacDockNav() {
   const nav = $('#nav');
   if (!nav || !window.matchMedia('(hover: hover) and (pointer: fine)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const buttons = [...nav.querySelectorAll('button')];
+  buttons.forEach((button) => { button.title = button.textContent.trim(); button.setAttribute('aria-label', button.textContent.trim()); });
   let frame;
   let focusedButton = null;
   const exitTimers = new WeakMap();
@@ -1516,8 +1527,8 @@ function renderReadiness(readiness) {
   const missingProfile = Array.isArray(readiness.missing_profile_fields) ? readiness.missing_profile_fields : [];
   const profileLabel = missingProfile.length ? `פרטי קשר — חסר ${missingProfile.join(', ')}` : 'פרטי קשר';
   const checks = [
-    { ok: readiness.profile_complete, label: profileLabel, action: "switchView('profile')" },
-    { ok: readiness.resume_uploaded, label: 'קורות חיים', action: "switchView('profile')" },
+    { ok: readiness.profile_complete, label: profileLabel, action: "focusProfileField()" },
+    { ok: readiness.resume_uploaded, label: 'קורות חיים', action: "focusProfileField('resume')" },
     { ok: readiness.sources_enabled > 0, label: 'מקורות פעילים', successLabel: `${readiness.sources_enabled || 0} מקורות פעילים`, action: "switchView('sources')" },
   ];
   const missingChecks = checks.filter((check) => !check.ok);
@@ -1543,8 +1554,10 @@ function renderReadiness(readiness) {
     }).join('')}</div>`;
 }
 
+function rankingPendingLabel() { return authState.user?.is_guest ? 'דירוג אישי זמין בחשבון' : 'ממתין לדירוג'; }
+
 function dashboardMatchLabel(job) {
-  if (job.ranking_pending) return 'ממתין לדירוג';
+  if (job.ranking_pending) return rankingPendingLabel();
   const score = Number(job.score || 0);
   if (score >= 90) return 'התאמה גבוהה מאוד';
   if (score >= 80) return 'התאמה גבוהה';
@@ -1804,7 +1817,7 @@ function renderRecent(jobs) {
       ${swipeJobActions(job)}
       <article class="job-row dashboard-job-card interactive-row job-swipe-card" role="button" tabindex="0" data-job-id="${job.id}" aria-label="פתח פרטי משרה ${esc(job.title)}">
         <div class="dashboard-score-block">
-          <div class="dashboard-score-ring ${job.ranking_pending ? 'is-pending' : ''}" style="--dashboard-score:${job.ranking_pending ? 0 : score}%" title="${esc(dashboardMatchLabel(job))} · ${job.ranking_pending ? 'ממתין לדירוג' : `${score}%`}">
+          <div class="dashboard-score-ring ${job.ranking_pending ? 'is-pending' : ''}" style="--dashboard-score:${job.ranking_pending ? 0 : score}%" title="${esc(dashboardMatchLabel(job))} · ${job.ranking_pending ? rankingPendingLabel() : `${score}%`}">
             ${sourceLogoMarkup({ company_name: job.company, name: job.company }, 'dashboard-company-logo')}
           </div>
           <span class="dashboard-score-value">${job.ranking_pending ? '…' : `${score}% התאמה`}</span>
@@ -1951,13 +1964,15 @@ function showScanReport(result) {
 
   const perSource = Array.isArray(result.per_source) ? result.per_source : [];
   const failedItems = perSource.filter((item) => item.error);
-  const successfulItems = perSource.filter((item) => !item.error);
+  const incomplete = Number(result.deferred_sources || 0) + Number(result.partial_sources || 0);
   const fallbackErrors = Array.isArray(result.errors) ? result.errors : [];
   const errors = failedItems.length ? failedItems : fallbackErrors.map((item) => ({ source: item.source || 'מקור לא ידוע', error: item.error || String(item) }));
   const failed = Number(result.failed_sources || errors.length || 0);
-  const successful = Number(result.successful_sources || Math.max(0, Number(result.sources || 0) - failed));
-  const title = result.status === 'failed' ? 'הסריקה נכשלה' : failed ? 'הסריקה הסתיימה עם שגיאות' : 'הסריקה הושלמה בהצלחה';
-  const subtitle = failed
+  const successful = Number(result.successful_sources ?? Math.max(0, Number(result.sources || 0) - failed - incomplete));
+  const title = result.status === 'failed' ? 'הסריקה נכשלה' : incomplete ? 'הסריקה הסתיימה באופן חלקי' : failed ? 'הסריקה הסתיימה עם שגיאות' : 'הסריקה הושלמה בהצלחה';
+  const subtitle = incomplete
+    ? `${successful} מקורות אומתו במלואם, ${incomplete} חלקיים או שלא ניתן היה לאמת, ו־${failed} נכשלו. משרות שלא הופיעו בתשובה חלקית נשמרו.`
+    : failed
     ? `${successful} מקורות נסרקו בהצלחה ו־${failed} נכשלו. המשרות ממקורות שהצליחו כבר נשמרו במערכת.`
     : `${successful || Number(result.sources || 0)} מקורות נסרקו בהצלחה והמשרות שלהם נשמרו ודורגו.`;
 
@@ -1975,14 +1990,14 @@ function showScanReport(result) {
       ${item.error
         ? `<span class="scan-source-error">${esc(professionalMessage(item.error))}</span>`
         : item.deferred
-          ? `<span class="scan-source-counts">הגישה נחסמה זמנית — המשרות מהסריקה התקינה האחרונה נשמרו</span>`
-          : `<span class="scan-source-counts"><b>${Number(item.israel_found ?? item.found ?? 0)}</b> בישראל <b>${Number(item.found || 0)}</b> מתאימות <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
+          ? `<span class="scan-source-counts">לא ניתן לאמת את המקור — המשרות הקודמות נשמרו</span>`
+          : `<span class="scan-source-counts">${item.partial ? 'איסוף חלקי · ' : ''}<b>${Number(item.israel_found ?? item.found ?? 0)}</b> בישראל <b>${Number(item.found || 0)}</b> מתאימות <b>${Number(item.new || 0)}</b> חדשות <b>${Number(item.updated || 0)}</b> עודכנו${Number(item.filtered_foreign || 0) ? ` <b>${Number(item.filtered_foreign || 0)}</b> מחו״ל` : ''}${Number(item.filtered_mismatch || 0) ? ` <b>${Number(item.filtered_mismatch || 0)}</b> הוחרגו` : ''}</span>`}
     </div>
   `).join('');
 
   modal(`
     <div class="scan-report">
-      <div class="scan-report-head"><span class="scan-report-icon ${failed ? 'warning' : 'success'}" aria-hidden="true">${failed ? '!' : '✓'}</span><div><span class="kicker">דוח סריקה</span><h2>${title}</h2><p>${esc(subtitle)}</p></div></div>
+      <div class="scan-report-head"><span class="scan-report-icon ${failed || incomplete ? 'warning' : 'success'}" aria-hidden="true">${failed || incomplete ? '!' : '✓'}</span><div><span class="kicker">דוח סריקה</span><h2>${title}</h2><p>${esc(subtitle)}</p></div></div>
       <div class="scan-report-metrics">
         ${scanMetric(result.found, 'משרות בישראל', 'primary')}
         ${scanMetric(result.new, 'חדשות', 'success')}
@@ -2201,7 +2216,7 @@ function renderJobs() {
       <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${esc(job.workplace)}</span><span>${statusLabel(job.status)}</span>${job.source ? `<span>${esc(job.source.kind)}</span>` : ''}</div>
       <div class="skills">${job.skills.slice(0, 6).map((skill) => `<span>${esc(skill)}</span>`).join('')}</div>
       ${job.skill_gaps?.length ? `<button class="skill-gap-alert" type="button" data-no-card-click onclick="event.stopPropagation();showSkillGaps(${job.id})">יש במשרה הזאת ${job.skill_gaps.length} סקילים שאין לך</button>` : ''}
-      <div class="reason-list">${job.ranking_pending?'<div class="reason neutral">ממתין לדירוג</div>':job.score_reasons.slice(0, 3).map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)}</div>`).join('')}</div>
+      <div class="reason-list">${job.ranking_pending?`<div class="reason neutral">${esc(rankingPendingLabel())}</div>`:job.score_reasons.slice(0, 3).map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)}</div>`).join('')}</div>
       ${jobCardActions(job)}
     </article></div>
   `).join('');
@@ -2376,8 +2391,15 @@ async function queueJob(id, mode = 'review', resumeId = null) {
   }
 }
 
+const applicationQueueInFlight = new Set();
 async function confirmApplicationPreview(id, mode, resumeId, previewToken, approveSubmit) {
+  if (applicationQueueInFlight.has(Number(id))) return;
   const liveWindow = mode === 'audit' ? window.open('', '_blank') : null;
+  if (mode === 'audit' && !liveWindow) {
+    toast('הדפדפן חסם את חלון הצפייה. יש לאפשר חלונות קופצים ולנסות שוב.');
+    return;
+  }
+  applicationQueueInFlight.add(Number(id));
   if (liveWindow) {
     liveWindow.document.title = 'JobPilot Live Agent';
     liveWindow.document.body.innerHTML = '<main dir="rtl" style="font-family:system-ui;padding:40px;text-align:center"><h1>מכין דפדפן מאובטח…</h1><p>הסוכן יופיע כאן בעוד מספר שניות.</p></main>';
@@ -2394,14 +2416,15 @@ async function confirmApplicationPreview(id, mode, resumeId, previewToken, appro
         ? `ההגשה נשלחה לתור · מיקום ${queuePosition} · תופעל אוטומטית ברצף`
         : 'ההגשה נשלחה לתור ותופעל אוטומטית כשהשירות יתפנה')
       : (mode === 'audit'
-        ? 'המשימה ממתינה לסוכן המקומי · הדפדפן יישאר פתוח בעמוד Review לפני Submit'
+        ? 'הבדיקה המונחית בתור · הדפדפן המאובטח יעצור לפני השליחה'
         : 'המשרה נכנסה לתור לבדיקה'));
-    await Promise.all([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve()]);
-    await syncPrimaryApplicationTracking(application.id, true);
+    await Promise.allSettled([loadDashboard(), state.activeView === 'jobs' ? loadJobs() : Promise.resolve(), syncPrimaryApplicationTracking(application.id, true)]);
     if (mode === 'audit') await openInteractiveLiveView(application.id, liveWindow);
   } catch (error) {
     if (liveWindow && !liveWindow.closed) liveWindow.close();
     toast(error.message);
+  } finally {
+    applicationQueueInFlight.delete(Number(id));
   }
 }
 window.confirmApplicationPreview = confirmApplicationPreview;
@@ -2413,7 +2436,17 @@ async function openInteractiveLiveView(applicationId, liveWindow) {
     liveWindow.document.close();
   }
   for (let attempt = 0; attempt < 45; attempt += 1) {
-    const session = await api(`/api/applications/${applicationId}/live-view`);
+    if (!liveWindow || liveWindow.closed) return;
+    let session;
+    try {
+      session = await api(`/api/applications/${applicationId}/live-view`);
+    } catch (error) {
+      const status = liveWindow.closed ? null : liveWindow.document.getElementById('jobpilot-live-status');
+      if (status) status.textContent = error.message;
+      toast(error.message);
+      return;
+    }
+    if (liveWindow.closed) return;
     if (session.ready && session.url) {
       if (liveWindow && !liveWindow.closed) liveWindow.location.replace(session.url);
       else window.open(session.url, '_blank', 'noopener');
@@ -2691,7 +2724,7 @@ async function showJob(id) {
     modal(`
       <span class="kicker">${esc(job.company)}</span>
       <h2 dir="auto">${esc(job.title)}</h2>
-      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${job.ranking_pending?'ממתין לדירוג':`ציון ${job.score}`}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
+      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${job.ranking_pending?rankingPendingLabel():`ציון ${job.score}`}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
       <h3>למה היא מתאימה</h3>
       ${job.ranking_engine==='v2'
         ? renderV2RankingExplanation(job)
@@ -2967,19 +3000,28 @@ async function retryApp(id) {
   }
 }
 
+const interactiveReviewInFlight = new Set();
 async function openInteractiveBlockedApplication(id, button=null) {
+  id = Number(id);
+  if (!id || interactiveReviewInFlight.has(id)) return;
   const liveWindow = window.open('about:blank', '_blank');
+  if (!liveWindow) {
+    toast('הדפדפן חסם את חלון הצפייה. יש לאפשר חלונות קופצים ולנסות שוב.');
+    return;
+  }
+  interactiveReviewInFlight.add(id);
   const original = button?.textContent || '';
   if (button) { button.disabled = true; button.textContent = 'פותח סוכן…'; }
   try {
     await api(`/api/applications/${id}/retry?interactive=true`, { method: 'POST' });
     toast('הסוכן ימלא את הטופס ויעצור לפני Submit כדי שתוכל לבדוק ולאשר');
-    await Promise.all([refreshTrackingApplications(), loadDashboard()]);
+    await Promise.allSettled([refreshTrackingApplications(), loadDashboard()]);
     await openInteractiveLiveView(id, liveWindow);
   } catch (error) {
     if (liveWindow && !liveWindow.closed) liveWindow.close();
     toast(error.message);
   } finally {
+    interactiveReviewInFlight.delete(id);
     if (button?.isConnected) { button.disabled = false; button.textContent = original; }
   }
 }
@@ -3214,6 +3256,10 @@ async function markApplicationSubmitted(id) {
   }
 }
 
+function sourceScanLabel(source) {
+  return ({ complete: 'איסוף מלא', partial: 'איסוף חלקי', deferred: 'לא אומת', failed: 'נכשל' })[source.scan_status] || 'שלמות האיסוף טרם אומתה';
+}
+
 async function loadSources() {
   $('#sources-list').innerHTML = skeleton(4, 'rows');
   state.sources = await api('/api/sources');
@@ -3228,7 +3274,7 @@ async function loadSources() {
   root.innerHTML = state.sources.length ? state.sources.map((source) => `
     <div class="source-item interactive-row ${source.enabled ? '' : 'source-disabled'}" role="button" tabindex="0" data-source-id="${source.id}">
       ${sourceLogoMarkup(source)}
-      <div class="source-main"><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · נסרק ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${source.health_score}% בריאות מקור</strong></div></div>
+      <div class="source-main"><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · ניסיון אחרון ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${esc(sourceScanLabel(source))} · ${source.health_score}% בריאות מקור</strong></div></div>
       <div class="source-item-controls" data-no-source-click>${canManageSources ? `<div class="source-actions">
         <label class="source-toggle" title="${source.enabled ? 'המקור נסרק במסלול הזה' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
           <input type="checkbox" ${source.enabled ? 'checked' : ''} aria-label="${source.enabled ? 'כבה' : 'הפעל'} את ${esc(source.name)}" onchange="event.stopPropagation();toggleSource(${source.id},this.checked,this)" />
@@ -3251,7 +3297,7 @@ function showSource(id) {
   if (!source) return;
   modal(`
     <div class="source-modal-heading">${sourceLogoMarkup(source, 'source-logo-modal')}<div><span class="kicker">מקור משרות</span><h2>${esc(source.name)}</h2></div></div>
-    <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>סריקה אחרונה</span><strong>${dateFmt(source.last_scanned_at)}</strong></div>
+    <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>ניסיון אחרון</span><strong>${dateFmt(source.last_scanned_at)}</strong><span>תוצאת האיסוף</span><strong>${esc(sourceScanLabel(source))}</strong><span>סריקה מלאה מאומתת</span><strong>${source.last_success_at ? dateFmt(source.last_success_at) : 'טרם אומתה'}</strong></div>
     ${source.last_error ? `<div class="warning">${esc(professionalMessage(source.last_error))}</div>` : ''}
     ${sourceManagementAllowed() ? `<div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>` : '<div class="automation-note">המקורות מנוהלים על ידי מנהל המערכת והסריקה מתבצעת אוטומטית בכל שעה עגולה.</div>'}
   `);
@@ -3718,6 +3764,42 @@ function profileFieldLabel(name) {
   return String(name).replace(/^extra_/,'').replaceAll('_',' ');
 }
 
+function profileAlertLink(name, label) {
+  return `<button type="button" class="profile-alert-link" data-profile-focus="${esc(name)}">${esc(label)}</button>`;
+}
+
+async function focusProfileField(name = '') {
+  const view = SEARCH_PREFERENCE_FIELDS.has(name) ? 'preferences' : 'profile';
+  if (state.activeView !== view) await switchView(view);
+  if (!name) name = getDirtyProfileFields().find((field) => !SEARCH_PREFERENCE_FIELDS.has(field)) || PROFILE_COMPLETION_FIELDS.find(([field]) => !String(currentProfileFormValue(field)).trim())?.[0] || 'full_name';
+  let control = profileForm()?.elements[name];
+  if (name === 'answers') control = $('#answer-library [data-answer]');
+  if (name === 'resume') control = $('#upload-resume');
+  if (name === 'extra_languages') control = $('#language-rows input, #language-rows select') || $('#add-language');
+  if (name === 'extra_work_experiences') control = $('#employment-entries input') || $('#add-employment');
+  if (control?.type === 'hidden' || control?.hidden) {
+    control = $(`[data-profile-option="${name}"]`) || control.closest('fieldset')?.querySelector('input:not([type="hidden"]),button');
+  }
+  if (!control) return;
+  const pane = control.closest('[data-profile-pane]');
+  if (pane) switchProfileSection(pane.dataset.profilePane);
+  const ancestors = [];
+  for (let parent = control.parentElement; parent; parent = parent.parentElement) ancestors.push(parent);
+  ancestors.reverse().forEach((parent) => {
+    if (parent.matches('details')) parent.open = true;
+    if (parent.matches('.is-collapsed, .is-panel-collapsed')) parent.querySelector('.section-collapse')?.click();
+  });
+  requestAnimationFrame(() => {
+    control.focus({preventScroll:true});
+    control.scrollIntoView({block:'center', behavior:'instant'});
+  });
+}
+
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('[data-profile-focus]');
+  if (link) focusProfileField(link.dataset.profileFocus).catch((error) => toast(error.message));
+});
+
 function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   const total = dirtyFields.length + (state.answersDirty ? 1 : 0);
   const preferenceDirty = dirtyFields.filter((field) => SEARCH_PREFERENCE_FIELDS.has(field));
@@ -3728,11 +3810,10 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
   const visibleDirty = state.activeView === 'preferences' ? preferenceDirty : personalDirty;
   const parts = [];
   if (visibleDirty.length) {
-    const labels = visibleDirty.map(profileFieldLabel).filter(Boolean);
-    parts.push(`לא נשמרו: ${labels.slice(0,4).join(' · ')}${labels.length > 4 ? ` · ועוד ${labels.length - 4}` : ''}`);
+    parts.push(`לא נשמרו: ${visibleDirty.map((name) => profileAlertLink(name, profileFieldLabel(name))).join(' · ')}`);
   }
-  if (state.activeView !== 'preferences' && state.answersDirty) parts.push('שינויים בשאלות ההגשה לא נשמרו');
-  $('#profile-unsaved-count').textContent = parts.join(' · ');
+  if (state.activeView !== 'preferences' && state.answersDirty) parts.push(profileAlertLink('answers', 'שינויים בשאלות ההגשה לא נשמרו'));
+  $('#profile-unsaved-count').innerHTML = parts.join(' · ');
   $('#preferences-nav-unsaved').hidden = preferenceDirty.length === 0;
   $('#profile-nav-unsaved').hidden = personalDirty.length === 0 && !state.answersDirty;
   allProfileSaveButtons().forEach((button) => {
@@ -3788,7 +3869,7 @@ function updateProfileCompletion() {
   const completion = $('#profile-completion');
   $('#profile-completion-value').textContent = `${percent}%`;
   $('#profile-completion-bar').style.width = `${percent}%`;
-  $('#profile-completion-copy').textContent = missing.length ? `מומלץ להשלים: ${missing.slice(0,3).join(' · ')}${missing.length > 3 ? ` ועוד ${missing.length - 3}` : ''}` : 'הפרופיל מלא ומוכן למילוי טפסים';
+  $('#profile-completion-copy').innerHTML = missing.length ? `מומלץ להשלים: ${missing.map((label) => profileAlertLink(PROFILE_COMPLETION_FIELDS.find(([,title]) => title === label)?.[0] || (label === 'ניסיון תעסוקתי' ? 'extra_work_experiences' : label === 'קורות חיים' ? 'resume' : 'answers'), label)).join(' · ')}` : 'הפרופיל מלא ומוכן למילוי טפסים';
   completion.hidden = percent >= 100;
   const automationNav = $('[data-profile-section="automation"]');
   const automationAlert = $('#profile-automation-alert');
@@ -4303,11 +4384,18 @@ profileElement.onsubmit = async (event) => {
   submitter.disabled = true;
   submitter.textContent = 'שומר…';
   try {
+    const submittedValues = new Map(fields.map((name) => [name, currentProfileFormValue(name)]));
     const payload = buildProfilePayload(fields);
     const saved = await api('/api/profile', { method: 'PATCH', body: JSON.stringify(payload) });
     state.profile = saved;
     state.profileLoaded = true;
-    if (fields.includes('application_password')) profileElement.elements.application_password.value = '';
+    // Acknowledge server normalization only for submitted scalar controls that
+    // were not edited again while the request was in flight.
+    fields.forEach((name) => {
+      const control = profileElement.elements[name];
+      if (!control || control.type === 'hidden' || control.type === 'checkbox' || control.multiple || PROFILE_ARRAY_FIELDS.has(name)) return;
+      if (currentProfileFormValue(name) === submittedValues.get(name)) control.value = savedProfileFormValue(name);
+    });
     updateProfileDirtyState();
     updateProfileSectionSummaries();
     submitter.textContent = 'נשמר ✓';
@@ -4395,8 +4483,9 @@ function securityCodeInputMarkup(applicationId){const draft=applicationSecurityC
 function autoQueueRunningMarkup(item,index,total){const worker=String(item.agent_id||'').replace(/^github-actions-/,'GitHub Actions #'),duplicate=Number(item.duplicate_of||0),waitingCode=item.blocker?.kind==='security_code_required',serviceLabel=technicalDetailsAllowed()&&worker?`שירות הגשה פעיל · ${worker}`:'הגשה אוטומטית פעילה';return `<article class="auto-queue-current is-active is-running ${duplicate?'is-duplicate':''} ${waitingCode?'is-security-waiting':''}"><b>${waitingCode?'⌨':'▶'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${waitingCode?'ממתינה לקוד אבטחה':duplicate?`כפילות אפשרית של הגשה #${duplicate}`:esc(serviceLabel)}</small></span><em>${waitingCode?'מחכה לקוד':duplicate?'בדיקת כפילות':total>1?`רץ עכשיו · ${index+1}/${total}`:'רץ עכשיו'}</em>${waitingCode?securityCodeInputMarkup(item.id):''}${autoQueueRowActions(item,{isCurrent:true})}</article>`}
 function autoQueueWaitingMarkup(item,index,runningCount){const position=Number(item.queue_position||index+1),duplicate=Number(item.duplicate_of||0),hasError=Boolean(String(item.last_error||'').trim()),health=item.queue_health||{},dispatchState=String(health.dispatch_state||''),dispatchAge=Math.max(0,Number(health.dispatch_age_seconds||0)),dispatchMinutes=Math.max(1,Math.floor(dispatchAge/60)),tone=duplicate||hasError?'danger':position===1?'next':'waiting';let label=duplicate?'כפילות אפשרית':hasError?'הפעלה נכשלה':position===1?(runningCount?'הבאה בתור':'ממתינה להפעלה'):`מקום ${position} בתור`;let detail=duplicate?`נראית זהה להגשה #${duplicate} — מומלץ לבדוק לפני הפעלה`:hasError?professionalMessage(item.last_error):runningCount?`ממתינה שאחת מ־${runningCount} ההגשות הפעילות תסתיים`:'ממתינה להפעלת שירות ההגשה ברקע';if(!duplicate&&!hasError){if(dispatchState==='dispatch_sent_waiting'){label='בקשת ההפעלה התקבלה';detail=technicalDetailsAllowed()?`GitHub קיבל את הבקשה לפני ${dispatchMinutes} דק׳ · ממתין להתחלת runner`:`הבקשה התקבלה לפני ${dispatchMinutes} דק׳ וממתינה להפעלה`; }else if(dispatchState==='needs_dispatch'){label='ממתינה להפעלה';detail='JobPilot מנסה להפעיל את שירות ההגשה כעת';}else if(dispatchState==='needs_redispatch'){label='ההפעלה מתעכבת';detail='JobPilot מבצע ניסיון הפעלה בטוח נוסף';}else if(dispatchState==='profile_not_ready'){label='חסר פרט בפרופיל';detail='המשרה בתור, אך נדרש להשלים פרט בפרופיל לפני הגשה אוטומטית';}else if(dispatchState==='ats_paused'){label='הגשות מושהות זמנית';detail=professionalMessage(health.pause_message)||'ההגשות האוטומטיות למערכת גיוס זו מושהות זמנית';}}return `<article class="auto-queue-waiting tone-${tone}"><b>${position}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${esc(detail)}</small></span><em>${esc(label)}</em>${autoQueueRowActions(item)}</article>`}
 function autoQueueAttentionMarkup(item){const blocker=item.blocker||{},options=blockerChoiceOptions(blocker),needsInput=item.status==='needs_input',isChoice=needsInput&&options.length>0,isText=needsInput&&['unknown_field','missing_profile_detail'].includes(blocker.kind)&&!options.length,isQuestion=isChoice||isText,tone=needsInput?'question':'danger',headline=isQuestion?'מחכה לתשובה שלך':needsInput?'נדרשת פעולה':item.status==='verification_pending'?'השליחה טרם אומתה':'ההגשה נעצרה',question=blocker.question||blocker.field_label||'',detail=blocker.explanation||item.last_error||'נדרשת בדיקה לפני ניסיון נוסף',rediscover=blocker.legacy_choice_question?`<button class="btn secondary small" type="button" onclick="resolveBlockerAction(${blocker.id},'rediscover_question',${item.id})">השאלה לא מוצגת — זהה מחדש</button>`:'',interaction=isChoice?`<div class="auto-queue-inline-answer"><strong>${esc(question||'בחר תשובה')}</strong>${blockerChoiceControlMarkup(blocker,item.id)}${rediscover}</div>`:isText?`<div class="auto-queue-inline-answer"><strong>${esc(question||'נדרשת תשובה')}</strong><div><input type="text" maxlength="255" data-text-blocker-input="${blocker.id}" value="${esc(applicationTextAnswerDrafts.get(Number(blocker.id))||'')}" placeholder="כתוב תשובה קצרה"><button class="btn primary small" type="button" data-text-blocker="${blocker.id}" data-text-application="${item.id}">שמור והמשך</button></div></div>`:'';return `<article class="auto-queue-attention tone-${tone}"><b>${isQuestion?'?':'!'}</b><span><strong>${esc(item.job?.title||'משרה')}</strong><small>${esc(item.job?.company||'')} · ${esc(isQuestion?(question||detail):detail)}</small></span><em>${esc(headline)}</em>${interaction}${autoQueueRowActions(item)}</article>`}
-async function retryAllAutoQueueApplications(button=null){const queue=await refreshAutoApplyQueue(),retryable=(queue.attention||[]).filter(item=>['needs_input','failed'].includes(item.status)&&!automaticRetryInFlight.has(Number(item.id)));if(!retryable.length){toast('אין כרגע הגשות תקועות שאפשר להפעיל מחדש בבטחה');return}if(!confirm(`להפעיל מחדש ${retryable.length} הגשות תקועות? הגשות שכבר רצות, ממתינות או מחכות לאימות לא יופעלו שוב.`))return;const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='מפעיל…'}let started=0;for(const item of retryable){if(await retryAutomaticApplication(item.id,{status:item.status,batch:true}))started++}await Promise.all([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);if(button?.isConnected){button.disabled=false;button.textContent=original}toast(`${started} הגשות הוחזרו לתור ללא הפעלה כפולה`);await showAutoApplyQueue()}
-async function showAutoApplyQueue(){let recovery={recovered:[],failed:[]};try{recovery=await api('/api/applications/auto-queue/recover',{method:'POST'});if(recovery.auto_apply_queue)setAutoApplyQueue(recovery.auto_apply_queue)}catch(error){console.warn('Auto-queue recovery failed',error)}const [autoQueue]=await Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()]),queue=combinedApplicationQueue(autoQueue),running=queue.running||[],waiting=queue.waiting||[],attention=queue.attention||[],current=queue.current,total=Number(queue.total_active_count||running.length+waiting.length+attention.length),bulkRetryCount=attention.filter(item=>item.mode==='auto'&&['needs_input','failed'].includes(item.status)).length,recoveredCount=(recovery.recovered||[]).length,recoveryFailed=(recovery.failed||[]).length;const runningMarkup=running.map((item,index)=>autoQueueRunningMarkup(item,index,running.length)).join('');const attentionMarkup=attention.map(autoQueueAttentionMarkup).join('');const queuedHead=!running.length&&current?.status==='queued'&&!waiting.some(item=>Number(item.id)===Number(current.id))?[current,...waiting]:waiting;const waitingMarkup=queuedHead.map((item,index)=>autoQueueWaitingMarkup(item,index,running.length)).join('');const emptyMarkup=!total&&!running.length&&!attention.length?emptyState('✓','אין הגשות פעילות','אין כרגע הגשות שממתינות או דורשות טיפול.'):'';const recoveryMarkup=recoveredCount?`<p class="auto-queue-recovery-note success">✓ הופעלו מחדש ${recoveredCount} משרות שהיו תקועות ללא worker.</p>`:recoveryFailed?`<p class="auto-queue-recovery-note danger">לא ניתן להפעיל ${recoveryFailed} משרות תקועות. פרטי השגיאה נשמרו באבחון.</p>`:'';const runningSummary=running.length?`${running.length} ${running.length===1?'worker פעיל':'workers פעילים'} כרגע`:'אין worker פעיל כרגע';modal(`<span class="kicker">משרות ממתינות בתור</span><h2>${total} ${total===1?'משרה פעילה':'משרות פעילות'} בתור ובטיפול</h2><p class="muted"><strong>${runningSummary}.</strong> הרשימה כוללת את כל ההגשות שמופיעות במרכז ההתראות: הגשות שרצות, ממתינות או דורשות טיפול.</p>${recoveryMarkup}<div class="auto-apply-queue-list" data-auto-queue-content="true">${runningMarkup}${attentionMarkup}${waitingMarkup}${emptyMarkup}</div><div class="modal-actions">${bulkRetryCount?`<button class="btn secondary auto-queue-retry-all" type="button" onclick="retryAllAutoQueueApplications(this)" title="הפעל מחדש את כל ההגשות התקועות"><span>↻</span> הפעל מחדש את כולן (${bulkRetryCount})</button>`:''}<button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`);bindChoiceBlockerButtons($('#modal-content'))}
+function bulkRetryEligible(item){return item.mode==='auto'&&item.status==='failed'&&!item.blocker}
+async function retryAllAutoQueueApplications(button=null){const queue=await refreshAutoApplyQueue(),retryable=(queue.attention||[]).filter(item=>bulkRetryEligible(item)&&!automaticRetryInFlight.has(Number(item.id)));if(!retryable.length){toast('אין כרגע הגשות תקועות שאפשר להפעיל מחדש בבטחה');return}if(!confirm(`להפעיל מחדש ${retryable.length} הגשות תקועות? הגשות שכבר רצות, ממתינות או מחכות לאימות לא יופעלו שוב.`))return;const original=button?.textContent||'';if(button){button.disabled=true;button.textContent='מפעיל…'}let started=0;for(const item of retryable){if(await retryAutomaticApplication(item.id,{status:item.status,batch:true}))started++}await Promise.allSettled([refreshTrackingApplications(),refreshAutoApplyQueue(),loadDashboard()]);if(button?.isConnected){button.disabled=false;button.textContent=original}toast(`${started} הגשות הוחזרו לתור ללא הפעלה כפולה`);await showAutoApplyQueue()}
+async function showAutoApplyQueue(){let recovery={recovered:[],failed:[]};try{recovery=await api('/api/applications/auto-queue/recover',{method:'POST'});if(recovery.auto_apply_queue)setAutoApplyQueue(recovery.auto_apply_queue)}catch(error){console.warn('Auto-queue recovery failed',error)}const [autoQueue]=await Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()]),queue=combinedApplicationQueue(autoQueue),running=queue.running||[],waiting=queue.waiting||[],attention=queue.attention||[],current=queue.current,total=Number(queue.total_active_count||running.length+waiting.length+attention.length),bulkRetryCount=attention.filter(bulkRetryEligible).length,recoveredCount=(recovery.recovered||[]).length,recoveryFailed=(recovery.failed||[]).length;const runningMarkup=running.map((item,index)=>autoQueueRunningMarkup(item,index,running.length)).join('');const attentionMarkup=attention.map(autoQueueAttentionMarkup).join('');const queuedHead=!running.length&&current?.status==='queued'&&!waiting.some(item=>Number(item.id)===Number(current.id))?[current,...waiting]:waiting;const waitingMarkup=queuedHead.map((item,index)=>autoQueueWaitingMarkup(item,index,running.length)).join('');const emptyMarkup=!total&&!running.length&&!attention.length?emptyState('✓','אין הגשות פעילות','אין כרגע הגשות שממתינות או דורשות טיפול.'):'';const recoveryMarkup=recoveredCount?`<p class="auto-queue-recovery-note success">✓ הופעלו מחדש ${recoveredCount} משרות שהיו תקועות ללא worker.</p>`:recoveryFailed?`<p class="auto-queue-recovery-note danger">לא ניתן להפעיל ${recoveryFailed} משרות תקועות. פרטי השגיאה נשמרו באבחון.</p>`:'';const runningSummary=running.length?`${running.length} ${running.length===1?'worker פעיל':'workers פעילים'} כרגע`:'אין worker פעיל כרגע';modal(`<span class="kicker">משרות ממתינות בתור</span><h2>${total} ${total===1?'משרה פעילה':'משרות פעילות'} בתור ובטיפול</h2><p class="muted"><strong>${runningSummary}.</strong> הרשימה כוללת את כל ההגשות שמופיעות במרכז ההתראות: הגשות שרצות, ממתינות או דורשות טיפול.</p>${recoveryMarkup}<div class="auto-apply-queue-list" data-auto-queue-content="true">${runningMarkup}${attentionMarkup}${waitingMarkup}${emptyMarkup}</div><div class="modal-actions">${bulkRetryCount?`<button class="btn secondary auto-queue-retry-all" type="button" onclick="retryAllAutoQueueApplications(this)" title="הפעל מחדש את כל ההגשות התקועות"><span>↻</span> הפעל מחדש את כולן (${bulkRetryCount})</button>`:''}<button class="btn secondary" type="button" onclick="closeModal()">סגור</button></div>`);bindChoiceBlockerButtons($('#modal-content'))}
 function openAutoQueueApplication(id){closeModal();startApplicationTracking(Number(id),true)}
 async function prioritizeAutoQueueApplication(id){try{const result=await api(`/api/applications/${id}/prioritize`,{method:'POST'});if(result.auto_apply_queue)setAutoApplyQueue(result.auto_apply_queue);toast('המשרה קודמה להגשה הבאה בתור');await Promise.all([loadDashboard(),showAutoApplyQueue()])}catch(error){toast(error.message)}}
 async function cancelAutoQueueApplication(id){if(!confirm('לבטל את ההגשה האוטומטית הזו? המשרה עצמה תישאר ברשימת המשרות.'))return;try{await api(`/api/applications/${id}`,{method:'DELETE'});if(Number(trackedApplicationId)===Number(id)){trackedApplicationId=null;applicationTrackingData=null;localStorage.removeItem('jobpilot-tracked-application')}toast('ההגשה בוטלה והמשרה נשארה ברשימת המשרות');await Promise.all([loadDashboard(),state.activeView==='applications'?loadApplications():Promise.resolve()]);await showAutoApplyQueue()}catch(error){toast(error.message)}}
@@ -4489,7 +4578,7 @@ function renderNotificationCenter() {
   if(liveTracker){liveTracker.insertAdjacentHTML('afterbegin',trackingNavigatorMarkup(applicationTrackingData?.application?.status||''));liveTracker.insertAdjacentHTML('beforeend','<button class="application-diagnostics-copy" type="button" onclick="copyApplicationFailureDiagnostics()">העתק אבחון של ההגשות שלא הושלמו</button>')}
   bindChoiceBlockerButtons(root);
   $$('[data-auto-queue-list]',root).forEach(button=>{button.onclick=()=>showAutoApplyQueue()});
-  $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); switchView(button.dataset.notificationView); }; });
+  $$('[data-notification-view]', root).forEach((button) => { button.onclick = () => { closeNotifications(); if (button.dataset.notificationView === 'profile') focusProfileField().catch((error) => toast(error.message)); else switchView(button.dataset.notificationView); }; });
 }
 function closeNotifications() {
   clearInterval(notificationTrackingRefreshTimer);notificationTrackingRefreshTimer=null;

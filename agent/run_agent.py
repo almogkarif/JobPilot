@@ -83,7 +83,7 @@ def create_browserbase_session() -> dict:
     timeout = max(60, min(21600, INTERACTIVE_SESSION_SECONDS))
     response = httpx.post(
         "https://api.browserbase.com/v1/sessions", headers=headers,
-        json={"keepAlive": True, "browserSettings": {"timeout": timeout}}, timeout=30,
+        json={"timeout": timeout}, timeout=30,
     )
     response.raise_for_status()
     session = response.json()
@@ -93,6 +93,8 @@ def create_browserbase_session() -> dict:
     )
     debug.raise_for_status()
     session["liveViewUrl"] = debug.json().get("debuggerFullscreenUrl", "")
+    if not session.get("connectUrl") or not session["liveViewUrl"]:
+        raise RuntimeError("Interactive browser connection is unavailable")
     return session
 
 
@@ -358,15 +360,15 @@ def main():
         if INTERACTIVE_BROWSER:
             try:
                 session = create_browserbase_session()
+                remote_browser = playwright.chromium.connect_over_cdp(session["connectUrl"])
+                context = remote_browser.contexts[0]
+                if APPLICATION_ID:
+                    api("POST", f"/api/agent/tasks/{APPLICATION_ID}/live-view", json={
+                        "token": TOKEN, "agent_id": AGENT_ID, "url": session["liveViewUrl"],
+                    })
             except Exception as exc:
                 report_browser_startup_failure(APPLICATION_ID, exc)
                 raise
-            remote_browser = playwright.chromium.connect_over_cdp(session["connectUrl"])
-            context = remote_browser.contexts[0]
-            if APPLICATION_ID and session.get("liveViewUrl"):
-                api("POST", f"/api/agent/tasks/{APPLICATION_ID}/live-view", json={
-                    "token": TOKEN, "agent_id": AGENT_ID, "url": session["liveViewUrl"],
-                })
         else:
             context = playwright.chromium.launch_persistent_context(
                 user_data_dir=str(BROWSER_PROFILE), headless=HEADLESS,
@@ -410,8 +412,8 @@ def main():
                     break
                 time.sleep(POLL_SECONDS)
         if INTERACTIVE_BROWSER:
-            # Browserbase keepAlive preserves the human-controlled Review tab
-            # after Playwright disconnects; the provider timeout bounds cost.
+            # The connected worker above keeps the Review tab available during
+            # the bounded session without requiring paid keepAlive support.
             pass
         else:
             context.close()

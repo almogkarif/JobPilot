@@ -1080,7 +1080,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str, *, include_health
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
-        .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
+        .options(joinedload(Application.job).defer(Job.description).joinedload(Job.source), selectinload(Application.blockers))
         .where(
             Job.career_track == career_track,
             Job.is_active.is_(True),
@@ -1131,6 +1131,7 @@ def _auto_apply_queue_snapshot(db: Session, career_track: str, *, include_health
             "id": application.id,
             "job_id": application.job_id,
             "status": application.status,
+            "mode": application.mode,
             "queue_position": position,
             "agent_id": application.agent_id,
             "attempt_count": int(application.attempt_count or 0),
@@ -3259,9 +3260,10 @@ def _attempt_dict(attempt: ApplicationAttempt | None) -> dict | None:
 
 def _result_attempt(db: Session, application_id: int, attempt_id: int | None = None) -> ApplicationAttempt | None:
     statement = select(ApplicationAttempt).where(ApplicationAttempt.application_id == application_id)
-    if attempt_id:
-        statement = statement.where(ApplicationAttempt.id == attempt_id)
-    return db.scalar(statement.order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
+    attempt = db.scalar(statement.order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1))
+    if attempt_id is not None and (not attempt or attempt.id != attempt_id):
+        raise HTTPException(409, "Application attempt is no longer current")
+    return attempt
 
 
 @app.delete("/api/jobs/{job_id}")
@@ -3291,6 +3293,12 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         raise HTTPException(400, "Invalid mode")
     job = _active_job_or_404(db, job_id)
     application = job.application
+    if application and application.status in {"applying", "verification_pending"}:
+        raise HTTPException(409, "ההגשה כבר בטיפול או ממתינה לאימות. יש להמשיך דרך מעקב ההגשה.")
+    if application and application.status == "queued" and not application.last_error and application.mode == ("auto" if payload.approve_submit else payload.mode):
+        return _application_dict(application, db)
+    if application and application.status == "queued" and application.mode in {"auto", "audit"} and not application.last_error:
+        raise HTTPException(409, "ההגשה כבר בתור. יש להמתין לסיום הניסיון לפני שינוי מסלול ההגשה.")
     selected_resume = db.get(ResumeProfile, payload.resume_id) if payload.resume_id else _best_resume_for_job(db, job)
     if selected_resume and selected_resume.career_track != job.career_track:
         raise HTTPException(404, "Resume not found")
@@ -4269,6 +4277,10 @@ async def retry_application(
         raise HTTPException(409, "Already submitted")
     if interactive and not _application_auto_submit_supported(application):
         raise HTTPException(409, "לא ניתן לפתוח סוכן גלוי עבור המשרה הזו")
+    if interactive and application.status in {"queued", "applying"} and application.mode != "audit" and not application.last_error:
+        raise HTTPException(409, "ההגשה כבר ממתינה או פועלת ברקע. יש להמתין לסיומה לפני פתיחת בדיקה מונחית.")
+    if interactive and application.mode == "audit" and _live_view_is_ready(loads(application.answers_json, {})):
+        return _application_dict(application, db)
     if not interactive and (application.status == "manual_required" or any(
         blocker.status == "open" and blocker.kind == ASHBY_SPAM_BLOCKER_KIND for blocker in application.blockers
     )):
@@ -6037,6 +6049,8 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    if application.status == "submitted":
+        raise HTTPException(409, "Application already submitted")
     ashby_spam_blocked = classify_ashby_spam_block(
         job=application.job, kind=payload.kind, question=payload.question, explanation=payload.explanation,
     )
@@ -6312,6 +6326,8 @@ def agent_submitted(application_id: int, payload: AgentResultRequest, db: Sessio
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    if application.status == "submitted":
+        raise HTTPException(409, "Application already submitted")
     previous_status = application.status
     # Legacy Agents report a success message only after their confirmation-page
     # detector passes. Keep that contract while newer Agents attach structured evidence.
@@ -6363,6 +6379,8 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
     application = db.get(Application, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    if application.status == "submitted":
+        raise HTTPException(409, "Application already submitted")
     previous_status = application.status
     application.status = "failed"
     application.last_error = payload.message[:2000]
@@ -6392,6 +6410,8 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = db.get(Application, application_id)
     if not application: raise HTTPException(404, "Application not found")
+    if application.status == "submitted":
+        raise HTTPException(409, "Application already submitted")
     previous_status = application.status
     application.last_error = ("ה־Agent זיהה חלון שלא הגיב, שמר צילום מצב והחזיר את המשרה לתור. " + payload.message)[:2000]
     if application.attempt_count < 3:
@@ -6687,6 +6707,8 @@ def _source_dict(s: Source) -> dict:
         "id": s.id, "name": s.name, "kind": s.kind, "identifier": s.identifier,
         "company_name": s.company_name, "enabled": s.enabled, "last_scanned_at": s.last_scanned_at,
         "last_error": s.last_error, "created_at": s.created_at,
+        "scan_status": metadata.get("scan_status", "") if isinstance(metadata, dict) else "",
+        "last_success_at": metadata.get("last_success_at") if isinstance(metadata, dict) else None,
         "health_score": s.health_score, "consecutive_failures": s.consecutive_failures,
         "disabled_until": s.disabled_until, "career_track": s.career_track,
         "logo_domain": metadata.get("logo_domain", "") if isinstance(metadata, dict) else "",

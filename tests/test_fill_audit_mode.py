@@ -151,6 +151,7 @@ def test_retrying_interactive_application_does_not_reuse_expired_live_view(monke
             headers={"X-JobPilot-Agent-Token": "change-me"},
             json={"agent_id": "browserbase-test", "url": "https://www.browserbase.com/live/expired"},
         )
+        _stop_unclaimed_application(first["id"])
         retried = client.post(f"/api/jobs/{job['id']}/queue", json={"mode": "audit"})
         live_view = client.get(f"/api/applications/{first['id']}/live-view")
         _stop_unclaimed_application(first["id"])

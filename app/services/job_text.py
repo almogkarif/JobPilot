@@ -39,7 +39,7 @@ def job_text_quality(value: object) -> str:
     compact = " ".join(text.split()).strip()
     if not compact or compact.casefold().strip(" .:–—-") in GENERIC_DESCRIPTIONS:
         return "missing"
-    if len(compact) < 40 or re.fullmatch(r"[0-9a-f -]{24,}", compact, re.I):
+    if len(compact) < 200 or re.fullmatch(r"[0-9a-f -]{24,}", compact, re.I):
         return "partial"
     letters = sum(character.isalpha() for character in compact)
     if letters / max(1, len(compact)) < .35:

@@ -151,8 +151,10 @@ def test_strict_location_turns_preference_mismatch_into_exclusion():
 
 def test_exact_role_outweighs_unrelated_role_with_more_supporting_skills():
     candidate = profile(skills=["python", "sql", "docker"], titles=["backend software engineer"])
-    exact = score(candidate, job("Backend Software Engineer", "Python required. SQL and Docker preferred"))
-    unrelated = score(candidate, job("Frontend Developer", "Python SQL Docker React TypeScript"))
+    responsibilities = (" Work with the product team to deliver reliable features, investigate customer issues, "
+                        "review changes with colleagues, and maintain clear documentation for services used daily by customers.")
+    exact = score(candidate, job("Backend Software Engineer", "Python required. SQL and Docker preferred." + responsibilities))
+    unrelated = score(candidate, job("Frontend Developer", "Python SQL Docker React TypeScript." + responsibilities))
     assert exact.breakdown["role"]["score"] > unrelated.breakdown["role"]["score"]
     assert exact.score > unrelated.score
 

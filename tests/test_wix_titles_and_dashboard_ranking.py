@@ -25,7 +25,7 @@ def test_wix_opaque_oracle_and_seat_identifiers_are_not_treated_as_titles():
     })
     assert _row_has_human_title({"title": "Backend Engineer for Dev Center", "linkText": "see position"})
     assert PRESETS["wix"]["hydrate_details"] is True
-    assert PRESETS["wix"]["hydrate_missing_title_only"] is True
+    assert not PRESETS["wix"].get("hydrate_missing_title_only", False)
 
 
 def test_dashboard_uses_highest_scores_from_full_active_catalog_not_only_today():

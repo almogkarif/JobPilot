@@ -12,7 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _chromium_path() -> str | None:
-    return shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+    system = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+    if system:
+        return system
+    with sync_playwright() as playwright:
+        bundled = Path(playwright.chromium.executable_path)
+        return str(bundled) if bundled.exists() else None
 
 
 def test_each_profile_card_saves_only_its_dirty_fields_and_keeps_other_drafts():

@@ -1,0 +1,282 @@
+[
+  {
+    "name": "Salesforce Careers Israel",
+    "kind": "official_careers",
+    "identifier": "salesforce",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Salesforce temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 21.8
+  },
+  {
+    "name": "Meta Careers Israel",
+    "kind": "official_careers",
+    "identifier": "meta",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Meta temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 30.6
+  },
+  {
+    "name": "Osem-Nestle — CS Israel",
+    "kind": "official_careers",
+    "identifier": "osem-nestle",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Osem-Nestle did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 2.1
+  },
+  {
+    "name": "Moon Active Careers Israel",
+    "kind": "official_careers",
+    "identifier": "moonactive",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Moon Active temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 17.1
+  },
+  {
+    "name": "Shufersal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "shufersal",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Shufersal did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 1.8
+  },
+  {
+    "name": "Strauss Group — CS Israel",
+    "kind": "official_careers",
+    "identifier": "strauss",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Strauss Group did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 3.4
+  },
+  {
+    "name": "Ness — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ness-israel",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Ness did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 1.5
+  },
+  {
+    "name": "Super-Pharm — CS Israel",
+    "kind": "official_careers",
+    "identifier": "super-pharm",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Super-Pharm did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 4.9
+  },
+  {
+    "name": "Matrix — CS Israel",
+    "kind": "official_careers",
+    "identifier": "matrix-israel",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Matrix did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 7.6
+  },
+  {
+    "name": "Sheba Medical Center — CS Israel",
+    "kind": "official_careers",
+    "identifier": "sheba",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Sheba Medical Center did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 0.4
+  },
+  {
+    "name": "Haifa Port — CS Israel",
+    "kind": "official_careers",
+    "identifier": "haifa-port",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Haifa Port did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 5.4
+  },
+  {
+    "name": "Chain Reaction — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "chain-reaction",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Chain Reaction did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 0.6
+  },
+  {
+    "name": "Nova — Israel",
+    "kind": "official_careers",
+    "identifier": "nova",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Nova Measuring Instruments did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 0.3
+  },
+  {
+    "name": "Vayyar Imaging — Israel",
+    "kind": "official_careers",
+    "identifier": "vayyar",
+    "status": "unverified",
+    "error": "PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 2.8
+  },
+  {
+    "identifier": "proteantecs",
+    "name": "proteantecs",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 15,
+    "israel": 10,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "C++ Senior Software Engineer",
+        "location": "Tel Aviv, Israel",
+        "description_length": 3678
+      },
+      {
+        "title": "Circuit Design Engineer",
+        "location": "Haifa, Israel",
+        "description_length": 3401
+      }
+    ]
+  },
+  {
+    "identifier": "camtek",
+    "name": "camtek",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 28,
+    "israel": 20,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "AI SW Infrastructure Engineer",
+        "location": "Migdal Haemek, Israel",
+        "description_length": 2400
+      },
+      {
+        "title": "Application Development Engineer",
+        "location": "Migdal Haemek, Israel",
+        "description_length": 1756
+      }
+    ]
+  },
+  {
+    "identifier": "cyera",
+    "name": "cyera",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 207,
+    "israel": 31,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "Account Executive - ANZ (Commercial)",
+        "location": "",
+        "description_length": 4794
+      },
+      {
+        "title": "Account Executive - ANZ (Enterprise)",
+        "location": "",
+        "description_length": 4808
+      }
+    ]
+  },
+  {
+    "identifier": "marvell",
+    "name": "marvell",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 2,
+    "israel": 2,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "AI Infrastructure Engineer Intern",
+        "location": "Petah-Tikva, Israel",
+        "description_length": 4691
+      },
+      {
+        "title": "Senior Design Engineer",
+        "location": "Petah-Tikva, Israel",
+        "description_length": 3630
+      }
+    ]
+  },
+  {
+    "identifier": "broadcom-israel",
+    "name": "broadcom-israel",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 2,
+    "israel": 2,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "DFT Engineer",
+        "location": "ISR-Tel Aviv University, Israel",
+        "description_length": 3053
+      },
+      {
+        "title": "R&D Engineer Hardware",
+        "location": "ISR-Tel Aviv University, Israel",
+        "description_length": 1551
+      }
+    ]
+  },
+  {
+    "identifier": "cisco",
+    "name": "cisco",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 8,
+    "israel": 8,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "ASIC Engineer",
+        "location": "Tel Aviv, Israel",
+        "description_length": 2187
+      },
+      {
+        "title": "Senior Software Architect & Technical Leader",
+        "location": "Tel Aviv, Israel",
+        "description_length": 3598
+      }
+    ]
+  },
+  {
+    "identifier": "one-technologies",
+    "name": "one-technologies",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 10,
+    "israel": 10,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "לחברה ביטחונית מובילה במרכז דרוש/ה (SH27199)  SOC Tier 1",
+        "location": "Ramat Gan, Israel",
+        "description_length": 480
+      },
+      {
+        "title": "לארגון ביטחוני מוביל בשפלה דרוש/ה מהנדס/ת מערכת מוצרי (מס' 27641 SK)",
+        "location": "Be'er Yaakov, Israel",
+        "description_length": 915
+      }
+    ]
+  },
+  {
+    "identifier": "teva",
+    "name": "teva",
+    "kind": "official_careers",
+    "status": "partial",
+    "jobs": 10,
+    "israel": 10,
+    "partial_descriptions": 0,
+    "samples": [
+      {
+        "title": "רוקח/ת הבטחת איכות",
+        "location": "Israel",
+        "description_length": 1983
+      },
+      {
+        "title": "Technology Team Leader",
+        "location": "Kfar Saba, Israel",
+        "description_length": 6237
+      }
+    ]
+  }
+]

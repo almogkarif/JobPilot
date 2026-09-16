@@ -1,0 +1,602 @@
+[
+  {
+    "theme": "light",
+    "width": 1440,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 1440,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 1440,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 1440,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 1440,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 390,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 390,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 390,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 390,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 390,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "light",
+    "width": 320,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 390,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "status": "queued",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "status": "applying",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "היסטוריה ומעקב",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "status": "failed",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגשה מחדש",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "היסטוריה",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "status": "needs_input",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "הגש אוטומטית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "פתח בדיקה מונחית",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "דלג",
+        "outside": false,
+        "clipped": false
+      },
+      {
+        "text": "הסר מהתור",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "status": "verification_pending",
+    "documentOverflow": false,
+    "buttons": [
+      {
+        "text": "בדוק אימות",
+        "outside": false,
+        "clipped": false
+      }
+    ]
+  }
+]

@@ -1,0 +1,4701 @@
+[
+  {
+    "name": "Google Careers Israel",
+    "kind": "google_careers",
+    "identifier": "israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Power Delivery Design Engineer, Google Cloud",
+        "location": "Tel Aviv, Israel; Haifa, Israel",
+        "url": "https://www.google.com/about/careers/applications/jobs/results/121769826740773574-power-delivery-design-engineer-google-cloud",
+        "description_length": 519
+      },
+      {
+        "title": "Senior CAD Infra Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.google.com/about/careers/applications/jobs/results/88824357752578758-senior-cad-infra-engineer",
+        "description_length": 331
+      }
+    ],
+    "total": 20,
+    "israel": 20,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.0
+  },
+  {
+    "name": "Amazon Jobs Israel",
+    "kind": "official_careers",
+    "identifier": "amazon",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Verification Engineer Nitro Team",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.amazon.jobs/en/jobs/10524282/verification-engineer-nitro-team",
+        "description_length": 2505
+      },
+      {
+        "title": "Junior Verification Engineer",
+        "location": "Haifa, Israel",
+        "url": "https://www.amazon.jobs/en/jobs/10542015/junior-verification-engineer",
+        "description_length": 3713
+      }
+    ],
+    "total": 10,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.2
+  },
+  {
+    "name": "NVIDIA Careers Israel",
+    "kind": "workday",
+    "identifier": "nvidia",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Senior Silicon Security Architect",
+        "location": "Israel, Yokneam",
+        "url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel-Yokneam/Senior-Silicon-Security-Architect_JR2017969",
+        "description_length": 3022
+      },
+      {
+        "title": "Senior Security Architect",
+        "location": "Israel, Tel Aviv",
+        "url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel-Tel-Aviv/Senior-Security-Architect_JR2018353",
+        "description_length": 2709
+      }
+    ],
+    "total": 40,
+    "israel": 40,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.3
+  },
+  {
+    "name": "Intel Careers Israel",
+    "kind": "workday",
+    "identifier": "intel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "CPU Circuit Design Engineer",
+        "location": "Israel, Haifa",
+        "url": "https://intel.wd1.myworkdayjobs.com/External/job/Israel-Haifa/CPU-Circuit-Design-Engineer_JR0283142",
+        "description_length": 3044
+      },
+      {
+        "title": "Power Management Firmware Architect",
+        "location": "Israel, Petah-Tikva",
+        "url": "https://intel.wd1.myworkdayjobs.com/External/job/Israel-Petah-Tikva/Power-Management-Firmware-Architect_JR0285320",
+        "description_length": 3690
+      }
+    ],
+    "total": 22,
+    "israel": 22,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.6
+  },
+  {
+    "name": "Mobileye Careers Israel",
+    "kind": "lever",
+    "identifier": "eu:mobileye",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI Algorithm Engineer",
+        "location": "Beijing, China",
+        "url": "https://jobs.eu.lever.co/mobileye/85acad65-ee0c-4dd6-89a9-7262b9b87fbd/apply",
+        "description_length": 1720
+      },
+      {
+        "title": "AI Algorithm Engineer - Vision Localization Group",
+        "location": "Ramat Gan, Israel",
+        "url": "https://jobs.eu.lever.co/mobileye/d85072cf-3d47-4c42-a760-2c691af6093b/apply",
+        "description_length": 2510
+      }
+    ],
+    "total": 182,
+    "israel": 157,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.0
+  },
+  {
+    "name": "Check Point Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "CheckPointSoftwareTechnologies2",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "DevOps Engineer ",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/744000149555527-devops-engineer-?oga=true",
+        "description_length": 2439
+      },
+      {
+        "title": "Threat Intelligence Team Leader",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/744000149541310-threat-intelligence-team-leader?oga=true",
+        "description_length": 3224
+      }
+    ],
+    "total": 89,
+    "israel": 89,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.1
+  },
+  {
+    "name": "Palo Alto Networks Israel",
+    "kind": "official_careers",
+    "identifier": "paloalto",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Senior Product Manager (Idira, Data & AI/ML Platforms)",
+        "location": "Petah Tikva, Israel",
+        "url": "https://jobs.paloaltonetworks.com/en/job/petah-tikva/senior-product-manager-idira-data-and-ai-ml-platforms/47263/100424146720",
+        "description_length": 5627
+      },
+      {
+        "title": "Software Engineering Manager, Idira Platform Services",
+        "location": "Petah Tikva, Israel",
+        "url": "https://jobs.paloaltonetworks.com/en/job/petah-tikva/software-engineering-manager-idira-platform-services/47263/100654449488",
+        "description_length": 5274
+      }
+    ],
+    "total": 15,
+    "israel": 15,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.8
+  },
+  {
+    "name": "Apple Careers Israel",
+    "kind": "official_careers",
+    "identifier": "apple",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Engineering Program Manager Soc Silicon Group",
+        "location": "Herzliya, Israel",
+        "url": "https://jobs.apple.com/en-il/details/200661832-0865/engineering-program-manager-soc-silicon-group?team=HRDWR",
+        "description_length": 2413
+      },
+      {
+        "title": "Backend Sw Engineer",
+        "location": "Herzliya, Israel",
+        "url": "https://jobs.apple.com/en-il/details/200627584-0865/backend-sw-engineer?team=SFTWR",
+        "description_length": 1327
+      }
+    ],
+    "total": 20,
+    "israel": 20,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 12.7
+  },
+  {
+    "name": "Microsoft Careers Israel",
+    "kind": "official_careers",
+    "identifier": "microsoft",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Security Researcher II /Senior Security Researcher - Microsoft Defender (Multiple Roles)",
+        "location": "Israel",
+        "url": "https://apply.careers.microsoft.com/careers/job/1970393556959639?domain=microsoft.com",
+        "description_length": 163
+      },
+      {
+        "title": "Strategic Account Executive - Public Sector",
+        "location": "Tel Aviv, Israel",
+        "url": "https://apply.careers.microsoft.com/careers/job/1970393556980665?domain=microsoft.com",
+        "description_length": 89
+      }
+    ],
+    "total": 14,
+    "israel": 14,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 11.0
+  },
+  {
+    "name": "monday.com Careers Israel",
+    "kind": "official_careers",
+    "identifier": "monday",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive Enterprise",
+        "location": "",
+        "url": "https://monday.com/careers/56b5fd35-0d96-4c15-8f47-e7570beed51b",
+        "description_length": 3579
+      },
+      {
+        "title": "Account Executive Mid-Market",
+        "location": "",
+        "url": "https://monday.com/careers/3414a8d2-d3a3-4aed-ad97-cf7f24e9f41f",
+        "description_length": 5336
+      }
+    ],
+    "total": 10,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.6
+  },
+  {
+    "name": "Wix Careers Israel",
+    "kind": "official_careers",
+    "identifier": "wix",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "xEngineer Team Lead (Backend Oriented) for Viewer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://careers.wix.com/position/REF12W-744000149516299",
+        "description_length": 3459
+      },
+      {
+        "title": "xEngineer for Wix Headless",
+        "location": "Tel Aviv, Israel",
+        "url": "https://careers.wix.com/position/REF3097W-744000149304000",
+        "description_length": 3629
+      }
+    ],
+    "total": 29,
+    "israel": 29,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 9.9
+  },
+  {
+    "name": "Cisco Careers Israel",
+    "kind": "official_careers",
+    "identifier": "cisco",
+    "tracks": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "We are Cisco",
+        "location": "",
+        "url": "https://careers.cisco.com/global/en/job/CISCISGLOBAL2020320EXTERNALENGLOBAL/ASIC-Engineer",
+        "description_length": 791
+      },
+      {
+        "title": "We are Cisco",
+        "location": "",
+        "url": "https://careers.cisco.com/global/en/job/CISCISGLOBAL2021915EXTERNALENGLOBAL/Senior-Software-Architect-Technical-Leader",
+        "description_length": 791
+      }
+    ],
+    "total": 8,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "quality_error",
+    "error": "Unreliable source data: Cisco Careers Israel repeated the same job description for 8/8 jobs",
+    "seconds": 6.3
+  },
+  {
+    "name": "Qualcomm Careers Israel",
+    "kind": "official_careers",
+    "identifier": "qualcomm",
+    "tracks": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 3.2
+  },
+  {
+    "name": "Samsung Research Israel",
+    "kind": "official_careers",
+    "identifier": "samsung",
+    "tracks": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 3.2
+  },
+  {
+    "name": "Applied Materials Israel",
+    "kind": "workday",
+    "identifier": "applied-materials",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Talent Acquisition Partner- Temp Position",
+        "location": "Rehovot, Israel",
+        "url": "https://amat.wd1.myworkdayjobs.com/External/job/RehovotISR/Talent-Acquisition-Partner--Temp-Position_R2628424",
+        "description_length": 5836
+      },
+      {
+        "title": "System Integration Engineer",
+        "location": "Rehovot, Israel",
+        "url": "https://amat.wd1.myworkdayjobs.com/External/job/RehovotISR/System-Integration-Engineer_R2612347",
+        "description_length": 3964
+      }
+    ],
+    "total": 40,
+    "israel": 40,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.7
+  },
+  {
+    "name": "IBM Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ibm",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 16.0
+  },
+  {
+    "name": "Elbit Systems Careers",
+    "kind": "official_careers",
+    "identifier": "elbit",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Thermal and Fluid Analysis Engineer",
+        "location": "Holon, Israel",
+        "url": "https://elbitsystemscareer.com/job/?jid=19214",
+        "description_length": 1048
+      },
+      {
+        "title": "Supply Chain Planner",
+        "location": "Karmiel, Israel",
+        "url": "https://elbitsystemscareer.com/job/?jid=21026",
+        "description_length": 1734
+      }
+    ],
+    "total": 586,
+    "israel": 586,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.0
+  },
+  {
+    "name": "Philips Careers Israel",
+    "kind": "official_careers",
+    "identifier": "philips",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Manual Assembler-מרכיב בחדר נקי",
+        "location": "Israel",
+        "url": "https://www.careers.philips.com/il/en/job/562932/Manual-Assembler-מרכיב-בחדר-נקי",
+        "description_length": 385
+      },
+      {
+        "title": "Manual Assembler - מרכיב/ה לחדר נקי",
+        "location": "Haifa, Israel",
+        "url": "https://www.careers.philips.com/il/en/job/588965/Manual-Assembler-מרכיב-ה-לחדר-נקי",
+        "description_length": 378
+      }
+    ],
+    "total": 10,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.0
+  },
+  {
+    "name": "IAI Careers",
+    "kind": "official_careers",
+    "identifier": "iai",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "כלכלן.ית",
+        "location": "Ben Gurion Airport, Israel",
+        "url": "https://jobs.iai.co.il/job/76049878/",
+        "description_length": 1100
+      },
+      {
+        "title": "מנהל/ת איכות בפרויקטים",
+        "location": "Ben Gurion Airport, Israel",
+        "url": "https://jobs.iai.co.il/job/76049814/",
+        "description_length": 1634
+      }
+    ],
+    "total": 508,
+    "israel": 508,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.0
+  },
+  {
+    "name": "Taboola Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "taboola",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive - SMB",
+        "location": "New York City (NYC), New York, United States",
+        "url": "https://www.taboola.com/careers/job/8146220?gh_jid=8146220",
+        "description_length": 4126
+      },
+      {
+        "title": "Account Manager, SMB Publisher, France (London based)",
+        "location": "London, United Kingdom",
+        "url": "https://www.taboola.com/careers/job/8201305?gh_jid=8201305",
+        "description_length": 4491
+      }
+    ],
+    "total": 90,
+    "israel": 23,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.0
+  },
+  {
+    "name": "AppsFlyer Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "appsflyer",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "London",
+        "url": "https://careers.appsflyer.com/jobs/position/8706049002?gh_jid=8706049002",
+        "description_length": 3179
+      },
+      {
+        "title": "Account Manager - Growth",
+        "location": "Seoul",
+        "url": "https://careers.appsflyer.com/jobs/position/8793847002?gh_jid=8793847002",
+        "description_length": 4705
+      }
+    ],
+    "total": 51,
+    "israel": 16,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.5
+  },
+  {
+    "name": "Similarweb Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "similarweb",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, Mid Market",
+        "location": "Burlington, MA",
+        "url": "https://job-boards.greenhouse.io/similarweb/jobs/6385457",
+        "description_length": 5785
+      },
+      {
+        "title": "Account Executive, Mid-Market & Enterprise",
+        "location": "Tokyo",
+        "url": "https://job-boards.greenhouse.io/similarweb/jobs/8203750",
+        "description_length": 4565
+      }
+    ],
+    "total": 66,
+    "israel": 28,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.8
+  },
+  {
+    "name": "Outbrain Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "outbraininc",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "CyberArk Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "Cyberark1",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.1
+  },
+  {
+    "name": "ServiceNow Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "ServiceNow",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Staff AI Security Specialist ",
+        "location": "Petah Tikva, Israel",
+        "url": "https://jobs.smartrecruiters.com/ServiceNow/744000149356159-staff-ai-security-specialist-?oga=true",
+        "description_length": 6903
+      },
+      {
+        "title": "Staff Data Scientist (Armis)",
+        "location": "Tel Aviv, Israel",
+        "url": "https://jobs.smartrecruiters.com/ServiceNow/744000149347022-staff-data-scientist-armis-?oga=true",
+        "description_length": 4892
+      }
+    ],
+    "total": 7,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.5
+  },
+  {
+    "name": "Salesforce Careers Israel",
+    "kind": "official_careers",
+    "identifier": "salesforce",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "status": "error",
+    "error": "PreserveExistingJobs: Salesforce temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 22.9
+  },
+  {
+    "name": "Cato Networks Careers",
+    "kind": "greenhouse",
+    "identifier": "catonetworks",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Agentic AI Engineer ",
+        "location": "Tel Aviv District, Israel",
+        "url": "https://www.catonetworks.com/careers/careers-post/4863034101?gh_jid=4863034101",
+        "description_length": 3428
+      },
+      {
+        "title": " Agentic AI Engineer - Product Support",
+        "location": "Tel Aviv District, Israel",
+        "url": "https://www.catonetworks.com/careers/careers-post/4951235101?gh_jid=4951235101",
+        "description_length": 3250
+      }
+    ],
+    "total": 106,
+    "israel": 38,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.7
+  },
+  {
+    "name": "Wiz Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "wizinc",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, SLED Central",
+        "location": "Chicago, Illinois",
+        "url": "https://www.wiz.io/careers/job/4702745006/:title?gh_jid=4702745006",
+        "description_length": 4785
+      },
+      {
+        "title": "Account Executive, SLED West",
+        "location": "Seattle, Washington",
+        "url": "https://www.wiz.io/careers/job/4699167006/:title?gh_jid=4699167006",
+        "description_length": 4785
+      }
+    ],
+    "total": 132,
+    "israel": 21,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.9
+  },
+  {
+    "name": "Orca Security Careers",
+    "kind": "greenhouse",
+    "identifier": "orcasecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Customer Success Engineer",
+        "location": "India",
+        "url": "https://orca.security/about/careers/6135948004?gh_jid=6135948004",
+        "description_length": 4893
+      },
+      {
+        "title": "DevOps Lead (FedRAMP)",
+        "location": "United States",
+        "url": "https://orca.security/about/careers/6149333004?gh_jid=6149333004",
+        "description_length": 7609
+      }
+    ],
+    "total": 8,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.7
+  },
+  {
+    "name": "SentinelOne Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "sentinellabs",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI Learning Project Manager (Contract)",
+        "location": "United States - Remote",
+        "url": "https://www.sentinelone.com/jobs/?gh_jid=7849862003",
+        "description_length": 5823
+      },
+      {
+        "title": "Assistant General Counsel, Commercial",
+        "location": "United States",
+        "url": "https://www.sentinelone.com/jobs/?gh_jid=7985226003",
+        "description_length": 6601
+      }
+    ],
+    "total": 197,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.1
+  },
+  {
+    "name": "Figma Careers",
+    "kind": "greenhouse",
+    "identifier": "figma",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, Enterprise",
+        "location": "San Francisco, CA • New York, NY • United States",
+        "url": "https://boards.greenhouse.io/figma/jobs/5426468004?gh_jid=5426468004",
+        "description_length": 6525
+      },
+      {
+        "title": "Account Executive, Enterprise (Bengaluru, India)",
+        "location": "Bengaluru, India",
+        "url": "https://boards.greenhouse.io/figma/jobs/5579204004?gh_jid=5579204004",
+        "description_length": 5089
+      }
+    ],
+    "total": 158,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.9
+  },
+  {
+    "name": "Rafael Careers",
+    "kind": "official_careers",
+    "identifier": "rafael",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "מנהל.ת צוות פיתוח תכן FPGA",
+        "location": "Krayot, Israel",
+        "url": "https://career.rafael.co.il/job/13239",
+        "description_length": 121
+      },
+      {
+        "title": "מהנדס.ת תוכנה",
+        "location": "Krayot, Israel",
+        "url": "https://career.rafael.co.il/job/13344",
+        "description_length": 118
+      }
+    ],
+    "total": 31,
+    "israel": 31,
+    "missing_description": 1,
+    "status": "ok",
+    "seconds": 8.3
+  },
+  {
+    "name": "Pagaya Israel Careers",
+    "kind": "greenhouse",
+    "identifier": "pagayais",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Assistant Controller",
+        "location": "Tel Aviv, Israel",
+        "url": "https://job-boards.greenhouse.io/pagayais/jobs/7787982003",
+        "description_length": 4339
+      },
+      {
+        "title": "BI Team Lead",
+        "location": "Tel Aviv, Israel",
+        "url": "https://job-boards.greenhouse.io/pagayais/jobs/7785835003",
+        "description_length": 4475
+      }
+    ],
+    "total": 9,
+    "israel": 9,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Speechify Careers",
+    "kind": "greenhouse",
+    "identifier": "speechify",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Go-to-Market",
+        "location": "Remote",
+        "url": "https://job-boards.greenhouse.io/speechify/jobs/5989934004",
+        "description_length": 4379
+      },
+      {
+        "title": "Go-to-Market",
+        "location": "Remote",
+        "url": "https://job-boards.greenhouse.io/speechify/jobs/6003615004",
+        "description_length": 4249
+      }
+    ],
+    "total": 1081,
+    "israel": 12,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.2
+  },
+  {
+    "name": "Tenable Careers",
+    "kind": "greenhouse",
+    "identifier": "tenableinc",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Associate Commercial Territory Manager",
+        "location": "US - Hybrid - Massachusetts , US - Headquarters - Maryland - Columbia",
+        "url": "https://job-boards.greenhouse.io/tenableinc/jobs/5386209008",
+        "description_length": 4404
+      },
+      {
+        "title": "Channel Account Manager",
+        "location": "France - Remote",
+        "url": "https://job-boards.greenhouse.io/tenableinc/jobs/5393866008",
+        "description_length": 3932
+      }
+    ],
+    "total": 40,
+    "israel": 6,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.1
+  },
+  {
+    "name": "Aqua Security Careers",
+    "kind": "official_careers",
+    "identifier": "aqua",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "It Support Engineer",
+        "location": "Ramat-Gan, Israel",
+        "url": "https://www.aquasec.com/about-us/careers/co/ramat-gan-israel/9E.F63/it-support-engineer/all",
+        "description_length": 341
+      },
+      {
+        "title": "Office Operations Manager",
+        "location": "Ramat-Gan, Israel",
+        "url": "https://www.aquasec.com/about-us/careers/co/ramat-gan-israel/36.076/office-operations-manager/all",
+        "description_length": 356
+      }
+    ],
+    "total": 8,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.3
+  },
+  {
+    "name": "Redis Careers",
+    "kind": "ashby",
+    "identifier": "redis",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Regional Account Executive",
+        "location": "India",
+        "url": "https://jobs.ashbyhq.com/redis/80ff1298-ad88-4d77-95ca-b597f0d18e2b/application",
+        "description_length": 4830
+      },
+      {
+        "title": "Enterprise Account Executive",
+        "location": "London, England",
+        "url": "https://jobs.ashbyhq.com/redis/c93c891c-5ccf-4777-91d0-5745629646bf/application",
+        "description_length": 4640
+      }
+    ],
+    "total": 22,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.4
+  },
+  {
+    "name": "Tavily Careers",
+    "kind": "ashby",
+    "identifier": "tavily",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Forward Deployed Engineer",
+        "location": "New York City",
+        "url": "https://jobs.ashbyhq.com/tavily/1999e01d-f9e3-4f43-a097-812c0800fb0f/application",
+        "description_length": 3353
+      },
+      {
+        "title": "Enterprise Customer Success Manager",
+        "location": "All Locations - On Site",
+        "url": "https://jobs.ashbyhq.com/tavily/43c5d4f2-39a3-4c5b-8af2-d393407b1e33/application",
+        "description_length": 4048
+      }
+    ],
+    "total": 18,
+    "israel": 9,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Nexxen Careers",
+    "kind": "ashby",
+    "identifier": "nexxen",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Senior Account Executive/Sales Director - Enterprise (Central)",
+        "location": "Chicago, IL",
+        "url": "https://jobs.ashbyhq.com/nexxen/332f5e40-e8c0-4aab-ae3c-6f60a70fa194/application",
+        "description_length": 4671
+      },
+      {
+        "title": "Assistant Controller",
+        "location": "Tel Aviv, Israel",
+        "url": "https://jobs.ashbyhq.com/nexxen/0961fd08-465a-43e9-b9b8-5c2ba93cb68d/application",
+        "description_length": 3151
+      }
+    ],
+    "total": 26,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Chainalysis Careers",
+    "kind": "ashby",
+    "identifier": "chainalysis-careers",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Deal Desk Manager (Fixed-Term)",
+        "location": "New York",
+        "url": "https://jobs.ashbyhq.com/chainalysis-careers/8d8570f8-17b6-446a-9a3c-c65d5484da63/application",
+        "description_length": 7268
+      },
+      {
+        "title": "Head of Policy, North America",
+        "location": "D.C.",
+        "url": "https://jobs.ashbyhq.com/chainalysis-careers/a41742c7-26df-48c7-b0fa-581e5f8ae6ad/application",
+        "description_length": 7263
+      }
+    ],
+    "total": 53,
+    "israel": 9,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Reindeer AI Careers",
+    "kind": "ashby",
+    "identifier": "reindeer-ai",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Software Engineer (Backend)",
+        "location": "Tel Aviv",
+        "url": "https://jobs.ashbyhq.com/reindeer-ai/af78d676-d617-4c91-b729-f5de3ceb3bf7/application",
+        "description_length": 3569
+      },
+      {
+        "title": "AI Engineer",
+        "location": "Tel Aviv",
+        "url": "https://jobs.ashbyhq.com/reindeer-ai/091d4a1b-9d84-4038-a7b1-f376af854023/application",
+        "description_length": 2799
+      }
+    ],
+    "total": 9,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Riskified Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "riskified",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Tel Aviv",
+        "url": "https://www.riskified.com/careers/job-description/?gh_jid=8768908002",
+        "description_length": 4304
+      },
+      {
+        "title": "Application Security Architect",
+        "location": "Lisbon",
+        "url": "https://www.riskified.com/careers/job-description/?gh_jid=8725597002",
+        "description_length": 4836
+      }
+    ],
+    "total": 28,
+    "israel": 6,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "NICE Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "nice",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "USA - Remote",
+        "url": "https://boards.eu.greenhouse.io/nice/jobs/4845780101?gh_jid=4845780101",
+        "description_length": 5213
+      },
+      {
+        "title": "Account Executive",
+        "location": "USA - Remote",
+        "url": "https://boards.eu.greenhouse.io/nice/jobs/4655715101?gh_jid=4655715101",
+        "description_length": 4114
+      }
+    ],
+    "total": 173,
+    "israel": 22,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.1
+  },
+  {
+    "name": "TRAILD Careers",
+    "kind": "lever",
+    "identifier": "traildsoftware",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Channel Marketing Manager - North America",
+        "location": "United States",
+        "url": "https://jobs.lever.co/traildsoftware/c3d32f4c-81af-487e-85bd-6a80dc67971b/apply",
+        "description_length": 6468
+      },
+      {
+        "title": "Engineering Manager, Platform",
+        "location": "Australia",
+        "url": "https://jobs.lever.co/traildsoftware/7895ff49-fae9-48f1-ac58-7ac1baa7b35c/apply",
+        "description_length": 5269
+      }
+    ],
+    "total": 10,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.1
+  },
+  {
+    "name": "Connecteam Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "connecteam",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive (Post Sales)",
+        "location": "Melbourne, Victoria, Australia",
+        "url": "https://connecteam.com/careers/6109462004?gh_jid=6109462004",
+        "description_length": 3838
+      },
+      {
+        "title": "Account Executive - SMB",
+        "location": "New York, United States",
+        "url": "https://connecteam.com/careers/6179698004?gh_jid=6179698004",
+        "description_length": 4486
+      }
+    ],
+    "total": 55,
+    "israel": 17,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Via Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "via",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Director",
+        "location": "Toronto, Vancouver",
+        "url": "https://job-boards.greenhouse.io/via/jobs/8700271002",
+        "description_length": 3912
+      },
+      {
+        "title": "Account Director, Central US (Remote)",
+        "location": "Central US",
+        "url": "https://job-boards.greenhouse.io/via/jobs/4939612002",
+        "description_length": 5231
+      }
+    ],
+    "total": 161,
+    "israel": 12,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.6
+  },
+  {
+    "name": "Meta Careers Israel",
+    "kind": "official_careers",
+    "identifier": "meta",
+    "tracks": [
+      "computer_science"
+    ],
+    "status": "error",
+    "error": "PreserveExistingJobs: Meta temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 31.8
+  },
+  {
+    "name": "Apiiro Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "apiiro",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI Engineer",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/apiiro/jobs/7683988003",
+        "description_length": 2662
+      },
+      {
+        "title": "AI Research Engineer, Security",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/apiiro/jobs/7809871003",
+        "description_length": 2633
+      }
+    ],
+    "total": 6,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "SafeBreach Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "safebreach",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Global MSSP Sales Manager",
+        "location": "United States",
+        "url": "https://job-boards.greenhouse.io/safebreach/jobs/4393281009",
+        "description_length": 4460
+      },
+      {
+        "title": "Lab Manager",
+        "location": "Tel Aviv",
+        "url": "https://job-boards.greenhouse.io/safebreach/jobs/4291547009",
+        "description_length": 5366
+      }
+    ],
+    "total": 6,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Guidde Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "guidde",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "New York, NY, US",
+        "url": "https://job-boards.eu.greenhouse.io/guidde/jobs/4873202101",
+        "description_length": 4453
+      },
+      {
+        "title": "Builder Product Manager",
+        "location": "Tel Aviv, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/guidde/jobs/4821256101",
+        "description_length": 4185
+      }
+    ],
+    "total": 9,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "ScaleOps Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "scaleops",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Tel Aviv",
+        "url": "https://job-boards.eu.greenhouse.io/scaleops/jobs/4919302101",
+        "description_length": 2613
+      },
+      {
+        "title": "Account Executive - LATAM",
+        "location": "United States - Remote",
+        "url": "https://job-boards.eu.greenhouse.io/scaleops/jobs/4921858101",
+        "description_length": 2558
+      }
+    ],
+    "total": 56,
+    "israel": 29,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Sweet Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "sweetsecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Low Level Engineer ",
+        "location": "Tel-Aviv, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/sweetsecurity/jobs/4964180101",
+        "description_length": 3222
+      },
+      {
+        "title": "Product Manager ",
+        "location": "Tel-Aviv, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/sweetsecurity/jobs/4890994101",
+        "description_length": 4299
+      }
+    ],
+    "total": 2,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "accessiBe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "accessibe",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Director, Corporate Marketing",
+        "location": " Tel Aviv-Yafo or New-York",
+        "url": "https://job-boards.eu.greenhouse.io/accessibe/jobs/4968036101",
+        "description_length": 4329
+      },
+      {
+        "title": "Founding Sales Lead",
+        "location": "HaMelacha St 3, Tel Aviv-Yafo",
+        "url": "https://job-boards.eu.greenhouse.io/accessibe/jobs/4976781101",
+        "description_length": 4507
+      }
+    ],
+    "total": 5,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Unframe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "unframe",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI-First QA Automation Engineer ",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/unframe/jobs/4976938101",
+        "description_length": 2767
+      },
+      {
+        "title": "AI Transformation Architect",
+        "location": "Boston, Massachusetts, United States; Miami, Florida, United States; New York, New York, United States; San Diego, California, United States; San Francisco, California, United States; San Jose, California, United States; Seattle, Washington, United States",
+        "url": "https://job-boards.eu.greenhouse.io/unframe/jobs/4944228101",
+        "description_length": 2492
+      }
+    ],
+    "total": 34,
+    "israel": 11,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Descope Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "descope",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Customer Success Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://job-boards.greenhouse.io/descope/jobs/4399414009",
+        "description_length": 3441
+      },
+      {
+        "title": "Developer Experience Engineer, DevRel Team",
+        "location": "Los Altos, CA (HQ)",
+        "url": "https://job-boards.greenhouse.io/descope/jobs/4236846009",
+        "description_length": 4180
+      }
+    ],
+    "total": 6,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Guardz Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "guardz",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Home Office - US",
+        "url": "https://job-boards.eu.greenhouse.io/guardz/jobs/4790474101",
+        "description_length": 3136
+      },
+      {
+        "title": "Business Development Representative",
+        "location": "Miami, Florida, United States",
+        "url": "https://job-boards.eu.greenhouse.io/guardz/jobs/4951050101",
+        "description_length": 2423
+      }
+    ],
+    "total": 8,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Bluevine Israel Careers",
+    "kind": "greenhouse",
+    "identifier": "bluevineisrael",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Lead Software Engineer (Potential to Grow into Team Leadership)",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/bluevineisrael/jobs/7743128003",
+        "description_length": 6228
+      },
+      {
+        "title": "Senior Machine Learning Engineer",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/bluevineisrael/jobs/7738175003",
+        "description_length": 4230
+      }
+    ],
+    "total": 3,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Pendo Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "pendo",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Director Commercial Sales (Mid-Market)",
+        "location": "Raleigh, NC",
+        "url": "https://job-boards.greenhouse.io/pendo/jobs/8535640002",
+        "description_length": 6770
+      },
+      {
+        "title": "Account Director, Enterprise Sales - French Markets",
+        "location": "London",
+        "url": "https://job-boards.greenhouse.io/pendo/jobs/8665821002",
+        "description_length": 6617
+      }
+    ],
+    "total": 21,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "BeamUP Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "beamup",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI & IT Manager",
+        "location": "Tel- Aviv, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/beamup/jobs/4836478101",
+        "description_length": 4600
+      },
+      {
+        "title": "Applied AI/ML Scientist",
+        "location": "Tel Aviv",
+        "url": "https://job-boards.eu.greenhouse.io/beamup/jobs/4888237101",
+        "description_length": 4573
+      }
+    ],
+    "total": 4,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Daylight Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "daylightsecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive ",
+        "location": "United States",
+        "url": "https://job-boards.greenhouse.io/daylightsecurity/jobs/4303404009",
+        "description_length": 2530
+      },
+      {
+        "title": "Account Executive ",
+        "location": "London",
+        "url": "https://job-boards.greenhouse.io/daylightsecurity/jobs/4357131009",
+        "description_length": 3053
+      }
+    ],
+    "total": 9,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Aidoc Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "aidocmedical",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI Algorithm Tech Lead",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/aidocmedical/jobs/4876551101",
+        "description_length": 4109
+      },
+      {
+        "title": "AI Senior Software Engineer, ML Platform",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.eu.greenhouse.io/aidocmedical/jobs/4874306101",
+        "description_length": 3644
+      }
+    ],
+    "total": 30,
+    "israel": 22,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Armis Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "armissecurity",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI Engineer",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/armissecurity/jobs/5994462004",
+        "description_length": 4487
+      },
+      {
+        "title": "AI Expert",
+        "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+        "url": "https://job-boards.greenhouse.io/armissecurity/jobs/6105747004",
+        "description_length": 4402
+      }
+    ],
+    "total": 8,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Forter Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "forter",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Customer Success Manager - Japanese Speaking",
+        "location": "Singapore - Singapore ",
+        "url": "https://job-boards.greenhouse.io/forter/jobs/8418005002",
+        "description_length": 7162
+      },
+      {
+        "title": "Customer Success Manager - Japanese Speaking",
+        "location": "China - Shanghai",
+        "url": "https://job-boards.greenhouse.io/forter/jobs/8742433002",
+        "description_length": 7162
+      }
+    ],
+    "total": 29,
+    "israel": 6,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Gong Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "gongio",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive - Private Equity ",
+        "location": "San Francisco",
+        "url": "https://job-boards.greenhouse.io/gongio/jobs/4627272006",
+        "description_length": 5610
+      },
+      {
+        "title": "Backend Engineer, Communications Capture",
+        "location": "Dublin",
+        "url": "https://job-boards.greenhouse.io/gongio/jobs/4395203006",
+        "description_length": 6059
+      }
+    ],
+    "total": 83,
+    "israel": 13,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.7
+  },
+  {
+    "name": "Datarails Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "datarails",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "United States",
+        "url": "https://job-boards.greenhouse.io/datarails/jobs/4302569009",
+        "description_length": 4195
+      },
+      {
+        "title": "FP&A Customer Success Manager",
+        "location": "United States",
+        "url": "https://job-boards.greenhouse.io/datarails/jobs/4252275009",
+        "description_length": 4113
+      }
+    ],
+    "total": 9,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Cymulate Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "cymulate",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, Korea",
+        "location": "Singapore",
+        "url": "https://job-boards.eu.greenhouse.io/cymulate/jobs/4963964101",
+        "description_length": 1860
+      },
+      {
+        "title": "Account Executive, Singapore",
+        "location": "Singapore",
+        "url": "https://job-boards.eu.greenhouse.io/cymulate/jobs/4963927101",
+        "description_length": 1872
+      }
+    ],
+    "total": 16,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "QuantHealth Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "quanthealth",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Bookkeeper ",
+        "location": "Israel",
+        "url": "https://job-boards.eu.greenhouse.io/quanthealth/jobs/4956767101",
+        "description_length": 4437
+      },
+      {
+        "title": "Director of Algorithms Development",
+        "location": "Israel ",
+        "url": "https://job-boards.eu.greenhouse.io/quanthealth/jobs/4943005101",
+        "description_length": 4787
+      }
+    ],
+    "total": 5,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Eleos Health Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "eleoshealth",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive - Home Health/Hospice (US, Remote)",
+        "location": "US",
+        "url": "https://job-boards.eu.greenhouse.io/eleoshealth/jobs/4914945101",
+        "description_length": 6492
+      },
+      {
+        "title": "Account Executive - US, Remote",
+        "location": "US",
+        "url": "https://job-boards.eu.greenhouse.io/eleoshealth/jobs/4791600101",
+        "description_length": 6452
+      }
+    ],
+    "total": 14,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Melio Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "melio",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Backend Engineer ",
+        "location": "Tel Aviv",
+        "url": "https://job-boards.greenhouse.io/melio/jobs/7806719003",
+        "description_length": 2980
+      },
+      {
+        "title": "Customer Success Manager",
+        "location": "Remote, US",
+        "url": "https://job-boards.greenhouse.io/melio/jobs/7643336003",
+        "description_length": 6038
+      }
+    ],
+    "total": 24,
+    "israel": 9,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Sunflower Careers Israel",
+    "kind": "official_careers",
+    "identifier": "sunflower",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Legal Counsel",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/sunflower/AA.009/legal-counsel/71.F5E",
+        "description_length": 38
+      },
+      {
+        "title": "CS Team Lead",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/sunflower/AA.009/cs--team-lead/61.F57",
+        "description_length": 26
+      }
+    ],
+    "total": 27,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 7.9
+  },
+  {
+    "name": "Neo Security Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "neosecurityinc",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Content Specialist",
+        "location": "USA",
+        "url": "https://job-boards.greenhouse.io/neosecurityinc/jobs/4323757009",
+        "description_length": 4285
+      },
+      {
+        "title": "Director, NA Field Marketing",
+        "location": "Remote",
+        "url": "https://job-boards.greenhouse.io/neosecurityinc/jobs/4323680009",
+        "description_length": 4478
+      }
+    ],
+    "total": 26,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.7
+  },
+  {
+    "name": "Claroty Careers Israel",
+    "kind": "official_careers",
+    "identifier": "claroty",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI Platform- Software Engineer Team Leader",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/Claroty/F2.004/ai-platform--software-engineer-team-leader/CE.079",
+        "description_length": 5118
+      },
+      {
+        "title": "Backend Software Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/Claroty/F2.004/backend-software-engineer/55.278",
+        "description_length": 5040
+      }
+    ],
+    "total": 27,
+    "israel": 11,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.5
+  },
+  {
+    "name": "Gloat Careers Israel",
+    "kind": "official_careers",
+    "identifier": "gloat",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Growth Marketing Lead (AI-Native)",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/gloat/E5.000/growth-marketing-lead-ai-native/14.E64",
+        "description_length": 3887
+      },
+      {
+        "title": "Senior AI Engineer - Agentic Systems",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/gloat/E5.000/senior-ai-engineer---agentic-systems/44.F6B",
+        "description_length": 3761
+      }
+    ],
+    "total": 5,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.1
+  },
+  {
+    "name": "Torq Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "torq",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI SOC Solutions Architect - Professional Services",
+        "location": "United States",
+        "url": "https://job-boards.greenhouse.io/torq/jobs/6132398004",
+        "description_length": 7218
+      },
+      {
+        "title": "AI SOC Solutions Architect - Professional Services - Costa Rica",
+        "location": "Costa Rica",
+        "url": "https://job-boards.greenhouse.io/torq/jobs/6142481004",
+        "description_length": 7265
+      }
+    ],
+    "total": 29,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 7.1
+  },
+  {
+    "name": "Silverfort Careers Israel",
+    "kind": "official_careers",
+    "identifier": "silverfort",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Channel Account Manager - South East",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/silverfort/54.007/channel-account-manager---south-east/CB.F60",
+        "description_length": 3170
+      },
+      {
+        "title": "Channel Account Manager - South East",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/silverfort/54.007/channel-account-manager---south-east/CB.F60-8D.60F",
+        "description_length": 3171
+      }
+    ],
+    "total": 28,
+    "israel": 11,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.3
+  },
+  {
+    "name": "4M Analytics Careers Israel",
+    "kind": "official_careers",
+    "identifier": "4manalytics",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Customer Success Manager, AEC",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/4Manalytics/B6.00F/customer-success-manager-aec/39.E61",
+        "description_length": 45
+      },
+      {
+        "title": "Customer Success Manager, Public Sector",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/4Manalytics/B6.00F/customer-success-manager-public-sector/84.27B?department=Customer%20Success",
+        "description_length": 89
+      }
+    ],
+    "total": 7,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.0
+  },
+  {
+    "name": "Moon Active Careers Israel",
+    "kind": "official_careers",
+    "identifier": "moonactive",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "status": "error",
+    "error": "PreserveExistingJobs: Moon Active temporarily blocked automated access; preserving the last successful job snapshot",
+    "seconds": 18.1
+  },
+  {
+    "name": "Legit Security Careers Israel",
+    "kind": "official_careers",
+    "identifier": "legitsecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Engineering Tech Lead",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/legitsecurity.com/37.004/engineering-tech-lead/6B.D6B",
+        "description_length": 3536
+      },
+      {
+        "title": "Enterprise Account Executive",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/legitsecurity.com/37.004/enterprise-account-executive/12.D6C",
+        "description_length": 1955
+      }
+    ],
+    "total": 9,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.2
+  },
+  {
+    "name": "Paragon Careers Israel",
+    "kind": "official_careers",
+    "identifier": "paragon",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI Research Scientist",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/paragon/76.006/ai-research-scientist/9F.C6C",
+        "description_length": 2344
+      },
+      {
+        "title": "Assistant Controller",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/paragon/76.006/assistant-controller/35.929",
+        "description_length": 1602
+      }
+    ],
+    "total": 28,
+    "israel": 28,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.5
+  },
+  {
+    "name": "Voyantis Careers Israel",
+    "kind": "official_careers",
+    "identifier": "voyantis",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI-native software Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/voyantis/86.00B/ai-native-software-engineer/89.E6C",
+        "description_length": 3922
+      },
+      {
+        "title": "Data Analyst",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/voyantis/86.00B/data-analyst/F5.27C",
+        "description_length": 2587
+      }
+    ],
+    "total": 8,
+    "israel": 8,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.8
+  },
+  {
+    "name": "Playtika — CS Israel",
+    "kind": "official_careers",
+    "identifier": "playtika",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "",
+        "url": "https://www.playtika.com/careers/",
+        "description_length": 138
+      },
+      {
+        "title": "Data & Ai",
+        "location": "",
+        "url": "https://www.playtika.com/careers/data-ai/",
+        "description_length": 9
+      }
+    ],
+    "total": 12,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Arbe Robotics Careers Israel",
+    "kind": "official_careers",
+    "identifier": "arbe",
+    "tracks": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "",
+        "url": "https://arberobotics.com/careers/",
+        "description_length": 345
+      }
+    ],
+    "total": 1,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.7
+  },
+  {
+    "name": "Fiverr — CS Israel",
+    "kind": "official_careers",
+    "identifier": "fiverr",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Business Applications Project Manager Business Applications Project Manager Technology Tel Aviv-Yafo",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.fiverr.com/jobs/OTMuMjdE",
+        "description_length": 100
+      },
+      {
+        "title": "Chatbot Project Lead Chatbot Project Lead Customer Journey Tel Aviv-Yafo",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.fiverr.com/jobs/QTUuRjY3",
+        "description_length": 72
+      }
+    ],
+    "total": 7,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.5
+  },
+  {
+    "name": "Exodigo Careers Israel",
+    "kind": "official_careers",
+    "identifier": "exodigo",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI Algorithms Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/exodigo/89.005/ai-algorithms-engineer/9E.074",
+        "description_length": 5775
+      },
+      {
+        "title": "BIM Modeler",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/exodigo/89.005/bim-modeler/22.F6B",
+        "description_length": 2712
+      }
+    ],
+    "total": 55,
+    "israel": 42,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 8.0
+  },
+  {
+    "name": "משרד הביטחון — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ministry-of-defense-il",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.8
+  },
+  {
+    "name": "ICL — CS Israel",
+    "kind": "official_careers",
+    "identifier": "icl",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Deutsch (Deutschland)",
+        "location": "",
+        "url": "https://careers.icl-group.com/?locale=de_DE",
+        "description_length": 21
+      },
+      {
+        "title": "Career@ICL",
+        "location": "",
+        "url": "https://www.icl-group.com/career/",
+        "description_length": 30
+      }
+    ],
+    "total": 2,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.5
+  },
+  {
+    "name": "Tower Semiconductor — CS Israel",
+    "kind": "official_careers",
+    "identifier": "tower-semiconductor",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 1.5
+  },
+  {
+    "name": "Osem-Nestle — CS Israel",
+    "kind": "official_careers",
+    "identifier": "osem-nestle",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "קריירה",
+        "location": "Israel",
+        "url": "https://www.osem-nestle.co.il/career",
+        "description_length": 6
+      },
+      {
+        "title": "משרות פתוחות",
+        "location": "Israel",
+        "url": "https://www.osem-nestle.co.il/career/open-positions",
+        "description_length": 12
+      }
+    ],
+    "total": 5,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "החברה המרכזית למשקאות — CS Israel",
+    "kind": "official_careers",
+    "identifier": "cocacola-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.1
+  },
+  {
+    "name": "Fox Group — CS Israel",
+    "kind": "official_careers",
+    "identifier": "fox-group",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.0
+  },
+  {
+    "name": "Shufersal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "shufersal",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "קריירה בקבוצת שופרסל",
+        "location": "Israel",
+        "url": "https://www.shufersal.co.il/corp/career",
+        "description_length": 181
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.6
+  },
+  {
+    "name": "Teva — CS Israel",
+    "kind": "official_careers",
+    "identifier": "teva",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Application Support",
+        "location": "",
+        "url": "https://www.tevapharm.com/your-career/job-application-support/",
+        "description_length": 19
+      },
+      {
+        "title": "Applicant Security Disclaimer",
+        "location": "",
+        "url": "https://www.tevapharm.com/your-career/applicant-security-disclaimer/",
+        "description_length": 29
+      }
+    ],
+    "total": 8,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "quality_error",
+    "error": "Unreliable source data: Teva — CS Israel returned no usable job description for 5/8 jobs",
+    "seconds": 1.9
+  },
+  {
+    "name": "Strauss Group — CS Israel",
+    "kind": "official_careers",
+    "identifier": "strauss",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Career",
+        "location": "Israel",
+        "url": "https://www.strauss-group.co.il/career/",
+        "description_length": 1783
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.7
+  },
+  {
+    "name": "VAST Data Careers Israel",
+    "kind": "official_careers",
+    "identifier": "vastdata",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive - Austin, TX",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/vastdata/43.001/account-executive---austin-tx/6D.76F",
+        "description_length": 2876
+      },
+      {
+        "title": "Account Executive - Federal",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/vastdata/43.001/account-executive---federal/7F.076",
+        "description_length": 3192
+      }
+    ],
+    "total": 160,
+    "israel": 24,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 18.0
+  },
+  {
+    "name": "Deloitte Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "deloitte-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Hebrew",
+        "location": "",
+        "url": "https://www.deloitte.com/il/he/careers.html?icid=toggle_il_he",
+        "description_length": 14
+      },
+      {
+        "title": "Job search",
+        "location": "",
+        "url": "https://careers.deloitte.co.il/",
+        "description_length": 10
+      }
+    ],
+    "total": 4,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.8
+  },
+  {
+    "name": "PwC Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "pwc-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.4
+  },
+  {
+    "name": "EY Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ey-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.9
+  },
+  {
+    "name": "KPMG Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "kpmg-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Click Here >>",
+        "location": "Israel",
+        "url": "https://kpmg.com/en/careers/relocation",
+        "description_length": 334
+      },
+      {
+        "title": "Business Economic Consulting Manager",
+        "location": "",
+        "url": "https://kpmg.com/en/careers/vacancies/ייעוץ-כלכלי/business-economic-consulting-manager",
+        "description_length": 0
+      }
+    ],
+    "total": 2,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Malam Team — CS Israel",
+    "kind": "official_careers",
+    "identifier": "malam-team",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.0
+  },
+  {
+    "name": "Ness — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ness-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "המשרות שלנו",
+        "location": "Israel",
+        "url": "https://www.ness-tech.co.il/careers/",
+        "description_length": 181
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.9
+  },
+  {
+    "name": "Matrix — CS Israel",
+    "kind": "official_careers",
+    "identifier": "matrix-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "המשרות שבחרתי",
+        "location": "Israel",
+        "url": "https://www.matrix.co.il/jobs/my-jobs/",
+        "description_length": 38
+      },
+      {
+        "title": "נגישות",
+        "location": "Israel",
+        "url": "https://www.matrix.co.il/jobs/הצהרת-נגישות",
+        "description_length": 58
+      }
+    ],
+    "total": 16,
+    "israel": 16,
+    "missing_description": 6,
+    "status": "ok",
+    "seconds": 1.2
+  },
+  {
+    "name": "Super-Pharm — CS Israel",
+    "kind": "official_careers",
+    "identifier": "super-pharm",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "תקנון פורטל דרושים",
+        "location": "Israel",
+        "url": "https://jobs.super-pharm.co.il/terms-before-2024/",
+        "description_length": 18
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.0
+  },
+  {
+    "name": "Israel Post — CS Israel",
+    "kind": "official_careers",
+    "identifier": "israel-post",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 2.0
+  },
+  {
+    "name": "ONE Technologies — CS Israel",
+    "kind": "official_careers",
+    "identifier": "one-technologies",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "קריירה",
+        "location": "Israel",
+        "url": "https://www.one1.co.il/careers/",
+        "description_length": 253
+      },
+      {
+        "title": "DATA & BI",
+        "location": "Israel",
+        "url": "https://www.one1.co.il/careers/#career-section",
+        "description_length": 181
+      }
+    ],
+    "total": 15,
+    "israel": 15,
+    "missing_description": 13,
+    "status": "quality_error",
+    "error": "Unreliable source data: ONE Technologies — CS Israel returned no usable job description for 13/15 jobs",
+    "seconds": 3.1
+  },
+  {
+    "name": "Israel Railways — CS Israel",
+    "kind": "official_careers",
+    "identifier": "israel-railways",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.0
+  },
+  {
+    "name": "Elad Systems — CS Israel",
+    "kind": "official_careers",
+    "identifier": "elad-systems",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 2.7
+  },
+  {
+    "name": "UPS — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ups-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Professional Roles",
+        "location": "",
+        "url": "https://www.jobs-ups.com/global/en/professional-roles",
+        "description_length": 203
+      },
+      {
+        "title": "@UPSJobs Instagram",
+        "location": "",
+        "url": "https://www.instagram.com/upsjobs/",
+        "description_length": 76
+      }
+    ],
+    "total": 2,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.9
+  },
+  {
+    "name": "Ashdod Port — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ashdod-port",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "\\",
+        "location": "Israel",
+        "url": "https://www.ashdodport.co.il/about/careers/infopages/privacy-policy-for-job-seekers/\\",
+        "description_length": 0
+      },
+      {
+        "title": "\\",
+        "location": "Israel",
+        "url": "https://www.ashdodport.co.il/about/careers/diagnosis-institute/\\",
+        "description_length": 0
+      }
+    ],
+    "total": 3,
+    "israel": 3,
+    "missing_description": 3,
+    "status": "ok",
+    "seconds": 0.5
+  },
+  {
+    "name": "DHL — CS Israel",
+    "kind": "official_careers",
+    "identifier": "dhl-israel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Find out more",
+        "location": "",
+        "url": "https://careers.dhl.com/global/en/global-business-services",
+        "description_length": 143
+      }
+    ],
+    "total": 1,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.9
+  },
+  {
+    "name": "Bank Hapoalim — CS Israel",
+    "kind": "official_careers",
+    "identifier": "bank-hapoalim",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "קריירה בבנק הפועלים",
+        "location": "Israel",
+        "url": "https://www.bankhapoalim.co.il/forms/he/jobs-site",
+        "description_length": 2137
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Israel Discount Bank — CS Israel",
+    "kind": "official_careers",
+    "identifier": "discount-bank",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Bank Leumi — CS Israel",
+    "kind": "official_careers",
+    "identifier": "bank-leumi",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "בנקאי/ת במרכז שירות משכנתאות מס משרה 1248 למידע נוסף",
+        "location": "Israel",
+        "url": "https://www.leumi.co.il/he/about/career/Job/2321",
+        "description_length": 52
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.5
+  },
+  {
+    "name": "Cal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "cal",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Max — CS Israel",
+    "kind": "official_careers",
+    "identifier": "max",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Isracard — CS Israel",
+    "kind": "official_careers",
+    "identifier": "isracard",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Migdal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "migdal",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "The Phoenix — CS Israel",
+    "kind": "official_careers",
+    "identifier": "phoenix",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.5
+  },
+  {
+    "name": "Clalit — CS Israel",
+    "kind": "official_careers",
+    "identifier": "clalit",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "https://www.clalit.co.il/he/info/career/Pages/default.aspx",
+        "location": "Israel",
+        "url": "https://www.clalit.co.il/he/info/career/Pages/default.aspx",
+        "description_length": 75
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Sheba Medical Center — CS Israel",
+    "kind": "official_careers",
+    "identifier": "sheba",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Style>  <!  google tag manager (noscript)  >  <noscript><iframe id=",
+        "location": "Israel",
+        "url": "https://www.sheba.co.il/>      </div>    </div> -->  <style>    .butterflyButton {      position: fixed;      top: 160px;      left: -15px;      width: 44px;      height: 44px;      display: flex;      align-items: flex-end;      z-index: 10;      cursor: pointer;      transition: width .3s ease-in-out;    }    .blueBg {      width: 29px;      height: 29px;      background: #24aae2;      border-radius: 0 30px 30px 0;      float: left;    }    .butterfly {      height: 25px;      float: right;      text-align: center;      line-height: 10px;      cursor: pointer;      padding: 2px;    }  </style>  <!-- Google Tag Manager (noscript) -->  <noscript><iframe id=",
+        "description_length": 0
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 1,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Maccabi Healthcare — CS Israel",
+    "kind": "official_careers",
+    "identifier": "maccabi-health",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "מכבי פארם",
+        "location": "Israel",
+        "url": "https://www.maccabi4u.co.il/careers/הזדמנויות-קריירה-במכבי-פארם/",
+        "description_length": 53
+      },
+      {
+        "title": "משרות פתוחות",
+        "location": "Israel",
+        "url": "https://www.maccabi4u.co.il/careers/search-job-positions/",
+        "description_length": 12
+      }
+    ],
+    "total": 14,
+    "israel": 14,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Harel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "harel",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 1.0
+  },
+  {
+    "name": "At-Bay Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "atbayjobs",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Actuarial Manager, Pricing",
+        "location": "Atlanta, Georgia, United States",
+        "url": "https://job-boards.greenhouse.io/atbayjobs/jobs/7634372003",
+        "description_length": 4238
+      },
+      {
+        "title": "Actuarial Manager, Pricing",
+        "location": "Chicago, Illinois, United States",
+        "url": "https://job-boards.greenhouse.io/atbayjobs/jobs/6528819003",
+        "description_length": 4238
+      }
+    ],
+    "total": 34,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Haifa Port — CS Israel",
+    "kind": "official_careers",
+    "identifier": "haifa-port",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "HEB",
+        "location": "Israel",
+        "url": "https://www.haifaport.co.il/jobs/?lang-clear=1",
+        "description_length": 3
+      },
+      {
+        "title": "English",
+        "location": "Israel",
+        "url": "https://www.haifaport.co.il/en/jobs/",
+        "description_length": 135
+      }
+    ],
+    "total": 3,
+    "israel": 3,
+    "missing_description": 1,
+    "status": "ok",
+    "seconds": 2.4
+  },
+  {
+    "name": "DoiT Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "doitintl",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive - Attribute™, EMEA",
+        "location": "Remote Sweden",
+        "url": "https://job-boards.greenhouse.io/doitintl/jobs/7762274003",
+        "description_length": 6141
+      },
+      {
+        "title": "Account Executive - Attribute™, North America",
+        "location": "Remote US East",
+        "url": "https://job-boards.greenhouse.io/doitintl/jobs/7762277003",
+        "description_length": 7350
+      }
+    ],
+    "total": 118,
+    "israel": 13,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.1
+  },
+  {
+    "name": "Ichilov Medical Center — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ichilov",
+    "tracks": [
+      "computer_science",
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 1.2
+  },
+  {
+    "name": "Logz.io Careers Israel",
+    "kind": "lever",
+    "identifier": "logz",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive – New Business",
+        "location": "Tel Aviv",
+        "url": "https://jobs.lever.co/logz/8a9fff99-5cf3-48ac-95d5-918edb608184/apply",
+        "description_length": 2644
+      },
+      {
+        "title": "Account Manager – New & Existing Business",
+        "location": "Tel Aviv",
+        "url": "https://jobs.lever.co/logz/ce7b220a-b27a-4b75-94fd-263e7ea2b1ed/apply",
+        "description_length": 2145
+      }
+    ],
+    "total": 2,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.9
+  },
+  {
+    "name": "Tonkean Careers Israel",
+    "kind": "lever",
+    "identifier": "tonkean",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Senior DevOps Engineer",
+        "location": "Tel Aviv",
+        "url": "https://jobs.lever.co/tonkean/5629660a-6c84-4b3f-b820-cc25a1516a39/apply",
+        "description_length": 4558
+      },
+      {
+        "title": "Senior Product Manager",
+        "location": "Tel Aviv",
+        "url": "https://jobs.lever.co/tonkean/2fc80472-de52-49ff-8351-ee12979a1d51/apply",
+        "description_length": 5900
+      }
+    ],
+    "total": 3,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.1
+  },
+  {
+    "name": "WalkMe Careers Israel",
+    "kind": "lever",
+    "identifier": "walkme",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Stockholm",
+        "url": "https://jobs.lever.co/walkme/0808b2c0-80f7-478b-9067-812416ac0634/apply",
+        "description_length": 4455
+      },
+      {
+        "title": "Asia Partner Business Manager",
+        "location": "Singapore",
+        "url": "https://jobs.lever.co/walkme/d07fc913-e935-4ff7-9095-50b2156f5a52/apply",
+        "description_length": 7812
+      }
+    ],
+    "total": 27,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.4
+  },
+  {
+    "name": "Lendbuzz Careers Israel",
+    "kind": "lever",
+    "identifier": "lendbuzz",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Backend Engineer",
+        "location": "Tel Aviv",
+        "url": "https://jobs.lever.co/lendbuzz/e229a10a-a64c-4e87-a331-227c1b994053/apply",
+        "description_length": 3200
+      },
+      {
+        "title": "Bilingual Dealership Account Manager - Albany, NY",
+        "location": "Albany, NY",
+        "url": "https://jobs.lever.co/lendbuzz/6131af03-c5d8-4045-91d6-0c16d2008a42/apply",
+        "description_length": 4434
+      }
+    ],
+    "total": 62,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.6
+  },
+  {
+    "name": "Augury Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "augury",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI-Native Mobile Engineer - Deployment Platform",
+        "location": "Haifa",
+        "url": "https://www.augury.com/careers/8565892002?gh_jid=8565892002",
+        "description_length": 4839
+      },
+      {
+        "title": "Application Engineer",
+        "location": "US",
+        "url": "https://www.augury.com/careers/8649524002?gh_jid=8649524002",
+        "description_length": 5044
+      }
+    ],
+    "total": 17,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Transmit Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "transmitsecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Data Science & ML-Ops Team Lead",
+        "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+        "url": "https://www.transmitsecurity.com/about/careers/job?gh_jid=8539030002",
+        "description_length": 4439
+      },
+      {
+        "title": "Engineering Team Lead",
+        "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+        "url": "https://www.transmitsecurity.com/about/careers/job?gh_jid=7974762002",
+        "description_length": 2966
+      }
+    ],
+    "total": 12,
+    "israel": 11,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Axonius Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "axonius",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Backend Engineer - São Paulo",
+        "location": "Remote, São Paulo",
+        "url": "https://www.axonius.com/company/careers/open-jobs?gh_jid=7818971003",
+        "description_length": 4180
+      },
+      {
+        "title": "Director, Product Design",
+        "location": "Tel Aviv, Israel ",
+        "url": "https://www.axonius.com/company/careers/open-jobs?gh_jid=7995556003",
+        "description_length": 5134
+      }
+    ],
+    "total": 20,
+    "israel": 9,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Okta Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "okta",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive Auth0",
+        "location": "Madrid, Spain",
+        "url": "https://www.okta.com/company/careers/opportunity/8079108?gh_jid=8079108",
+        "description_length": 5863
+      },
+      {
+        "title": "Account Executive, Auth0",
+        "location": "Tokyo, Japan",
+        "url": "https://www.okta.com/company/careers/opportunity/7439531?gh_jid=7439531",
+        "description_length": 5559
+      }
+    ],
+    "total": 321,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.5
+  },
+  {
+    "name": "Zadara Careers Israel",
+    "kind": "lever",
+    "identifier": "Zadara",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Channel Account Manager",
+        "location": "United Kingdom",
+        "url": "https://jobs.lever.co/Zadara/a84f6097-0b04-48e8-b0d2-4ce88fd2f628/apply",
+        "description_length": 5819
+      },
+      {
+        "title": "Cloud Support Engineer",
+        "location": "Bangalore",
+        "url": "https://jobs.lever.co/Zadara/47a519ee-d580-4c1c-bf46-2b2955ef81a1/apply",
+        "description_length": 7028
+      }
+    ],
+    "total": 8,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.9
+  },
+  {
+    "name": "GitLab Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "gitlab",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI Engineer",
+        "location": "Remote, Bangalore",
+        "url": "https://job-boards.greenhouse.io/gitlab/jobs/8556658002",
+        "description_length": 10894
+      },
+      {
+        "title": "AI Transformation Owner, CRO",
+        "location": "Remote, United States",
+        "url": "https://job-boards.greenhouse.io/gitlab/jobs/8638232002",
+        "description_length": 7958
+      }
+    ],
+    "total": 222,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.5
+  },
+  {
+    "name": "ControlUp Careers Israel",
+    "kind": "lever",
+    "identifier": "controlup",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Commercial Account Executive – US West",
+        "location": "USA",
+        "url": "https://jobs.lever.co/controlup/59b39087-15e5-4ea5-ba36-e68e10863053/apply",
+        "description_length": 3210
+      },
+      {
+        "title": "DACH Enterprise Customer Success Manager",
+        "location": "Germany",
+        "url": "https://jobs.lever.co/controlup/7824a46c-6523-47cf-9618-7ec62d9ec9d4/apply",
+        "description_length": 6584
+      }
+    ],
+    "total": 11,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.1
+  },
+  {
+    "name": "Elastic Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "elastic",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "ABM Manager, Global Public Sector",
+        "location": "United States",
+        "url": "https://jobs.elastic.co/jobs?gh_jid=8148720&gh_jid=8148720",
+        "description_length": 10764
+      },
+      {
+        "title": "ABM Regional Manager, AMER",
+        "location": "United States",
+        "url": "https://jobs.elastic.co/jobs?gh_jid=8148724&gh_jid=8148724",
+        "description_length": 9519
+      }
+    ],
+    "total": 359,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.4
+  },
+  {
+    "name": "MongoDB Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "mongodb",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Development Representative",
+        "location": "Dublin, Ireland",
+        "url": "https://www.mongodb.com/careers/job/?gh_jid=8081378",
+        "description_length": 4513
+      },
+      {
+        "title": "Account Development Representative",
+        "location": "Dublin",
+        "url": "https://www.mongodb.com/careers/job/?gh_jid=8072094",
+        "description_length": 4296
+      }
+    ],
+    "total": 409,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.5
+  },
+  {
+    "name": "Datadog Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "datadog",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "AI Research Engineer - Datadog AI Research (DAIR)",
+        "location": "Paris, France",
+        "url": "https://careers.datadoghq.com/detail/7194969/?gh_jid=7194969",
+        "description_length": 7746
+      },
+      {
+        "title": "AI Research Scientist - Datadog AI Research (DAIR)",
+        "location": "Paris, France",
+        "url": "https://careers.datadoghq.com/detail/6652564/?gh_jid=6652564",
+        "description_length": 7210
+      }
+    ],
+    "total": 450,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.1
+  },
+  {
+    "name": "Stripe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "stripe",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Abuse Investigator",
+        "location": "Dublin",
+        "url": "https://stripe.com/jobs/search?gh_jid=8172508",
+        "description_length": 4565
+      },
+      {
+        "title": "Abuse Investigator",
+        "location": "Seattle, San Francisco, New York City",
+        "url": "https://stripe.com/jobs/search?gh_jid=8172510",
+        "description_length": 4567
+      }
+    ],
+    "total": 646,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.5
+  },
+  {
+    "name": "Rubrik Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "rubrik",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, Named - Germany",
+        "location": "Germany, Remote",
+        "url": "https://www.rubrik.com/company/careers/departments/job.8071013?gh_jid=8071013",
+        "description_length": 6327
+      },
+      {
+        "title": "Account Executive, NAS Product Specialist",
+        "location": "California",
+        "url": "https://www.rubrik.com/company/careers/departments/job.8202815?gh_jid=8202815",
+        "description_length": 7064
+      }
+    ],
+    "total": 140,
+    "israel": 3,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.7
+  },
+  {
+    "name": "JFrog Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "jfrog",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Taipei, Taiwan",
+        "url": "https://join.jfrog.com/job/?job=7480202&gh_jid=7480202",
+        "description_length": 4385
+      },
+      {
+        "title": "AI Solutions Specialist ",
+        "location": "Tel Aviv/ Netanya, Israel",
+        "url": "https://join.jfrog.com/job/?job=8138480&gh_jid=8138480",
+        "description_length": 4810
+      }
+    ],
+    "total": 58,
+    "israel": 21,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.9
+  },
+  {
+    "name": "Palantir Careers Israel",
+    "kind": "lever",
+    "identifier": "palantir",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Administrative Business Partner",
+        "location": "London, United Kingdom",
+        "url": "https://jobs.lever.co/palantir/ac978161-6f46-4f6b-ad9e-a258e642751c/apply",
+        "description_length": 4485
+      },
+      {
+        "title": "Administrative Business Partner - ShipOS",
+        "location": "Washington, D.C.",
+        "url": "https://jobs.lever.co/palantir/a237973c-cb29-41fe-9c80-416e6f42e087/apply",
+        "description_length": 7997
+      }
+    ],
+    "total": 316,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 12.7
+  },
+  {
+    "name": "Zscaler Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "zscaler",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive",
+        "location": "Remote - Canberra, Australia",
+        "url": "https://job-boards.greenhouse.io/zscaler/jobs/5198260007",
+        "description_length": 6361
+      },
+      {
+        "title": "Account Executive - Commercial",
+        "location": "Tokyo, JPN",
+        "url": "https://job-boards.greenhouse.io/zscaler/jobs/5156026007",
+        "description_length": 4523
+      }
+    ],
+    "total": 367,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.5
+  },
+  {
+    "name": "Lightricks Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "lightricks",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "B2B Demand Generation Manager",
+        "location": "Jerusalem",
+        "url": "https://careers.lightricks.com/position?gh_jid=8764275002&gh_jid=8764275002",
+        "description_length": 3612
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.5
+  },
+  {
+    "name": "Yotpo Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "yotpo",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Customer Success Manager (Ocean) ",
+        "location": "New York; Toronto",
+        "url": "https://www.yotpo.com/careers/gid-8054158?gh_jid=8054158",
+        "description_length": 4665
+      },
+      {
+        "title": "Director of Data",
+        "location": "Tel Aviv",
+        "url": "https://www.yotpo.com/careers/gid-8143530?gh_jid=8143530",
+        "description_length": 4937
+      }
+    ],
+    "total": 16,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 2.4
+  },
+  {
+    "name": "Fireblocks Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "fireblocks",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Associate General Counsel, Crypto Services",
+        "location": "Washington, District of Columbia, United States",
+        "url": "https://www.fireblocks.com/careers/position?gh_jid=4658959006",
+        "description_length": 4386
+      },
+      {
+        "title": "Associate General Counsel, Crypto Services",
+        "location": "United States",
+        "url": "https://www.fireblocks.com/careers/position?gh_jid=4686667006",
+        "description_length": 4386
+      }
+    ],
+    "total": 71,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.5
+  },
+  {
+    "name": "BigID Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "bigid",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "DevOps Engineer",
+        "location": "Argentina",
+        "url": "https://bigid.com/company/careers/job-details/8622173002?gh_jid=8622173002",
+        "description_length": 4380
+      },
+      {
+        "title": "Professional Services Engineer ",
+        "location": "Remote- USA East Coast",
+        "url": "https://bigid.com/company/careers/job-details/8633794002?gh_jid=8633794002",
+        "description_length": 6032
+      }
+    ],
+    "total": 7,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Salt Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "saltsecurity",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Channel Account Manager ",
+        "location": "New York",
+        "url": "https://salt.security/job-board?gh_jid=5179538007",
+        "description_length": 4994
+      },
+      {
+        "title": "Channel Account Manager – Central ",
+        "location": "Central",
+        "url": "https://salt.security/job-board?gh_jid=5197628007",
+        "description_length": 4644
+      }
+    ],
+    "total": 13,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Cloudinary Careers Israel",
+    "kind": "lever",
+    "identifier": "cloudinary",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Product Operations Lead",
+        "location": "Israel",
+        "url": "https://jobs.lever.co/cloudinary/7f3812ca-d4c6-4d7f-acb0-9206c2984a64/apply",
+        "description_length": 4326
+      },
+      {
+        "title": "Senior AI Solutions Builder",
+        "location": "Israel",
+        "url": "https://jobs.lever.co/cloudinary/eeb8770a-82a9-494b-a486-2c6e37226551/apply",
+        "description_length": 2876
+      }
+    ],
+    "total": 10,
+    "israel": 6,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.6
+  },
+  {
+    "name": "Payoneer Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "payoneer",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Engagement Manager",
+        "location": "Mexico City, Mexico",
+        "url": "https://www.payoneer.com/careers/position/8000355/?gh_jid=8000355",
+        "description_length": 7237
+      },
+      {
+        "title": "Account Engagement Specialist",
+        "location": "Remote, Poland",
+        "url": "https://www.payoneer.com/careers/position/8101791/?gh_jid=8101791",
+        "description_length": 4084
+      }
+    ],
+    "total": 118,
+    "israel": 24,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.0
+  },
+  {
+    "name": "Optimove Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "optimove",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive ",
+        "location": "New York",
+        "url": "https://job-boards.eu.greenhouse.io/optimove/jobs/4938958101",
+        "description_length": 2945
+      },
+      {
+        "title": "CRM Associate",
+        "location": "Brazil",
+        "url": "https://job-boards.eu.greenhouse.io/optimove/jobs/4944816101",
+        "description_length": 2979
+      }
+    ],
+    "total": 16,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Grip Security Careers Israel",
+    "kind": "official_careers",
+    "identifier": "grip-security",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "R&D Team Lead",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/grip/A8.001/rd-team-lead/2B.E5C",
+        "description_length": 882
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 4.4
+  },
+  {
+    "name": "Reco Careers Israel",
+    "kind": "official_careers",
+    "identifier": "reco",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Corporate Controller",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/reco/3A.00D/corporate-controller/BD.177",
+        "description_length": 45
+      },
+      {
+        "title": "Product Marketing Manager",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.comeet.com/jobs/reco/3A.00D/product-marketing-manager/17.075",
+        "description_length": 52
+      }
+    ],
+    "total": 11,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.0
+  },
+  {
+    "name": "Axon — Program & R&D Operations Israel",
+    "kind": "greenhouse",
+    "identifier": "axon",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Executive, Air T1200",
+        "location": "Florida-Remote",
+        "url": "https://job-boards.greenhouse.io/axon/jobs/7821988003",
+        "description_length": 7769
+      },
+      {
+        "title": "Account Executive, Air T1200",
+        "location": "North Carolina",
+        "url": "https://job-boards.greenhouse.io/axon/jobs/7821990003",
+        "description_length": 7769
+      }
+    ],
+    "total": 531,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.5
+  },
+  {
+    "name": "Wolt — Supply Chain & Operations Israel",
+    "kind": "greenhouse",
+    "identifier": "wolt",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Account Development Specialist",
+        "location": "Almaty, Kazakhstan",
+        "url": "https://job-boards.greenhouse.io/wolt/jobs/8124483",
+        "description_length": 5750
+      },
+      {
+        "title": "Account Development Specialist",
+        "location": "Shymkent, Kazakhstan",
+        "url": "https://job-boards.greenhouse.io/wolt/jobs/8069351",
+        "description_length": 5949
+      }
+    ],
+    "total": 241,
+    "israel": 10,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.4
+  },
+  {
+    "name": "Ashley Digital — BI & Data Solutions Israel",
+    "kind": "greenhouse",
+    "identifier": "residenthome",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Amazon Advertising Manager",
+        "location": "Remote (USA)",
+        "url": "https://job-boards.greenhouse.io/residenthome/jobs/6011770004",
+        "description_length": 7207
+      },
+      {
+        "title": "Customer Success Workforce Planning Manager",
+        "location": "Remote (USA)",
+        "url": "https://job-boards.greenhouse.io/residenthome/jobs/6144459004",
+        "description_length": 9715
+      }
+    ],
+    "total": 15,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.4
+  },
+  {
+    "name": "Tefen — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "tefen",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.0
+  },
+  {
+    "name": "Niram Gitan — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "niram-gitan",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.0
+  },
+  {
+    "name": "KLA Israel — Operations",
+    "kind": "workday",
+    "identifier": "kla-israel",
+    "tracks": [
+      "industrial_engineering",
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Regional Trade Compliance Program Manager",
+        "location": "Yavne, Israel",
+        "url": "https://kla.wd1.myworkdayjobs.com/Israel/job/Yavne-Israel/Regional-Trade-Compliance-Program-Manager_2638257",
+        "description_length": 8425
+      },
+      {
+        "title": "Optical Practical Engineer",
+        "location": "Yavne, Israel",
+        "url": "https://kla.wd1.myworkdayjobs.com/Israel/job/Yavne-Israel/Optical-Integration-Engineer_2635434",
+        "description_length": 3275
+      }
+    ],
+    "total": 40,
+    "israel": 40,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 7.1
+  },
+  {
+    "name": "Valens Semiconductor — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "valens",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Customer Program Manager (CPM) Valens HQ, Hod Hasharon, Israel R&D Full Time",
+        "location": "Hod Hasharon, Israel",
+        "url": "https://www.valens.com/position/customer-program-manager/",
+        "description_length": 123
+      },
+      {
+        "title": "RT Embedded SW Engineer Valens HQ, Hod Hasharon, Israel R&D Full Time",
+        "location": "Hod Hasharon, Israel",
+        "url": "https://www.valens.com/position/embedded-sw-engineer/",
+        "description_length": 69
+      }
+    ],
+    "total": 4,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Medtronic Israel — Operations",
+    "kind": "workday",
+    "identifier": "medtronic",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Israel Country Director EA & IHS Leader",
+        "location": "Herzliya, Tel Aviv, Israel",
+        "url": "https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers/job/Herzliya-Tel-Aviv-Israel/Director-Enterprise-Accounts---Integrated-Health-Solutions--Israel_R66249-1",
+        "description_length": 6513
+      },
+      {
+        "title": "Senior Procurement Specialist / Strategic Buyer",
+        "location": "Jerusalem, Jerusalem, Israel",
+        "url": "https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers/job/Jerusalem-Jerusalem-Israel/Senior-Strategic-Sourcing-Specialist_R71825-1",
+        "description_length": 4784
+      }
+    ],
+    "total": 22,
+    "israel": 22,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 7.5
+  },
+  {
+    "name": "Fridenson — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "friedenson",
+    "tracks": [
+      "industrial_engineering"
+    ],
+    "samples": [
+      {
+        "title": "נהגות נהגים/ות - לכל הארץ",
+        "location": "Israel",
+        "url": "https://fridenson.co.il/careers-new/1534/",
+        "description_length": 25
+      },
+      {
+        "title": "קריירה",
+        "location": "Ashdod, Israel",
+        "url": "https://fridenson.co.il/careers/",
+        "description_length": 629
+      }
+    ],
+    "total": 2,
+    "israel": 2,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 1.7
+  },
+  {
+    "name": "NextSilicon — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "nextsilicon",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Emulation Engineer",
+        "location": "Israel",
+        "url": "https://www.nextsilicon.com/careers/emulation-engineer/",
+        "description_length": 3466
+      },
+      {
+        "title": "Hardware Technical Program Manager",
+        "location": "Israel",
+        "url": "https://www.nextsilicon.com/careers/hardware-technical-program-manager/",
+        "description_length": 4114
+      }
+    ],
+    "total": 11,
+    "israel": 6,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.5
+  },
+  {
+    "name": "Retym — Semiconductor Israel",
+    "kind": "official_careers",
+    "identifier": "retym",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "",
+        "url": "https://retym.com/careers-2/",
+        "description_length": 56
+      },
+      {
+        "title": "Senior BackEnd (Physical design) Engineer Other  ·  Full-time  ·  Intermediate",
+        "location": "",
+        "url": "https://retym.com/careers-2/co/armenia/6F.E5C/senior-backend-physical-design-engineer/all",
+        "description_length": 74
+      }
+    ],
+    "total": 5,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 3.2
+  },
+  {
+    "name": "Hailo — AI Silicon Israel",
+    "kind": "official_careers",
+    "identifier": "hailo",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "",
+        "url": "https://hailo.ai/company-overview/careers/",
+        "description_length": 1402
+      },
+      {
+        "title": "Hailo has amazing openings!",
+        "location": "Tel Aviv, Israel",
+        "url": "https://hailo.ai/company-overview/careers/hailo-has-amazing-openings/07.432/",
+        "description_length": 675
+      }
+    ],
+    "total": 2,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 3.1
+  },
+  {
+    "name": "SCD — SemiConductor Devices",
+    "kind": "official_careers",
+    "identifier": "scd",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Search career",
+        "location": "",
+        "url": "https://scdusa-ir.com/find-a-job/",
+        "description_length": 1233
+      },
+      {
+        "title": "Engineering",
+        "location": "",
+        "url": "https://scdusa-ir.com/find-a-job/engineering/",
+        "description_length": 13
+      }
+    ],
+    "total": 9,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.1
+  },
+  {
+    "name": "Chain Reaction — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "chain-reaction",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "Israel",
+        "url": "https://chain-reaction.io/careers/",
+        "description_length": 5149
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.6
+  },
+  {
+    "name": "Pliops — Storage Silicon Israel",
+    "kind": "official_careers",
+    "identifier": "pliops",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 1.8
+  },
+  {
+    "name": "Flex — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "flex-israel",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "EN",
+        "location": "",
+        "url": "https://flex.com/careers/israel-en",
+        "description_length": 2
+      },
+      {
+        "title": "DE",
+        "location": "",
+        "url": "https://flex.com/de/careers/israel-en/",
+        "description_length": 2
+      }
+    ],
+    "total": 3,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.5
+  },
+  {
+    "name": "Siemens EDA — Israel",
+    "kind": "official_careers",
+    "identifier": "siemens-eda",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "How to apply Learn about our application process, our guidelines for the use of AI in applications, and get access to useful tips that can guide you through the various steps.",
+        "location": "",
+        "url": "https://www.siemens.com/en-us/company/jobs/how-to-apply/",
+        "description_length": 175
+      },
+      {
+        "title": "Siemens Graduate Program In an international 2-year entry-level program with three assignments you build up in-depth knowledge and experience.",
+        "location": "",
+        "url": "https://www.siemens.com/en-us/company/jobs/growth-careers/siemens-graduate-program/",
+        "description_length": 477
+      }
+    ],
+    "total": 6,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.7
+  },
+  {
+    "name": "Marvell — Israel",
+    "kind": "official_careers",
+    "identifier": "marvell",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Recruitment Fraud Protection.html",
+        "location": "",
+        "url": "https://www.marvell.com/company/careers/recruitment-fraud-protection.html",
+        "description_length": 53
+      },
+      {
+        "title": "What Makes Marvell.html",
+        "location": "",
+        "url": "https://www.marvell.com/company/careers/what-makes-marvell.html",
+        "description_length": 0
+      }
+    ],
+    "total": 11,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "quality_error",
+    "error": "Unreliable source data: Marvell — Israel returned no usable job description for 6/11 jobs",
+    "seconds": 1.2
+  },
+  {
+    "name": "Cadence Design Systems — Israel",
+    "kind": "official_careers",
+    "identifier": "cadence",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Lead Software Engineer - Low-Power Verification",
+        "location": "",
+        "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/SAN-JOSE/Lead-Software-Engineer---Low-Power-Verification_R56209",
+        "description_length": 96
+      },
+      {
+        "title": "Principal Product Engineer – Virtuoso Backend Flows",
+        "location": "",
+        "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/SAN-JOSE/Principal-Product-Engineer---Virtuoso-Backend-Flows_R55970",
+        "description_length": 100
+      }
+    ],
+    "total": 15,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 4.0
+  },
+  {
+    "name": "Synopsys — Israel",
+    "kind": "official_careers",
+    "identifier": "synopsys-israel",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "SerDes IP's Applications Engineering, Principal Engineer Raanana, Israel Category: Engineering Posted: 09/14/2026 Job ID: 18823",
+        "location": "Ra'anana, Israel",
+        "url": "https://careers.synopsys.com/job/raanana/serdes-ip-s-applications-engineering-principal-engineer/44408/100672041376",
+        "description_length": 132
+      },
+      {
+        "title": "SerDes IP's Applications Engineering, Architect Engineer Raanana, Israel Category: Engineering Posted: 09/14/2026 Job ID: 18822",
+        "location": "Ra'anana, Israel",
+        "url": "https://careers.synopsys.com/job/raanana/serdes-ip-s-applications-engineering-architect-engineer/44408/100672041360",
+        "description_length": 132
+      }
+    ],
+    "total": 7,
+    "israel": 4,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Arm — Israel",
+    "kind": "official_careers",
+    "identifier": "arm-israel",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Staff GPU Verification Engineer",
+        "location": "Ra'anana, Israel",
+        "url": "https://careers.arm.com/job/raanana/staff-gpu-verification-engineer/33099/92956824784",
+        "description_length": 225
+      },
+      {
+        "title": "Staff AI Research Scientist - Physical AI",
+        "location": "Ra'anana, Israel",
+        "url": "https://careers.arm.com/job/raanana/staff-ai-research-scientist-physical-ai/33099/99346417872",
+        "description_length": 75
+      }
+    ],
+    "total": 8,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "DustPhotonics — Israel",
+    "kind": "official_careers",
+    "identifier": "dustphotonics",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers A culture of collaboration and innovation",
+        "location": "",
+        "url": "https://credosemi.com/about-credo/careers/",
+        "description_length": 2602
+      },
+      {
+        "title": "Apply",
+        "location": "",
+        "url": "https://credo.careers.hibob.com/jobs/30939165-510a-404c-98cf-2129961494f9/apply",
+        "description_length": 4711
+      }
+    ],
+    "total": 2,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 2.3
+  },
+  {
+    "name": "Cyera Careers Israel",
+    "kind": "official_careers",
+    "identifier": "cyera",
+    "tracks": [
+      "computer_science"
+    ],
+    "samples": [
+      {
+        "title": "Analyst, DataWatcher - US",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/cyera/17.008/analyst-datawatcher---us/1D.756",
+        "description_length": 45
+      },
+      {
+        "title": "Associate Customer Success Engineer - Commercial",
+        "location": "",
+        "url": "https://www.comeet.com/jobs/cyera/17.008/associate-customer-success-engineer---commercial/C5.F57",
+        "description_length": 68
+      }
+    ],
+    "total": 160,
+    "israel": 27,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 22.5
+  },
+  {
+    "name": "Broadcom — Israel",
+    "kind": "official_careers",
+    "identifier": "broadcom-israel",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Search Jobs",
+        "location": "",
+        "url": "https://broadcom.wd1.myworkdayjobs.com/External_Career",
+        "description_length": 31
+      },
+      {
+        "title": "Teams",
+        "location": "",
+        "url": "https://www.broadcom.com/company/careers/teams",
+        "description_length": 69
+      }
+    ],
+    "total": 5,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "quality_error",
+    "error": "Unreliable source data: Broadcom — Israel returned no usable job description for 3/5 jobs",
+    "seconds": 3.8
+  },
+  {
+    "name": "TriEye — Israel",
+    "kind": "official_careers",
+    "identifier": "trieye",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "",
+        "url": "https://trieye.tech/careers/",
+        "description_length": 202
+      },
+      {
+        "title": "Applied Physics & EO Researcher Tel Aviv  ·  Full-time",
+        "location": "Tel Aviv, Israel",
+        "url": "https://trieye.tech/careers/co/tel-aviv/60.867/applied-physics-eo-researcher/all",
+        "description_length": 52
+      }
+    ],
+    "total": 2,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Texas Instruments — Israel",
+    "kind": "official_careers",
+    "identifier": "texas-instruments",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "WiFi Software Development Intern",
+        "location": "Israel",
+        "url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/25007138/?location=Israel",
+        "description_length": 62
+      },
+      {
+        "title": "Field Applications Program",
+        "location": "Ra'anana, Israel",
+        "url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/240003XX/?location=Israel",
+        "description_length": 66
+      }
+    ],
+    "total": 5,
+    "israel": 5,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 7.1
+  },
+  {
+    "name": "proteanTecs — Israel",
+    "kind": "official_careers",
+    "identifier": "proteantecs",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "C++ Senior Software Engineer",
+        "location": "Tel Aviv, Israel",
+        "url": "https://www.proteantecs.com/careerinfo?pi=C0.662",
+        "description_length": 62
+      },
+      {
+        "title": "Circuit Design Engineer",
+        "location": "Haifa, Israel",
+        "url": "https://www.proteantecs.com/careerinfo?pi=FB.D6C",
+        "description_length": 49
+      }
+    ],
+    "total": 15,
+    "israel": 15,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.1
+  },
+  {
+    "name": "Speedata — Israel",
+    "kind": "official_careers",
+    "identifier": "speedata",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Senior Software Engineer – Spark",
+        "location": "Israel",
+        "url": "https://www.speedata.io/careers/senior-software-engineer-%E2%80%93-spark",
+        "description_length": 58
+      },
+      {
+        "title": "Algorithm Engineer",
+        "location": "Israel",
+        "url": "https://www.speedata.io/careers/algorithm-engineer",
+        "description_length": 44
+      }
+    ],
+    "total": 7,
+    "israel": 7,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.3
+  },
+  {
+    "name": "Camtek — Israel",
+    "kind": "official_careers",
+    "identifier": "camtek",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "AI SW Infrastructure Engineer",
+        "location": "Migdal Haemek, Israel",
+        "url": "https://www.camtek.com/careers/open-positions/CD.658/",
+        "description_length": 59
+      },
+      {
+        "title": "Application Development Engineer",
+        "location": "Migdal Haemek, Israel",
+        "url": "https://www.camtek.com/careers/open-positions/18.E44/",
+        "description_length": 68
+      }
+    ],
+    "total": 11,
+    "israel": 11,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.2
+  },
+  {
+    "name": "Nova — Israel",
+    "kind": "official_careers",
+    "identifier": "nova",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Careers",
+        "location": "Israel",
+        "url": "https://www.novami.com/careers/working-at-nova/",
+        "description_length": 6967
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 0.6
+  },
+  {
+    "name": "Wiliot — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "wiliot",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Api.js",
+        "location": "",
+        "url": "https://www.comeet.co/careers-api/api.js",
+        "description_length": 0
+      }
+    ],
+    "total": 1,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 3.2
+  },
+  {
+    "name": "Vayyar Imaging — Israel",
+    "kind": "official_careers",
+    "identifier": "vayyar",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "status": "error",
+    "error": "PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; preserving the last successful snapshot",
+    "seconds": 3.1
+  },
+  {
+    "name": "Western Digital Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "WesternDigital",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 0.2
+  },
+  {
+    "name": "Innoviz — Israel",
+    "kind": "official_careers",
+    "identifier": "innoviz",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [
+      {
+        "title": "Director of Sales & Business Development - EU Defense & Security",
+        "location": "Israel",
+        "url": "https://innoviz.tech/careers-3/co/israel/CF.E6E/director-of-sales-business-development-eu-defense-security/all",
+        "description_length": 83
+      }
+    ],
+    "total": 1,
+    "israel": 1,
+    "missing_description": 0,
+    "status": "ok",
+    "seconds": 5.7
+  },
+  {
+    "name": "NeuroBlade — Israel",
+    "kind": "official_careers",
+    "identifier": "neuroblade",
+    "tracks": [
+      "electrical_engineering"
+    ],
+    "samples": [],
+    "total": 0,
+    "israel": 0,
+    "missing_description": 0,
+    "status": "empty_israel",
+    "seconds": 6.1
+  }
+]

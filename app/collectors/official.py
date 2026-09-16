@@ -12,8 +12,9 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
-from .base import NormalizedJob, PreserveExistingJobs
+from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from ..services.job_text import clean_job_text, job_text_quality
+from ..services.source_quality import is_navigation_title
 from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
 
 
@@ -37,7 +38,7 @@ def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
         "network_title_keys": ("name", "title", "positionTitle", "jobTitle"),
         "network_location_keys": ("location", "locations", "city"),
         "network_description_keys": (
-            "details", "department", "employment_type", "experience_level", "workplace_type",
+            "details", "custom_fields", "department", "employment_type", "experience_level", "workplace_type",
         ),
         "network_url_keys": (
             "url_comeet_hosted_page", "url_recruit_hosted_page", "url_active_page",
@@ -49,10 +50,11 @@ PRESETS = {
     # Electrical-engineering expansion. These presets intentionally use each
     # employer's own careers surface; the track filter later keeps Israel/EE roles.
     "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
-    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
+    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
     "retym": {"url": "https://retym.com/careers-2/", "selector": 'a[href*="/careers-2/"]', "id_pattern": r"/careers-2/(?:co/)?([^/?#]+)/?", "company": "Retym", "prefer_link_text": True, "http_first": True},
     "hailo": {"url": "https://hailo.ai/company-overview/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Hailo", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "static_only": True, "allow_empty": True, "allow_no_links": True},
+    "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "static_only": True, "allow_empty": True,
+        "preserve_on_empty": True, "allow_no_links": True},
     "chain-reaction": {"url": "https://chain-reaction.io/careers/", "selector": 'a[href*="/careers"]', "id_pattern": r"/careers(?:-2)?/(?:co/)?([^/?#]+)", "company": "Chain Reaction", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "scd": {"url": "https://scdusa-ir.com/find-a-job/", "selector": 'a[href*="job"], a[href*="position"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SCD - SemiConductor Devices", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "cadence": {"url": "https://cadence.wd1.myworkdayjobs.com/External_Careers", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Za-z]\d+)$", "company": "Cadence Design Systems", "prefer_link_text": True, "selector_timeout_ms": 18000},
@@ -65,13 +67,14 @@ PRESETS = {
     "arm-israel": {"url": "https://careers.arm.com/location/israel-jobs/33099/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Arm", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "dustphotonics": {"url": "https://www.dustphotonics.com/careers/", "selector": 'a[href*="career"], a[href*="job"], a[href*="position"]', "id_pattern": r"(?:careers?|jobs?|positions?)[^/?#]*/([^/?#]+)", "company": "DustPhotonics", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True, "preserve_on_empty": True},
-    "arbe": {"url": "https://arberobotics.com/career/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 30, "preserve_on_empty": True},
+    "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True,
+        "preserve_on_empty": True},
+    "arbe": {"url": "https://arberobotics.com/career/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 30, "preserve_on_empty": True},
     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "proteantecs": {"url": "https://www.proteantecs.com/careers", "data_url": "https://www.comeet.co/careers-api/2.0/company/D5.00E/positions?token=5DE23340029121D562912029122334&details=false", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "href_template": "https://www.proteantecs.com/careerinfo?pi={id}", "network_id_keys": ("uid", "pi", "positionId", "position_id", "jobId", "job_id", "id"), "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}", "network_title_keys": ("title", "name", "positionTitle", "jobTitle"), "network_description_keys": ("department", "employment_type", "experience_level", "workplace_type")},
+    "proteantecs": {"url": "https://www.proteantecs.com/careers", "data_url": "https://www.comeet.co/careers-api/2.0/company/D5.00E/positions?token=5DE23340029121D562912029122334&details=true", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "href_template": "https://www.proteantecs.com/careerinfo?pi={id}", "network_id_keys": ("uid", "pi", "positionId", "position_id", "jobId", "job_id", "id"), "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}", "network_title_keys": ("title", "name", "positionTitle", "jobTitle"), "network_description_keys": ("details", "description", "department", "employment_type", "experience_level", "workplace_type")},
     "innoviz": {"url": "https://innoviz.tech/join-us", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Innoviz", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "camtek": {"url": "https://www.camtek.com/careers/open-positions/", "selector": 'a[href*="/careers/open-positions/"]', "id_pattern": r"/open-positions/([^/?#]+)/?", "company": "Camtek", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 80},
+    "camtek": {"url": "https://www.camtek.com/careers/open-positions/", "selector": 'a[href*="/careers/open-positions/"]', "id_pattern": r"/open-positions/([^/?#]+)/?", "company": "Camtek", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
     "nova": {"url": "https://www.novami.com/career", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Nova Measuring Instruments", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "neuroblade": {"url": "https://www.neuroblade.com/careers/", "selector": 'a[href*="gh_jid="], a[href*="/careers/"]', "id_pattern": r"(?:gh_jid=|/careers/)(\d+)", "company": "NeuroBlade", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "apple": {
@@ -96,10 +99,11 @@ PRESETS = {
     "mobileye": {"url": "https://careers.mobileye.com/jobs", "selector": 'a[href*="/jobs/"]', "id_pattern": r"/jobs/[^/]+/([^/?#]+)", "company": "Mobileye", "title_from_slug": True, "title_path_offset": -2, "hydrate_details": True, "max_detail_jobs": 180},
     "checkpoint": {"url": "https://careers.checkpoint.com/index.php?a=search&fa%5B%5D=country_ss%3AIsrael&module=cpcareers&q=&sort=", "selector": 'a[href*="joborderid"], a[href*="a=show"], [onclick*="joborderid"]', "id_pattern": r"(?i)joborderid(?:=|%3D|[\"']?\s*:\s*[\"']?)(\d+)", "company": "Check Point", "http_first": True, "href_template": "https://careers.checkpoint.com/index.php?a=show&joborderid={id}&m=cpcareers", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80, "capture_network": True, "text_id_pattern": r"(?i)Job\s*(?:ID|Id)\s*:\s*(\d+)", "sitemap_candidates": ("https://careers.checkpoint.com/sitemap.xml", "https://www.checkpoint.com/sitemap/"), "preserve_on_empty": True},
     "paloalto": {"url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/[^/]+/[^/]+/(\d+)", "company": "Palo Alto Networks", "hydrate_details": True, "max_detail_jobs": 120, "validate_detail_redirects": True, "detail_title_selector": ".section30__job-title", "detail_body_selector": ".section30__job-description"},
-    "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 120},
+    "wix": {"url": "https://careers.wix.com/location/tel-aviv/positions", "selector": 'a[href*="/position/"], a[href*="/positions/"]', "id_pattern": r"/(?:position|positions)/([^/?#\s]+)", "company": "Wix", "load_more_text": "Load More Positions", "settle_ms": 3500, "selector_timeout_ms": 20000, "hydrate_details": True, "max_detail_jobs": 120},
     "monday": {"url": "https://monday.com/careers", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)(?:/|$)", "company": "monday.com", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80, "location_from_detail_header": True},
     "cisco": {"url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/[^/]+/([^/?#]+)", "company": "Cisco", "hydrate_details": True, "max_detail_jobs": 120},
-    "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
+    "ibm": {"url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel", "selector": 'a[href*="/careers/"][href*="job"]', "id_pattern": r"(?:job|jobs)[^A-Za-z0-9]+([A-Za-z0-9_-]{5,})", "company": "IBM", "allow_empty": True,
+        "preserve_on_empty": True, "empty_markers": ("0 of 0 items", "1 – 0 of 0 items", "1 - 0 of 0 items", "0 jobs", "no jobs found", "no results")},
     # Salesforce can expose more than 1,500 global roles. Hydrating 80 detail
     # pages made the Israel source exceed the scanner's 45-second safety budget.
     # Listing cards already contain title/location, so keep hydration bounded.
@@ -110,7 +114,7 @@ PRESETS = {
     "applied-materials": {"url": "https://amat.wd1.myworkdayjobs.com/External", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Z]\d+)$", "company": "Applied Materials"},
     "philips": {"url": "https://www.careers.philips.com/il/en/search-results", "selector": 'a[href*="/il/en/job/"]', "id_pattern": r"/job/(\d+)/", "company": "Philips"},
     "elbit": {"url": "https://elbitsystemscareer.com/jobs/", "data_url": "https://elbitsystemscareer.com/cron/jobs.json", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jid="], [data-href*="/job/"], [data-href*="jid="], [data-url*="/job/"], [data-url*="jid="], [onclick*="jid="]', "id_pattern": r"(?i)(?:/job/(?:[^/?#]+/)?|[?&]jid=/?|[\"']jid[\"']\s*:\s*[\"']?)(\d+)", "company": "Elbit Systems", "prefer_link_text": True, "href_template": "https://elbitsystemscareer.com/job/?jid={id}", "raw_id_fallback": True, "capture_network": True, "sitemap_candidates": ("https://elbitsystemscareer.com/sitemap.xml",), "network_id_keys": ("jid", "jobId", "job_id", "requisitionId", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name"), "network_location_keys": ("location", "locationAddress", "city", "site"), "network_description_keys": ("description", "requirements", "skills")},
-    "rafael": {"url": "https://career.rafael.co.il/search/", "external_fallback_url": "https://www.drushim.co.il/api/company/profile/?companycode=27381&companyname=%D7%A8%D7%A4%D7%90%D7%9C", "external_fallback_kind": "drushim_company", "external_fallback_before_browser": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 18000, "settle_ms": 1800, "challenge_wait_rounds": 8, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "hydrate_missing_title_only": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
+    "rafael": {"url": "https://career.rafael.co.il/search/", "external_fallback_url": "https://www.drushim.co.il/api/company/profile/?companycode=27381&companyname=%D7%A8%D7%A4%D7%90%D7%9C", "external_fallback_kind": "drushim_company", "external_fallback_before_browser": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], a[href*="jobid="], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jobid=|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Rafael", "http_first": True, "selector_timeout_ms": 18000, "settle_ms": 1800, "challenge_wait_rounds": 8, "prefer_link_text": True, "href_template": "https://career.rafael.co.il/job/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 180, "dynamic_scroll": True, "capture_network": True, "text_id_pattern": r"(?:מס(?:פר|['׳])?\s*משרה|job\s*(?:id|number))\s*[:#-]?\s*(\d{4,8})", "sitemap_candidates": ("https://career.rafael.co.il/wp-sitemap.xml", "https://career.rafael.co.il/sitemap_index.xml", "https://career.rafael.co.il/sitemap.xml"), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"\d{3,10}", "network_title_keys": ("title", "jobTitle", "job_title", "name")},
     "iai": {"url": "https://jobs.iai.co.il/jobs/", "data_url": "https://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json", "data_fallback_urls": ("https://r.jina.ai/http://jobs.iai.co.il/wp-content/themes/tyco-wp/assets/json/jobs.json",), "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="/job/"], [data-href*="/job/"], [data-url*="/job/"], [onclick*="/job/"]', "id_pattern": r"(?:/job/(?:[^/?#]+/)?|[?&]jp_job=)([A-Za-z0-9-]+)", "dom_card_fallback": True, "company": "Israel Aerospace Industries", "href_template": "https://jobs.iai.co.il/job/{id}/", "raw_id_fallback": True, "capture_network": True, "text_id_pattern": r"\[(76\d{6})\]", "sitemap_candidates": ("https://jobs.iai.co.il/sitemap.xml",), "network_id_keys": ("jobId", "job_id", "jobNumber", "job_number", "id"), "network_id_pattern": r"76\d{6}", "network_title_keys": ("title", "jobTitle", "job_title", "name", "tl"), "network_location_keys": ("location", "city", "site", "address", "jobLocation", "locationName", "ct"), "network_description_keys": ("description", "jobDescription", "dc", "jc", "tp")},
     "taboola": {"url": "https://www.taboola.com/careers/jobs", "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/([^/?#]+)", "company": "Taboola", "prefer_link_text": True},
     "appsflyer": {"url": "https://careers.appsflyer.com/herzliya/", "selector": 'a[href*="/jobs/position/"], [data-url*="/jobs/position/"], [onclick*="/jobs/position/"]', "id_pattern": r"/jobs/position/(\d+)/?", "company": "AppsFlyer", "http_first": True, "settle_ms": 3500, "selector_timeout_ms": 22000, "prefer_link_text": True, "href_template": "https://careers.appsflyer.com/jobs/position/{id}/", "raw_id_fallback": True, "hydrate_details": True, "max_detail_jobs": 80},
@@ -145,8 +149,8 @@ def _bounded_official_board(url: str, company: str, *, trusted_israel_feed: bool
     """A cheap static-first adapter for smaller official employer boards.
 
     These sources deliberately avoid launching Chromium. If a board changes to a
-    client-only shell, the scan yields no rows instead of consuming minutes of
-    browser time for every career track.
+    client-only shell, preserve the previous snapshot. Candidate links must expose
+    a JobPosting schema before they may be treated as actual vacancies.
     """
     return {
         "url": url,
@@ -157,6 +161,10 @@ def _bounded_official_board(url: str, company: str, *, trusted_israel_feed: bool
         "http_first": True,
         "static_only": True,
         "allow_empty": True,
+        "preserve_on_empty": True,
+        "hydrate_details": True,
+        "max_detail_jobs": 40,
+        "require_job_schema": True,
         "trusted_israel_feed": trusted_israel_feed,
     }
 
@@ -186,7 +194,7 @@ PRESETS.update({
     "ministry-of-defense-il": _bounded_official_board("https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx", "משרד הביטחון", trusted_israel_feed=True),
     "tower-semiconductor": _bounded_official_board("https://towersemi.com/careers/", "Tower Semiconductor"),
     "icl": _bounded_official_board("https://careers.icl-group.com/", "ICL"),
-    "teva": _bounded_official_board("https://careers.teva/", "Teva"),
+    "teva": {"url": "https://www.careers.teva/careers?location=Israel", "company": "Teva", "http_first": True, "static_only": True, "preserve_on_empty": True, "selector": 'a[href*="/careers/job/"]', "id_pattern": r"/careers/job/(\d+)", "embedded_positions": True, "hydrate_details": True, "max_detail_jobs": 40, "detail_api_template": "https://www.careers.teva/api/apply/v2/jobs/{id}?domain=tevapharm.com", "network_id_keys": ("id",), "network_title_keys": ("posting_name", "name"), "network_description_keys": ("job_description",), "network_url_keys": ("canonicalPositionUrl",)},
     "strauss": _bounded_official_board("https://www.strauss-group.com/career/", "Strauss Group", trusted_israel_feed=True),
     "osem-nestle": _bounded_official_board("https://www.osem-nestle.co.il/career", "Osem-Nestle", trusted_israel_feed=True),
     "cocacola-israel": _bounded_official_board("https://careers.cocacola.co.il/", "החברה המרכזית למשקאות", trusted_israel_feed=True),
@@ -202,7 +210,7 @@ PRESETS.update({
     "ness-israel": _bounded_official_board("https://www.ness-tech.co.il/careers", "Ness", trusted_israel_feed=True),
     "matrix-israel": _bounded_official_board("https://www.matrix.co.il/jobs/", "Matrix", trusted_israel_feed=True),
     "malam-team": _bounded_official_board("https://www.malamteam.com/careers/", "Malam Team", trusted_israel_feed=True),
-    "one-technologies": _bounded_official_board("https://www.one1.co.il/careers/", "ONE Technologies", trusted_israel_feed=True),
+    "one-technologies": {**_bounded_official_board("https://www.one1.co.il/careers/", "ONE Technologies", trusted_israel_feed=True), "inline_accordion": True, "id_pattern": r"[?&]share_job_id=(\d+)", "hydrate_details": False, "require_job_schema": False},
     "elad-systems": _bounded_official_board("https://www.eladsoft.com/careers/", "Elad Systems", trusted_israel_feed=True),
     "israel-post": _bounded_official_board("https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/", "Israel Post", trusted_israel_feed=True),
     "ups-israel": _bounded_official_board("https://www.jobs-ups.com/", "UPS"),
@@ -231,6 +239,12 @@ class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        if identifier in {"marvell", "broadcom-israel"}:
+            from .workday import WorkdayCollector
+            jobs = await WorkdayCollector().collect(identifier, company_name)
+            # Keep legacy records until a separate, explicit reconciliation: the
+            # previous generic adapter did not use these stable Workday IDs.
+            return JobCollection(jobs, complete=False)
         preset = PRESETS.get(identifier)
         if not preset:
             raise ValueError(f"Unsupported official careers preset: {identifier}")
@@ -297,6 +311,8 @@ class OfficialCareersCollector:
 
         results: dict[str, NormalizedJob] = {}
         for row in rows:
+            if preset.get("require_job_schema") and not row.get("_verified_job"):
+                continue
             href, match = _resolve_row_href(row, preset)
             if not match:
                 continue
@@ -309,7 +325,7 @@ class OfficialCareersCollector:
                 prefer_link_text=bool(preset.get("prefer_link_text")),
             )
             title = _repair_known_listing_title(identifier, title, text)
-            if not title:
+            if not title or is_navigation_title(title):
                 continue
             if identifier == "wix" and not _row_has_human_title({"title": title}):
                 # Never persist Wix infrastructure IDs (oracle/seat/REF) as titles.
@@ -319,8 +335,9 @@ class OfficialCareersCollector:
             # location is in the compact header, so do not let a later office
             # name turn a US/UK role into an Israeli role.
             location_text = text[:500] if preset.get("location_from_detail_header") else text
-            location = _extract_israel_location(location_text)
-            if not location and preset.get("trusted_israel_feed"):
+            explicit_location = str(row.get("location") or "")
+            location = _extract_israel_location(explicit_location or location_text)
+            if not location and not explicit_location and preset.get("trusted_israel_feed"):
                 location = "Israel"
             results[match.group(1)] = NormalizedJob(
                 external_id=match.group(1), title=title, company=company_name or preset["company"],
@@ -328,11 +345,11 @@ class OfficialCareersCollector:
                 apply_url=href, source_url=href,
             )
         normalized = list(results.values())
-        if not normalized and preset.get("preserve_on_empty"):
+        if not normalized:
             raise PreserveExistingJobs(
                 f"{preset['company']} did not expose a reliable job payload; preserving the last successful snapshot"
             ) from rendered_error
-        return normalized
+        return JobCollection(normalized, complete=False)
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:
@@ -790,7 +807,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
         if isinstance(value, list):
             return clean_job_text("\n".join(rich_text(item) for item in value))
         if isinstance(value, dict):
-            preferred = ("text", "html", "value", "description", "requirements", "content", "label", "name", "title")
+            preferred = ("details", "text", "html", "value", "description", "requirements", "content", "label", "name", "title")
             parts = [rich_text(value[key]) for key in preferred if key in value]
             return clean_job_text("\n".join(part for part in parts if part))
         return ""
@@ -815,6 +832,7 @@ def _extract_structured_job_rows(raw_payload: str, preset: dict) -> list[dict]:
                     "href": href, "onclick": "",
                     "title": title, "linkText": title, "text": clean_job_text("\n".join(text_parts))[:12000],
                     "workplace": scalar(node.get("workplace_type")),
+                    "location": location,
                 })
             for value in node.values():
                 walk(value)
@@ -843,6 +861,23 @@ def _extract_text_id_rows(raw_text: str, preset: dict) -> list[dict]:
     return _dedupe_rows(rows, preset)
 
 
+def _extract_one_job_rows(soup: BeautifulSoup) -> list[dict]:
+    rows = []
+    for card in soup.select("#company-job-opening .accordion_item[data-id]")[:200]:
+        external_id = str(card.get("data-id") or "")
+        heading = card.select_one(".job_title")
+        content = card.select_one(".accordion_content")
+        if not external_id.isdigit() or not heading or not content:
+            continue
+        title = heading.get_text(" ", strip=True)
+        for footer in card.select(".accordion-footer"):
+            footer.decompose()
+        text = clean_job_text(str(card))
+        rows.append({"href": f"https://www.one1.co.il/?share_job_id={external_id}",
+                     "title": title, "linkText": title, "text": text})
+    return rows
+
+
 async def _collect_static_rows(preset: dict) -> list[dict]:
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -852,7 +887,30 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
     async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
         response = await client.get(str(preset["url"]))
         response.raise_for_status()
+    # Comeet embeds complete job objects in the public HTML. Parse JSON data,
+    # never execute the page's JavaScript or reduce it to Angular summary cards.
+    if "comeet.com/jobs/" in str(preset["url"]):
+        match = re.search(r"\bCOMPANY_POSITIONS_DATA\s*=\s*", response.text)
+        if match:
+            try:
+                payload, _ = json.JSONDecoder().raw_decode(response.text[match.end():])
+                structured = _extract_structured_job_rows(json.dumps(payload), preset)
+                if structured:
+                    return [{**row, "_structured_description": True} for row in structured]
+            except (ValueError, TypeError):
+                pass
     soup = BeautifulSoup(response.text, "html.parser")
+    if preset.get("embedded_positions"):
+        data = soup.select_one("#smartApplyData")
+        if not data:
+            return []
+        try:
+            payload = json.loads(data.get_text())
+        except (ValueError, TypeError):
+            return []
+        return _extract_structured_job_rows(json.dumps(payload.get("positions") or []), preset)
+    if preset.get("inline_accordion"):
+        return _extract_one_job_rows(soup)
     candidates = soup.select(str(preset["selector"]))
     if not candidates:
         # Selector drift is common on careers pages. The external-id regex is the
@@ -939,7 +997,10 @@ def _dedupe_rows(rows: list[dict], preset: dict) -> list[dict]:
 
 async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
     """Bind each external ID to its official detail title/location concurrently."""
-    rows = _dedupe_rows(rows, preset)[: int(preset.get("max_detail_jobs", 80))]
+    rows = _dedupe_rows(rows, preset)
+    structured = [row for row in rows if row.get("_structured_description") and job_text_quality(row.get("text")) == "complete"]
+    pending = [row for row in rows if not (row.get("_structured_description") and job_text_quality(row.get("text")) == "complete")]
+    rows = structured + pending[: int(preset.get("max_detail_jobs", 80))]
     semaphore = asyncio.Semaphore(8)
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/150 Safari/537.36",
@@ -950,15 +1011,23 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
             href, match = _resolve_row_href(row, preset)
             if not href or not match:
                 return row
+            if row.get("_structured_description") and job_text_quality(row.get("text")) == "complete":
+                return row
             if preset.get("hydrate_missing_title_only") and _row_has_human_title(row):
                 return row
             try:
                 async with semaphore:
-                    response = await client.get(href)
+                    response = await client.get(
+                        str(preset["detail_api_template"]).format(id=match.group(1))
+                        if preset.get("detail_api_template") else href
+                    )
                 if response.status_code in {404, 410}:
                     return {**row, "_invalid_detail": True}
                 if response.status_code >= 400:
                     return row
+                if preset.get("detail_api_template"):
+                    details = _extract_structured_job_rows(response.text, preset)
+                    return next((detail for detail in details if _resolve_row_href(detail, preset)[0] == href), row)
                 final_href = str(response.url)
                 if preset.get("validate_detail_redirects") and not re.search(
                     str(preset["id_pattern"]), final_href,
@@ -972,6 +1041,9 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
                 body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
+                structured_detail = _job_posting_detail(soup)
+                if structured_detail:
+                    title, text, _ = structured_detail
                 if preset.get("company") == "Apple":
                     text = _apple_embedded_detail_text(response.text) or text
                 canonical = soup.select_one('link[rel="canonical"]')
@@ -986,17 +1058,57 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 hydrated_title = title.strip()
                 title_is_template = "{{" in hydrated_title or "}}" in hydrated_title
                 result = dict(row)
+                result["_verified_job"] = bool(structured_detail)
+                if structured_detail:
+                    result["location"] = structured_detail[2]
                 result.update({
                     "href": hydrated_href if hydrated_match else href,
                     "title": hydrated_title if hydrated_title and not title_is_template else row.get("title") or "",
                     "linkText": hydrated_title if hydrated_title and not title_is_template else row.get("linkText") or "",
-                    "text": text if not title_is_template and job_text_quality(text) == "complete" else row.get("text") or "",
+                    "text": text if not title_is_template and job_text_quality(text) != "missing" and len(text) > len(str(row.get("text") or "")) else row.get("text") or "",
                 })
                 return result
             except Exception:
                 return row
         hydrated = await asyncio.gather(*(one(row) for row in rows))
         return [row for row in hydrated if not row.get("_invalid_detail")]
+
+
+def _job_posting_detail(soup: BeautifulSoup) -> tuple[str, str, str] | None:
+    """Prefer the employer's JobPosting schema over page-wide marketing text."""
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            payload = json.loads(script.get_text())
+        except (ValueError, TypeError):
+            continue
+        nodes = payload if isinstance(payload, list) else [payload]
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            candidates = node.get("@graph", [node])
+            for candidate in candidates if isinstance(candidates, list) else []:
+                if not isinstance(candidate, dict) or candidate.get("@type") != "JobPosting":
+                    continue
+                title = clean_job_text(candidate.get("title"))
+                description = clean_job_text(candidate.get("description"))
+                if not title or not description:
+                    continue
+                locations = candidate.get("jobLocation") or []
+                if isinstance(locations, dict):
+                    locations = [locations]
+                addresses = []
+                for location in locations:
+                    address = location.get("address", {}) if isinstance(location, dict) else {}
+                    if not isinstance(address, dict):
+                        continue
+                    for key in ("addressLocality", "addressRegion", "addressCountry"):
+                        value = address.get(key)
+                        if isinstance(value, dict):
+                            value = value.get("name")
+                        if isinstance(value, str):
+                            addresses.append("Israel" if value.casefold() == "il" else value)
+                return title, "\n".join([title, ", ".join(addresses), description]), ", ".join(addresses)
+    return None
 
 
 def _apple_embedded_detail_text(document: str) -> str:

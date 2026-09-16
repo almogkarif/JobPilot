@@ -99,3 +99,47 @@ should remain well below 1 MB. Ten friends making five explicit attempts per day
 therefore have a conservative ceiling near 0.09 GB/day and about 1.9 GB over a
 21-day active period; the expected case is far lower. Check the actual daily slope
 before increasing either the user count or these limits.
+
+## Guided-review QA repair — September 2026
+
+The live-view fix adds no database queries or projected columns. It keeps the
+existing maximum of 45 status requests at two-second intervals (90 seconds) per
+explicit opening, and stops immediately when the popup is closed. Blocked popups
+start neither a worker nor polling. At a conservative 2 KB HTTP response, this is
+at most 90 KB per opening, 0.9 MB/day for ten openings, or 27 MB/30 days. Database
+traffic does not increase: the existing three-column live-view projection is
+unchanged. Dashboard/tracking refreshes are unchanged; no extra queue read is
+introduced. `test_guided_review_stops_polling_when_popup_closes_without_extra_queue_reads`
+protects these limits, with browser regressions covering cancellation and errors.
+
+## Source integrity repair — September 2026
+
+Completeness is carried in the in-memory collector response. Reconciliation adds
+no database reads, and still uses the existing description-free job projection.
+The last verified scan timestamp and scan state reuse Source.metadata_json (less
+than 128 additional bytes per source); no new query, startup repair or backfill is
+introduced. With 189 sources and one scan per hour, the added read projection is
+at most 24 KB/hour, 0.58 MB/day, 17.5 MB/30 days. Employer detail downloads retain
+existing per-board caps (30–180) and concurrency of eight, use no Supabase Storage,
+and remain subject to the scanner deadline. The catalog egress regression runs
+against both complete and incomplete collector responses. Result-report attempt
+validation reuses its existing one-row query and adds no database calls.
+
+Generic official boards now verify candidate links using JobPosting data. This
+replaces the former no-hydration assumption: at most 40 HTTP detail requests per
+board, eight concurrent, inside the existing scan deadline; no Chromium fallback.
+The loose whole-catalog ceiling (189 boards, even though not all are generic) is
+7,560 employer requests/hour or 181,440/day. These are employer traffic, not
+Supabase egress; actual counts are limited by candidates and active track. The
+updated expansion regression enforces both the 40-request cap and structured job
+evidence. Queue/health reads additionally defer Job.description, reducing their
+existing egress without adding queries. No deployment or bulk production scan was
+performed; existing admin queue row counts still require a separate pagination
+budget before increasing usage.
+
+The dedicated ONE parser reads at most 200 inline cards from one employer page.
+Teva hydrates at most 40 public details from its initial page. Each of the two new
+Workday routes (Marvell/Broadcom) performs at most one 20-row facet discovery,
+five 20-row listing calls, and 100 detail calls: 212 total employer requests/hour
+for both routes at hourly scheduling, or 5,088/day. None of these accesses
+Supabase. No full-catalog database maintenance or additional UI polling was added.

@@ -4,7 +4,7 @@ import re
 
 from playwright.async_api import async_playwright
 
-from .base import NormalizedJob
+from .base import JobCollection, NormalizedJob
 
 
 class GoogleCareersCollector:
@@ -59,4 +59,4 @@ class GoogleCareersCollector:
                 apply_url=href,
                 source_url=href,
             ))
-        return jobs
+        return JobCollection(jobs, complete=False)

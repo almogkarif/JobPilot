@@ -546,7 +546,9 @@ def test_small_choice_blocker_is_yellow_and_uses_clickable_options_everywhere(br
           apply_url:`https://boards.greenhouse.io/choice/jobs/${unique}`
         })
       })).json();
-      const application=await (await fetch(`/api/jobs/${job.id}/mark-submitted`,{method:'POST'})).json();
+      const application=await (await fetch(`/api/jobs/${job.id}/queue`,{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'review'})
+      })).json();
       const blocker=await (await fetch(`/api/agent/tasks/${application.id}/blocked`,{
         method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           token:'change-me',kind:'choice_required',field_label:'Family employment',
@@ -579,6 +581,10 @@ def test_small_choice_blocker_is_yellow_and_uses_clickable_options_everywhere(br
 
 def test_all_main_views_load_without_javascript_errors(browser_page):
     page, _ = browser_page
+    # Stray template text outside the app renders as a footer on every screen.
+    assert page.locator("body").evaluate("""body => [...body.childNodes]
+      .filter(node => node.nodeType === Node.TEXT_NODE)
+      .map(node => node.textContent.trim()).filter(Boolean)""") == []
     navigation = [
         ("dashboard", "לוח בקרה"), ("jobs", "משרות"), ("applications", "הגשות"),
         ("skills", "סקילים"), ("preferences", "העדפות חיפוש"),

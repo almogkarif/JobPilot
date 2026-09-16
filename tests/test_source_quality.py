@@ -84,3 +84,9 @@ def test_quality_rejects_search_result_cards_instead_of_detail_pages():
         item.description = f"{item.title} Tel Aviv, Israel Product Engineering Save for Later"
     with pytest.raises(SourceDataQualityError, match="search-result summaries"):
         validate_source_payload("Rendered cards", jobs)
+
+
+@pytest.mark.parametrize('title', ['קריירה', 'המשרות שבחרתי', 'נגישות', 'HEB', 'English', 'Career', 'Title><link rel=', 'תקנון פורטל דרושים', '<a href="/jobs">Engineer</a>'])
+def test_navigation_or_markup_is_rejected_even_on_a_one_row_board(title):
+    with pytest.raises(SourceDataQualityError):
+        validate_source_payload('Small official board', [_job(1, title=title)])

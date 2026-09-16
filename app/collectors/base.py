@@ -23,5 +23,13 @@ class PreserveExistingJobs(RuntimeError):
     """The public source temporarily blocked collection; keep its last good rows."""
 
 
+class JobCollection(list[NormalizedJob]):
+    """A bounded payload that explicitly reports whether absence means closure."""
+
+    def __init__(self, jobs=(), *, complete: bool = True):
+        super().__init__(jobs)
+        self.complete = complete
+
+
 class Collector(Protocol):
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]: ...

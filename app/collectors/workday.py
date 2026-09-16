@@ -5,11 +5,14 @@ import re
 
 import httpx
 
-from .base import NormalizedJob
+from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from ..services.location_filter import is_israel_location
 from ..utils import html_to_text
 
 
 WORKDAY_PRESETS = {
+    "marvell": ("marvell.wd1.myworkdayjobs.com", "marvell", "MarvellCareers", "Marvell"),
+    "broadcom-israel": ("broadcom.wd1.myworkdayjobs.com", "broadcom", "External_Career", "Broadcom"),
     "nvidia": ("nvidia.wd5.myworkdayjobs.com", "nvidia", "NVIDIAExternalCareerSite", "NVIDIA"),
     "intel": ("intel.wd1.myworkdayjobs.com", "intel", "External", "Intel"),
     "applied-materials": ("amat.wd1.myworkdayjobs.com", "amat", "External", "Applied Materials"),
@@ -28,24 +31,41 @@ class WorkdayCollector:
         api_base = f"https://{host}/wday/cxs/{tenant}/{site}"
         rows: list[dict] = []
         async with httpx.AsyncClient(timeout=40, follow_redirects=True) as client:
+            applied_facets = {}
+            search_text = "Israel"
+            if identifier in {"marvell", "broadcom-israel"}:
+                discovery = await client.post(f"{api_base}/jobs", json={
+                    "appliedFacets": {}, "limit": 20, "offset": 0, "searchText": "",
+                })
+                discovery.raise_for_status()
+                applied_facets = _israel_location_facets(discovery.json().get("facets") or [])
+                if not applied_facets:
+                    raise PreserveExistingJobs("Workday did not expose a verified Israel location filter")
+                search_text = ""
             offset = 0
             total = 1
             max_results = 120 if identifier == "nvidia" else 100
             while offset < total and offset < max_results:
                 response = await client.post(f"{api_base}/jobs", json={
-                    "appliedFacets": {}, "limit": 20, "offset": offset, "searchText": "Israel",
+                    "appliedFacets": applied_facets, "limit": 20, "offset": offset, "searchText": search_text,
                 })
                 response.raise_for_status()
                 payload = response.json()
-                total = min(int(payload.get("total") or 0), max_results)
+                if "total" not in payload or not isinstance(payload.get("jobPostings"), list):
+                    raise PreserveExistingJobs("Workday returned an unrecognized job-list payload")
+                total = int(payload.get("total") or 0)
                 page_rows = payload.get("jobPostings") or []
-                if identifier == "applied-materials":
+                if applied_facets:
+                    rows.extend(page_rows)
+                elif identifier == "applied-materials":
                     rows.extend(row for row in page_rows if _applied_materials_israel_row(row))
                 elif identifier in {"kla-israel", "medtronic"}:
                     rows.extend(row for row in page_rows if _generic_israel_row(row))
                 else:
                     rows.extend(row for row in page_rows if "/job/Israel-" in str(row.get("externalPath") or ""))
-                offset += len(page_rows) or 20
+                if not page_rows:
+                    break
+                offset += len(page_rows)
 
             semaphore = asyncio.Semaphore(10)
 
@@ -60,7 +80,9 @@ class WorkdayCollector:
                         info = {}
                 external_id = str((row.get("bulletFields") or [""])[0] or path.rsplit("_", 1)[-1])
                 location = str(info.get("location") or row.get("locationsText") or "Israel")
-                if identifier == "applied-materials":
+                if applied_facets:
+                    location = f"{location}, Israel" if "israel" not in location.casefold() else location
+                elif identifier == "applied-materials":
                     location = _normalize_applied_location(location, path)
                 elif identifier in {"kla-israel", "medtronic"}:
                     location = _normalize_generic_israel_location(location, path)
@@ -80,7 +102,7 @@ class WorkdayCollector:
 
             jobs = await asyncio.gather(*(normalize(row) for row in rows))
         unique: dict[str, NormalizedJob] = {job.external_id: job for job in jobs if job}
-        return list(unique.values())
+        return JobCollection(unique.values(), complete=offset >= total)
 
 
 def _applied_materials_israel_row(row: dict) -> bool:
@@ -114,3 +136,18 @@ def _normalize_generic_israel_location(location: str, path: str) -> str:
         if city.casefold() in f"{compact} {path_text}".casefold():
             return f"{city}, Israel"
     return f"{compact}, Israel".strip(", ") if compact else "Israel"
+
+
+def _israel_location_facets(facets: list[dict]) -> dict[str, list[str]]:
+    for facet in facets:
+        parameter = str(facet.get("facetParameter") or "")
+        values = facet.get("values") or []
+        if parameter.casefold() in {"country", "locationcountry", "locations", "location"}:
+            ids = [str(value["id"]) for value in values
+                   if value.get("id") and is_israel_location(str(value.get("descriptor") or ""))]
+            if ids:
+                return {parameter: ids}
+        nested = _israel_location_facets([value for value in values if isinstance(value, dict) and "facetParameter" in value])
+        if nested:
+            return nested
+    return {}

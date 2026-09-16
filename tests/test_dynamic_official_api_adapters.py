@@ -291,3 +291,117 @@ def test_aqua_uses_the_job_slug_instead_of_the_full_card_as_title():
 
 def test_pliops_does_not_launch_a_browser_when_its_static_page_has_no_jobs():
     assert PRESETS["pliops"]["static_only"] is True
+
+
+def test_comeet_embedded_positions_keep_full_descriptions_without_detail_download(monkeypatch):
+    from types import SimpleNamespace
+    import app.collectors.official as official
+    description = 'Build secure software and test production services. ' * 6
+    payload = [{'uid': 'AA.123', 'name': 'Software Engineer',
+                'location': {'name': 'Tel Aviv, Israel'},
+                'url_comeet_hosted_page': 'https://www.comeet.com/jobs/cyera/17.008/software-engineer/AA.123',
+                'custom_fields': {'details': [{'name': 'Description', 'value': description}]}}]
+    calls = []
+    class Client:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def get(self, url):
+            calls.append(url)
+            return SimpleNamespace(raise_for_status=lambda: None,
+                text=f'<script>COMPANY_POSITIONS_DATA = {json.dumps(payload)};</script>')
+    monkeypatch.setattr(official.httpx, 'AsyncClient', Client)
+    jobs = asyncio.run(official.OfficialCareersCollector().collect('cyera'))
+    assert len(jobs) == 1
+    assert description.strip() in jobs[0].description
+    assert jobs[0].location == 'Tel Aviv, Israel'
+    assert calls == [PRESETS['cyera']['url']]
+    assert jobs.complete is False
+
+
+def test_cisco_job_schema_wins_over_shared_marketing_body():
+    from bs4 import BeautifulSoup
+    from app.collectors.official import _job_posting_detail
+    payload = {'@type':'JobPosting','title':'ASIC Engineer',
+               'description':'<p>Design circuits and verify interfaces.</p>',
+               'jobLocation':{'address':{'addressLocality':'Caesarea','addressCountry':'IL'}}}
+    soup = BeautifulSoup('<main><h1>We are Cisco</h1>Generic marketing</main>'
+                         f'<script type="application/ld+json">{json.dumps(payload)}</script>', 'html.parser')
+    title, text, location = _job_posting_detail(soup)
+    assert location == "Caesarea, Israel"
+    assert title == 'ASIC Engineer'
+    assert 'Design circuits' in text
+    assert 'Caesarea, Israel' in text
+    assert 'Generic marketing' not in text
+
+
+def test_generic_career_links_require_job_posting_evidence(monkeypatch):
+    import app.collectors.official as official
+    row = {'href':'https://example.com/careers/software', 'title':'Software Engineering',
+           'linkText':'Software Engineering', 'text':'A department, not an open job. ' * 20}
+    async def static(preset): return [row]
+    async def hydrate(rows, preset): return rows
+    monkeypatch.setattr(official, '_collect_static_rows', static)
+    monkeypatch.setattr(official, '_hydrate_detail_rows', hydrate)
+    monkeypatch.setitem(official.PRESETS, 'qa-generic', official._bounded_official_board('https://example.com/careers', 'QA'))
+    import pytest
+    with pytest.raises(official.PreserveExistingJobs):
+        asyncio.run(official.OfficialCareersCollector().collect('qa-generic'))
+    row['_verified_job'] = True
+    assert len(asyncio.run(official.OfficialCareersCollector().collect('qa-generic'))) == 1
+
+
+def test_one_accordion_jobs_keep_requirements_and_stable_links():
+    from bs4 import BeautifulSoup
+    from app.collectors.official import _extract_one_job_rows
+    soup = BeautifulSoup('''<div id="company-job-opening"><div class="accordion_item" data-id="3558">
+      <span class="job_title">Software Engineer</span><span>Tel Aviv, Israel</span>
+      <div class="accordion_content">Python and SQL required. Three years of experience.
+        <div class="accordion-footer">Share this job</div></div></div></div>
+      <a href="/careers/">Careers</a>''', 'html.parser')
+    rows = _extract_one_job_rows(soup)
+    assert len(rows) == 1
+    assert rows[0]['href'] == 'https://www.one1.co.il/?share_job_id=3558'
+    assert 'Three years of experience' in rows[0]['text']
+    assert 'Share this job' not in rows[0]['text']
+
+
+def test_teva_embedded_jobs_use_matching_full_detail(monkeypatch):
+    from types import SimpleNamespace
+    import app.collectors.official as official
+    position = {'id':123456, 'posting_name':'Software Engineer', 'location':'Tel Aviv, Israel',
+                'canonicalPositionUrl':'https://www.careers.teva/careers/job/123456','job_description':''}
+    description = 'Build reliable software and maintain production systems. ' * 5
+    calls = []
+    class Client:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def get(self, url):
+            calls.append(url)
+            if '/api/' in url:
+                text = json.dumps({**position, 'job_description':description})
+            else:
+                text = '<code id="smartApplyData">' + json.dumps({'positions':[position]}) + '</code>'
+            return SimpleNamespace(status_code=200, text=text, raise_for_status=lambda:None)
+    monkeypatch.setattr(official.httpx, 'AsyncClient', Client)
+    jobs = asyncio.run(official.OfficialCareersCollector().collect('teva'))
+    assert len(jobs) == 1
+    assert description.strip() in jobs[0].description
+    assert jobs[0].apply_url == position['canonicalPositionUrl']
+    assert calls == [PRESETS['teva']['url'], 'https://www.careers.teva/api/apply/v2/jobs/123456?domain=tevapharm.com']
+    assert not jobs.complete
+
+
+
+def test_explicit_foreign_location_is_not_overridden_by_israel_in_description(monkeypatch):
+    import app.collectors.official as official
+    async def data(preset):
+        return [{'href':'https://www.proteantecs.com/careerinfo?pi=AA.123',
+                 'title':'Software Engineer', 'linkText':'Software Engineer',
+                 'location':'New York, United States',
+                 'text':'Software Engineer based in New York. Collaborate with our Israel headquarters. ' * 4}]
+    monkeypatch.setattr(official, '_collect_data_rows', data)
+    jobs = asyncio.run(official.OfficialCareersCollector().collect('proteantecs'))
+    assert len(jobs) == 1
+    assert jobs[0].location == ''

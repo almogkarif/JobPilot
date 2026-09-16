@@ -50,11 +50,13 @@ def test_notifications_live_in_a_dedicated_dock_safe_zone():
     assert '.dock-utility { position:fixed' in CSS
     assert '.notification-center { top:auto; left:auto; right:94px; bottom:20px;' in CSS
     assert 'right:calc(6px + (84px - 48px) / 2)' in CSS
-    short_desktop = CSS.split('@media (max-height:760px) and (min-width:761px)', 1)[1].split('}', 2)[0]
+    short_desktop = CSS.split('@media (max-height:840px) and (min-width:761px)', 1)[1].split('@media', 1)[0]
     assert 'right:104px' not in short_desktop
     assert 'flex:0 0 46px !important' in short_desktop
     assert 'min-height:46px !important' in short_desktop
     assert 'max-height:46px !important' in short_desktop
+    assert 'overflow-y:auto' in short_desktop
+    assert '.nav-label { display:none; }' in short_desktop
 
 
 def test_logout_uses_exit_icon_and_explicit_hover_tooltip():

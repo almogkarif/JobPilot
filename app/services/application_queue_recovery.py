@@ -101,7 +101,7 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
     rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
-        .options(joinedload(Application.job).joinedload(Job.source))
+        .options(joinedload(Application.job).defer(Job.description).joinedload(Job.source))
         .where(
             Job.career_track == career_track,
             Application.mode == "auto",

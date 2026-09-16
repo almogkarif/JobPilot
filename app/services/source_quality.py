@@ -18,6 +18,8 @@ _UUIDISH = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_TITLES = {
+    "career", "heb", "english", "קריירה", "משרות פתוחות", "המשרות שבחרתי",
+    "נגישות", "המשרות שלנו", "תקנון פורטל דרושים", "קריירה בקבוצת שופרסל",
     "untitled role", "job", "job details", "view job", "apply", "careers", "position", "open position",
 }
 _GENERIC_ISRAEL = {"israel", "il", "isr"}
@@ -39,7 +41,7 @@ def _url_key(value: str | None) -> str:
         # query completely, making ten legitimate jobs look like one repeated URL.
         # Keep only job-identity parameters so tracking parameters cannot fake
         # diversity in a corrupt payload.
-        identity_names = {"jid", "jobid", "job_id", "joborderid", "gh_jid", "reqid", "requisitionid", "pi"}
+        identity_names = {"jid", "jobid", "job_id", "joborderid", "gh_jid", "reqid", "requisitionid", "pi", "share_job_id"}
         identity_query = [
             (key.casefold(), val.casefold())
             for key, val in parse_qsl(parsed.query, keep_blank_values=False)
@@ -51,6 +53,11 @@ def _url_key(value: str | None) -> str:
         return base
     except Exception:
         return text.casefold()
+
+
+def is_navigation_title(title: str) -> bool:
+    normalized = _norm(title)
+    return normalized in _GENERIC_TITLES or bool(re.search(r"<\s*/?\s*[a-z!]|(?:href|class|style|rel)=", normalized))
 
 
 def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None:
@@ -85,8 +92,8 @@ def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None
             f"Unreliable source data: {source_name} returned UUID-like values as titles for {uuid_titles}/{count} jobs"
         )
 
-    generic_titles = sum(1 for title in titles if title in _GENERIC_TITLES)
-    if count >= 5 and generic_titles >= max(3, math.ceil(count * 0.35)):
+    generic_titles = sum(1 for title in titles if is_navigation_title(title))
+    if generic_titles:
         raise SourceDataQualityError(
             f"Unreliable source data: {source_name} returned generic titles for {generic_titles}/{count} jobs"
         )
