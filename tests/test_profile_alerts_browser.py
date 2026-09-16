@@ -49,6 +49,7 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
     page, _ = browser_page
     page.set_viewport_size({'width':size[0], 'height':size[1]})
     page.evaluate("state.activeCareerTrack = 'industrial_engineering'; applyCareerTrackTheme()")
+    assert page.locator('#nav').evaluate('(nav) => nav.getBoundingClientRect().top >= document.querySelector(".sidebar .brand").getBoundingClientRect().bottom + 16')
     button = page.locator('#nav [data-view="skills"]')
     initial_height = button.bounding_box()['height']
     assert initial_height == pytest.approx(64, abs=1)

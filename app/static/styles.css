@@ -2376,7 +2376,7 @@ body.theme-dark.track-industrial-engineering :where(.option-grid label:has(input
 }
 @media (max-height:840px) and (min-width:761px) {
   /* Preserve original button/icon sizes and animation; scroll when height is limited. */
-  .sidebar nav { top:80px; right:-7px; width:110px; max-height:calc(100dvh - 170px); overflow-y:auto; overflow-x:hidden; }
+  .sidebar nav { top:110px; right:-7px; width:110px; max-height:calc(100dvh - 200px); overflow-y:auto; overflow-x:hidden; }
   .sidebar nav::before { inset-inline:16px; }
   .dock-utility { bottom:18px; }
   .notification-center { right:94px; bottom:14px; max-height:calc(100vh - 28px); }
