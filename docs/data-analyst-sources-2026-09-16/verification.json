@@ -1,0 +1,183 @@
+{
+  "checked_at": "2026-09-16T12:18:53.506093+00:00",
+  "sources": [
+    {
+      "company": "G-STAT",
+      "identifier": "g-stat",
+      "collected": 33,
+      "israel": 33,
+      "iem": 26,
+      "analyst": 22,
+      "jobs": [
+        {
+          "title": "Data & BI Analyst - (JB-3204)",
+          "url": "https://g-stat.com/jobs/data-bi-analyst/",
+          "description_chars": 798
+        },
+        {
+          "title": "JUNIOR DATA ANALYST לתחום המשכנתאות - (JB-3205)",
+          "url": "https://g-stat.com/jobs/junior-data-analyst-לתחום-המשכנתאות/",
+          "description_chars": 1362
+        },
+        {
+          "title": "DATA ANALYST - (JB-3203)",
+          "url": "https://g-stat.com/jobs/data-analyst-3/",
+          "description_chars": 1006
+        },
+        {
+          "title": "אנליסט/ית ניתוח ותכנון - (JB-3202)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-ניתוח-ותכנון/",
+          "description_chars": 744
+        },
+        {
+          "title": "אנליסט/ית מסעות לקוח (SF MARKETING CLOUD) - (JB-3200)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-מסעות-לקוח-sf-marketing-cloud/",
+          "description_chars": 704
+        },
+        {
+          "title": "MARKETIND DATA ANALYST - (JB-3198)",
+          "url": "https://g-stat.com/jobs/marketind-data-analyst/",
+          "description_chars": 1101
+        },
+        {
+          "title": "אנליסט/ית ניהול פיננסי - (JB-3194)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-ניהול-פיננסי/",
+          "description_chars": 821
+        },
+        {
+          "title": "אנליסט/ית דיגיטל - (JB-3193)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-דיגיטל/",
+          "description_chars": 1502
+        },
+        {
+          "title": "DATA ANALYST - (JB-3189)",
+          "url": "https://g-stat.com/jobs/data-analyst-2/",
+          "description_chars": 876
+        },
+        {
+          "title": "DATA ANALYST מנוסה - (JB-3187)",
+          "url": "https://g-stat.com/jobs/data-analyst-מנוסה/",
+          "description_chars": 729
+        },
+        {
+          "title": "MARKETING DATA ANALYST - (JB-3177)",
+          "url": "https://g-stat.com/jobs/marketing-data-analyst/",
+          "description_chars": 875
+        },
+        {
+          "title": "Data Analyst במחלקת אסטרטגיה - (JB-3171)",
+          "url": "https://g-stat.com/jobs/data-analyst-במחלקת-אסטרטגיה/",
+          "description_chars": 655
+        },
+        {
+          "title": "DATA ANALYST לתחום הסיכונים - (JB-3165)",
+          "url": "https://g-stat.com/jobs/data-analyst-לתחום-הסיכונים/",
+          "description_chars": 770
+        },
+        {
+          "title": "Senior Data Analyst - (JB-3161)",
+          "url": "https://g-stat.com/jobs/senior-data-analyst-2/",
+          "description_chars": 2458
+        },
+        {
+          "title": "אנליסט תחזוקת מודלי אשראי - (JB-3150)",
+          "url": "https://g-stat.com/jobs/אנליסט-תחזוקת-מודלי-אשראי/",
+          "description_chars": 998
+        },
+        {
+          "title": "אנליסטית דאטה - (JB-3140)",
+          "url": "https://g-stat.com/jobs/אנליסטית-דאטה/",
+          "description_chars": 880
+        },
+        {
+          "title": "אנליסט/ית עסקי-ניהול פיננסי - (JB-3138)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-עסקי-ניהול-פיננסי/",
+          "description_chars": 779
+        },
+        {
+          "title": "אנליסט/ית אשראי - (JB-3123)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-אשראי/",
+          "description_chars": 877
+        },
+        {
+          "title": "DATA ANALYST - (JB-3101)",
+          "url": "https://g-stat.com/jobs/data-analyst/",
+          "description_chars": 1160
+        },
+        {
+          "title": "אנליסט/ית ומיישם/ת MA - (JB-3090)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-ומיישם-ת-ma/",
+          "description_chars": 1433
+        },
+        {
+          "title": "Senior Data Analyst - (JB-3086)",
+          "url": "https://g-stat.com/jobs/senior-data-analyst/",
+          "description_chars": 1357
+        },
+        {
+          "title": "אנליסט/ית כלכלן/ית - (JB-3061)",
+          "url": "https://g-stat.com/jobs/אנליסט-ית-כלכלן-ית/",
+          "description_chars": 943
+        }
+      ],
+      "sample_link_status": 200,
+      "sample_final_url": "https://g-stat.com/jobs/data-bi-analyst/"
+    },
+    {
+      "company": "Melio",
+      "identifier": "melio",
+      "collected": 24,
+      "israel": 9,
+      "iem": 3,
+      "analyst": 2,
+      "jobs": [
+        {
+          "title": "Senior Data Analyst",
+          "url": "https://job-boards.greenhouse.io/melio/jobs/7820287003",
+          "description_chars": 3836
+        },
+        {
+          "title": "Senior Data Analyst",
+          "url": "https://job-boards.greenhouse.io/melio/jobs/7792385003",
+          "description_chars": 3810
+        }
+      ],
+      "sample_link_status": 200,
+      "sample_final_url": "https://job-boards.greenhouse.io/melio/jobs/7820287003"
+    },
+    {
+      "company": "AutoDS",
+      "identifier": "autods",
+      "collected": 5,
+      "israel": 5,
+      "iem": 1,
+      "analyst": 1,
+      "jobs": [
+        {
+          "title": "Data Analyst",
+          "url": "https://job-boards.greenhouse.io/autods/jobs/5417867008",
+          "description_chars": 2348
+        }
+      ],
+      "sample_link_status": 200,
+      "sample_final_url": "https://job-boards.greenhouse.io/autods/jobs/5417867008"
+    },
+    {
+      "company": "Nift",
+      "identifier": "nift",
+      "collected": 12,
+      "israel": 3,
+      "iem": 1,
+      "analyst": 1,
+      "jobs": [
+        {
+          "title": "Data Analyst",
+          "url": "https://job-boards.greenhouse.io/nift/jobs/5179925007",
+          "description_chars": 3893
+        }
+      ],
+      "sample_link_status": 200,
+      "sample_final_url": "https://job-boards.greenhouse.io/nift/jobs/5179925007"
+    }
+  ]
+}

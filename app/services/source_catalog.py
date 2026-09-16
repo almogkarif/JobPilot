@@ -101,6 +101,10 @@ CS_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
 # operations, planning, supply-chain, analytics, PMO and business-operations roles.
 # Several are shared companies, but they are independent Source rows in this track.
 IEM_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
+    {"name": "G-STAT — Data Analyst & BI", "kind": "official_careers", "identifier": "g-stat", "company_name": "G-STAT", "logo_domain": "g-stat.com"},
+    {"name": "Melio — Data Analytics Israel", "kind": "greenhouse", "identifier": "melio", "company_name": "Melio", "logo_domain": "meliopayments.com"},
+    {"name": "AutoDS — Data Analytics Israel", "kind": "greenhouse", "identifier": "autods", "company_name": "AutoDS", "logo_domain": "autods.com"},
+    {"name": "Nift — Data Analytics Israel", "kind": "greenhouse", "identifier": "nift", "company_name": "Nift", "logo_domain": "gonift.com"},
     {"name": "Applied Materials — Operations Israel", "kind": "workday", "identifier": "applied-materials", "company_name": "Applied Materials"},
     {"name": "Intel — Manufacturing & Supply Chain Israel", "kind": "workday", "identifier": "intel", "company_name": "Intel"},
     {"name": "KLA Israel — Operations", "kind": "workday", "identifier": "kla-israel", "company_name": "KLA"},

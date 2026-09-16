@@ -143,3 +143,32 @@ Workday routes (Marvell/Broadcom) performs at most one 20-row facet discovery,
 five 20-row listing calls, and 100 detail calls: 212 total employer requests/hour
 for both routes at hourly scheduling, or 5,088/day. None of these accesses
 Supabase. No full-catalog database maintenance or additional UI polling was added.
+
+## IEM analyst boards — September 16, 2026
+
+Four additional IEM sources: G-STAT, Melio, AutoDS and Nift. They add four
+employer HTTP requests per scan (four/hour, 96/day at hourly scheduling), zero
+Storage downloads, no Chromium, no per-job detail fetches, no new UI polling and
+no new database query sites. G-STAT parsing is capped at 100 inline cards and
+marked incomplete; the three Greenhouse boards use the existing single-request
+collector. Their observed response sizes are externally controlled, not a hard
+Supabase response bound.
+
+The live verification returned 74 employer rows, 50 Israel rows and 31 IEM rows
+(26 analyst titles). At an estimated 4 KB per projected existing-job row and two
+existing scanner projections, these 31 new rows cost approximately 248 KB/scan,
+5.95 MB/day or 179 MB/30 days at hourly scanning. Four source records read twice
+per scan at a conservative 4 KB each add 32 KB/scan, 0.77 MB/day, 23 MB/30 days.
+Descriptions are absent from the existing catalog-only reconciliation projection;
+initial inserts and ranking reads, user count and retention still affect total
+usage. These figures are a snapshot estimate, **not a worst-case hard bound**.
+
+Deployment gate remains open: the existing all-active fingerprint index and
+per-source historical reconciliation are not row-bounded, and no production
+catalog size or current organization usage was available in this task. Therefore
+this change must not be deployed or followed by bulk production scans until the
+actual full-catalog budget has been established or those reads are bounded. No
+production deployment or scan was performed during this task. The regression
+`test_gstat_inline_collection_is_bounded_and_needs_no_detail_downloads` protects
+the new external request behavior; the existing egress tests protect description
+projections. The IEM catalog ceiling is explicitly updated from 100 to 104 sources.

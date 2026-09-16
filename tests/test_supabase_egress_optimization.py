@@ -305,7 +305,7 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
 
     # Generic links must be verified against bounded HTTP detail pages.
     # They still never launch Chromium or perform unbounded detail hydration.
-    assert len(IEM_RECOMMENDED_SOURCES) <= 100
+    assert len(IEM_RECOMMENDED_SOURCES) <= 104  # Four verified analyst boards added.
     for identifier, _company, _tracks in _REQUESTED_EMPLOYER_SOURCES:
         if identifier == "apple":  # Existing dynamic adapter, tested separately.
             continue
@@ -363,6 +363,17 @@ def test_queue_snapshot_and_health_do_not_read_job_descriptions():
     import inspect
     assert 'defer(Job.description)' in inspect.getsource(main_module._auto_apply_queue_snapshot)
     assert 'defer(Job.description)' in inspect.getsource(application_queue_recovery.queue_health)
+
+
+def test_gstat_inline_collection_is_bounded_and_needs_no_detail_downloads():
+    from bs4 import BeautifulSoup
+    from app.collectors.official import PRESETS, _extract_gstat_job_rows
+    from tests.test_data_analyst_sources import card
+    preset = PRESETS['g-stat']
+    assert preset['static_only'] and not preset.get('hydrate_details')
+    assert preset['max_inline_jobs'] == 100
+    soup = BeautifulSoup('<div class="jobs_accordion">' + ''.join(card(i) for i in range(105)) + '</div>', 'html.parser')
+    assert len(_extract_gstat_job_rows(soup, preset['max_inline_jobs'])) == 100
 
 
 def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descriptions(monkeypatch):

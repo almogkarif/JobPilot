@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -47,6 +47,10 @@ def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
 
 
 PRESETS = {
+    "g-stat": {"url": "https://g-stat.com/careers/", "company": "G-STAT", "http_first": True,
+               "static_only": True, "trusted_israel_feed": True, "preserve_on_empty": True,
+               "gstat_accordion": True, "selector": ".jobs_accordion > .row",
+               "id_pattern": r"[?&]p=(\d+)", "max_inline_jobs": 100},
     # Electrical-engineering expansion. These presets intentionally use each
     # employer's own careers surface; the track filter later keeps Israel/EE roles.
     "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
@@ -343,6 +347,7 @@ class OfficialCareersCollector:
                 external_id=match.group(1), title=title, company=company_name or preset["company"],
                 location=location, workplace=_normalized_workplace(row.get("workplace")), description=text,
                 apply_url=href, source_url=href,
+                metadata={"verified_country_board": "g-stat.com"} if identifier == "g-stat" else {},
             )
         normalized = list(results.values())
         if not normalized:
@@ -878,6 +883,39 @@ def _extract_one_job_rows(soup: BeautifulSoup) -> list[dict]:
     return rows
 
 
+def _extract_gstat_job_rows(soup: BeautifulSoup, limit: int = 100) -> list[dict]:
+    """G-STAT publishes complete descriptions and application forms inline."""
+    rows = []
+    seen = set()
+    for card in soup.select(".jobs_accordion > .row")[:limit]:
+        heading = card.select_one(".job-title[data-id]")
+        job_id = str(heading.get("data-id") or "") if heading else ""
+        if not job_id.isdigit() or job_id in seen:
+            continue
+        details = card.select_one(f"#job-data-{job_id}")
+        form_id = details.select_one('input[name="job"]') if details else None
+        if not form_id or str(form_id.get("value")) != job_id:
+            continue
+        description = "\n".join(column.get_text(" ", strip=True) for column in details.select(".job-inner-col.text-col"))
+        title = heading.get_text(" ", strip=True)
+        if not title or not description:
+            continue
+        target = ""
+        for link in details.select(".share-div a[href]"):
+            query = parse_qs(urlparse(link["href"]).query)
+            candidate = next((query[key][0] for key in ("url", "u", "text") if query.get(key)), "")
+            parsed = urlparse(candidate)
+            if parsed.scheme == "https" and parsed.hostname == "g-stat.com" and parsed.path.startswith("/jobs/"):
+                target = candidate
+                break
+        if not target:
+            continue
+        seen.add(job_id)
+        rows.append({"href": target, "dataHref": f"https://g-stat.com/?p={job_id}", "title": title,
+                     "text": description, "location": "Israel", "_structured_description": True})
+    return rows
+
+
 async def _collect_static_rows(preset: dict) -> list[dict]:
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -909,6 +947,8 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
         except (ValueError, TypeError):
             return []
         return _extract_structured_job_rows(json.dumps(payload.get("positions") or []), preset)
+    if preset.get("gstat_accordion"):
+        return _extract_gstat_job_rows(soup, int(preset["max_inline_jobs"]))
     if preset.get("inline_accordion"):
         return _extract_one_job_rows(soup)
     candidates = soup.select(str(preset["selector"]))

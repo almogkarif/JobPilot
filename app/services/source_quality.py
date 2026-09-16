@@ -168,7 +168,16 @@ def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None
     # A large board where nearly every role only says "Israel" is a common sign that
     # a page-wide location was attached to each child link. Real ATS payloads normally
     # expose a city/office for boards of this size. Small Israel-only boards are valid.
-    generic_location_count = sum(1 for location in locations if location in _GENERIC_ISRAEL)
+    # G-STAT's verified Israel-only recruiting board intentionally omits client
+    # office addresses. Keep country-only locations honest instead of inventing cities.
+    generic_location_count = sum(
+        1 for job, location in zip(jobs, locations)
+        if location in _GENERIC_ISRAEL and not (
+            job.metadata.get("verified_country_board") == "g-stat.com"
+            and urlparse(job.apply_url).hostname == "g-stat.com"
+            and urlparse(job.apply_url).path.startswith("/jobs/")
+        )
+    )
     if count >= 20 and generic_location_count >= math.ceil(count * 0.80):
         raise SourceDataQualityError(
             f"Unreliable source data: {source_name} returned only a generic Israel location for {generic_location_count}/{count} jobs"
