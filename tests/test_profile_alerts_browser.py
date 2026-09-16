@@ -50,20 +50,25 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
     page.set_viewport_size({'width':size[0], 'height':size[1]})
     page.evaluate("state.activeCareerTrack = 'industrial_engineering'; applyCareerTrackTheme()")
     button = page.locator('#nav [data-view="skills"]')
+    initial_height = button.bounding_box()['height']
     button.hover()
     page.wait_for_timeout(650)
     result = button.evaluate('''button => {
       const rect=button.getBoundingClientRect(), icon=button.querySelector('.nav-icon').getBoundingClientRect();
       const label=button.querySelector('.nav-label');
       return {fits:icon.top>=rect.top-1 && icon.bottom<=rect.bottom+1,
-        labelHidden:getComputedStyle(label).display==='none',title:button.title,
+        labelVisible:getComputedStyle(label).display!=='none' && Number(getComputedStyle(label).opacity)>.5,
+        separated:label.getBoundingClientRect().top >= button.querySelector('svg').getBoundingClientRect().bottom,
+        height:rect.height,title:button.title,
         overflow:document.documentElement.scrollWidth>innerWidth};
     }''')
     assert result['overflow'] is False
     if size[1] <= 840:
         assert result['fits'] is True
-        assert result['labelHidden'] is True
-        assert result['title']
+        assert result['labelVisible'] is True
+        assert result['separated'] is True
+        assert result['height'] > initial_height + 10
+        assert not result['title']
     page.locator('#nav [data-view="settings"]').scroll_into_view_if_needed()
     assert page.locator('#nav [data-view="settings"]').evaluate('(button) => button.getBoundingClientRect().bottom <= innerHeight')
 

@@ -1206,7 +1206,10 @@ function initMacDockNav() {
   const nav = $('#nav');
   if (!nav || !window.matchMedia('(hover: hover) and (pointer: fine)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const buttons = [...nav.querySelectorAll('button')];
-  buttons.forEach((button) => { button.title = button.textContent.trim(); button.setAttribute('aria-label', button.textContent.trim()); });
+  buttons.forEach((button) => {
+    const label = button.querySelector('.nav-label');
+    button.setAttribute('aria-label', label ? [...label.childNodes].map((node) => node.textContent.trim()).filter(Boolean).join(' · ') : button.textContent.trim());
+  });
   let frame;
   let focusedButton = null;
   const exitTimers = new WeakMap();
