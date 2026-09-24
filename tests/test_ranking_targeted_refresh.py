@@ -78,5 +78,3 @@ def test_title_filter_does_not_preserve_invalid_or_other_users_results(ranking_d
     with ranking_db('two') as db:
         row = db.scalar(select(JobRanking))
         assert (row.profile_fingerprint, row.evaluated_at, row.result_json) == other_before
-
-
