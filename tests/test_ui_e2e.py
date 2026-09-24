@@ -337,6 +337,12 @@ def test_job_card_reveals_one_third_with_mouse_and_closes_with_touch(browser_pag
     page.mouse.move(box["x"] + 4, box["y"] + box["height"] * .5, steps=8)
     page.mouse.up()
     assert "is-open" not in (shell.get_attribute("class") or "")
+    # A non-swipable drag must not synthesize a detail-opening click.
+    assert not page.locator('#modal').evaluate("el => el.classList.contains('open')")
+    # A subsequent ordinary click still opens details immediately.
+    card.locator('h3').click()
+    page.get_by_role('heading', name='אפשרויות הגשה').wait_for(state='visible')
+    page.locator('.modal-close').click()
     page.locator('button[data-view="dashboard"]').click()
     card = page.locator(f'#recent-jobs .job-swipe-card[data-job-id="{job["id"]}"]')
     card.wait_for(state="visible")
@@ -693,6 +699,9 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     nav = page.locator("#nav").bounding_box()
     trigger = page.locator("#notification-trigger").bounding_box()
     assert nav and trigger
+    full_size_heights = page.locator("#nav > button").evaluate_all(
+        "buttons => buttons.map(button => button.getBoundingClientRect().height)"
+    )
     assert trigger["y"] >= nav["y"] + nav["height"] + 8
     assert 15 <= 1440 - (trigger["x"] + trigger["width"]) <= 40
 
@@ -714,7 +723,19 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     nav_center = nav["x"] + nav["width"] / 2
     trigger_center = trigger["x"] + trigger["width"] / 2
     assert abs(nav_center - trigger_center) <= 1
-    assert max(page.locator("#nav > button").evaluate_all("buttons => buttons.map(button => button.getBoundingClientRect().height)")) <= 46.5
+    # The approved dock keeps its original sizes/animations and scrolls on short
+    # screens; shrinking the buttons to 46px would restore the old UI regression.
+    short_heights = page.locator("#nav > button").evaluate_all(
+        "buttons => buttons.map(button => button.getBoundingClientRect().height)"
+    )
+    assert short_heights == pytest.approx(full_size_heights, abs=0.5)
+    assert min(short_heights) >= 44
+    assert page.locator("#nav").evaluate("el => el.scrollHeight > el.clientHeight")
+    last_button = page.locator("#nav > button").last
+    last_button.scroll_into_view_if_needed()
+    last_box = last_button.bounding_box()
+    assert last_box and last_box["y"] >= nav["y"]
+    assert last_box["y"] + last_box["height"] <= nav["y"] + nav["height"] + 1
     assert trigger["y"] >= nav["y"] + nav["height"] + 8
 
 

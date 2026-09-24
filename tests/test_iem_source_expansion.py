@@ -66,11 +66,12 @@ def test_iem_filter_rejects_maintenance_and_other_engineering_disciplines():
     assert track_job_relevance(maintenance, INDUSTRIAL_ENGINEERING) == (
         False, "iem_non_professional_operations_role",
     )
+    # An explicit incompatible mandatory degree wins over generic title reasons.
     assert track_job_relevance(composites, INDUSTRIAL_ENGINEERING) == (
-        False, "non_iem_engineering_discipline",
+        False, "iem_required_degree_discipline_mismatch",
     )
     assert track_job_relevance(mechanical_production, INDUSTRIAL_ENGINEERING) == (
-        False, "non_iem_engineering_discipline",
+        False, "iem_required_degree_discipline_mismatch",
     )
     assert track_job_relevance(iem_production, INDUSTRIAL_ENGINEERING)[0] is True
     assert track_job_relevance(hardware_project, INDUSTRIAL_ENGINEERING) == (
@@ -96,7 +97,7 @@ def test_iem_filter_requires_an_iem_signal_for_quality_inspection_roles():
     )
 
     assert track_job_relevance(ground_systems, INDUSTRIAL_ENGINEERING) == (
-        False, "iem_inspection_role_without_iem_signal",
+        False, "iem_required_degree_discipline_mismatch",
     )
     assert track_job_relevance(operations_quality, INDUSTRIAL_ENGINEERING)[0] is True
     assert track_job_relevance(mechanical_inspector, INDUSTRIAL_ENGINEERING) == (

@@ -7,7 +7,7 @@ import app.auth as auth_module
 import app.storage as storage_module
 from app.auth import AuthIdentity
 from app.config import settings
-from app.database import SessionLocal, get_user_profile
+from app.database import LOCAL_USER_ID, SessionLocal, get_user_profile, set_user_scope
 from app.main import app
 from app.models import AgentDevice, AppIdentity, Application, Job, ResumeProfile, Source
 
@@ -139,13 +139,14 @@ def test_supabase_storage_adapter_round_trip_contract(monkeypatch):
         calls.append(("GET", url, kwargs))
         return FakeResponse(200, b"private-cv")
 
-    def fake_delete(url, **kwargs):
-        calls.append(("DELETE", url, kwargs))
+    def fake_delete(method, url, **kwargs):
+        assert method == "DELETE"
+        calls.append((method, url, kwargs))
         return FakeResponse(200)
 
     monkeypatch.setattr(storage_module.httpx, "post", fake_post)
     monkeypatch.setattr(storage_module.httpx, "get", fake_get)
-    monkeypatch.setattr(storage_module.httpx, "delete", fake_delete)
+    monkeypatch.setattr(storage_module.httpx, "request", fake_delete)
 
     ref = storage_module.save_bytes("resumes", "resume test.pdf", b"private-cv", "application/pdf")
     assert ref == "supabase://jobpilot-private/resumes/resume test.pdf"
@@ -226,6 +227,7 @@ def test_agent_claim_hydrates_legacy_application_resume_from_profile(monkeypatch
 
     with TestClient(app) as client:
         with SessionLocal() as db:
+            set_user_scope(db, LOCAL_USER_ID)
             profile = get_user_profile(db)
             previous_cv = profile.cv_path
             previous_password = profile.application_password
@@ -264,6 +266,7 @@ def test_agent_claim_hydrates_legacy_application_resume_from_profile(monkeypatch
             assert task["application"]["resume_path"] == str(resume_file)
         finally:
             with SessionLocal() as db:
+                set_user_scope(db, LOCAL_USER_ID)
                 application = db.get(Application, application_id)
                 if application:
                     db.delete(application)

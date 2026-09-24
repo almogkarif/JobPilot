@@ -2225,8 +2225,28 @@ function renderJobs() {
     </article></div>
   `).join('');
   $$('.interactive-card', root).forEach((card) => {
+    // Jobs cards have no swipe tray, but dragging must not become a detail click.
+    let pointerStart = null;
+    let dragged = false;
+    card.addEventListener('pointerdown', (event) => {
+      pointerStart = null;
+      dragged = false;
+      if (event.button !== 0 || event.target.closest('[data-no-card-click],button,a,input,select,textarea')) return;
+      pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    });
+    const trackMovement = (event) => {
+      if (!pointerStart || event.pointerId !== pointerStart.id) return;
+      if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 10) dragged = true;
+    };
+    card.addEventListener('pointermove', trackMovement);
+    card.addEventListener('pointerup', (event) => {
+      trackMovement(event);
+      pointerStart = null;
+    });
+    card.addEventListener('pointercancel', () => { pointerStart = null; dragged = true; });
     card.onclick = (event) => {
       if (event.target.closest('[data-no-card-click]')) return;
+      if (dragged) { dragged = false; return; }
       if (jobSwipeConsumesClick(card)) return;
       showJob(Number(card.dataset.jobId));
     };
