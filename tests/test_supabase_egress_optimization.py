@@ -422,3 +422,115 @@ def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descripti
         assert all('jobs.description' not in statement for statement in job_selects)
         assert db.scalar(select(Job.is_active).where(Job.id == old_id)) is False
         assert db.scalar(select(Job.is_active).where(Job.external_id == 'analyst')) is True
+
+
+def test_cached_exclusion_is_filtered_in_sql_before_description_download(monkeypatch):
+    from app.services.ranking.service import eligibility_profile_fingerprint
+    engine, Session = _isolated_session_factory()
+    user_id='excluded-egress-user'
+    @contextmanager
+    def isolated_user_session(requested_user_id):
+        db=Session();set_user_scope(db,requested_user_id)
+        try:yield db
+        finally:db.close()
+    monkeypatch.setattr(catalog_ranking,'user_session',isolated_user_session)
+    monkeypatch.setattr(scanner,'auto_queue_jobs',lambda *args:0)
+    monkeypatch.setattr(catalog_ranking,'recover_stuck_auto_applications',lambda *args:{})
+    with isolated_user_session(user_id) as db:
+        p=Profile(full_name='User',years_experience=0,years_experience_options_json='["0"]',excluded_keywords_json='["senior"]',active_career_track='computer_science')
+        s=Source(name='Source',kind='greenhouse',identifier='source');db.add_all([p,s]);db.flush()
+        j=Job(source_id=s.id,external_id='1',title='Senior Software Engineer',company='Example',description='Long source content '*1000,location='Israel',workplace='hybrid',apply_url='https://example.com/1')
+        db.add(j);db.flush()
+        j.source_fingerprint=job_fingerprint_values(j.career_track,j.title,j.description,j.location,j.workplace,j.published_at)
+        config=get_ranking_settings(db)
+        db.add(JobRanking(job_id=j.id,engine='v2',eligibility_state='excluded',tier='excluded',score=0,engine_version=get_ranking_engine().version,config_version=config.config_version,profile_fingerprint=eligibility_profile_fingerprint(p),job_fingerprint=j.source_fingerprint,stale=False,error=''))
+        db.commit()
+    loaded=[]
+    @event.listens_for(Session,'loaded_as_persistent')
+    def record_load(db,instance):
+        if isinstance(instance,Job):loaded.append(instance.id)
+    result=catalog_ranking.rank_shared_catalog_for_user(user_id,'computer_science',stale_only=True)
+    assert result['ranked']==0
+    assert loaded==[]
+
+
+def test_reusing_score_components_needs_no_additional_database_reads():
+    from types import SimpleNamespace
+    from app.services.ranking import service
+    from app.utils import loads
+    from tests.test_ranking_v2 import job, profile
+    class NoReadDB:
+        def scalar(self, *args, **kwargs):
+            raise AssertionError('Preloaded ranking must not perform another read')
+    p = profile()
+    j = job('Software Engineer', 'Develop Python software applications. At least 3 years experience.')
+    j.id = 7
+    row = JobRanking(job_id=7, engine='v2', engine_version=0)
+    settings = SimpleNamespace(config_version=1, config_json='{}')
+    service.persist_v2_result(NoReadDB(), j, p, settings, existing_row=row)
+    stored = loads(row.result_json, {})
+    assert set(stored['_score_cache']) == {'fingerprint'}  # no duplicated visible breakdown
+    p.excluded_keywords_json = '["software"]'
+    service.persist_v2_result(NoReadDB(), j, p, settings, existing_row=row)
+    hidden = loads(row.result_json, {})
+    assert hidden['breakdown'] == {}
+    assert hidden['_score_cache']['breakdown'] == stored['breakdown']
+    assert len(row.result_json) < len(__import__('json').dumps(stored)) + 2000
+    p.excluded_keywords_json = '[]'
+    service.persist_v2_result(NoReadDB(), j, p, settings, existing_row=row)
+    assert row.score == stored['score']
+
+
+def test_title_filter_comparison_uses_bounded_metadata_pages_only(monkeypatch):
+    from app.services.ranking import service
+    engine, Factory = _isolated_session_factory()
+    with Factory() as db:
+        set_user_scope(db, 'filter-egress-user')
+        p = Profile(full_name='User', years_experience=3, excluded_keywords_json='[]')
+        source = Source(name='Example', kind='greenhouse', identifier='bounded-filter')
+        db.add_all([p, source]); db.flush()
+        for i in range(205):
+            db.add(Job(source_id=source.id, external_id=str(i), title='Software Engineer',
+                       company='Example', description='Do not download this long body ' * 1000,
+                       apply_url=f'https://example.com/{i}'))
+        db.flush()
+        config = service.get_settings(db)
+        before = service.profile_fingerprint(p)
+        eligibility_before = service.eligibility_profile_fingerprint(p)
+        p.excluded_keywords_json = '["student"]'
+        db.flush()
+        statements = []
+        @event.listens_for(engine, 'before_cursor_execute')
+        def capture(conn, cursor, statement, parameters, context, executemany):
+            statements.append((statement, parameters))
+        service.preserve_unchanged_title_filters(db, p, config, previous_keywords=[],
+            previous_profile_digest=before, previous_eligibility_digest=eligibility_before)
+        reads = [(sql, params) for sql, params in statements if sql.lstrip().upper().startswith('SELECT')]
+        assert len(reads) == 3  # 200, 5, final empty page
+        assert all('LIMIT' in sql and 200 in params for sql, params in reads)
+        assert all('description' not in sql and 'result_json' not in sql for sql, _ in statements)
+        assert all('RETURNING' not in sql for sql, _ in statements)
+
+
+
+def test_resume_delete_does_not_download_file_or_read_job_catalog():
+    import inspect
+    from app import storage
+    endpoint = inspect.getsource(main_module.delete_resume)
+    assert "select(Job" not in endpoint
+    assert "read_bytes" not in endpoint
+    request = inspect.getsource(storage.delete_ref)
+    assert '"DELETE"' in request
+    assert 'json={"prefixes": [object_path]}' in request
+    assert "read_bytes" not in request
+
+
+def test_hidden_score_cache_rejects_oversized_components():
+    from types import SimpleNamespace
+    from app.services.ranking import service
+    from app.utils import dumps
+    parts={key:{'score':1,'reasons':[]} for key in ('role','skills','requirements','preferences')}
+    parts['role']['reasons']=['א' * service.MAX_SCORE_CACHE_BYTES]
+    row=SimpleNamespace(error='',engine_version=service.get_ranking_engine().version,
+        config_version=1,job_fingerprint='job',result_json=dumps({'breakdown':parts,'_score_cache':{'fingerprint':'profile'}}))
+    assert service._cached_scoring(row,'profile','job',SimpleNamespace(config_version=1)) is None

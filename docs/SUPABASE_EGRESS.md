@@ -172,3 +172,85 @@ production deployment or scan was performed during this task. The regression
 `test_gstat_inline_collection_is_bounded_and_needs_no_detail_downloads` protects
 the new external request behavior; the existing egress tests protect description
 projections. The IEM catalog ceiling is explicitly updated from 100 to 104 sources.
+
+
+### Filter-first personal ranking — 24 September 2026
+
+Excluded vacancies stop after deterministic eligibility checks; role/skill scores,
+score-only skill extraction and recommendation-confidence calculation are skipped.
+A small excluded result is still persisted so visibility and automatic submission
+cannot mistake an unranked job for an eligible one. No model/API calls are added.
+
+A separate eligibility-profile digest covers track, experience selections/years,
+excluded keywords, degree and location/work-mode preferences. Existing engine and
+config versions plus the job content fingerprint invalidate cached exclusions.
+Skill/title/positive-keyword changes refresh eligible scores but leave a current
+exclusion valid. Both hourly and profile-refresh SQL queries exclude cached
+excluded identities with a tenant-scoped NOT EXISTS before transferring Job rows
+or descriptions. Blank source fingerprints are not trusted for SQL skipping.
+The persistence entry point also reuses current exclusions for direct scanner calls.
+
+Impact: zero additional scheduled or interactive queries/hour/day, zero additional
+result rows/bytes. The NOT EXISTS predicate extends existing queries; eligible,
+new or invalidated jobs still need descriptions for their first eligibility pass.
+Each unchanged exclusion removes its complete Job/JobRanking result from those
+ranking queries; no whole-catalog startup repair, external audit or bulk migration
+is added. Engine version stays7 because eligible scoring/eligibility semantics are
+unchanged; this avoids forcing every account through an automatic full backfill.
+Legacy excluded rows with matching full-profile digests remain valid; after a
+relevant natural refresh they adopt the eligibility digest. No numerical production
+savings claim is made without deployment measurements. Existing broad ranking
+query/pagination limitations remain outside this targeted change.
+
+Regression: `test_cached_exclusion_is_filtered_in_sql_before_description_download`
+verifies no Job ORM payload is loaded for a cached excluded vacancy. Additional
+filter-first tests cover renewed eligibility, job/config changes, direct scanner
+cache reuse, and isolation of different users. No production scan/deploy was run.
+
+Score reuse refinement: no new query sites or scheduled calls (zero additional
+calls/hour/day). Visible ranking JSON adds about 100 bytes for one score-input
+fingerprint; at N loaded results/day that is approximately 100*N bytes/day. Hidden
+previously scored rows retain one existing component breakdown and extracted skill
+list, not an extra copy of the description or duplicate visible breakdown. This
+can make hidden payloads larger than filter-only results; retained components are
+capped at 8,192 UTF-8 bytes per row. Oversized components are not cached. Thus at
+most 8 KiB per changed hidden result is added (0.8 MiB per 100 rows); unchanged
+exclusions are skipped in SQL. For 5,000 rows changing visibility once, the added
+storage/one-time transfer ceiling is 39.1 MiB, not a scheduled daily cost. Existing ranking reads and eligibility checks still run after gate
+changes. No additional periodic job or global refresh is scheduled by this change. Regression test
+`test_reusing_score_components_needs_no_additional_database_reads` rejects additional
+reads and verifies no duplicate visible breakdown and retained/reused hidden scores.
+
+
+### Targeted title filters — 24 September 2026
+
+On an explicit save changing only excluded title terms, compare old/new exclusions
+using the existing matching helper over keyset pages of at most 200 `(id,title)`
+rows. Only valid, unaffected, same-user rankings advance their profile digest via
+UPDATE without RETURNING. No descriptions or ranking JSON are read by this pass.
+Changed content, missing fingerprints, errors and stale/config-old rows cannot be
+preserved. The existing refresh queries now exclude current results in SQL when
+stale-only is requested, so only affected/invalid/new jobs download full content.
+Changes to score-affecting preferences retain the broader refresh behavior.
+
+Impact check for N active jobs and S explicit title-only saves/day: at most
+S*(ceil(N/200)+1) metadata SELECTs and S*ceil(N/200) UPDATEs without returned rows;
+zero added scheduled/startup calls. At 300 Unicode characters/title plus an ID,
+budget 1.3 KB/row, 260 KB/page, and 1.3*N*S KB/day for metadata. For illustration
+N=10,000 and S=5 gives 255 SELECTs/day and 65 MB/day (1.95 GB/30 days), before
+accounting for descriptions avoided. This is not a measured production catalog
+size or an assertion that the remaining organization quota permits deployment.
+Affected-job body/score payload sizes and existing unbounded catalog-ranking reads
+still need the previously documented production budget; no deployment was done.
+
+
+## Resume deletion repair — September 2026
+
+One explicit resume deletion issues one Storage DELETE for exactly one object,
+loads the existing resume/profile records and updates the profile track snapshot.
+It downloads no document, reads no job catalog and introduces no background
+polling. Expected scheduled calls per hour/day: zero. For N user deletions per
+day the Storage request count remains N (at most one small object metadata
+response per request), rather than downloading up to 10 MB per resume. The
+existing profile response is reused to refresh only the browser document state.
+`test_resume_delete_does_not_download_file_or_read_job_catalog` guards this bound.

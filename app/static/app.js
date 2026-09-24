@@ -2694,6 +2694,7 @@ function renderV2RankingExplanation(job) {
     ['סוג העסקה',e.employment_type_status,e.employment_type||'לא זוהה',false],
   ];
   const filters=filterRows.map(([label,status,detail,detectionMissing])=>{const [statusLabel,tone]=rankingStatusMeta(status);return `<article class="ranking-filter ${tone}${detectionMissing?' detection-missing':''}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small>${esc(detail)}</small></article>`}).join('');
+  if(e.scoring_skipped)return `<section class="ranking-v2-explanation"><p>המשרה לא עברה את הסינון האישי ולכן לא חושב לה ציון התאמה.</p><div class="ranking-eligibility-grid">${filters}</div><p>${(e.reasons||[]).map(esc).join('<br>')}</p></section>`;
   const cards=[
     ['התאמת תפקיד','role',v2RoleDetail(b.role)],
     ['כישורים וטכנולוגיות','skills',v2SkillsDetail(b.skills)],
@@ -2727,8 +2728,8 @@ async function showJob(id) {
     modal(`
       <span class="kicker">${esc(job.company)}</span>
       <h2 dir="auto">${esc(job.title)}</h2>
-      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${job.ranking_pending?rankingPendingLabel():`ציון ${job.score}`}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
-      <h3>למה היא מתאימה</h3>
+      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${job.ranking_pending?rankingPendingLabel():job.eligibility?.scoring_skipped?'לא חושב ציון':`ציון ${job.score}`}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
+      <h3>${job.eligibility?.scoring_skipped?'תוצאת הסינון':'למה היא מתאימה'}</h3>
       ${job.ranking_engine==='v2'
         ? renderV2RankingExplanation(job)
         : `<div class="score-breakdown">${breakdownEntries.join('')}</div><div class="reason-list">${job.score_reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)} (${reason.points > 0 ? '+' : ''}${reason.points})</div>`).join('')}</div>`}
@@ -4383,6 +4384,15 @@ profileElement.onsubmit = async (event) => {
   const dirtyOwnedFields = ownedFields.filter((field) => dirty.has(field));
   const fields = dirtyOwnedFields.length ? dirtyOwnedFields : ownedFields;
   if (!fields.length) { toast('אין בכרטיס הזה פרטים לשמירה'); updateProfileDirtyState(); return; }
+  if (fields.includes('email')) {
+    const email = profileElement.elements.email;
+    email.value = email.value.trim();
+    if (email.value && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value) || !email.checkValidity())) {
+      toast('יש להזין כתובת אימייל תקינה, למשל name@example.com');
+      email.focus();
+      return;
+    }
+  }
   const originalText = submitter.textContent;
   submitter.disabled = true;
   submitter.textContent = 'שומר…';
@@ -5004,7 +5014,24 @@ $('#privacy-center').onclick=async()=>{
   $('#resume-version-form').onsubmit=async e=>{e.preventDefault();const body=new FormData(e.target);if(!body.get('is_default'))body.set('is_default','false');await api('/api/resumes',{method:'POST',body});toast('גרסת קורות החיים נוספה');closeModal();$('#privacy-center').click();};
 };
 async function deletePrivateData(resource){if(!confirm('למחוק את הנתונים האלה לצמיתות מהמחשב המקומי?'))return;await api(`/api/privacy/${resource}`,{method:'DELETE'});toast('הנתונים נמחקו');closeModal();}
-async function deleteResume(id){if(!confirm('למחוק את גרסת קורות החיים?'))return;await api(`/api/resumes/${id}`,{method:'DELETE'});closeModal();$('#privacy-center').click();}
+async function deleteResume(id){
+  if(!confirm('למחוק את גרסת קורות החיים?'))return;
+  try {
+    const result=await api(`/api/resumes/${id}`,{method:'DELETE'});
+    // Update only document state so unsaved profile edits stay in place.
+    if(state.profile&&result.profile){
+      state.profile.cv_path=result.profile.cv_path;
+      state.profile.cv_filename=result.profile.cv_filename;
+      $('#resume-name').textContent=result.profile.cv_filename||'לא הועלה קובץ';
+      document.querySelector('.resume-profile-card')?.classList.toggle('resume-uploaded',!!result.profile.cv_path);
+      updateProfileCompletion();
+    }
+    await loadResumeInsights();
+    closeModal();
+    $('#privacy-center').click();
+    toast('גרסת קורות החיים נמחקה');
+  } catch(error){toast(`המחיקה נכשלה: ${error.message}`);}
+}
 async function setupSiteLock(){await api('/api/security/setup',{method:'POST',body:JSON.stringify({pin:$('#new-site-pin').value})});toast('נעילת האתר הופעלה');closeModal();}
 async function disableSiteLock(){await api('/api/security/lock',{method:'DELETE'});toast('נעילת האתר בוטלה');closeModal();}
 

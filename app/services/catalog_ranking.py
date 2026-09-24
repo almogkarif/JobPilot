@@ -9,7 +9,7 @@ from .career_tracks import active_track, normalize_track
 from .application_queue_recovery import recover_stuck_auto_applications
 from .matching import build_match_context
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
-                              persist_v2_result, profile_fingerprint, result_is_stale)
+                              persist_v2_result, profile_fingerprint, result_is_stale, current_excluded_condition)
 
 
 def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only: bool = False) -> dict:
@@ -29,6 +29,8 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         ranking_join = (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
         statement = select(Job, JobRanking).outerjoin(JobRanking, ranking_join).where(
             Job.career_track == track, Job.is_active.is_(True),
+            ~select(JobRanking.id).where(JobRanking.job_id == Job.id,
+                current_excluded_condition(profile, settings, track)).correlate(Job).exists(),
         )
         if stale_only:
             # source_fingerprint is updated by the shared scan from the freshly
@@ -45,18 +47,20 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
             ))
         rows = db.execute(statement).unique().all()
         ranked = 0
-        for job, row in rows:
+        failed = 0
+        for processed, (job, row) in enumerate(rows, start=1):
             if not stale_only or result_is_stale(row, job, profile, settings):
                 try:
                     persist_v2_result(db, job, profile, settings, context=context, existing_row=row)
+                    ranked += 1
                 except Exception as exc:  # noqa: BLE001
+                    failed += 1
                     db.add(AuditLog(
                         event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
                         message="Hourly ranking failed",
                         details_json=dumps({"stage": "hourly_ranking", "error": str(exc)[:1000]}),
                     ))
-            ranked += 1
-            if ranked % 50 == 0:
+            if processed % 50 == 0:
                 db.commit()
         db.commit()
 
@@ -67,7 +71,8 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         # auto_queue_jobs() persisted rows as queued but never launched a worker.
         recovery = recover_stuck_auto_applications(db, track)
         return {
-            "status": "ok", "career_track": track, "ranked": ranked, "auto_queued": auto_queued,
+            "status": "partial_failure" if failed else "ok", "career_track": track,
+            "ranked": ranked, "failed": failed, "auto_queued": auto_queued,
             "workers_recovered": len(recovery.get("recovered") or []),
             "worker_dispatch_errors": len(recovery.get("failed") or []),
         }

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class ProfileUpdate(BaseModel):
     full_name: str = ""
-    email: EmailStr | str = ""
+    email: EmailStr | Literal[""] = ""
     phone: str = ""
     location: str = "Israel"
     linkedin_url: str = ""
@@ -18,6 +18,11 @@ class ProfileUpdate(BaseModel):
     years_experience: float = 0
     years_experience_options: list[str] = Field(default_factory=lambda: ["0"])
     degree_level: str = ""
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("degree_level")
     @classmethod
@@ -56,7 +61,7 @@ class ProfilePatch(BaseModel):
     """
 
     full_name: str | None = None
-    email: EmailStr | str | None = None
+    email: EmailStr | Literal[""] | None = None
     phone: str | None = None
     location: str | None = None
     linkedin_url: str | None = None
@@ -77,6 +82,11 @@ class ProfilePatch(BaseModel):
     auto_apply_threshold: int | None = Field(default=None, ge=0, le=100)
     auto_submit_enabled: bool | None = None
     application_profile: dict[str, Any] | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("degree_level")
     @classmethod

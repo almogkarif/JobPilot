@@ -120,8 +120,8 @@ def delete_ref(ref: str) -> None:
         bucket, object_path = cloud
         base = settings.supabase_url.rstrip("/")
         # Supabase delete supports a list of prefixes/objects for the bucket.
-        response = httpx.delete(
-            f"{base}/storage/v1/object/{quote(bucket, safe='')}",
+        response = httpx.request(
+            "DELETE", f"{base}/storage/v1/object/{quote(bucket, safe='')}",
             headers={**_cloud_headers("application/json")},
             json={"prefixes": [object_path]},
             timeout=15.0,

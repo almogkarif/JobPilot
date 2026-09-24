@@ -77,7 +77,9 @@ from .services.matching import build_match_context, extract_experience, extract_
 from .services.ranking.config import DEFAULT_V2_CONFIG, RankingV2Config
 from .services.ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
                                        job_fingerprint_values, persist_v2_result,
-                                       rank_job as run_ranking, result_is_stale, v2_config)
+                                       rank_job as run_ranking, result_is_stale, v2_config, profile_fingerprint,
+                                       eligibility_profile_fingerprint, current_excluded_condition,
+                                       pending_ranking_condition, preserve_unchanged_title_filters)
 from .services.career_tracks import (
     AUTO_SUBMIT_OPT_IN_VERSION, CAREER_TRACKS, CAREER_TRACK_BY_KEY, COMPUTER_SCIENCE, DEFAULT_TRACK,
     TRACK_FIELDS, active_track, ensure_track_state, normalize_track,
@@ -2172,6 +2174,9 @@ def _apply_profile_changes(
         profile.auto_submit_opt_in_version,
     )
     resume_analysis_fields = ("full_name", "email", "phone", "location", "linkedin_url", "github_url", "portfolio_url", "skills_json")
+    profile_digest_before = profile_fingerprint(profile)
+    excluded_before = loads(profile.excluded_keywords_json, [])
+    eligibility_before = eligibility_profile_fingerprint(profile)
     matching_before = tuple(getattr(profile, field) for field in matching_fields)
     degree_before = profile_degree_level(profile)
     resume_analysis_before = tuple(getattr(profile, field) for field in resume_analysis_fields)
@@ -2249,11 +2254,25 @@ def _apply_profile_changes(
     resume_analysis_changed = tuple(getattr(profile, field) for field in resume_analysis_fields) != resume_analysis_before
     user_id = current_user_id(db)
     track = active_track(profile)
-    get_ranking_settings(db)
+    ranking_settings = get_ranking_settings(db)
+    title_filter_only = (
+        matching_changed and profile_degree_level(profile) == degree_before
+        and all(getattr(profile, field) == before for field, before in zip(matching_fields, matching_before)
+                if field != "excluded_keywords_json")
+    )
+    if title_filter_only:
+        preserve_unchanged_title_filters(
+            db, profile, ranking_settings, previous_keywords=excluded_before,
+            previous_profile_digest=profile_digest_before, previous_eligibility_digest=eligibility_before,
+        )
     if matching_changed:
         db.execute(update(JobRanking).where(
             JobRanking.engine == "v2",
-            JobRanking.job_id.in_(select(Job.id).where(Job.career_track == track)),
+            JobRanking.job_id.in_(select(Job.id).where(Job.career_track == track,
+                pending_ranking_condition(profile, ranking_settings, track)) if title_filter_only
+                else select(Job.id).where(Job.career_track == track)),
+            or_(literal(eligibility_before != eligibility_profile_fingerprint(profile)),
+                JobRanking.eligibility_state != "excluded"),
         ).values(stale=True))
 
     # Cloud saves must acknowledge the user's edit first. Re-scoring every historical
@@ -2271,12 +2290,12 @@ def _apply_profile_changes(
         db.commit()
         db.refresh(profile)
         _queue_profile_derived_refresh(
-            user_id, track, matching_changed, resume_analysis_changed, matching_changed,
+            user_id, track, False, resume_analysis_changed, matching_changed,
         )
         return _profile_dict(profile)
 
     if matching_changed:
-        _rescore_v2_jobs(db, profile)
+        _rescore_v2_jobs(db, profile, stale_only=True)
     if resume_analysis_changed:
         _refresh_resume_analyses(db, profile)
     db.commit()
@@ -2590,8 +2609,15 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)):
     if not resume or resume.career_track != active_track(profile):
         raise HTTPException(404, "Resume not found")
     delete_ref(resume.path)
+    if profile.cv_path == resume.path:
+        profile.cv_path = ""
+    states = persist_active_track(profile)
+    for state in states.values():
+        if state.get("cv_path") == resume.path:
+            state["cv_path"] = ""
+    profile.track_profiles_json = dumps(states)
     db.delete(resume); db.commit()
-    return {"deleted": True}
+    return {"deleted": True, "profile": _profile_dict(profile)}
 
 
 @app.get("/api/sources")
@@ -6605,7 +6631,11 @@ def _rescore_v2_jobs(
     # Ranking is relevant only for jobs a user can actually see. Load persisted V2
     # rows once instead of doing a remote SELECT for every job (hundreds of round
     # trips on Supabase in the previous implementation).
-    predicate = (Job.career_track == track, Job.is_active.is_(True))
+    predicate = (Job.career_track == track, Job.is_active.is_(True),
+                 ~select(JobRanking.id).where(JobRanking.job_id == Job.id,
+                     current_excluded_condition(profile, ranking_settings, track)).correlate(Job).exists())
+    if stale_only:
+        predicate += (pending_ranking_condition(profile, ranking_settings, track),)
     total = int(db.scalar(select(func.count()).select_from(Job).where(*predicate)) or 0)
     existing = {
         row.job_id: row for row in db.scalars(
