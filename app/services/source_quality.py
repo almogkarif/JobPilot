@@ -42,6 +42,10 @@ def _url_key(value: str | None) -> str:
         # Keep only job-identity parameters so tracking parameters cannot fake
         # diversity in a corrupt payload.
         identity_names = {"jid", "jobid", "job_id", "joborderid", "gh_jid", "reqid", "requisitionid", "pi", "share_job_id"}
+        if (parsed.hostname, parsed.path) in {
+            ("ide-tech.com", "/en/join-us/"), ("careers.mekorot.co.il", "/"),
+        }:
+            identity_names.add("job")
         identity_query = [
             (key.casefold(), val.casefold())
             for key, val in parse_qsl(parsed.query, keep_blank_values=False)

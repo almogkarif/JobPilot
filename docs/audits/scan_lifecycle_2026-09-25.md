@@ -52,6 +52,12 @@ The egress estimates and regression bounds are recorded in
 - Final combined run after all adapter/logging changes: **174 passed**, covering
   ZIM/IDE, source repairs, API completeness, egress, cloud workers, freshness,
   unified rollout (SQLite/PostgreSQL), source expansion and pending-source audit.
+- The subsequent real-feed audit exposed a downstream URL-quality issue in IDE
+  and Mekorot: their distinct `?job=` URLs collapsed to one identity. The quality
+  gate now preserves that parameter only on those verified employer routes.
+  A new IDE parser-to-quality regression failed before the fix; **119 focused
+  tests passed** afterward, and live feeds of **12 IDE / 33 Mekorot jobs** passed
+  the actual scanner quality gate. Tracking-only URL variants remain rejected.
 
 ## Production verification boundary
 

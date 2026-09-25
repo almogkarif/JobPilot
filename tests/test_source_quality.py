@@ -69,6 +69,13 @@ def test_quality_treats_proteantecs_pi_as_distinct_application_link():
     validate_source_payload("proteanTecs", jobs)
 
 
+@pytest.mark.parametrize('base', ['https://ide-tech.com/en/join-us/', 'https://careers.mekorot.co.il/'])
+def test_quality_preserves_verified_job_query_identity_and_ignores_tracking(base):
+    validate_source_payload('Verified board', [_job(i, url=f'{base}?job=role-{i}') for i in range(12)])
+    with pytest.raises(SourceDataQualityError, match='distinct application links'):
+        validate_source_payload('Repeated link', [_job(i, url=f'{base}?job=same&utm_source={i}') for i in range(12)])
+
+
 def test_quality_rejects_repeated_page_wide_description_even_with_distinct_jobs():
     body = "Requirements and responsibilities " + ("production systems and engineering details " * 12)
     jobs = [_job(i) for i in range(10)]

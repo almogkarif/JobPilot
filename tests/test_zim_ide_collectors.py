@@ -111,6 +111,16 @@ def test_ide_location_requires_an_explicit_field_and_never_uses_description_or_f
         zim_ide.parse_ide(ide_card().replace('Location:', 'Headquarters:'))
 
 
+def test_ide_board_passes_scanner_quality_with_distinct_query_based_links():
+    from app.services.source_quality import validate_source_payload
+    document = ''.join(ide_card(str(i), requirements=REQUIREMENTS + f' Position reference {i}.')
+                       .replace('Piping Design Team Leader', f'Piping Design Engineer {i}')
+                       for i in range(12))
+    jobs = zim_ide.parse_ide(document)
+    assert len(jobs) == 12
+    validate_source_payload('IDE Technologies', jobs)
+
+
 @pytest.mark.parametrize('url', [
     'https://elsewhere.example/en/join-us/?job=2898',
     'https://ide-tech.com/en/join-us/?job=2898&job=9999',
