@@ -12,7 +12,9 @@ from ...utils import dumps, loads
 from ..career_tracks import active_track
 from .config import DEFAULT_V2_CONFIG, RankingV2Config
 from .v2 import EligibilityRankingEngine
+from ..catalog_routing import routing_version, unified_catalog_enabled, job_in_track
 from ..degree_requirements import profile_degree_level
+from ..seniority import selected_seniority_levels
 
 RANKING_ENGINE = EligibilityRankingEngine()
 MAX_SCORE_CACHE_BYTES = 8192
@@ -47,17 +49,18 @@ def profile_fingerprint(profile, track: str | None = None) -> str:
         profile.skills_json, profile.desired_titles_json, profile.preferred_locations_json,
         profile.preferred_work_modes_json, profile.keywords_json, profile.excluded_keywords_json,
         profile.work_authorization, profile.needs_sponsorship, profile_degree_level(profile),
-    ])
+        dumps(selected_seniority_levels(profile)),
+    ] + ([routing_version()] if routing_version() else []))
 
 
 def eligibility_profile_fingerprint(profile, track: str | None = None) -> str:
     """Only inputs read by evaluate_eligibility; skills/keywords do not change gates."""
     return _digest([
-        "eligibility-v1", track or active_track(profile), float(profile.years_experience or 0),
+        dumps(selected_seniority_levels(profile)), "eligibility-v1", track or active_track(profile), float(profile.years_experience or 0),
         profile.years_experience_options_json, profile.excluded_keywords_json,
         profile.preferred_locations_json, profile.preferred_work_modes_json,
         profile_degree_level(profile),
-    ])
+    ] + ([routing_version()] if routing_version() else []))
 
 
 def scoring_profile_fingerprint(profile, track: str, context=None) -> str:
@@ -120,19 +123,19 @@ def pending_ranking_condition(profile, settings, track: str):
 
 
 def preserve_unchanged_title_filters(db, profile, settings, *, previous_keywords,
-                                     previous_profile_digest, previous_eligibility_digest):
+                                     previous_profile_digest, previous_eligibility_digest, previous_seniority=None):
     """Advance only verified, unaffected results using bounded title-only pages."""
     from ..matching import hard_exclusion_reason
     track = active_track(profile)
     last_id = 0
     while True:
         rows = db.execute(select(Job.id, Job.title).where(
-            Job.career_track == track, Job.is_active.is_(True), Job.id > last_id,
+            job_in_track(track), Job.is_active.is_(True), Job.id > last_id,
         ).order_by(Job.id).limit(200)).all()
         if not rows:
             break
         last_id = rows[-1].id
-        unchanged = [j.id for j in rows if hard_exclusion_reason(j, profile, previous_keywords)
+        unchanged = [j.id for j in rows if hard_exclusion_reason(j, profile, previous_keywords, previous_seniority)
                      == hard_exclusion_reason(j, profile)]
         if not unchanged:
             continue
@@ -166,7 +169,11 @@ def job_fingerprint_values(
     identify unchanged listings without downloading every long job description from
     Supabase first.
     """
-    return _digest([career_track, title, description, location, workplace, published_at])
+    if unified_catalog_enabled() and isinstance(published_at, datetime):
+        # SQLite drops timezone metadata; collection and later ORM reads must hash identically.
+        published_at = (published_at.replace(tzinfo=timezone.utc) if published_at.tzinfo is None
+                        else published_at.astimezone(timezone.utc))
+    return _digest(["shared" if unified_catalog_enabled() else career_track, title, description, location, workplace, published_at])
 
 
 def job_fingerprint(job) -> str:
@@ -187,14 +194,18 @@ def persist_v2_result(
 ) -> JobRanking:
     """Persist one personalized ranking result."""
     started = time.perf_counter()
-    track = job.career_track
+    track = (getattr(context, "career_track", None) or active_track(profile)) if unified_catalog_enabled() else job.career_track
+    if unified_catalog_enabled():
+        db.info["ranking_track"] = track
     row = existing_row
+    if unified_catalog_enabled() and row is not None and row.career_track != track:
+        row = None
     if row is None:
         row = db.scalar(select(JobRanking).where(JobRanking.job_id == job.id, JobRanking.engine == "v2"))
     if row is not None and row.eligibility_state == "excluded" and not result_is_stale(row, job, profile, settings):
         return row
     if not row:
-        row = JobRanking(job_id=job.id, engine="v2")
+        row = JobRanking(job_id=job.id, engine="v2", career_track=track if unified_catalog_enabled() else "")
         db.add(row)
     try:
         score_digest = scoring_profile_fingerprint(profile, track, context)
@@ -241,7 +252,7 @@ def persist_v2_result(
 
 
 def result_is_stale(row: JobRanking | None, job, profile, settings: RankingSettings) -> bool:
-    track = job.career_track
+    track = active_track(profile) if unified_catalog_enabled() else job.career_track
     return bool(
         not row or row.stale or row.error or row.engine_version != RANKING_ENGINE.version
         or row.config_version != settings.config_version

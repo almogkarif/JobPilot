@@ -5,10 +5,11 @@ from datetime import timezone
 from ...utils import loads
 from ..location_filter import is_israel_location
 from ..degree_requirements import degree_label, degree_satisfies, job_degree_requirement, profile_degree_level
-from ..matching import hard_exclusion_reason, track_job_relevance
+from ..matching import hard_exclusion_reason
+from ..catalog_routing import track_relevance as track_job_relevance, unified_catalog_enabled, track_decision
 from .experience import (
     SENIORITY_ORDER, detect_seniority, employment_type, experience_requirement_buckets,
-    parse_experience, profile_experience_options, profile_seniority,
+    parse_experience, preferred_experience_evidence, profile_experience_options, profile_seniority,
 )
 
 LOCATION_ALIASES = {
@@ -67,13 +68,17 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
         reasons.append(exclusion)
 
     exp_min, exp_max = parse_experience(job)
+    preferred_experience = preferred_experience_evidence(job) if exp_min is None else ''
     years = float(getattr(profile, "years_experience", 0) or 0)
     gap = None if exp_min is None else max(0.0, exp_min - years)
     selected_experience = profile_experience_options(profile)
     requirement_buckets = experience_requirement_buckets(exp_min, exp_max)
     experience_status = "unknown"
     if exp_min is None:
-        unknown.append("experience")
+        if preferred_experience:
+            experience_status = "preferred"
+        else:
+            unknown.append("experience")
     elif selected_experience:
         # The profile UI intentionally allows several experience values. Treat
         # those choices as the hard filter instead of collapsing them to max()
@@ -146,7 +151,7 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
     seniority_status = "unknown" if not job_level else "match"
     if not job_level:
         unknown.append("seniority")
-    elif SENIORITY_ORDER[job_level] - SENIORITY_ORDER[user_level] >= 3:
+    elif not getattr(profile, "seniority_levels_json", "") and SENIORITY_ORDER[job_level] - SENIORITY_ORDER[user_level] >= 3:
         seniority_status = "mismatch"
         state = "excluded"
         reasons.append(f"Seniority mismatch: {user_level} profile vs {job_level} role")
@@ -211,9 +216,14 @@ def evaluate_eligibility(job, profile, config, *, career_track: str, now) -> dic
     confidence = "high" if len(unknown) <= 1 else "medium" if len(unknown) <= 3 else "low"
     return {
         "eligible": state != "excluded", "state": state, "tier": state,
+        **({"track_degree_color": track_decision(job, career_track).degree_color,
+            "track_degree_explanation": track_decision(job, career_track).degree_explanation}
+           if unified_catalog_enabled() else {}),
         "career_track_status": track_status, "experience_status": experience_status,
         "experience_gap": gap, "required_experience_min": exp_min, "required_experience_max": exp_max,
         "required_experience_buckets": sorted(requirement_buckets),
+        "experience_preferred_only": bool(preferred_experience),
+        "preferred_experience_evidence": preferred_experience,
         "profile_experience": years, "profile_experience_options": sorted(selected_experience),
         "degree_status": degree_status, "required_degree": required_degree or None,
         "degree_required": degree_requirement.required,

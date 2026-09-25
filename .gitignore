@@ -39,3 +39,20 @@ ruvector.db
 .claude-flow/models/
 .claude-flow/embeddings.json
 data/agent-cache/
+
+# Local analysis outputs, rollout copies and browser/test artifacts (keep source/tests).
+/docs/track-classification-comparison-*/**/*.json
+/docs/track-classification-comparison-*/**/*.html
+/docs/track-classification-comparison-*/*.json
+/docs/track-classification-comparison-*/*.html
+/data/*-journal
+/data/*-wal
+/data/*-shm
+/data/local-reports/
+/data/local-runtime/
+/data/private-backups/
+/data/*.recheck.json
+/data/rollout-*/
+/playwright-report/
+/test-results/
+*.log

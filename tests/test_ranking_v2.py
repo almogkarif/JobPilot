@@ -204,3 +204,93 @@ def test_configuration_requires_exact_weight_total_and_ordered_thresholds():
         RankingV2Config(role_weight=50).validate()
     with pytest.raises(ValueError, match="strictly descending"):
         RankingV2Config(top_match_threshold=80, strong_match_threshold=90).validate()
+
+
+@pytest.mark.parametrize(('degree','experience','missing'), [
+    ('B.Sc. in Computer Science required.', '3 years of software development experience required.', []),
+    ('', '3 years of software development experience required.', ['degree']),
+    ('B.Sc. in Computer Science required.', '', ['experience']),
+    ('', '', ['degree','experience']),
+    ('B.Sc. in Computer Science required.', 'No prior experience required.', []),
+])
+def test_unidentified_job_requirements_apply_visible_penalty_once(degree, experience, missing):
+    from app.services.ranking.v2 import EligibilityRankingEngine
+    candidate=profile(years=3,years_options=['0','1','2','3'],skills=['python'],titles=['Software Engineer'])
+    opening=job('Software Engineer', degree+' '+experience+' '+('Develop Python services and maintain production software systems. '*8))
+    context=build_match_context(candidate,career_track=candidate.active_career_track,now=NOW)
+    engine=EligibilityRankingEngine()
+    result=engine.rank_job(opening,candidate,context=context)
+    assert result.eligibility['state']!='excluded'
+    assert result.eligibility['missing_requirements']==missing
+    penalty=30 if missing else 0
+    assert result.eligibility['missing_requirements_penalty']==penalty
+    base=sum(part['score'] for part in result.breakdown.values())
+    assert not result.breakdown['skills']['missing_required']
+    assert result.score==max(0,base-penalty)
+    assert [r['points'] for r in result.reasons if r['type']=='penalty']==([-30] if missing else [])
+    cached=engine.rank_job(opening,candidate,context=context,cached_scoring={'breakdown':result.breakdown,'skills':result.skills})
+    assert cached.score==result.score
+    assert cached.breakdown==result.breakdown
+
+
+def test_missing_requirement_penalty_is_applied_after_partial_description_cap():
+    result=score(profile(skills=['python'],titles=['Software Engineer']),job('Software Engineer','Develop Python software.'))
+    assert result.eligibility['missing_requirements_penalty']==30
+    assert 0<=result.score<=25
+
+
+@pytest.mark.parametrize('track,title,degree', [
+    ('industrial_engineering', 'Planner', 'Industrial Engineering and Management'),
+    ('electrical_engineering', 'Hardware Engineer', 'Electrical Engineering'),
+    ('computer_science', 'Software Engineer', 'Computer Science'),
+])
+@pytest.mark.parametrize('experience', [
+    'ניסיון מוכח של שנה לפחות בתכנון ובקרה - יתרון',
+    '3 years of professional experience preferred.',
+    'Preferred qualifications:\nExperience with SAP.',
+])
+def test_optional_experience_is_identified_without_becoming_a_hard_filter(track,title,degree,experience):
+    opening=job(title, f"Requirements:\nBachelor's degree in {degree} required.\n{experience}\n"
+                + 'Develop and improve engineering systems and processes. '*8, track=track)
+    result=score(profile(track=track,years=0), opening)
+    e=result.eligibility
+    assert e['required_experience_min'] is None
+    assert e['experience_status']=='preferred'
+    assert e['experience_preferred_only']
+    assert e['preferred_experience_evidence']
+    assert 'experience' not in e['unknown_fields']
+    assert 'experience' not in e['missing_requirements']
+    assert e['missing_requirements_penalty']==0
+    assert e['state']!='excluded'
+
+
+def test_mandatory_experience_still_wins_over_a_separate_preference():
+    result=score(profile(years=0),job('Software Engineer',
+        "Requirements:\nBachelor's degree in Computer Science.\n3 years of software development experience required.\n"
+        "Preferred qualifications:\nExperience with Kubernetes."))
+    assert result.eligibility['required_experience_min']==3
+    assert not result.eligibility['experience_preferred_only']
+    assert result.eligibility['experience_status']=='mismatch'
+
+
+def test_applied_planner_evidence_does_not_mix_degree_and_language_musts():
+    opening=job('Planner', 'What you should have? BSc in industrial engineering - Must '
+                '0-2 years years of experience in planning / operational roles - Advantage '
+                'Excellent English - speaking, reading and writing - Must Very good analytical skills.',
+                track='industrial_engineering')
+    result=score(profile(track='industrial_engineering',years=0),opening)
+    assert result.eligibility['degree_required']
+    assert result.eligibility['experience_preferred_only']
+    assert result.eligibility['preferred_experience_evidence']==(
+        '0-2 years years of experience in planning / operational roles - advantage')
+
+
+def test_unselected_qa_family_loses_role_points_without_becoming_excluded():
+    from app.services.ranking.roles import role_match
+    from app.services.career_tracks import COMPUTER_SCIENCE
+    vacancy = job("Networking QA and Automation Engineer, Network Systems", "Python")
+    unselected = role_match(vacancy, ["backend", "software engineer"], COMPUTER_SCIENCE, 40)
+    selected = role_match(vacancy, ["automation engineer"], COMPUTER_SCIENCE, 40)
+    assert unselected["score"] == 8
+    assert selected["score"] == 40
+    assert role_match(vacancy, [], COMPUTER_SCIENCE, 40)["score"] == 29

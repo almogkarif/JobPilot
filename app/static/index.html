@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.52.23" />
+    <link rel="stylesheet" href="/static/styles.css?v=0.52.24" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -135,14 +135,10 @@
             <div id="recent-jobs" class="job-stack"></div>
           </article>
           <article class="panel flow-panel">
-            <div class="panel-head"><div><span class="kicker">זרימת עבודה חכמה</span><h2>מהאיתור ועד המעקב</h2></div></div>
-            <ol class="flow-list">
-              <li><b>1</b><div><strong>מאתר ומנקה</strong><span>סורק אתרי קריירה, מסנן משרות לא מתאימות ומאחד כפילויות בין מקורות.</span></div></li>
-              <li><b>2</b><div><strong>מסביר את ההתאמה</strong><span>מדרג לפי כותרת, סקילים, ניסיון, מיקום ועדכניות — עם פירוט מלא של הציון.</span></div></li>
-              <li><b>3</b><div><strong>מכין ומגיש אוטומטית</strong><span>בוחר את גרסת קורות החיים המתאימה, מזהה פערי סקילים וממלא את הטופס רק במידע שאישרת.</span></div></li>
-              <li><b>4</b><div><strong>עוקב ומבקש עזרה כשצריך</strong><span>מפעיל את ההגשה המאובטחת לאחר מעבר הסף, מציג את ההתקדמות ומסיר את המשרה מההמלצות רק לאחר שהתקבל אישור שהוגשה.</span></div></li>
-            </ol>
-            <div class="safe-note">LinkedIn משמש כמקור קישורים בלבד; אין אוטומציה בתוך האתר.</div>
+            <div class="panel-head"><div><span class="kicker">מהסריקות האחרונות</span><h2>חם מהסריקה</h2></div></div>
+            <p class="scan-suggestions-intro">משרות שאותרו לאחרונה ונמצאו מתאימות לפרופיל שלך.</p>
+            <div id="scan-suggestions" class="scan-suggestions" aria-live="polite"></div>
+            <p class="scan-suggestions-footnote">משרות שנוספו ב־14 הימים האחרונים.</p>
           </article>
         </div>
       </section>
@@ -158,6 +154,7 @@
           <label class="filter-control job-sort-control"><span>מיון</span><select id="job-sort"><option value="score_desc">המומלצות ביותר</option><option value="newest">החדשות ביותר</option><option value="company_asc">חברה — א׳ עד ת׳</option></select></label>
           <label class="filter-control page-size-control"><span>משרות בעמוד</span><select id="jobs-page-size"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></label>
           <button class="btn secondary density-toggle" id="density-toggle" type="button" aria-pressed="false">תצוגה קומפקטית</button>
+          <label class="source-toggle"><input id="job-show-submitted" type="checkbox" role="switch" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>הצג משרות שכבר הגשתי</strong></span></label>
           <button class="btn secondary" id="import-job-btn" hidden>הוסף קישור ידנית</button>
         </div>
         <div id="active-filters" class="active-filters" aria-live="polite"></div>
@@ -281,20 +278,6 @@
         <div class="developer-center">
           <article class="panel developer-hero"><div><span class="kicker">Admin only · Control Center</span><h2>מרכז המפתחים</h2><p>בריאות המערכת, משתמשים, סריקות, מקורות, תורים, תצוגות ו־QA במקום אחד.</p><p id="developer-runtime-status" class="preference-help"></p></div><div class="developer-actions"><button class="btn primary" id="developer-refresh-all" type="button">רענן הכל</button><button class="btn secondary" id="developer-preview-non-admin" type="button">תצוגת משתמש</button><button class="btn secondary" id="developer-preview-onboarding" type="button">Onboarding</button></div></article>
           <section id="developer-health-grid" class="developer-health-grid"><div class="empty-state">טוען מצב מערכת…</div></section>
-          <section class="panel ranking-lab" id="ranking-lab">
-            <div class="panel-head"><div><span class="kicker">Admin only · Ranking diagnostics</span><h3>Ranking V2 Lab</h3><p class="preference-help">Preview, כיול ובדיקת תוצאות של מנוע הדירוג הפעיל. כל הדירוג מתבצע בשרת.</p></div><span id="ranking-lab-engine-badge" class="developer-status-dot">V2</span></div>
-            <div id="ranking-lab-status" class="developer-health-grid"><div class="empty-state">טוען מצב דירוג…</div></div>
-            <div class="ranking-lab-controls">
-              <label>Test ranking as<select id="ranking-lab-user"></select></label>
-              <div class="developer-actions"><button class="btn secondary" id="ranking-rerank-v2" type="button">Re-rank</button></div>
-            </div>
-            <details class="ranking-config-panel"><summary>Ranking Configuration</summary><div id="ranking-config-fields" class="ranking-config-grid"></div><div class="developer-actions"><button class="btn secondary" id="ranking-preview-config" type="button">Preview Changes</button><button class="btn primary" id="ranking-apply-config" type="button">Apply Configuration</button><button class="btn secondary" id="ranking-reset-config" type="button">Restore Defaults</button></div></details>
-            <div class="ranking-comparison-head"><div><strong>Current rankings</strong><small id="ranking-inspected-user">בחר משתמש</small></div><select id="ranking-comparison-sort"><option value="score_desc">Highest score</option><option value="score_asc">Lowest score</option><option value="newest">Newest jobs</option></select></div>
-            <div id="ranking-preview-stats" class="ranking-preview-stats" hidden></div>
-            <div class="ranking-top-grid"><section><h4>Top 20</h4><div id="ranking-v2-top" class="ranking-list developer-source-list"></div></section></div>
-            <div id="ranking-comparison-list" class="ranking-comparison-list developer-source-list"><div class="empty-state">בחר משתמש כדי לראות דירוגים</div></div>
-            <aside id="ranking-job-inspector" class="ranking-job-inspector" hidden></aside>
-          </section>
           <div class="developer-grid">
             <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Runtime</span><h3>System Health</h3></div><span id="developer-health-badge" class="developer-status-dot">—</span></div><div id="developer-system-details" class="developer-kv"></div><div class="developer-actions"><button class="btn secondary" id="developer-rerank" type="button">הכנס Re-rank לתור</button><button class="btn secondary" id="developer-reset-scan-runtime" type="button">אפס מצב סריקה</button></div></article>
             <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Theme QA</span><h3>Theme Lab</h3></div></div><p class="preference-help">בדיקה מיידית של כל מקצוע ומצב תצוגה בלי לשנות את נתוני המשתמש.</p><div id="developer-theme-lab" class="developer-theme-lab"></div><div id="developer-color-audit" class="developer-color-audit"></div></article>
@@ -327,7 +310,7 @@
                 <div class="profile-detail-head"><div><span class="profile-section-index">01</span><h3>זהות ופרטי קשר</h3></div><button class="btn primary small" type="submit">שמור זהות וקשר</button></div>
                 <div class="form-grid profile-identity-grid">
                   <label>שם מלא<input name="full_name" /></label><label>שם מועדף<input name="extra_preferred_name" /></label><label>כינויי גוף<input name="extra_pronouns" placeholder="אופציונלי" /></label>
-                  <label>אימייל<input name="email" type="email" /></label><label class="phone-contact-field">טלפון<span class="phone-input-group" dir="ltr"><input name="extra_phone_country_code" inputmode="tel" aria-label="קידומת טלפון" value="+972" placeholder="+972" /><input name="phone" inputmode="tel" autocomplete="tel-national" aria-label="מספר טלפון" placeholder="50-123-4567" /></span></label><label>שלוחת טלפון<input name="extra_phone_extension" inputmode="numeric" autocomplete="off" placeholder="אופציונלי" /></label><label>אזור מגורים<input name="location" placeholder="למשל: תל אביב" /></label>
+                  <label>אימייל<input name="email" type="email" /></label><label class="phone-contact-field">טלפון<span class="phone-input-group" dir="ltr"><input name="extra_phone_country_code" inputmode="tel" aria-label="קידומת טלפון" value="+972" placeholder="+972" /><input name="phone" inputmode="tel" autocomplete="tel-national" aria-label="מספר טלפון" placeholder="50-123-4567" /></span></label><label>שלוחת טלפון<input name="extra_phone_extension" inputmode="numeric" autocomplete="off" placeholder="אופציונלי" /></label><input name="location" type="hidden" />
                   <label class="citizenship-field">אפשרויות אזרחות בטפסים<select name="extra_citizenships" multiple size="4" aria-label="בחר אזרחויות"></select></label>
                 </div>
               </section>
@@ -374,7 +357,7 @@
                   <div class="profile-detail-head"><div><span class="profile-section-index">05</span><h3>השכלה</h3></div><button class="btn primary small" type="submit">שמור השכלה</button></div><div class="form-grid">
                     <label>מוסד לימודים<input name="extra_education_school" /></label><label>סוג תואר<select name="degree_level"><option value="" disabled>בחר סוג תואר</option><option value="bachelor">תואר ראשון (B.A. / B.Sc.)</option><option value="master">תואר שני (M.A. / M.Sc.)</option><option value="phd">דוקטורט (Ph.D.)</option></select></label>
                     <label>תחום לימודים<input name="extra_education_field" /></label><label>ציון / GPA<input name="extra_education_grade" /></label>
-                    <label>תאריך התחלה<input name="extra_education_start_date" type="month" /></label><label>תאריך סיום<input name="extra_education_end_date" type="month" /></label>
+                    <label>תאריך התחלה<input name="extra_education_start_date" type="text" dir="ltr" placeholder="YYYY או YYYY-MM" pattern="[0-9]{4}(-(?:0[1-9]|1[0-2]))?" /></label><label>תאריך סיום<input name="extra_education_end_date" type="text" dir="ltr" placeholder="YYYY או YYYY-MM" pattern="[0-9]{4}(-(?:0[1-9]|1[0-2]))?" /></label>
                   </div>
               </section>
               <section class="profile-detail-section">
@@ -392,7 +375,7 @@
 
           <article class="panel profile-pane" data-profile-pane="preferences">
             <div class="panel-head"><div><span class="kicker">התאמה ודירוג</span><h2>מה לחפש עבורך</h2></div><button class="btn primary small" type="submit">שמור התאמה</button></div>
-            <p class="preference-help preference-priority-help">סמן את האפשרויות שמתאימות לך. הבחירות המסומנות עולות למעלה; לחץ והחזק כדי לגרור ולדרג אותן. ככל שהבחירה גבוהה יותר, השפעתה על ציון ההתאמה גדולה יותר.</p>
+            <p class="preference-help preference-priority-help">סמן את האפשרויות שמתאימות לך. רמות הניסיון הן סינון מחייב. בשאר הקבוצות הבחירות המסומנות עולות למעלה; לחץ והחזק כדי לגרור ולדרג אותן. ככל שהבחירה גבוהה יותר, השפעתה על ציון ההתאמה גדולה יותר.</p>
             <div class="preference-stack">
               <fieldset class="preference-group" data-field="desired_titles"><legend>סוגי תפקידים</legend><div class="option-grid" id="desired-title-options">
                 <label><input type="checkbox" data-profile-option="desired_titles" value="software engineer" /> Software Engineer</label>
@@ -415,27 +398,21 @@
                 <label><input type="checkbox" data-profile-option="desired_titles" value="ai research" /> AI Research</label>
               </div><label class="custom-preference">תפקידים נוספים<textarea id="desired-titles-custom" name="desired_titles" rows="2" placeholder="למשל: Developer Tools, Integration"></textarea></label></fieldset>
 
-              <fieldset class="preference-group" data-field="keywords"><legend>רמות ניסיון שתרצה לראות</legend><div class="option-grid">
-                <label><input type="checkbox" data-profile-option="keywords" value="student" /> Student / Intern</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="entry level" /> Entry Level / Graduate</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="junior" /> Junior</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="mid level" /> Mid Level</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="senior" /> Senior</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="lead" /> Lead</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="staff" /> Staff / Principal</label>
-                <label><input type="checkbox" data-profile-option="keywords" value="manager" /> Manager</label>
-              </div><label class="custom-preference">מילות מפתח חיוביות נוספות<textarea name="keywords" rows="2" placeholder="למשל: infrastructure, developer tools"></textarea></label></fieldset>
+              <fieldset class="preference-group" data-field="seniority_levels"><legend>רמות ניסיון להצגה</legend><p class="preference-help">יוצגו רק משרות ברמות המסומנות. רמות שלא סומנו יוסרו לפני הדירוג. ללא סימון לא יוצגו משרות.</p><input type="hidden" name="seniority_levels" /><div class="option-grid">
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="student" /> Student / Intern</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="entry level" /> Entry Level / Graduate</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="junior" /> Junior</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="mid level" /> Mid Level</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="senior" /> Senior</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="lead" /> Lead</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="staff" /> Staff / Principal</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="manager" /> Manager</label>
+                <label><input type="checkbox" data-profile-option="seniority_levels" value="unknown" /> לא צוינה רמת ניסיון</label>
+              </div></fieldset>
 
-              <fieldset class="preference-group preference-exclude" data-field="excluded_keywords"><legend>רמות ניסיון ש<strong class="negative-word">לא</strong> לחפש עבורך</legend><div class="option-grid">
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="student" /><span class="negative-x" aria-hidden="true">×</span> Student / Intern</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="entry level" /><span class="negative-x" aria-hidden="true">×</span> Entry Level / Graduate</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="junior" /><span class="negative-x" aria-hidden="true">×</span> Junior</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="mid level" /><span class="negative-x" aria-hidden="true">×</span> Mid Level</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="senior" /><span class="negative-x" aria-hidden="true">×</span> Senior</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="lead" /><span class="negative-x" aria-hidden="true">×</span> Lead</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="staff" /><span class="negative-x" aria-hidden="true">×</span> Staff / Principal</label>
-                <label><input type="checkbox" data-profile-option="excluded_keywords" value="manager" /><span class="negative-x" aria-hidden="true">×</span> Manager</label>
-              </div><label class="custom-preference">תחומים לא רצויים בכותרת המשרה בלבד<textarea name="excluded_keywords" rows="2" placeholder="למשל: sales, manual QA"></textarea></label></fieldset>
+              <fieldset class="preference-group" data-field="keywords"><legend>מילות מפתח לקידום בדירוג</legend><label class="custom-preference">מילים נוספות שחשובות לך<textarea name="keywords" rows="2" placeholder="למשל: infrastructure, developer tools"></textarea></label></fieldset>
+
+              <fieldset class="preference-group preference-exclude" data-field="excluded_keywords"><legend>מילים להחרגה מכותרת המשרה</legend><label class="custom-preference">משרה עם אחת מהמילים האלה בכותרת לא תוצג<textarea name="excluded_keywords" rows="2" placeholder="למשל: sales, manual QA"></textarea></label></fieldset>
 
               <fieldset class="preference-group" data-field="skills"><legend id="skills-preference-legend">טכנולוגיות וכישורים</legend><div class="option-grid" id="skill-options">
                 <label><input type="checkbox" data-profile-option="skills" value="Python" /> Python</label>
@@ -499,7 +476,7 @@
 
   <section id="onboarding-gate" class="onboarding-gate" hidden aria-hidden="true">
     <div class="onboarding-shell" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-      <header class="onboarding-head"><div class="onboarding-brand brand" aria-label="JobPilot"><span class="brand-mark onboarding-brand-mark"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="ob-jp-surface" x1="8" y1="5" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#123F65"/><stop offset=".55" stop-color="#0B3151"/><stop offset="1" stop-color="#06243E"/></linearGradient><linearGradient id="ob-jp-line" x1="18" y1="49" x2="50" y2="16" gradientUnits="userSpaceOnUse"><stop stop-color="#8FD3F4"/><stop offset=".48" stop-color="#DDF5FF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect class="logo-surface" x="3" y="3" width="58" height="58" rx="18" fill="url(#ob-jp-surface)"/><path class="logo-route-depth" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route-highlight" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><circle class="onboarding-logo-orb" cx="27" cy="13" r="4.8"/></svg></span><span class="onboarding-wordmark" dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot"></span></span>lot</span></div><span id="onboarding-progress-label">1 מתוך 6</span></header>
+      <header class="onboarding-head"><div class="onboarding-brand brand" aria-label="JobPilot"><span class="brand-mark onboarding-brand-mark"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="ob-jp-surface" x1="8" y1="5" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#123F65"/><stop offset=".55" stop-color="#0B3151"/><stop offset="1" stop-color="#06243E"/></linearGradient><linearGradient id="ob-jp-line" x1="18" y1="49" x2="50" y2="16" gradientUnits="userSpaceOnUse"><stop stop-color="#8FD3F4"/><stop offset=".48" stop-color="#DDF5FF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect class="logo-surface" x="3" y="3" width="58" height="58" rx="18" fill="url(#ob-jp-surface)"/><path class="logo-route-depth" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><path class="logo-route-highlight" pathLength="100" d="M27 22C26 31 24 42 19 49C15 55 9 52 10 46C11 39 21 34 33 27C43 20 51 20 55 26C59 33 55 42 48 44C43 45 39 43 36 40C37 36 38 31 39 27C37 35 34 47 31 54"/><circle class="onboarding-logo-orb" cx="27" cy="13" r="4.8"/></svg></span><span class="onboarding-wordmark" dir="ltr">JobP<span class="brand-i">ı<span class="brand-i-dot"></span></span>lot</span></div><span id="onboarding-progress-label">1 מתוך 7</span></header>
       <div class="onboarding-progress"><i id="onboarding-progress-bar"></i></div>
       <div id="onboarding-content" class="onboarding-content"></div>
       <footer class="onboarding-actions"><button id="onboarding-back" class="btn secondary" type="button">חזרה</button><button id="onboarding-skip" class="text-btn" type="button">אעשה את זה אחר כך</button><button id="onboarding-next" class="btn primary" type="button">המשך</button></footer>
@@ -512,6 +489,6 @@
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js?v=0.31.28"></script>
+    <script src="/static/app.js?v=0.31.35"></script>
 </body>
 </html>

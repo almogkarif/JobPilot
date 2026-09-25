@@ -173,8 +173,127 @@ production deployment or scan was performed during this task. The regression
 the new external request behavior; the existing egress tests protect description
 projections. The IEM catalog ceiling is explicitly updated from 100 to 104 sources.
 
+### Local dashboard scan suggestions (not deployed)
 
-### Filter-first personal ranking — 24 September 2026
+The preview adds one query per authenticated dashboard request, returning at most
+three rows with only id, title, company, location, discovery time and score. It
+never selects descriptions or downloads files and adds no polling. With the
+schema's string limits, budget 4 KB per row / 12 KB per dashboard request. At
+60 dashboard requests per hour this adds at most 720 KB/hour or 17.3 MB/day per
+continuously active user; the existing capped 45-request ranking refresh cycle
+adds at most 540 KB. Guest dashboards skip the query. Deployment remains outside
+the scope of this local preview. Regression coverage checks its projection and
+three-row limit in `tests/test_supabase_egress_optimization.py`.
+
+### Shared-source classification comparison — local shadow only
+
+`track_classification` and `shared_source_comparison` are candidate modules, not
+imported by the production scanner/startup/ranking paths. Scheduled incremental
+cost is zero calls/hour, zero calls/day and zero Supabase bytes. The explicit
+comparison CLI only opens local SQLite with `mode=ro` and `query_only`; it uses
+100-row keyset pages, a 5,000-job ceiling, 24,001-character projected descriptions,
+and a 2,000-source ceiling. Longer text is flagged for review, not auto-classified;
+partial population coverage is explicit. No resumes, profiles or Storage objects
+are read. Output JSON omits descriptions; the HTML has no external requests.
+
+The five-board manual preview uses public employer collectors, with no database
+connection. It preserves failures/partial feeds and does not persist jobs. Existing
+collector response sizes are not hard-bounded by the 1,000-item post-collection
+check. This code must remain a shadow experiment until independent classification
+review and the production migration/egress budget are complete. The comparison
+results and rollout criteria are in `track-classification-comparison-2026-09-16/README.md`.
+Regression tests: `test_shadow_comparison_is_read_only_paginated_and_reports_partial_coverage`
+and `test_shadow_comparison_adds_no_production_scan_or_startup_work`.
+
+Shadow-3 reuses the same bounded read-only local query. Degree colors add at most
+two 350-character evidence snippets per track to local artifacts only; no scheduled
+calls, production queries or Supabase bytes are added.
+
+Shadow-4 adds a projected `substr(apply_url, 1, 1200)` to the same explicit local
+SQLite audit, at most 100 rows/page and 5,000 jobs. Maximum extra UTF-8 payload
+is 4.8 KB/row, 480 KB/page, 24 MB/run locally; zero Supabase calls/hour/day.
+Review groups are computed from existing bounded candidate decisions, without
+extra database queries. A temporary projected SQLite snapshot is used to compare
+both classifier versions on identical input; no profiles/applications are copied.
+The local audit regression verifies projected URLs, review groups and read-only
+source integrity. No production collector changes or bulk retries were made.
+
+### Shadow comparison v5 (local only)
+
+The v5 report reuses the bounded read-only SQLite snapshot and adds local previous-report comparison plus degree/student filter metadata. Degree evidence is capped at 350 characters and allowed degree levels at three. No production imports, startup tasks, polling or Supabase requests are added: zero calls/day and zero production egress. The relevant egress regression tests passed.
+
+### Employer content recovery audit — 2026-09-17 (local, not deployed)
+
+Impact check: the 191-row audit uses the existing projected local SQLite snapshot
+and cached public employer responses. No Supabase queries, Storage downloads,
+production writes, startup repairs, or scheduled backfills were executed or added.
+The collectors themselves do not access the database. Existing scanner persistence
+and bounded ranking paths remain unchanged; recovering descriptions can change
+fingerprints and therefore must not be deployed together with an unbudgeted bulk
+retry/re-rank. Larger stored descriptions are not a claim of zero future egress.
+
+Public employer request ceilings per explicit scan of each affected source:
+Speedata 40, Microsoft 80, TI 40, Philips 40, Island 40, Mobileye 180,
+Rafael 180 detail requests, each with a 4 MB decoded response limit (600 requests,
+2.4 GB worst-case public HTTP traffic). This replaces/limits existing hydration
+where already enabled. Matrix adds one landing plus at most 40 category requests,
+4 MB each, stops at 100 distinct jobs; Global-e uses one feed request, 4 MB and
+200 input rows maximum, with no detail requests. These are employer traffic,
+not Supabase egress. Intermediate redirect bodies are closed unread. At one scan/hour, the changed paths have ceilings of 2,442
+requests/hour including at most three same-host redirects per detail, 58,608/day and 61.632 GB/day public downloads; real audited pages
+were substantially smaller. Existing unrelated listing/browser paths are unchanged
+and are not included in this incremental-path ceiling.
+
+Recovered text is capped at 24,000 characters/job (TI structured parser: 12,000).
+At worst 900 changed rows/scan across these paths, a conservative UTF-8 text
+payload ceiling is 86.4 MB of potential writes per full scan. There are zero new
+DB read calls/hour or day from the adapters. Downstream existing production
+read/RETURNING/ranking behavior must be measured against the remaining organization
+quota before deployment or a bulk recovery. No deployment or production retry is
+part of this audit. All collectors stay partial: absent/blocked/closed entries do
+not trigger a catalog-wide deactivation. Any legacy cleanup is a separate explicit
+operation, never a startup hook.
+
+Regression: `test_content_recovery_collectors_are_bounded_without_database_backfill`,
+plus streaming byte-limit tests in the employer, Matrix and Global-e adapter suites.
+
+### Cumulative collection history — local implementation, 17 September 2026
+
+`collection_observations` retains source-kind + source-identifier + external-ID
+identities independently of job/source deletion. Retries, track copies and recovery
+do not increment unique counts. Only exact detail access blocks (401/403/429 or
+recognized challenge), or an explicitly imported audited URL, mark `ever_blocked`.
+A source listing failure with no known job identities is not multiplied into a
+speculative job count. No descriptions/URLs/person data are stored in this ledger.
+The new table is included in Postgres RLS/direct-API privilege lockdown.
+
+Scanner addition: no reads and no RETURNING. Upserts are chunks of at most 100
+identities (maximum encoded key payload about 220 KB per chunk); N collected
+identities require ceil(N/100) write calls. Unchanged identities are DO-NOTHING
+via the conflict WHERE condition. Successful recovery never clears ever_blocked.
+No recurring whole-catalog initialization was added.
+
+Developer overview addition: one aggregate query, returning one small row total
+(count, count, earliest tracking timestamp), no Job.description or ORM catalog
+loads. It is admin-gated and refreshed on view load/manual refresh, with no new
+poll timer. At one refresh/minute this is 60 queries/hour / 1,440/day, at most
+about 0.37 MB/day with a conservative 256 bytes/response-row allowance. This is
+not a database workload/CPU estimate; unique-key UNION remains server-side.
+
+Explicit `scripts/initialize_collection_history.py --database <local.sqlite>`
+seeds retained history using INSERT SELECT, no result rows downloaded. Optional
+`--blocked-audit <json>` imports at most 1,000 exact URLs in batches of 100.
+The script only accepts an existing local SQLite file. It is not invoked at
+startup, on polling, or on every scan. Executed once on the local data/jobpilot.db;
+no Supabase or production writes. Deleted pre-tracking history cannot be recovered,
+and the UI explicitly labels historical coverage as partial. Before deployment,
+production initialization must be an explicit separately budgeted operation.
+
+Regression checks verify a single aggregate read, no description projection, writes
+without RETURNING, 100-identity chunks, lifetime deduplication and preservation
+of active jobs during blocked scans.
+
+### Filter-first personal ranking — 18 September 2026 (local change)
 
 Excluded vacancies stop after deterministic eligibility checks; role/skill scores,
 score-only skill extraction and recommendation-confidence calculation are skipped.
@@ -212,17 +331,15 @@ calls/hour/day). Visible ranking JSON adds about 100 bytes for one score-input
 fingerprint; at N loaded results/day that is approximately 100*N bytes/day. Hidden
 previously scored rows retain one existing component breakdown and extracted skill
 list, not an extra copy of the description or duplicate visible breakdown. This
-can make hidden payloads larger than filter-only results; retained components are
-capped at 8,192 UTF-8 bytes per row. Oversized components are not cached. Thus at
-most 8 KiB per changed hidden result is added (0.8 MiB per 100 rows); unchanged
-exclusions are skipped in SQL. For 5,000 rows changing visibility once, the added
-storage/one-time transfer ceiling is 39.1 MiB, not a scheduled daily cost. Existing ranking reads and eligibility checks still run after gate
-changes. No additional periodic job or global refresh is scheduled by this change. Regression test
+can make hidden payloads larger than filter-only results; the retained component
+size depends on existing job/profile inputs, so no universal production byte ceiling
+is asserted. Existing ranking reads and eligibility checks still run after gate
+changes. No deployment is authorized/performed; production budgeting remains open
+as documented above. Regression test
 `test_reusing_score_components_needs_no_additional_database_reads` rejects additional
 reads and verifies no duplicate visible breakdown and retained/reused hidden scores.
 
-
-### Targeted title filters — 24 September 2026
+### Targeted title filters and ranking failures — 18 September 2026
 
 On an explicit save changing only excluded title terms, compare old/new exclusions
 using the existing matching helper over keyset pages of at most 200 `(id,title)`
@@ -243,14 +360,190 @@ size or an assertion that the remaining organization quota permits deployment.
 Affected-job body/score payload sizes and existing unbounded catalog-ranking reads
 still need the previously documented production budget; no deployment was done.
 
+Failure counts extend the two existing dashboard/statistics aggregates and the
+existing personal-status aggregate, adding no queries or descriptions. One integer
+per track/status is negligible relative to existing bounded responses (budget an
+extra 64 bytes per response, 2.9 KB over the existing 45 dashboard polls). Failure
+screens stop polling in dashboard and onboarding. An explicit retry reuses the
+existing refresh endpoint with an error-only SQL predicate; it does not fetch
+successful job bodies or enqueue a new scan. Generic refreshes still process all
+invalid/missing results. Per-job errors remain in the existing JobRanking rows.
 
-## Resume deletion repair — September 2026
+Regressions cover 200-row projected pages, no description/JSON reads or RETURNING
+in filter comparison, no additional aggregate query, unaffected bodies never loaded,
+tenant isolation, invalid-source refresh, and failed-only retries. Browser tests
+verify stopped polling and the targeted retry request from both affected screens.
 
-One explicit resume deletion issues one Storage DELETE for exactly one object,
-loads the existing resume/profile records and updates the profile track snapshot.
-It downloads no document, reads no job catalog and introduces no background
-polling. Expected scheduled calls per hour/day: zero. For N user deletions per
-day the Storage request count remains N (at most one small object metadata
-response per request), rather than downloading up to 10 MB per resume. The
-existing profile response is reused to refresh only the browser document state.
-`test_resume_delete_does_not_download_file_or_read_job_catalog` guards this bound.
+### Canonical catalog preview — 23 September 2026 (not deployed)
+
+The canonical scanner, membership queries and copy migration require all three:
+`unified_catalog_preview=true`, local auth, and a SQLite URL. This replaces the
+previous local experiment that copied each job into track-specific sources. The
+legacy PostgreSQL routing remains the default. No production scan, migration,
+Storage download or deployment was executed: incremental Supabase calls/hour,
+calls/day and transferred bytes for this preview are zero.
+
+The explicit snapshot CLI opens its input read-only and refuses an existing output.
+Consolidation is versioned, transactional and limited to 2,000 sources and 50,000
+historical jobs. Full local payloads and private state are archived on this copy;
+this is deliberately NOT a PostgreSQL migration or a startup backfill. Source
+collection is capped at 2,000 boards and 2,000 normalized items per board. Employer
+listing response bounds remain collector-specific; the item ceiling is not a
+claim of a transport byte bound. Unchanged canonical jobs use projected columns
+without descriptions. Memberships use indexed EXISTS; dashboard source/job counts
+still execute two catalog aggregates. UI polling limits are unchanged.
+
+Deployment gates remain closed: PostgreSQL additive columns/indexes and an explicit
+state-preserving migration must be prepared and reviewed; its full-catalog query,
+archive size and personal ranking budget must be measured before rollout. New
+canonical columns are not yet installed by the PostgreSQL compatibility path.
+The SQLite copy's private archive must never be exposed through a public API.
+External GitHub workflows fail closed in preview mode; queue dispatch regression
+uses a mock dispatcher and performs no real applications.
+
+Regression: `test_canonical_stats_keep_two_catalog_aggregates_without_job_bodies`,
+plus `tests/test_canonical_migration.py` and `tests/test_unified_catalog_local.py`.
+
+### Explicit missing-content recheck — 23 September 2026 (local only)
+
+`recheck_missing_content.py` reads at most 200 selected local SQLite rows with
+24,000-character descriptions (about 19.2 MB at four bytes/character), read-only.
+There are no startup/scheduled calls and zero Supabase requests or bytes. Employer
+reads run eight at a time, each with a 4 MB decompressed response limit and at most
+four same-host redirects. Microsoft may require one additional detail API call:
+worst case 400 responses / 1.6 GB per explicit 200-job run, at most 1,600 request
+hops including redirects; intermediate redirect bodies are not downloaded.
+Completed results are saved locally and reused for copy application without more
+network calls. This is a one-time operator action, not a periodic backfill.
+
+`apply_content_recheck.py` refuses existing output files, opens its source read-only
+and updates a new local copy only. It invalidates rankings for changed canonical
+jobs, preserves unresolved blocked rows, and aliases only untouched Mobileye
+placeholders with an exact matching UUID on the known Lever board. User activity
+on a placeholder aborts the transaction. Original rows and conflicting untouched
+alias states remain retained. No applications are sent. Tests cover bounded cohort
+reads, refusal to overwrite, unchanged input bytes, preserved canonical user state,
+exact-identity aliasing, and invalidation of affected rankings only.
+
+### Ranking V2 missing-requirement penalty — 24 September 2026
+
+The penalty uses existing eligibility fields in memory: zero new database queries,
+startup scans, employer requests or Storage reads. Its metadata adds at most about
+1 KB per ranked result (a two-item field list, penalty integer, warning and reason).
+For R returned/persisted ranking results this is at most R KB of added payload,
+or 100 KB per existing 100-row response. The engine-version bump uses the existing
+refresh path and makes older scores stale once; unchanged version-8 scores continue
+to reuse cached results. Existing per-user refresh I/O limits still apply. No cloud
+refresh or deployment was performed; a production refresh volume/description-byte
+budget must be measured before rollout, as noted above for the canonical preview.
+
+### PostgreSQL canonical rehearsal — 24 September 2026 (local only)
+
+`canonical_postgres.migrate_postgres_copy` and the explicit rehearsal CLI refuse
+non-loopback hosts, URL query overrides, non-PostgreSQL engines, names without the
+`jobpilot_rehearsal_` prefix and unconfirmed copies before opening a connection.
+The connected database name and server address are checked again. They are not
+called by startup, scanners, polling or normal application requests. Incremental
+Supabase requests/hour and /day, Storage reads and egress are **zero**. Cloud routing
+remains disabled; this is not an authorization to run the helper via a tunnel.
+
+For each explicit local rehearsal, ten server-side aggregates return only row
+counts, summed JSON byte lengths and maximum row lengths. Limits: 2,000 sources,
+50,000 jobs, 10,000 applications, 20,000 attempts, 50,000 events, 10,000 blockers,
+50,000 user states, 10,000 drafts, 10,000 campaign runs and 50,000 rankings; at most
+262,000 input rows in total, 256 KiB per row and 128 MiB summed input. An oversized
+input fails before schema/data changes or transfer of private row bodies. The
+copy's relevant tables are locked before measuring so concurrent writes cannot
+invalidate the bounds. Full row payloads are needed only for explicit archival
+and consolidation, never for the aggregates or repeat-completion check.
+
+The one-time local algorithm may read a record in more than one projection
+(identity, payload, receipt or blocker reconciliation); the 128 MiB figure is an
+input-size cap, **not** an assertion of total wire bytes or a cloud rollout budget.
+Completion reports are capped at 16 MiB; repeats download only that bounded saved
+receipt plus schema/control metadata and do not run consolidation again. Actual
+snapshot preflight measured 19,980,039 input bytes. A future production command still
+requires measured protocol traffic, archive storage, locking duration and ranking
+refresh volume; this rehearsal cannot contact that production endpoint.
+
+New membership, provenance, snapshot and replacement/archived ranking tables enable
+RLS and revoke PUBLIC, anon and authenticated table grants. The snapshots stay
+private. Regression coverage: remote-target refusal without a connection and
+aggregate-only byte-budget refusal in `test_supabase_egress_optimization.py`; real
+PostgreSQL tests cover size/row limits, locking, rollback and direct-role denial.
+
+### Canonical runtime integration tests — 24 September 2026
+
+The shared runtime fixture also runs on temporary loopback PostgreSQL databases,
+using three synthetic jobs and mocked employer collection/dispatch. No application
+activation gate or production query changed. Incremental Supabase calls per hour
+and day, transferred rows and bytes, and Storage reads are all zero. Test databases
+are removed and the temporary cluster stops after verification. Startup/lifespan
+is deliberately excluded; these tests do not authorize a production rollout.
+
+### Live PostgreSQL preview startup — 25 September 2026
+
+Canonical runtime can now activate only on a loopback rehearsal database with local
+auth. Startup rejects remote URLs before connecting and validates actual server/name
+plus one migration-version field before writes. The new check returns two rows total,
+well below 1 KiB per local startup, no descriptions or archived payloads. It runs once
+per startup, never per request or poll. Cloud incremental calls/hour/day and bytes
+remain zero; cloud preview activation is refused. Local document copies avoid
+Storage downloads. Existing production startup behavior is unchanged without a
+canonical receipt.
+
+The old shared-catalog conversion now checks one completion receipt before scanning
+legacy rows. A completed canonical catalog returns immediately, avoiding both the
+identity-remapping bug and a repeated catalog read. Regression tests verify refusal
+before database access for remote preview URLs and no job/source/ranking scan after
+a receipt is found. No cloud deployment or bulk cloud scan was performed.
+
+### Preferred experience distinction — 25 September 2026
+
+Experience listed only as preferred is now represented separately from a missing
+requirement. Extraction uses the description already in memory, with no additional
+database or employer requests. Evidence is capped at 300 characters (at most about
+1.2 KB UTF-8 per ranking, plus two small fields). The engine version increases to 9
+so old results refresh through the existing bounded workflow. Only the isolated
+local preview was refreshed; no cloud ranking or deployment was triggered.
+The evidence-size regression is in `test_supabase_egress_optimization.py`.
+
+### Unified seniority selection — 25 September 2026
+
+The selection adds no scheduled calls, employer requests, or catalog backfills
+(zero additional calls/hour and calls/day). Existing profile responses gain one
+array of at most nine fixed values, under 256 bytes per response; at N profile
+reads/day the additional response budget is at most 256 × N bytes/day. The
+additive database column defaults to an empty legacy sentinel, with conversion
+performed in memory or on normal preference save.
+
+Visibility uses a SQL predicate on job titles within existing bounded list and
+aggregate queries, without fetching descriptions. Filter changes reuse cached
+score components and the existing bounded refresh batches. The SQL projection
+regression is `test_seniority_visibility_is_sql_only_without_description_reads`.
+Only the local preview was refreshed; no cloud deployment or bulk scan occurred.
+
+### Legacy PostgreSQL runtime compatibility — 25 September 2026
+
+Existing PostgreSQL installations now receive the nine inert/defaulted ORM columns
+required by the new code, including when canonical routing is disabled. Web startup
+reuses existing column metadata reads; additions return no catalog rows and perform
+no canonical conversion, history initialization, or ranking uniqueness replacement.
+The scan worker performs this narrow compatibility guard before recovery or scanning
+so it can run before the web deployment. Check-only probes remain unchanged.
+
+The worker reads metadata for five fixed tables plus the observation-ledger existence
+and privileges. The real PostgreSQL regression caps an already-compatible guard at
+20 SQL statements. For the current fixed schema, budget at most 256 small metadata
+rows per guard at 1 KiB/row (256 KiB/run). The hourly workflow invokes recovery
+and, when due, scanning: at most two guards/hour, 48/day, 12 MiB/day and
+360 MiB/30 days; manual invocations add 256 KiB each. First upgrade
+adds at most nine no-result ALTER statements and creates one empty observation table,
+with RLS and direct-role grants revoked. No job descriptions, catalog contents,
+profiles, or Storage objects are fetched. Metadata estimates exclude protocol
+overhead and are not measurements of production traffic.
+
+Regressions: `test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_reads`
+and `test_postgres_legacy_runtime_compatibility.py` verify idempotence, the worker
+query bound, pre-migration reads/inserts, tenant isolation, and retained legacy
+uniqueness. No production database was contacted for this compatibility fix.

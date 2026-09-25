@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.database import (SHARED_CATALOG_USER_ID, SessionLocal, ensure_job_source_fingerprint_column,
-                          get_user_profile, user_session)  # noqa: E402
+                          ensure_worker_runtime_schema, get_user_profile, user_session)  # noqa: E402
 from app.models import AppIdentity, Job, Source  # noqa: E402
 from app.services.career_tracks import CAREER_TRACKS, active_track, normalize_track  # noqa: E402
 from app.services.catalog_ranking import rank_shared_catalog_for_user  # noqa: E402
@@ -230,6 +230,7 @@ def rank_users_for_track(career_track: str) -> None:
             result = rank_shared_catalog_for_user(user_id, track, stale_only=True)
             print(
                 f"[ranking] account={account_label(user_id)} track={track} "
+                f"status={result.get('status', 'unknown')} failed={result.get('failed', 0)} "
                 f"ranked={result.get('ranked', 0)} auto_queued={result.get('auto_queued', 0)} "
                 f"workers_recovered={result.get('workers_recovered', 0)} "
                 f"worker_dispatch_errors={result.get('worker_dispatch_errors', 0)}",
@@ -453,6 +454,7 @@ async def main() -> int:
         available = work_available(args.mode)
         print(f"[scan] work_available={str(available).lower()} mode={args.mode}", flush=True)
         return 0 if available else 3
+    ensure_worker_runtime_schema()
     if args.mode == "recover":
         count = recover_known_user_queues()
         print(f"[scan] worker complete runs={count}", flush=True)

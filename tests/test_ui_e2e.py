@@ -36,43 +36,46 @@ def live_server():
             "PYTHONUNBUFFERED": "1",
         }
     )
-    process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
-        cwd=PROJECT_ROOT,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + 30
-    output = []
-    while time.time() < deadline:
+    # A PIPE left unread can fill during multi-test API traffic and block uvicorn.
+    # Keep diagnostics without making server progress depend on draining stdout.
+    with tempfile.TemporaryFile(mode="w+t") as server_log:
+        process = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
+            cwd=PROJECT_ROOT,
+            env=env,
+            stdout=server_log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        base_url = f"http://127.0.0.1:{port}"
+        deadline = time.monotonic() + 30
         try:
-            with urlopen(f"{base_url}/api/health", timeout=1) as response:
-                if response.status == 200:
-                    break
-        except Exception:
-            if process.poll() is not None:
-                output.append(process.stdout.read() if process.stdout else "")
-                raise RuntimeError("Server exited before becoming ready:\n" + "".join(output))
-            time.sleep(0.2)
-    else:
-        process.terminate()
-        output.append(process.stdout.read() if process.stdout else "")
-        raise RuntimeError("Server did not become ready:\n" + "".join(output))
+            while time.monotonic() < deadline:
+                try:
+                    with urlopen(f"{base_url}/api/health", timeout=1) as response:
+                        if response.status == 200:
+                            break
+                except Exception:
+                    if process.poll() is not None:
+                        server_log.seek(0)
+                        raise RuntimeError("Server exited before becoming ready:\n" + server_log.read())
+                    time.sleep(0.2)
+            else:
+                server_log.seek(0)
+                raise RuntimeError("Server did not become ready:\n" + server_log.read())
 
-    yield base_url
-
-    process.terminate()
-    try:
-        process.wait(timeout=8)
-    except subprocess.TimeoutExpired:
-        process.kill()
-    for suffix in ("", "-shm", "-wal"):
-        candidate = Path(f"{db_path}{suffix}")
-        if candidate.exists():
-            candidate.unlink()
+            yield base_url
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=8)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=8)
+            for suffix in ("", "-shm", "-wal"):
+                candidate = Path(f"{db_path}{suffix}")
+                if candidate.exists():
+                    candidate.unlink()
 
 
 @pytest.fixture()
@@ -491,7 +494,12 @@ def test_submitted_and_deleted_jobs_animate_after_success(browser_page):
 
     page.evaluate("async id => await markJobSubmitted(id)", jobs[0]["id"])
     assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && item.leaving)", jobs[0]["id"])
-    assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && !item.leaving)", jobs[0]["id"])
+    # Submitted jobs disappear by default and return only on explicit opt-in.
+    assert not page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && !item.leaving)", jobs[0]["id"])
+    assert not page.locator('#job-show-submitted').is_checked()
+    assert page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[0]["id"]}"]').count() == 0
+    page.locator('label.source-toggle').filter(has=page.locator('#job-show-submitted')).click()
+    assert page.locator('#job-show-submitted').is_checked()
     page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[0]["id"]}"]').wait_for(state="visible")
 
     page.evaluate("() => { window.confirm = () => true; }")
@@ -720,7 +728,9 @@ def test_notification_control_sits_below_dock_and_panel_does_not_overlap_it(brow
     nav = page.locator("#nav").bounding_box()
     trigger = page.locator("#notification-trigger").bounding_box()
     assert nav and trigger
-    nav_center = nav["x"] + nav["width"] / 2
+    # The left padding reserves transparent space for the expanding animation.
+    dock_padding = page.locator("#nav").evaluate("el => parseFloat(getComputedStyle(el).paddingLeft)")
+    nav_center = nav["x"] + dock_padding + (nav["width"] - dock_padding) / 2
     trigger_center = trigger["x"] + trigger["width"] / 2
     assert abs(nav_center - trigger_center) <= 1
     # The approved dock keeps its original sizes/animations and scrolls on short

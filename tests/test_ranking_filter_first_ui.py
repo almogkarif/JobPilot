@@ -16,7 +16,7 @@ def test_filter_only_result_explains_exclusion_without_fake_component_scores():
         """+function)
         page.evaluate("""() => document.querySelector('main').innerHTML=renderV2RankingExplanation({eligibility:{state:'excluded',scoring_skipped:true,reasons:['excluded keyword: <img src=x onerror=alert(1)>']}})""")
         assert 'לא חושב לה ציון התאמה' in page.locator('main').inner_text()
-        assert page.locator('.ranking-filter').count()==7
+        assert page.locator('.ranking-filter > span').all_text_contents() == ['מסלול מקצועי', 'ניסיון', 'תואר', 'מיקום', 'מודל עבודה', 'מזהה משרה (ID)']
         assert page.locator('.ranking-score-card').count()==0
         assert page.locator('img').count()==0
         browser.close()

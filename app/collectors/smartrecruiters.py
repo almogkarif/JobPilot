@@ -40,6 +40,7 @@ class SmartRecruitersCollector:
                 if offset >= 500:  # defensive cap; Israel-specific query should be far smaller.
                     break
 
+            blocked_ids: set[str] = set()
             semaphore = asyncio.Semaphore(10)
 
             async def normalize(row: dict) -> NormalizedJob | None:
@@ -54,7 +55,10 @@ class SmartRecruitersCollector:
                         detail_response = await client.get(detail_url)
                         detail_response.raise_for_status()
                         detail = detail_response.json()
-                    except (httpx.HTTPError, ValueError):
+                    except (httpx.HTTPError, ValueError) as exc:
+                        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in {401, 403, 429}:
+                            blocked_ids.add(posting_id)
+                            return None
                         detail = row
 
                 location_data = detail.get("location") or row.get("location") or {}
@@ -99,4 +103,4 @@ class SmartRecruitersCollector:
             jobs = await asyncio.gather(*(normalize(row) for row in rows))
 
         unique = {job.external_id: job for job in jobs if job}
-        return JobCollection(unique.values(), complete=offset >= total and len(unique) == len(rows))
+        return JobCollection(unique.values(), complete=offset >= total and len(unique) == len(rows), blocked_external_ids=blocked_ids)

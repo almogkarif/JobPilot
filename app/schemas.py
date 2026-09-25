@@ -17,7 +17,18 @@ class ProfileUpdate(BaseModel):
     application_password: str | None = Field(default=None, max_length=500)
     years_experience: float = 0
     years_experience_options: list[str] = Field(default_factory=lambda: ["0"])
+    seniority_levels: list[str] | None = None
     degree_level: str = ""
+
+    @field_validator("seniority_levels")
+    @classmethod
+    def validate_seniority_levels(cls, values):
+        from .services.seniority import LEVELS
+        if values is None:
+            return None
+        if any(value not in LEVELS for value in values):
+            raise ValueError("Unknown seniority level")
+        return list(dict.fromkeys(values))
 
     @field_validator("email", mode="before")
     @classmethod
@@ -70,6 +81,7 @@ class ProfilePatch(BaseModel):
     application_password: str | None = Field(default=None, max_length=500)
     years_experience: float | None = None
     years_experience_options: list[str] | None = None
+    seniority_levels: list[str] | None = None
     degree_level: str | None = None
     work_authorization: bool | None = None
     needs_sponsorship: bool | None = None
@@ -82,6 +94,16 @@ class ProfilePatch(BaseModel):
     auto_apply_threshold: int | None = Field(default=None, ge=0, le=100)
     auto_submit_enabled: bool | None = None
     application_profile: dict[str, Any] | None = None
+
+    @field_validator("seniority_levels")
+    @classmethod
+    def validate_seniority_levels(cls, values):
+        from .services.seniority import LEVELS
+        if values is None:
+            return None
+        if any(value not in LEVELS for value in values):
+            raise ValueError("Unknown seniority level")
+        return list(dict.fromkeys(values))
 
     @field_validator("email", mode="before")
     @classmethod

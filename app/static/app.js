@@ -1078,14 +1078,28 @@ function setPageContext(view, count = null) {
 }
 
 function modal(html) {
+  modal.descriptionObserver?.disconnect();
+  modal.filterScrollObserver?.disconnect();
   modal.previousFocus = document.activeElement;
   $('#modal-content').innerHTML = html;
   $('#modal').classList.add('open');
   $('#modal').setAttribute('aria-hidden', 'false');
+  const filterDetails = $$('.ranking-filter>small', $('#modal-content'));
+  const updateFilterShadows = () => filterDetails.forEach(detail => {
+    detail.parentElement.classList.toggle('has-more-detail', detail.scrollHeight - detail.clientHeight - detail.scrollTop > 2);
+  });
+  modal.filterScrollObserver = new ResizeObserver(updateFilterShadows);
+  filterDetails.forEach(detail => {
+    detail.addEventListener('scroll', updateFilterShadows, { passive: true });
+    modal.filterScrollObserver.observe(detail);
+  });
+  updateFilterShadows();
   requestAnimationFrame(() => $('.modal-close').focus());
 }
 
 function closeModal() {
+  modal.descriptionObserver?.disconnect();
+  modal.filterScrollObserver?.disconnect();
   $('#modal').classList.remove('open');
   $('#modal').setAttribute('aria-hidden', 'true');
   modal.previousFocus?.focus?.();
@@ -1458,11 +1472,12 @@ async function loadDashboard() {
   // active elsewhere in the catalog, so rely on the server-side aggregate.
   const pendingRankingJobs = Math.max(0, Number(dashboard.ranking_pending_jobs) || 0);
   const recommendationsPending = !dashboard.guest_catalog && pendingRankingJobs > 0;
-  const rankingIsLoading = Boolean(rankingRefresh.running || recommendationsPending);
+  const rankingFailed = !rankingRefresh.running && (Number(rankingRefresh.failed) > 0 || rankingRefresh.phase === 'failed');
+  const rankingIsLoading = !rankingFailed && Boolean(rankingRefresh.running || recommendationsPending);
   const completed=Math.max(0,rankingRefresh.running
     ? Number(rankingRefresh.completed)||0
     : (Number(dashboard.total_jobs)||0)-pendingRankingJobs);
-  const total=Math.max(0,Number(rankingRefresh.total)||0,Number(dashboard.total_jobs)||0);
+  const total=Math.max(0,rankingRefresh.running ? Number(rankingRefresh.total)||0 : Number(dashboard.total_jobs)||0);
   const progressLabel=total?`דורגו ${Math.min(completed,total)} מתוך ${total}`:'';
   const remainingJobs=Math.max(0,total-completed);
   const serverEta=Math.max(0,Number(rankingRefresh.eta_seconds)||0);
@@ -1475,11 +1490,27 @@ async function loadDashboard() {
     }
     dashboardRankingEtaTrack=rankingTrack;
   }
-  rankingStatus.hidden = !rankingIsLoading;
-  rankingStatus.innerHTML = rankingIsLoading ? `
+  rankingStatus.hidden = !rankingIsLoading && !rankingFailed;
+  rankingStatus.innerHTML = rankingFailed ? `
+    <span><strong>${rankingRefresh.phase === 'failed' ? 'רענון הדירוג נכשל' : 'חלק מהמשרות לא דורגו'}</strong><small>${esc(rankingRefresh.message || 'הדירוגים התקינים נשמרו. אפשר לנסות שוב.')}</small></span>
+    <button type="button" class="btn secondary small" id="retry-failed-ranking">נסה שוב</button>
+  ` : rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
     <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small id="recommendations-ranking-details"></small></span>
   ` : '';
+  const retryRanking = $('#retry-failed-ranking');
+  if (retryRanking) retryRanking.onclick = async () => {
+    retryRanking.disabled = true;
+    try {
+      const query = rankingRefresh.phase === 'failed' ? '' : '?failed_only=true';
+      await api('/api/ranking/refresh' + query, {method:'POST'});
+      dashboardRankingRefreshPolls = 0;
+      await loadDashboard();
+    } catch (error) {
+      toast(error.message);
+      retryRanking.disabled = false;
+    }
+  };
   clearInterval(dashboardRankingCountdownTimer);
   dashboardRankingCountdownTimer=null;
   if (rankingIsLoading) {
@@ -1492,7 +1523,7 @@ async function loadDashboard() {
     dashboardRankingEtaDeadline=0;
     dashboardRankingEtaTrack='';
   }
-  if (recommendationsPending && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
+  if (recommendationsPending && !rankingFailed && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
     dashboardRankingRecoveryTracks.add(dashboard.career_track);
     api('/api/ranking/refresh', {method:'POST'}).catch((error) => toast(error.message));
   }
@@ -1505,6 +1536,7 @@ async function loadDashboard() {
     }, 8000);
   }
   renderRecent(dashboard.recent_jobs);
+  renderScanSuggestions(dashboard.scan_suggestions || []);
   renderScan(dashboard.scan);
 }
 
@@ -1854,6 +1886,22 @@ function renderRecent(jobs) {
   initializeJobSwipeActions(root);
 }
 
+function renderScanSuggestions(jobs) {
+  const root = $('#scan-suggestions');
+  root.innerHTML = jobs.length ? jobs.slice(0, 3).map((job) => `
+    <article class="scan-suggestion-card">
+      <div class="scan-suggestion-heading">
+        ${sourceLogoMarkup({company_name:job.company,name:job.company}, 'scan-suggestion-logo')}
+        <div class="scan-suggestion-title"><span class="scan-suggestion-company" dir="auto">${esc(job.company)}</span><h3 dir="auto">${esc(job.title)}</h3></div>
+        <span class="scan-suggestion-score"><b>${Math.round(Number(job.score))}%</b><small>התאמה</small></span>
+      </div>
+      <div class="scan-suggestion-footer"><span class="scan-suggestion-location" dir="auto">${esc(job.location || 'המיקום לא צוין')}</span><button class="text-btn" type="button" data-suggestion-job="${Number(job.id)}" aria-label="${esc(`לפרטי המשרה ${job.title}`)}">לפרטי המשרה <span aria-hidden="true">←</span></button></div>
+    </article>`).join('') : '<p class="scan-suggestions-empty">כשתימצאנה משרות נוספות מהסריקות האחרונות עם התאמה של 70% ומעלה, הן יופיעו כאן.</p>';
+  $$('[data-suggestion-job]', root).forEach((button) => {
+    button.onclick = () => showJob(Number(button.dataset.suggestionJob));
+  });
+}
+
 function scanResultSummary(result) {
   if (!result) return '';
   if (result.status === 'no_sources') return 'אין מקורות פעילים';
@@ -2097,13 +2145,14 @@ async function loadJobs(options = {}) {
   const locations = selectedJobLocations();
   const adminFilters = selectedJobAdminFilters();
   const automaticOnly = $('#job-automatic-filter')?.value === 'automatic';
+  const excludeSubmitted = !$('#job-show-submitted').checked;
   const sort = $('#job-sort').value || 'score_desc';
   const pageSize = Number($('#jobs-page-size').value || 20);
   state.jobsPaging.sort = sort;
   state.jobsPaging.pageSize = pageSize;
   const locationQuery = locations.map((value) => `location=${encodeURIComponent(value)}`).join('&');
   const adminFilterQuery = adminFilters.map((value) => `admin_filter=${encodeURIComponent(value)}`).join('&');
-  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&${locationQuery ? `${locationQuery}&` : ''}${adminFilterQuery ? `${adminFilterQuery}&` : ''}query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}&automatic_only=${automaticOnly}`);
+  const payload = await api(`/api/jobs?min_score=${score}&status=${status}&${locationQuery ? `${locationQuery}&` : ''}${adminFilterQuery ? `${adminFilterQuery}&` : ''}query=${query}&paginated=true&page=${state.jobsPaging.page}&page_size=${pageSize}&sort=${encodeURIComponent(sort)}&automatic_only=${automaticOnly}&exclude_submitted=${excludeSubmitted}`);
   if (Array.isArray(payload)) {
     state.jobs = payload;
     state.jobsPaging = { ...state.jobsPaging, page: 1, total: payload.length, pages: 1 };
@@ -2293,7 +2342,14 @@ window.goToJobsPage = goToJobsPage;
 
 $('#job-search').addEventListener('input', debounce(() => loadJobs({ resetPage: true }), 300));
 $('#score-filter').onchange = () => loadJobs({ resetPage: true });
-$('#job-status-filter').onchange = () => loadJobs({ resetPage: true });
+$('#job-status-filter').onchange = () => {
+  if ($('#job-status-filter').value === 'submitted') $('#job-show-submitted').checked = true;
+  loadJobs({ resetPage: true });
+};
+$('#job-show-submitted').onchange = () => {
+  if (!$('#job-show-submitted').checked && $('#job-status-filter').value === 'submitted') $('#job-status-filter').value = '';
+  loadJobs({ resetPage: true });
+};
 $('#job-location-filter').onclick = (event) => {
   event.stopPropagation();
   const options = $('#job-location-options');
@@ -2594,7 +2650,7 @@ function rankingConfidenceLabel(value) {
 function rankingStatusMeta(status) {
   const map={
     match:['תואם','pass'],fresh:['עדכנית','pass'],realistic:['ריאלי','pass'],
-    stretch:['גבולי','warn'],preference_mismatch:['מחוץ להעדפה','warn'],
+    preferred:['יתרון / התאמה חלקית','warn'],stretch:['גבולי','warn'],preference_mismatch:['מחוץ להעדפה','warn'],
     mismatch:['לא תואם','fail'],old:['ישנה מדי','fail'],excluded:['נפסלה','fail'],alternative:['חלופת ניסיון','warn'],
     not_configured:['לא הוגדרה העדפה','neutral'],unknown:['לא ידוע','neutral'],
   };
@@ -2609,6 +2665,7 @@ function rankingYears(value) {
 }
 
 function v2ExperienceDetail(e) {
+  if (e.experience_preferred_only) return `ניסיון מצוין כיתרון בלבד, ולא כתנאי חובה${e.preferred_experience_evidence?` · ${e.preferred_experience_evidence}`:''}`;
   const min=rankingYears(e.required_experience_min),max=rankingYears(e.required_experience_max),profile=rankingYears(e.profile_experience);
   const required=min===null?'לא זוהתה דרישת ניסיון':max!==null&&max!==min?`${min}–${max} שנות ניסיון`:max===min?`${min} שנות ניסיון`:`${min}+ שנות ניסיון`;
   const selected=Array.isArray(e.profile_experience_options)?e.profile_experience_options.filter(Boolean):[];
@@ -2622,6 +2679,7 @@ function degreeLevelLabel(value) {
 }
 
 function v2DegreeDetail(e) {
+  if(e.track_degree_explanation)return e.track_degree_explanation;
   const level=degreeLevelLabel(e.required_degree);
   const required=e.degree_experience_alternative?`${level} או ניסיון מקביל`:e.degree_required?`${level} ומעלה`:level;
   const profile=e.profile_degree_level?degreeLevelLabel(e.profile_degree_level):'לא הוגדר תואר בפרופיל';
@@ -2682,7 +2740,8 @@ function v2DeductionDetail(job,key,part) {
   if (key==='preferences') {
     const e=job.eligibility||{},reasons=[];
     if (e.location_status!=='match') reasons.push('המיקום אינו תואם להעדפות');
-    if (e.work_mode_status!=='match') reasons.push('מודל העבודה אינו תואם להעדפות');
+    if (e.work_mode_status==='unknown') reasons.push('מודל העבודה לא צוין במשרה');
+    else if (e.work_mode_status!=='match') reasons.push('מודל העבודה אינו תואם להעדפות');
     if (part?.configured_keywords?.length && !part?.keyword_hits?.length) reasons.push('לא נמצאו מילות ההעדפה שהוגדרו');
     return reasons.join(' · ') || 'לא נמצאה התאמה מלאה להעדפות שהוגדרו';
   }
@@ -2696,38 +2755,49 @@ function v2WarningHebrew(value) {
   if(text==='Location is outside preferred locations') return 'המיקום מחוץ להעדפות שלך';
   if(text==='Work mode is outside preferences') return 'מודל העבודה מחוץ להעדפות שלך';
   if(text==='Employment type is outside preferences') return 'סוג ההעסקה מחוץ להעדפות שלך';
+  match=text.match(/^Unidentified job requirements: (degree, experience|degree|experience); penalty: (\d+) points$/);
+  if(match) {
+    const missing={degree:'דרישת תואר',experience:'דרישת ניסיון','degree, experience':'דרישת תואר ודרישת ניסיון'}[match[1]];
+    return `${missing} לא זוהתה במודעה — הופחתו ${match[2]} נקודות`;
+  }
   if(text==='Job description is incomplete; recommendation is capped') return 'תיאור המשרה חלקי ולכן הציון הוגבל';
   return text;
 }
 
+async function copyJobId(id) {
+  try {
+    await navigator.clipboard.writeText(String(id));
+    toast('מספר המשרה הועתק');
+  } catch {
+    toast('ההעתקה לא הצליחה. אפשר לסמן ולהעתיק את המספר ידנית.');
+  }
+}
+
 function renderV2RankingExplanation(job) {
-  if (job.ranking_pending || !job.eligibility) return `<section class="ranking-v2-explanation"><div class="empty-state">הדירוג מתעדכן… המשרה נשארת זמינה בזמן החישוב.</div></section>`;
+  const idCard=`<article class="ranking-filter neutral ranking-job-id"><span>מזהה משרה (ID)</span><strong class="job-id-value" dir="ltr">#${esc(job.id)}<button class="job-id-copy" type="button" aria-label="העתק מספר משרה" title="העתק מספר משרה" onclick="copyJobId(${Number(job.id)})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></strong></article>`;
+  if (job.ranking_pending || !job.eligibility) return `<section class="ranking-v2-explanation"><div class="ranking-eligibility-grid">${idCard}</div><div class="empty-state">הדירוג מתעדכן… המשרה נשארת זמינה בזמן החישוב.</div></section>`;
   const e=job.eligibility||{},b=job.match_breakdown||{};
-  const state=rankingStatusMeta(e.state||'unknown');
   const filterRows=[
     ['מסלול מקצועי',e.career_track_status,e.career_track_status==='match'?'המשרה שייכת למסלול הפעיל':'המשרה אינה שייכת למסלול הפעיל',false],
-    ['ניסיון',e.experience_status,v2ExperienceDetail(e),e.required_experience_min===null||e.required_experience_min===undefined],
-    ['תואר',e.degree_status,v2DegreeDetail(e),!e.required_degree],
-    ['עדכניות',e.recency_status,e.age_days===null||e.age_days===undefined?'תאריך הפרסום לא ידוע':`פורסמה לפני ${e.age_days} ימים`,false],
+    ['ניסיון',e.experience_status,v2ExperienceDetail(e),!e.experience_preferred_only&&(e.required_experience_min===null||e.required_experience_min===undefined)],
+    ['תואר',({green:'match',yellow:'preferred',red:'mismatch'})[e.track_degree_color]||e.degree_status,v2DegreeDetail(e),!e.track_degree_color&&!e.required_degree],
     ['מיקום',e.location_status,e.job_location||job.location||'לא צוין',false],
     ['מודל עבודה',e.work_mode_status,job.workplace&&job.workplace!=='unknown'?job.workplace:'לא צוין',false],
-    ['סוג העסקה',e.employment_type_status,e.employment_type||'לא זוהה',false],
   ];
-  const filters=filterRows.map(([label,status,detail,detectionMissing])=>{const [statusLabel,tone]=rankingStatusMeta(status);return `<article class="ranking-filter ${tone}${detectionMissing?' detection-missing':''}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small>${esc(detail)}</small></article>`}).join('');
+  const filters=filterRows.map(([label,status,detail,detectionMissing])=>{const [statusLabel,baseTone]=rankingStatusMeta(status),tone=label==='מודל עבודה'&&status==='unknown'?'warn':baseTone;return `<article class="ranking-filter ${tone}${detectionMissing?' detection-missing':''}"><span>${esc(label)}</span><strong>${esc(statusLabel)}</strong><small tabindex="0" aria-label="${esc(`פירוט ${label}`)}">${esc(detail)}</small></article>`}).join('')+idCard;
   if(e.scoring_skipped)return `<section class="ranking-v2-explanation"><p>המשרה לא עברה את הסינון האישי ולכן לא חושב לה ציון התאמה.</p><div class="ranking-eligibility-grid">${filters}</div><p>${(e.reasons||[]).map(esc).join('<br>')}</p></section>`;
   const cards=[
     ['התאמת תפקיד','role',v2RoleDetail(b.role)],
     ['כישורים וטכנולוגיות','skills',v2SkillsDetail(b.skills)],
     ['דרישות מקצועיות','requirements',v2RequirementsDetail(b.requirements)],
     ['העדפות','preferences',v2PreferencesDetail(job,b.preferences)],
-  ].map(([label,key,detail])=>{const part=b[key]||{},score=Number(part.score)||0,max=Number(part.max)||0,pct=max?Math.max(0,Math.min(100,Math.round(score/max*100))):0,deducted=Math.max(0,max-score);return `<article class="ranking-score-card"><header><span>${esc(label)}</span><strong>${score}/${max}</strong></header><i><b style="width:${pct}%"></b></i><small>${esc(detail)}</small>${deducted?`<em><b>ירדו ${deducted} נקודות:</b> ${esc(v2DeductionDetail(job,key,part))}</em>`:''}</article>`}).join('');
+  ].map(([label,key,detail])=>{const part=b[key]||{},score=Number(part.score)||0,max=Number(part.max)||0,pct=max?Math.max(0,Math.min(100,Math.round(score/max*100))):0,deducted=Math.max(0,max-score);return `<article class="ranking-score-card${key==='preferences'&&e.work_mode_status==='unknown'&&['match','unknown','not_configured'].includes(e.location_status)?' work-mode-unknown':''}"><header><span>${esc(label)}</span><strong>${score}/${max}</strong></header><i><b style="width:${pct}%"></b></i><small>${esc(detail)}</small>${deducted?`<em><b>ירדו ${deducted} נקודות:</b> ${esc(v2DeductionDetail(job,key,part))}</em>`:''}</article>`}).join('');
   const adjustments=[];
   if (Number(b.skills?.penalty)>0) adjustments.push(`חסרים סקילי חובה: הופחתו ${Number(b.skills.penalty)} נקודות והציון הוגבל לכל היותר ל־69`);
   for (const warning of (job.ranking_warnings||[])) { const label=v2WarningHebrew(warning); if(label&&!adjustments.includes(label)) adjustments.push(label); }
   const unknown=(e.unknown_fields||[]).map(value=>({experience:'ניסיון נדרש',degree:'דרישת תואר',profile_degree:'תואר בפרופיל',seniority:'רמת תפקיד',location:'מיקום',publication_date:'תאריך פרסום',work_mode:'מודל עבודה',employment_type:'סוג העסקה'})[value]||value);
   return `<section class="ranking-v2-explanation">
     <header class="ranking-v2-header"><span><strong>${rankingTierLabel(job.ranking_tier)}</strong><small>ודאות ${rankingConfidenceLabel(job.ranking_confidence)} · הסינון הראשוני נפרד מהניקוד</small></span><b>${Number(job.score)||0}<small>/100</small></b></header>
-    <div class="ranking-filter-summary ${state[1]}"><strong>סינון ראשוני: ${esc(state[0])}</strong><span>${e.state==='excluded'?'לפחות תנאי סף אחד פסל את המשרה':e.state==='stretch'?'המשרה עברה עם הסתייגות שחשוב לבדוק':'המשרה עברה את תנאי הסף שניתן היה לבדוק'}</span></div>
     <div class="ranking-eligibility-grid">${filters}</div>
     ${unknown.length?`<p class="ranking-unknown"><strong>מידע שלא ניתן היה לקבוע:</strong> ${unknown.map(esc).join(', ')}</p>`:''}
     <div class="ranking-section-title"><strong>ניקוד התאמה</strong><small>רק ארבעת המרכיבים האלה נכנסים לציון</small></div>
@@ -2748,15 +2818,13 @@ async function showJob(id) {
     modal(`
       <span class="kicker">${esc(job.company)}</span>
       <h2 dir="auto">${esc(job.title)}</h2>
-      <div class="job-meta"><span>${esc(job.location || 'לא צוין')}</span><span>${job.ranking_pending?rankingPendingLabel():job.eligibility?.scoring_skipped?'לא חושב ציון':`ציון ${job.score}`}</span><span>${statusLabel(job.status)}</span>${job.degree_requirement?`<span>${esc(job.degree_requirement_label||degreeLevelLabel(job.degree_requirement))}</span>`:''}</div>
-      <h3>${job.eligibility?.scoring_skipped?'תוצאת הסינון':'למה היא מתאימה'}</h3>
       ${job.ranking_engine==='v2'
         ? renderV2RankingExplanation(job)
         : `<div class="score-breakdown">${breakdownEntries.join('')}</div><div class="reason-list">${job.score_reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.label)} (${reason.points > 0 ? '+' : ''}${reason.points})</div>`).join('')}</div>`}
       ${job.skill_gaps?.length ? `<h3>סקילים שזוהו ואינם בפרופיל שלך</h3><div class="skill-gap-list">${job.skill_gaps.map((skill) => `<button type="button" onclick="addSkill(decodeURIComponent('${encodeURIComponent(skill)}'), ${job.id})">+ ${esc(skill)}</button>`).join('')}</div><p class="skill-honesty-note">הוסף רק סקיל שיש לך בפועל; המערכת לא מניחה ניסיון שלא אישרת.</p>` : ''}
       <section class="job-description-section">
         <div class="job-description-heading"><span class="kicker">פרטי התפקיד</span><h3>תיאור המשרה</h3></div>
-        ${formatJobDescription(job.description)}
+        <div class="job-description-scroll-wrap"><div class="job-description-scroll" tabindex="0" role="region" aria-label="תיאור המשרה">${formatJobDescription(job.description)}</div><div class="job-description-scroll-hint" hidden aria-hidden="true">גללו להמשך תיאור המשרה ↓</div></div>
       </section>
       <h3>אפשרויות הגשה</h3>
       <div class="job-capabilities job-capabilities-modal">${automaticSubmissionBadge(job)}${job.application_adapter?.label ? `<span class="ats-label">${esc(job.application_adapter.label)}</span>` : ''}</div>
@@ -2781,6 +2849,16 @@ async function showJob(id) {
         <button class="btn danger-outline" type="button" onclick="deleteJob(${job.id})">מחק משרה לצמיתות</button>
       </div>
     `);
+    const descriptionScroll = $('.job-description-scroll', $('#modal-content'));
+    const descriptionHint = $('.job-description-scroll-hint', $('#modal-content'));
+    const updateDescriptionHint = () => {
+      descriptionHint.hidden = descriptionScroll.scrollHeight - descriptionScroll.clientHeight - descriptionScroll.scrollTop <= 2;
+    };
+    descriptionScroll.addEventListener('scroll', updateDescriptionHint, { passive: true });
+    modal.descriptionObserver = new ResizeObserver(updateDescriptionHint);
+    modal.descriptionObserver.observe(descriptionScroll);
+    if (descriptionScroll.firstElementChild) modal.descriptionObserver.observe(descriptionScroll.firstElementChild);
+    updateDescriptionHint();
     const resumeSelect=$('#job-resume-select'); if(resumeSelect) updateResumeFit(resumeSelect);
   } catch (error) {
     toast(error.message);
@@ -3386,7 +3464,7 @@ const profileDraftKey = () => `jobpilot.profileDraft.v3.${state.activeCareerTrac
 const PROFILE_TEXT_FIELDS = [
   'full_name', 'email', 'phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url',
   'application_password', 'years_experience_options', 'degree_level', 'skills', 'desired_titles', 'preferred_locations',
-  'preferred_work_modes', 'keywords', 'excluded_keywords', 'auto_apply_threshold',
+  'preferred_work_modes', 'seniority_levels', 'keywords', 'excluded_keywords', 'auto_apply_threshold',
 ];
 const APPLICATION_PROFILE_FIELDS = [
   'preferred_name', 'pronouns', 'country', 'city', 'address_line1', 'address_line2', 'state', 'postal_code',
@@ -3396,11 +3474,12 @@ const APPLICATION_PROFILE_FIELDS = [
 ];
 const EXTRA_PROFILE_FIELDS = APPLICATION_PROFILE_FIELDS.map((name) => `extra_${name}`);
 const PROFILE_CHECK_FIELDS = ['work_authorization', 'needs_sponsorship', 'auto_submit_enabled'];
-const PROFILE_ARRAY_FIELDS = new Set(['years_experience_options', 'skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
+const PROFILE_ARRAY_FIELDS = new Set(['seniority_levels', 'years_experience_options', 'skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
 const PRIORITY_PROFILE_ARRAY_FIELDS = new Set(['skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
-const SEARCH_PREFERENCE_FIELDS = new Set(['skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
+const SEARCH_PREFERENCE_FIELDS = new Set(['seniority_levels', 'skills', 'desired_titles', 'preferred_locations', 'preferred_work_modes', 'keywords', 'excluded_keywords']);
 const PROFILE_NUMBER_FIELDS = new Set(['auto_apply_threshold']);
-const PROFILE_FIELDS = [...PROFILE_TEXT_FIELDS, ...PROFILE_CHECK_FIELDS, ...EXTRA_PROFILE_FIELDS];
+// Location is a legacy hidden mirror of extra_city, maintained by the server.
+const PROFILE_FIELDS = [...PROFILE_TEXT_FIELDS.filter(name => name !== 'location'), ...PROFILE_CHECK_FIELDS, ...EXTRA_PROFILE_FIELDS];
 
 function profileForm() {
   return $('#profile-form');
@@ -3482,7 +3561,7 @@ function renderCitizenshipOptions(selected = ['Citizen (Israel)']) {
   control.classList.add('citizenship-native-select');
   control.setAttribute('aria-hidden', 'true');
   control.tabIndex = -1;
-  control.parentElement?.querySelector('.citizenship-option-grid')?.remove();
+  control.parentElement?.querySelectorAll('.citizenship-picker, .citizenship-option-grid').forEach(element => element.remove());
   control.insertAdjacentHTML('afterend', `<div class="citizenship-picker">
     <div class="citizenship-selected" aria-live="polite"></div>
     <button class="citizenship-add" type="button">+ הוסף אזרחות</button>
@@ -3663,8 +3742,8 @@ function employmentEntry(item = {}, index = 0) {
       <label>חברה<input data-work-field="company" value="${esc(item.company || '')}" /></label>
       <label>מיקום העבודה<input data-work-field="location" value="${esc(item.location || '')}" /></label>
       <label>סוג העסקה<select data-work-field="employment_type">${typeOptions}</select></label>
-      <label>תאריך התחלה<input data-work-field="start_date" type="month" value="${esc(item.start_date || '')}" /></label>
-      <label>תאריך סיום<input data-work-field="end_date" type="month" value="${esc(item.end_date || '')}" /><small>השאר ריק אם זו העבודה הנוכחית.</small></label>
+      <label>תאריך התחלה<input data-work-field="start_date" type="text" dir="ltr" placeholder="YYYY או YYYY-MM" pattern="[0-9]{4}(-(?:0[1-9]|1[0-2]))?" value="${esc(item.start_date || '')}" /></label>
+      <label>תאריך סיום<input data-work-field="end_date" type="text" dir="ltr" placeholder="YYYY או YYYY-MM" pattern="[0-9]{4}(-(?:0[1-9]|1[0-2]))?" value="${esc(item.end_date || '')}" /><small>השאר ריק אם זו העבודה הנוכחית.</small></label>
       <label class="wide-field">תיאור תפקיד והישגים<textarea data-work-field="description" rows="3">${esc(item.description || '')}</textarea></label>
     </div>
   </article>`;
@@ -3777,7 +3856,7 @@ function profileFieldLabel(name) {
     github_url:'GitHub', portfolio_url:'Portfolio', application_password:'סיסמה לאתרי הגשה',
     years_experience_options:'שנות ניסיון', degree_level:'סוג תואר', work_authorization:'אישור עבודה בישראל', needs_sponsorship:'Sponsorship',
     skills:'סקילים', desired_titles:'סוגי תפקידים', preferred_locations:'מיקומים', preferred_work_modes:'אופי עבודה',
-    keywords:'רמות ניסיון רצויות', excluded_keywords:'רמות ניסיון שלא לחפש', auto_apply_threshold:'סף התאמה',
+    seniority_levels:'רמות ניסיון להצגה', keywords:'מילות מפתח לקידום בדירוג', excluded_keywords:'מילים להחרגה מכותרת המשרה', auto_apply_threshold:'סף התאמה',
     auto_submit_enabled:'תור אוטומטי', extra_work_experiences:'ניסיון תעסוקתי', extra_languages:'שפות',
     extra_phone_extension:'שלוחת טלפון', extra_citizenships:'אזרחויות',
   };
@@ -3793,6 +3872,7 @@ function profileAlertLink(name, label) {
 }
 
 async function focusProfileField(name = '') {
+  if (name === 'location') name = 'extra_city';
   const view = SEARCH_PREFERENCE_FIELDS.has(name) ? 'preferences' : 'profile';
   if (state.activeView !== view) await switchView(view);
   if (!name) name = getDirtyProfileFields().find((field) => !SEARCH_PREFERENCE_FIELDS.has(field)) || PROFILE_COMPLETION_FIELDS.find(([field]) => !String(currentProfileFormValue(field)).trim())?.[0] || 'full_name';
@@ -3853,11 +3933,11 @@ function syncProfileUnsavedUI(dirtyFields = getDirtyProfileFields()) {
 }
 
 const PROFILE_COMPLETION_FIELDS = [
-  ['full_name','שם מלא'], ['email','אימייל'], ['phone','טלפון'], ['location','מיקום'],
+  ['full_name','שם מלא'], ['email','אימייל'], ['phone','טלפון'],
   ['linkedin_url','LinkedIn'], ['extra_city','עיר'], ['extra_education_school','מוסד לימודים'],
   ['degree_level','השכלה'], ['extra_languages','שפות'],
 ];
-const PROFILE_CRITICAL_FIELDS = new Set(['full_name', 'email', 'phone', 'location']);
+const PROFILE_CRITICAL_FIELDS = new Set(['full_name', 'email', 'phone', 'extra_city']);
 function updateProfileCompletion() {
   const form = profileForm();
   if (!form || !$('#profile-completion')) return;
@@ -4018,7 +4098,9 @@ async function loadResumeInsights(){
   const allSuggestions=resumes.flatMap(resume=>(resume.analysis?.suggestions||[]).map(item=>({...item,resume_id:resume.id,resume_label:resume.label})));
   const suggestions=[...new Map(allSuggestions.map(item=>[`${item.field}:${String(item.value).toLowerCase()}`,item])).values()];
   if(!resumes.length){root.innerHTML='';return;}
-  root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" data-resume-manager>ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>סקילים ופרטים שסותרים מידע קיים מחכים לאישור שלך</span>${suggestions.map(item=>`<button type="button" data-resume-suggestion data-resume-id="${item.resume_id}" data-field="${esc(item.field)}" data-value="${encodeURIComponent(String(item.value))}"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הקבצים נותחו. פרטי קשר חסרים מולאו אוטומטית ואין כרגע הצעות שממתינות לאישור.</p>`}`;
+  const warnings=resumes.filter(resume=>resume.analysis?.warning||resume.analysis?.error||!resume.analysis?.text_length).map(resume=>`<p class="warning">${esc(resume.filename)}: לא ניתן היה להשלים את קריאת הקובץ. יש להעלות קובץ עם טקסט קריא כדי למלא פרטים אוטומטית.</p>`).join('');
+  root.innerHTML=`<div class="resume-insights-head"><strong>${resumes.length} גרסאות קורות חיים</strong><button class="text-btn" type="button" data-resume-manager>ניהול גרסאות</button></div>${suggestions.length?`<div class="resume-suggestions"><span>סקילים ופרטים שסותרים מידע קיים מחכים לאישור שלך</span>${suggestions.map(item=>`<button type="button" data-resume-suggestion data-resume-id="${item.resume_id}" data-field="${esc(item.field)}" data-value="${encodeURIComponent(String(item.value))}"><b>＋</b>${esc(item.label)}<small>${esc(item.resume_label)}</small></button>`).join('')}</div>`:`<p class="resume-analysis-ok">הניתוח הסתיים. אין כרגע הצעות שממתינות לאישור; מומלץ לבדוק אילו פרטים זוהו בפרופיל.</p>`}`;
+  if(warnings) { root.querySelector('.resume-analysis-ok')?.remove(); root.insertAdjacentHTML('beforeend',warnings); }
   $('[data-resume-manager]',root)?.addEventListener('click',()=>$('#privacy-center').click());
   $$('[data-resume-suggestion]',root).forEach((button)=>{button.onclick=()=>applyResumeSuggestion(Number(button.dataset.resumeId),button.dataset.field,decodeURIComponent(button.dataset.value||''));});
 }
@@ -4332,20 +4414,6 @@ $$('[form="profile-form"]').forEach((control) => {
   control.addEventListener('change', updateProfileDirtyState);
 });
 $$('[data-profile-option]', profileElement).forEach(syncProfileOptionVisual);
-
-$$('[data-profile-option="keywords"], [data-profile-option="excluded_keywords"]', profileElement).forEach((control) => {
-  control.addEventListener('change', () => {
-    if (!control.checked) return;
-    const opposite = control.dataset.profileOption === 'keywords' ? 'excluded_keywords' : 'keywords';
-    const conflicting = $$(`[data-profile-option="${opposite}"]`, profileElement)
-      .find((item) => item.value.toLowerCase() === control.value.toLowerCase());
-    if (conflicting?.checked) {
-      conflicting.checked = false;
-      toast(`הבחירה ${control.value} הוסרה מהרשימה ההפוכה`);
-      updateProfileDirtyState();
-    }
-  });
-});
 
 function bindPreferencePriorityDragging() {
   $$('.preference-group .option-grid', profileElement).forEach((grid) => {
@@ -4802,6 +4870,9 @@ $('#upload-resume').onclick = () => $('#resume-file').click();
 $('#upload-grade-sheet').onclick = () => $('#grade-sheet-file').click();
 $('#manage-resumes').onclick = () => $('#privacy-center').click();
 const RESUME_AUTOFILL_LABELS = Object.freeze({
+  work_experiences: 'ניסיון תעסוקתי',
+  languages:'שפות ורמת שליטה', degree_level:'סוג התואר',
+  education_school:'מוסד לימודים', education_field:'תחום לימודים', education_grade:'ציון', education_start_date:'תחילת לימודים', education_end_date:'סיום לימודים',
   full_name:'שם מלא', email:'אימייל', phone:'טלפון', location:'מיקום',
   linkedin_url:'LinkedIn', github_url:'GitHub', portfolio_url:'אתר אישי'
 });
@@ -4822,7 +4893,7 @@ $('#resume-file').onchange = async (event) => {
     await loadProfile();
     const count=result.analysis?.suggestions?.length||0;
     const filled=(result.autofilled_fields||[]).length;
-    const parts=['קורות החיים הועלו ונותחו'];
+    const parts=[result.analysis?.warning||result.analysis?.error||!result.analysis?.text_length?'הקובץ נשמר, אך לא ניתן היה להשלים את הקריאה האוטומטית':'קורות החיים הועלו ונותחו'];
     if(filled) parts.push(`מולאו אוטומטית: ${resumeAutofillSummary(result.autofilled_fields)}`);
     if(count) parts.push(`${count} הצעות מחכות לאישור`);
     toast(parts.join(' · '));
@@ -5031,7 +5102,7 @@ $('#restore-backup-file').onchange=async(event)=>{const file=event.target.files[
 $('#privacy-center').onclick=async()=>{
   const [privacy,resumes,security]=await Promise.all([api('/api/privacy'),api('/api/resumes'),api('/api/security/status')]);
   modal(`<span class="kicker">הנתונים נשארים בשליטתך</span><h2>מרכז פרטיות וקורות חיים</h2><div class="privacy-grid"><article><strong>סיסמת טפסים</strong><span>${privacy.password_stored?'שמורה מקומית':'לא שמורה'}</span><button class="btn danger-outline small" onclick="deletePrivateData('password')">מחיקה</button></article><article><strong>צילומי Agent</strong><span>${privacy.screenshots} קבצים</span><button class="btn danger-outline small" onclick="deletePrivateData('screenshots')">מחיקה</button></article><article><strong>פרופיל דפדפן</strong><span>${privacy.browser_profile?'קיים':'לא קיים'}</span><button class="btn danger-outline small" onclick="deletePrivateData('browser')">מחיקה</button></article></div><h3>גרסאות קורות חיים</h3><p class="resume-version-help">העלה גרסה נפרדת לכל כיוון מקצועי, למשל Backend, AI או Research. המערכת קוראת את הקובץ וממליצה על הגרסה עם חפיפת הסקילים הגבוהה ביותר לכל משרה; תמיד אפשר לבחור אחרת ידנית.</p><div class="resume-manager">${resumes.map(r=>`<div><strong>${esc(r.label)}</strong><span>${esc(r.filename)}${r.is_default?' · ברירת מחדל':''}</span><small>${r.skills.length?`סקילים: ${esc(r.skills.join(', '))}`:'לא הוגדרו סקילים לגרסה'}</small><button class="btn danger-outline small" onclick="deleteResume(${r.id})">מחק</button></div>`).join('')||'<p>אין עדיין גרסאות.</p>'}</div><form id="resume-version-form"><label>שם הגרסה<input name="label" required placeholder="Backend / AI / Research" /></label><label>סקילים נוספים לגרסה — אופציונלי<input name="skills" placeholder="המערכת מחלצת סקילים אוטומטית; אפשר להוסיף ידנית" /></label><label><input name="is_default" type="checkbox" value="true" /> ברירת מחדל</label><input name="file" type="file" required accept=".pdf,.doc,.docx,.txt,.rtf" /><button class="btn primary" type="submit">הוסף גרסה</button></form><h3>נעילת האתר</h3>${security.configured?'<button class="btn danger-outline" onclick="disableSiteLock()">בטל נעילת PIN</button>':'<div class="inline-form"><input id="new-site-pin" type="password" minlength="4" placeholder="PIN מקומי חדש" /><button class="btn secondary" onclick="setupSiteLock()">הפעל נעילה</button></div>'}`);
-  $('#resume-version-form').onsubmit=async e=>{e.preventDefault();const body=new FormData(e.target);if(!body.get('is_default'))body.set('is_default','false');await api('/api/resumes',{method:'POST',body});toast('גרסת קורות החיים נוספה');closeModal();$('#privacy-center').click();};
+  $('#resume-version-form').onsubmit=async e=>{e.preventDefault();const body=new FormData(e.target);if(!body.get('is_default'))body.set('is_default','false');await api('/api/resumes',{method:'POST',body});toast('גרסת קורות החיים נוספה');state.profileLoaded=false;await loadProfile();closeModal();$('#privacy-center').click();};
 };
 async function deletePrivateData(resource){if(!confirm('למחוק את הנתונים האלה לצמיתות מהמחשב המקומי?'))return;await api(`/api/privacy/${resource}`,{method:'DELETE'});toast('הנתונים נמחקו');closeModal();}
 async function deleteResume(id){
@@ -5144,7 +5215,7 @@ function onboardingPersistProfile(patch){
 function onboardingSchedulePreferences(delay=0){
   if(onboardingState.saveTimer)clearTimeout(onboardingState.saveTimer);
   const run=()=>{onboardingState.saveTimer=null;const draft=onboardingCollectPreferences();onboardingPersistProfile(draft).then(saved=>{
-    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],degree_level:saved.degree_level||'',preferred_work_modes:[...(saved.preferred_work_modes||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
+    onboardingState.draft={desired_titles:[...(saved.desired_titles||[])],preferred_locations:[...(saved.preferred_locations||[])],years_experience_options:[...(saved.years_experience_options||[])],degree_level:saved.degree_level||'',preferred_work_modes:[...(saved.preferred_work_modes||[])],seniority_levels:[...(saved.seniority_levels||[])],keywords:[...(saved.keywords||[])],excluded_keywords:[...(saved.excluded_keywords||[])]};
   }).catch(()=>{});};
   if(delay)onboardingState.saveTimer=setTimeout(run,delay);else run();
 }
@@ -5152,7 +5223,7 @@ async function onboardingFlushSave(){
   if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;await onboardingPersistProfile(onboardingCollectPreferences());}
   await onboardingState.saveChain;
 }
-const onboardingSteps = ['track','resume','skills','preferences','review','ranking'];
+const onboardingSteps = ['track','resume','resume-review','skills','preferences','review','ranking'];
 
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
 function onboardingTrackConfig(key=state.activeCareerTrack){ return CAREER_TRACK_UI[key] || CAREER_TRACK_UI.computer_science; }
@@ -5160,8 +5231,7 @@ function onboardingPresetSkills(){ return (onboardingTrackConfig().skills||[]).m
 function onboardingSkillValues(){ return [...new Set([...onboardingPresetSkills(), ...onboardingState.selectedSkills])]; }
 function onboardingChoiceValues(items=[]){return (items||[]).map(item=>Array.isArray(item)?item:[item,item]).filter(([v])=>v)}
 function onboardingChoiceBox(kind,value,label,selected){
-  const negative=kind==='excluded';
-  return `<button type="button" class="onboarding-choice ${negative?'onboarding-choice-negative ':''}${selected?'selected':''}" data-ob-choice="${kind}" data-value="${encodeURIComponent(value)}"><span class="onboarding-choice-check" aria-hidden="true">${negative?'×':'✓'}</span><strong>${esc(label)}</strong></button>`;
+  return `<button type="button" class="onboarding-choice ${selected?'selected':''}" data-ob-choice="${kind}" data-value="${encodeURIComponent(value)}"><span class="onboarding-choice-check" aria-hidden="true">✓</span><strong>${esc(label)}</strong></button>`;
 }
 function onboardingToggleChoice(button){
   button.classList.toggle('selected');
@@ -5174,6 +5244,47 @@ async function onboardingChooseTrack(key){
   state.activeCareerTrack=result.active_track||key; state.careerTracks=result.tracks||state.careerTracks; state.profile=result.profile||state.profile;
   onboardingApplyTrackTheme(state.activeCareerTrack); renderCareerPreferenceOptions(); renderCareerSwitcher(); onboardingState.selectedSkills=new Set(); onboardingSetStep(1);
 }
+function onboardingResumeReview(profile){
+  const extra=profile.application_profile||{};
+  const filled=new Set(onboardingState.resume?.autofilled_fields||[]);
+  const field=(key,label,value,group=key,type='text')=>`<label><span class="onboarding-field-heading">${esc(label)}${filled.has(group)?'<small class="onboarding-autofilled">מולא מהקו״ח</small>':''}</span><input data-ob-profile-field="${key}" type="${type}" value="${esc(value||'')}" /></label>`;
+  const employment=normalizeWorkExperiences(extra);
+  const languages=Array.isArray(extra.languages)?extra.languages:[];
+  return `<span class="kicker">בדיקת הפרטים</span><h1 id="onboarding-title">זה מה שמילאנו עבורך</h1><p>בדוק את הפרטים לפני שממשיכים. אפשר לתקן כאן; שדות ריקים לא זוהו בוודאות. פרטים שנשמרו קודם מוצגים גם הם.</p><p class="preference-help">מומלץ להיכנס לפרופיל לאחר סיום ההיכרות ולענות על השאלות האישיות, כדי שהמגיש האוטומטי יוכל להשתמש בתשובות שלך למילוי טופסי המועמדות.</p>
+    ${!onboardingState.resume&&!profile.cv_filename?'<p class="preference-help">לא הועלו קורות חיים. אפשר למלא פרטים כעת או להמשיך ולהשלים בהמשך.</p>':''}
+    <form id="onboarding-profile-review" class="onboarding-preferences">
+      <fieldset class="full"><legend>זהות ופרטי קשר</legend><div class="form-grid">
+      ${[['full_name','שם מלא'],['email','אימייל'],['phone','טלפון'],['linkedin_url','LinkedIn'],['github_url','GitHub'],['portfolio_url','אתר אישי']].map(([key,label])=>field(key,label,profile[key],key,key==='email'?'email':'text')).join('')}
+      ${field('city','עיר מגורים',extra.city||profile.location,'location')}</div></fieldset>
+      <fieldset class="full"><legend>השכלה</legend><div class="form-grid">
+      ${field('education_school','מוסד לימודים',extra.education_school)}
+      <label><span class="onboarding-field-heading">סוג תואר</span><select data-ob-profile-field="degree_level"><option value="">לא זוהה</option>${[['bachelor','תואר ראשון (B.A. / B.Sc.)'],['master','תואר שני (M.A. / M.Sc.)'],['phd','דוקטורט (Ph.D.)']].map(([key,label])=>`<option value="${key}" ${(extra.degree_level||profile.degree_level)===key?'selected':''}>${label}</option>`).join('')}</select></label>
+      ${[['education_field','תחום לימודים'],['education_grade','ציון / GPA'],['education_start_date','תחילת לימודים'],['education_end_date','סיום לימודים']].map(([key,label])=>field(key,label,extra[key])).join('')}
+      </div></fieldset>
+      <fieldset class="full"><legend>ניסיון תעסוקתי${filled.has('work_experiences')?' · מולא מהקו״ח':''}</legend>
+      <div id="onboarding-work-review">${employment.length?employment.map(employmentEntry).join(''):'<p>לא זוהו תפקידים למילוי אוטומטי. אפשר להשלים בפרופיל בהמשך.</p>'}</div></fieldset>
+      <fieldset class="full"><legend>שפות${filled.has('languages')?' · מולא מהקו״ח':''}</legend>
+      ${languages.length?languages.map(item=>`<div class="form-grid" data-ob-language><label>שפה<input data-ob-language-name value="${esc(item.name||'')}" /></label><label>רמת שליטה<input data-ob-language-level value="${esc(item.proficiency||'')}" /></label></div>`).join(''):'<p>לא זוהו שפות למילוי אוטומטי.</p>'}</fieldset>
+    </form>`;
+}
+async function onboardingSaveResumeReview(){
+  const form=$('#onboarding-profile-review');
+  if(!form)return;
+  if(!form.reportValidity())throw new Error('יש לתקן את השדות המסומנים לפני ההמשך');
+  const patch={},extra={};
+  const top=new Set(['full_name','email','phone','linkedin_url','github_url','portfolio_url']);
+  $$('[data-ob-profile-field]',form).forEach(input=>{
+    (top.has(input.dataset.obProfileField)?patch:extra)[input.dataset.obProfileField]=input.value.trim();
+  });
+  extra.work_experiences=$$('[data-employment-entry]',form).map(entry=>{
+    const item={};$$('[data-work-field]',entry).forEach(input=>{item[input.dataset.workField]=input.value.trim()});return item;
+  });
+  extra.languages=$$('[data-ob-language]',form).map(entry=>({name:$('[data-ob-language-name]',entry).value.trim(),proficiency:$('[data-ob-language-level]',entry).value.trim()})).filter(item=>item.name);
+  patch.application_profile=extra;
+  patch.degree_level=extra.degree_level;
+  await onboardingPersistProfile(patch);
+}
+
 function onboardingSetStep(index){
   onboardingState.step=Math.max(0,Math.min(onboardingSteps.length-1,index));
   const step=onboardingSteps[onboardingState.step], profile=state.profile||{}, track=onboardingTrackConfig();
@@ -5192,6 +5303,21 @@ function onboardingSetStep(index){
     const uploaded=onboardingState.resume || (profile.cv_filename ? {filename:profile.cv_filename, persisted:true} : null);
     content.innerHTML=`<span class="kicker">קורות חיים</span><h1 id="onboarding-title">נכיר את הניסיון שלך</h1><p>העלה PDF או DOCX. JobPilot יקרא את הקובץ ויציע סקילים — שום סקיל לא מתווסף בלי בחירה שלך.</p><label class="onboarding-upload ${uploaded?'uploaded':''}"><input id="onboarding-resume-file" type="file" accept=".pdf,.docx,.doc,.txt,.rtf"><span class="onboarding-upload-icon">${uploaded?'✓':'↑'}</span><strong>${uploaded?esc(uploaded.filename||uploaded.cv_filename||'קורות החיים הועלו'):'בחר קובץ או גרור לכאן'}</strong><small>${uploaded?'הקובץ נשמר ונקרא בהצלחה · לחץ כדי להחליף':'PDF או DOCX מומלצים · עד 10MB'}</small>${uploaded?'<span class="onboarding-upload-success"><b>✓</b> קורות החיים מוכנים</span>':''}</label>`;
     $('#onboarding-resume-file').onchange=onboardingResume;
+    const upload=$('.onboarding-upload',content);
+    upload.ondragover=event=>{event.preventDefault();event.stopPropagation();if(!upload.classList.contains('uploading')){event.dataTransfer.dropEffect='copy';upload.classList.add('is-dragging')}};
+    upload.ondragleave=event=>{if(!upload.contains(event.relatedTarget))upload.classList.remove('is-dragging')};
+    upload.ondrop=event=>{
+      event.preventDefault();event.stopPropagation();upload.classList.remove('is-dragging');
+      if(upload.classList.contains('uploading'))return;
+      const files=event.dataTransfer?.files;
+      if(!files?.length)return;
+      if(files.length!==1){toast('יש להעלות קובץ קורות חיים אחד בכל פעם');return}
+      onboardingResume({target:$('#onboarding-resume-file')},files[0]);
+    };
+  }else if(step==='resume-review'){
+    content.innerHTML=onboardingResumeReview(profile);
+    $('#onboarding-profile-review').onsubmit=event=>event.preventDefault();
+    $$('[data-remove-employment]',content).forEach(button=>button.onclick=()=>button.closest('[data-employment-entry]').remove());
   }else if(step==='skills'){
     const values=onboardingSkillValues();
     content.innerHTML=`<span class="kicker">סקילים · ${esc(track.label)}</span><h1 id="onboarding-title">מה באמת מייצג אותך?</h1><p>סימנו הצעות שנמצאו בקורות החיים. הוסף או הסר בלחיצה — הרשימה מותאמת למסלול שבחרת.</p><div class="onboarding-skill-checks">${values.map(v=>`<label class="onboarding-skill-check ${onboardingState.selectedSkills.has(v)?'selected':''}"><input type="checkbox" data-ob-skill="${encodeURIComponent(v)}" ${onboardingState.selectedSkills.has(v)?'checked':''}><span class="checkmark">✓</span><strong>${esc(v)}</strong></label>`).join('')}</div>`;
@@ -5200,20 +5326,20 @@ function onboardingSetStep(index){
     const draft=onboardingState.draft||{};
     const modes=new Set(draft.preferred_work_modes||profile.preferred_work_modes||['hybrid','remote','onsite']);
     const titles=new Set(draft.desired_titles||profile.desired_titles||[]);
-    const keywords=new Set(draft.keywords||profile.keywords||[]);
-    const excluded=new Set(draft.excluded_keywords||profile.excluded_keywords||[]);
+    const seniority=new Set(draft.seniority_levels||profile.seniority_levels||[]);
     const locations=new Set(draft.preferred_locations||profile.preferred_locations||[]);
     const locationChoices=[['Israel','ישראל'],['Haifa','חיפה'],['Tel Aviv','תל אביב'],['Jerusalem','ירושלים']];
     const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
-    const experienceChoices=[['student','Student / Intern'],['entry level','Entry Level / Graduate'],['junior','Junior'],['mid level','Mid Level'],['senior','Senior'],['lead','Lead'],['staff','Staff / Principal'],['manager','Manager']];
+    const experienceChoices=[['student','Student / Intern'],['entry level','Entry Level / Graduate'],['junior','Junior'],['mid level','Mid Level'],['senior','Senior'],['lead','Lead'],['staff','Staff / Principal'],['manager','Manager'],['unknown','לא צוינה רמת ניסיון']];
     content.innerHTML=`<span class="kicker">העדפות · ${esc(track.label)}</span><h1 id="onboarding-title">נחדד את החיפוש</h1><p>בחר בכמה לחיצות את מה שמתאים לך. אפשר לדייק הכול גם אחר כך בהעדפות החיפוש.</p><div class="onboarding-form polished choice-form">
       <fieldset class="onboarding-choice-field full"><legend>תפקידים רצויים</legend><div class="onboarding-choice-grid">${titleChoices.map(([v,l])=>onboardingChoiceBox('title',v,l,titles.has(v))).join('')}</div><label class="onboarding-other"><span>משהו נוסף?</span><input id="ob-titles-extra" value="${esc((profile.desired_titles||[]).filter(v=>!titleChoices.some(([x])=>x===v)).join(', '))}" placeholder="אפשר להוסיף תפקיד שלא מופיע ברשימה"></label></fieldset>
       <fieldset class="onboarding-choice-field full onboarding-location-field"><legend>אזורי חיפוש</legend><div class="onboarding-choice-grid locations">${locationChoices.map(([v,l])=>onboardingChoiceBox('location',v,l,locations.has(v)||locations.has(l)||(v==='Israel'&&!locations.size))).join('')}</div></fieldset>
-      <label><span>רמת ניסיון</span><select id="ob-experience">${['0','1','2','3','4','5+'].map(v=>`<option ${(profile.years_experience_options||['0']).includes(v)?'selected':''}>${v}</option>`).join('')}</select></label>
+      <label><span>שנות הניסיון שלך</span><select id="ob-experience">${['0','1','2','3','4','5+'].map(v=>`<option ${(profile.years_experience_options||['0']).includes(v)?'selected':''}>${v}</option>`).join('')}</select></label>
       <label><span>סוג תואר</span><select id="ob-degree" required><option value="" disabled ${!(draft.degree_level||profile.degree_level)?'selected':''}>בחר סוג תואר</option><option value="bachelor" ${(draft.degree_level||profile.degree_level)==='bachelor'?'selected':''}>תואר ראשון (B.A. / B.Sc.)</option><option value="master" ${(draft.degree_level||profile.degree_level)==='master'?'selected':''}>תואר שני (M.A. / M.Sc.)</option><option value="phd" ${(draft.degree_level||profile.degree_level)==='phd'?'selected':''}>דוקטורט (Ph.D.)</option></select></label>
       <fieldset class="full"><legend>אופן עבודה</legend><div class="onboarding-chips">${[['hybrid','היברידי'],['remote','מרחוק'],['onsite','מהמשרד']].map(([v,l])=>`<button type="button" class="onboarding-chip ${modes.has(v)?'selected':''}" data-ob-mode="${v}">${l}</button>`).join('')}</div></fieldset>
-      <fieldset class="onboarding-choice-field full"><legend>רמות ניסיון שתרצה לראות</legend><div class="onboarding-choice-grid compact">${experienceChoices.map(([v,l])=>onboardingChoiceBox('keyword',v,l,keywords.has(v))).join('')}</div><label class="onboarding-other"><span>מילות מפתח חיוביות נוספות</span><input id="ob-keywords-extra" value="${esc((draft.keywords||profile.keywords||[]).filter(v=>!experienceChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל: infrastructure, developer tools"></label></fieldset>
-      <fieldset class="onboarding-choice-field full onboarding-exclude-field"><legend>רמות ניסיון ש<span class="negative-word">לא</span> לחפש עבורך</legend><div class="onboarding-choice-grid compact">${experienceChoices.map(([v,l])=>onboardingChoiceBox('excluded',v,l,excluded.has(v))).join('')}</div><label class="onboarding-other"><span>תחומים לא רצויים בכותרת המשרה בלבד</span><input id="ob-excluded-extra" value="${esc((draft.excluded_keywords||profile.excluded_keywords||[]).filter(v=>!experienceChoices.some(([x])=>x===v)).join(', '))}" placeholder="למשל: sales, manual QA"></label></fieldset>
+      <fieldset class="onboarding-choice-field full"><legend>רמות ניסיון להצגה</legend><p>יוצגו רק משרות ברמות המסומנות, לאחר סינון ולפני דירוג. ללא סימון לא יוצגו משרות.</p><div class="onboarding-choice-grid compact">${experienceChoices.map(([v,l])=>onboardingChoiceBox('seniority',v,l,seniority.has(v))).join('')}</div></fieldset>
+      <label class="onboarding-other full"><span>מילות מפתח לקידום בדירוג</span><input id="ob-keywords-extra" value="${esc((draft.keywords||profile.keywords||[]).join(', '))}" placeholder="למשל: infrastructure, developer tools"></label>
+      <label class="onboarding-other full"><span>מילים להחרגה מכותרת המשרה</span><input id="ob-excluded-extra" value="${esc((draft.excluded_keywords||profile.excluded_keywords||[]).join(', '))}" placeholder="למשל: sales, manual QA"></label>
     </div>`;
     $$('[data-ob-mode]',content).forEach(b=>b.onclick=()=>{b.classList.toggle('selected');onboardingSchedulePreferences()});
     $$('[data-ob-choice]',content).forEach(b=>b.onclick=()=>{onboardingToggleChoice(b);onboardingSchedulePreferences()});
@@ -5234,20 +5360,23 @@ function onboardingSetStep(index){
     onboardingStartRanking();
   }
 }
-async function onboardingResume(event){
-  const file=event.target.files?.[0]; if(!file)return;
+async function onboardingResume(event,droppedFile=null){
+  const file=droppedFile||event.target.files?.[0]; if(!file)return;
+  if(event.target.closest('.onboarding-upload')?.classList.contains('uploading'))return;
   const allowed=['.pdf','.docx','.doc','.txt','.rtf'], suffix='.'+(file.name.split('.').pop()||'').toLowerCase();
   if(!allowed.includes(suffix)){toast('אפשר להעלות PDF, DOCX, DOC, TXT או RTF');event.target.value='';return}
+  if(!file.size||file.size>10*1024*1024){toast('יש להעלות קובץ שאינו ריק ועד 10MB');event.target.value='';return}
   const label=event.target.closest('.onboarding-upload'); label?.classList.add('uploading');
+  const navigation=[$('#onboarding-next'),$('#onboarding-back'),$('#onboarding-skip')];navigation.forEach(button=>button.disabled=true);
   const body=new FormData(); body.append('file',file);
   try{
     const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
     const suggestions=result.analysis?.suggestions||[];
     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
-    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSetStep(onboardingState.step);
+    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSyncSavedProfile(state.profile); onboardingSetStep(onboardingSteps.indexOf('resume-review'));
     const filled=resumeAutofillSummary(result.autofilled_fields||[]);
     toast(filled?`קורות החיים נותחו · מולאו: ${filled}`:'קורות החיים הועלו ונותחו');
-  }catch(error){label?.classList.remove('uploading');toast(error.message)}
+  }catch(error){label?.classList.remove('uploading');toast(error.message)}finally{event.target.value='';navigation.forEach(button=>button.disabled=false)}
 }
 async function onboardingSaveSkills(){
   const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
@@ -5265,6 +5394,7 @@ async function saveOnboardingPreferences(){
     years_experience_options:[...(state.profile.years_experience_options||[])],
     degree_level:state.profile.degree_level||'',
     preferred_work_modes:[...(state.profile.preferred_work_modes||[])],
+    seniority_levels:[...(state.profile.seniority_levels||[])],
     keywords:[...(state.profile.keywords||[])],
     excluded_keywords:[...(state.profile.excluded_keywords||[])],
   };
@@ -5272,7 +5402,7 @@ async function saveOnboardingPreferences(){
 }
 function onboardingCollectPreferences(){
   const selected=(kind)=>$$(`[data-ob-choice="${kind}"].selected`).map(b=>decodeURIComponent(b.dataset.value||''));
-  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience')?.value||'0'],degree_level:$('#ob-degree')?.value||'',preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),keywords:[...new Set([...selected('keyword'),...onboardingSplit($('#ob-keywords-extra')?.value||'')])],excluded_keywords:[...new Set([...selected('excluded'),...onboardingSplit($('#ob-excluded-extra')?.value||'')])]};return onboardingState.draft;
+  onboardingState.draft={desired_titles:[...new Set([...selected('title'),...onboardingSplit($('#ob-titles-extra')?.value||'')])],preferred_locations:selected('location'),years_experience_options:[$('#ob-experience')?.value||'0'],degree_level:$('#ob-degree')?.value||'',preferred_work_modes:$$('[data-ob-mode].selected').map(b=>b.dataset.obMode),seniority_levels:selected('seniority'),keywords:[...new Set(onboardingSplit($('#ob-keywords-extra')?.value||''))],excluded_keywords:[...new Set(onboardingSplit($('#ob-excluded-extra')?.value||''))]};return onboardingState.draft;
 }
 async function onboardingFinish(skipped=false){
   await onboardingFlushSave();
@@ -5286,6 +5416,20 @@ function renderOnboardingRankingStatus(status){
   const total=Math.max(0,Number(status.total||0)), ranked=Math.max(0,Number(status.ranked||0));
   const percent=total?Math.min(100,Math.round((ranked/total)*100)):100;
   const ready=Boolean(status.ready);
+  const failed=!status.running && (Number(status.failed)>0 || status.phase==='failed');
+  if(failed){
+    target.classList.remove('is-running');
+    target.innerHTML=`<span><b>רענון הדירוג לא הושלם</b><small>${esc(status.message||'אפשר לנסות שוב; הדירוגים התקינים נשמרו.')}</small></span><button type="button" class="btn secondary small" id="onboarding-retry-ranking">נסה שוב</button>`;
+    $('#onboarding-retry-ranking').onclick=async(event)=>{
+      const button=event.currentTarget;
+      button.disabled=true;
+      try{
+        await api('/api/ranking/refresh'+(status.phase==='failed'?'':'?failed_only=true'),{method:'POST'});
+        onboardingWatchRanking();
+      }catch(error){toast(error.message);button.disabled=false}
+    };
+    return;
+  }
   target.classList.toggle('is-running',!ready);
   target.style.setProperty('--scan-progress',`${percent}%`);
   const waiting=!ready && (!total || status.phase==='queued');
@@ -5299,6 +5443,7 @@ async function onboardingWatchRanking(){
   try{
     const status=await api('/api/ranking/status');
     renderOnboardingRankingStatus(status);
+    if(!status.running && (Number(status.failed)>0 || status.phase==='failed'))return;
     if(!status.ready){onboardingState.scanTimer=setTimeout(onboardingWatchRanking,700);return}
     $('.onboarding-scan-stage')?.classList.add('complete');
     const button=$('#onboarding-enter-ranked');
@@ -5323,9 +5468,9 @@ async function openOnboarding(preview=false){
   $('#onboarding-gate').hidden=false;$('#onboarding-gate').setAttribute('aria-hidden','false');document.body.classList.add('onboarding-open');onboardingSetStep(0);
 }
 async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
-$('#onboarding-back').onclick=()=>onboardingSetStep(onboardingState.step-1);
-$('#onboarding-skip').onclick=()=>onboardingFinish(true);
-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await onboardingFlushSave();await saveOnboardingPreferences()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+$('#onboarding-back').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();onboardingSetStep(onboardingState.step-1)}catch(error){toast(error.message)}};
+$('#onboarding-skip').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();await onboardingFinish(true)}catch(error){toast(error.message)}};
+$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='resume-review')await onboardingSaveResumeReview();if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await onboardingFlushSave();await saveOnboardingPreferences()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
 let developerUsersCache=[];
 const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
 const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
@@ -5334,8 +5479,8 @@ async function loadDeveloperOverview(){
   const grid=$('#developer-health-grid'),details=$('#developer-system-details'); if(!grid||!details)return;
   try{
     const o=await api('/api/admin/developer/overview');
-    const scan=o.scan||{},sources=o.sources||{},agent=o.agent||{},queue=o.derived_refresh||{};
-    grid.innerHTML=[developerMetric('API','Online',`v${o.app.version}`,'ok'),developerMetric('מקורות',`${sources.enabled}/${sources.total}`,`${sources.errors} שגיאות · Health ${sources.average_health}%`,sources.errors?'warn':'ok'),developerMetric('סריקה',scan.running?'Running':'Idle',developerTrackLabel(o.track),scan.running?'live':''),developerMetric('Agent',`${agent.online}/${agent.enabled}`,agent.last_seen_at?`נראה ${developerDate(agent.last_seen_at)}`:'אין heartbeat',agent.online?'ok':''),developerMetric('משרות',String(o.jobs.active),`${o.jobs.strong} התאמות 80+`),developerMetric('Re-rank queue',String(queue.count||0),queue.count?'עבודה נגזרת ברקע':'התור נקי',queue.count?'live':'ok')].join('');
+    const scan=o.scan||{},sources=o.sources||{},agent=o.agent||{},queue=o.derived_refresh||{},history=o.collection_history||{};
+    grid.innerHTML=[developerMetric('משרות שנאספו · מצטבר',history.observed_unique??'—',history.note||'כל המקורות והמסלולים'),developerMetric('משרות שנחסמו אי־פעם',history.ever_blocked_unique??'—','משרות ייחודיות עם חסימת איסוף מתועדת; חסימה אינה סגירה'),developerMetric('API','Online',`v${o.app.version}`,'ok'),developerMetric('מקורות',`${sources.enabled}/${sources.total}`,`${sources.errors} שגיאות · Health ${sources.average_health}%`,sources.errors?'warn':'ok'),developerMetric('סריקה',scan.running?'Running':'Idle',developerTrackLabel(o.track),scan.running?'live':''),developerMetric('Agent',`${agent.online}/${agent.enabled}`,agent.last_seen_at?`נראה ${developerDate(agent.last_seen_at)}`:'אין heartbeat',agent.online?'ok':''),developerMetric('משרות',String(o.jobs.active),`${o.jobs.strong} התאמות 80+`),developerMetric('Re-rank queue',String(queue.count||0),queue.count?'עבודה נגזרת ברקע':'התור נקי',queue.count?'live':'ok')].join('');
     details.innerHTML=Object.entries({Auth:o.app.auth_mode,Storage:o.app.storage_mode,'Scan worker':o.app.scan_execution_mode,Scheduler:o.app.scheduler_enabled?`פעיל · ${o.app.scan_time}`:'כבוי',Timezone:o.app.timezone,'Concurrent scans':o.app.max_concurrent_user_scans,'Cloud storage':o.flags.cloud_storage?'כן':'לא','Application Agent':o.flags.application_agent?'מורשה':'לא מורשה'}).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('');
     const badge=$('#developer-health-badge');if(badge){badge.textContent=sources.errors?'דורש בדיקה':'תקין';badge.classList.toggle('warn',!!sources.errors)}
   }catch(e){grid.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}
@@ -5385,30 +5530,14 @@ async function resetDeveloperUserProfile(id,email){
 }
 async function loadDeveloperSources(){const root=$('#developer-sources-list');if(!root)return;try{const rows=await api('/api/sources');root.innerHTML=rows.map(s=>`<article class="developer-source-row"><span><strong>${esc(s.name)}</strong><small>${esc(s.kind)} · health ${s.health_score}%${s.last_error?` · ${esc(s.last_error.slice(0,110))}`:''}</small></span><button class="btn secondary" type="button" data-test-source="${s.id}">בדוק מקור</button></article>`).join('')||'<div class="empty-state">אין מקורות במסלול הפעיל</div>';$$('[data-test-source]',root).forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/admin/developer/sources/${b.dataset.testSource}/test`,{method:'POST'});toast(r.status==='started'?'בדיקת המקור התחילה':'כבר מתבצעת סריקה');setTimeout(loadDeveloperOverview,900)}catch(e){toast(e.message)}finally{b.disabled=false}})}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
 async function loadDeveloperAudit(){const root=$('#developer-audit-list');if(!root)return;try{const rows=await api('/api/admin/developer/audit?limit=30');root.innerHTML=rows.map(r=>`<article><span><strong>${esc(r.event_type)}</strong><small>${esc(r.entity_type||'system')} ${r.entity_id?`#${esc(r.entity_id)}`:''}</small></span><time>${esc(developerDate(r.created_at))}</time>${r.message?`<p>${esc(r.message.slice(0,180))}</p>`:''}</article>`).join('')||'<div class="empty-state">אין אירועים</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
-let rankingLabState={settings:null,userId:'',comparison:null};
-const RANKING_CONFIG_FIELDS=[['role_weight','Role Match'],['skills_weight','Skills / Technologies'],['requirements_weight','Professional Requirements'],['preferences_weight','Soft Preferences'],['maximum_job_age_days','Maximum job age'],['realistic_experience_gap','Realistic experience gap'],['stretch_experience_gap','Stretch experience gap'],['exclude_experience_gap','Exclude experience gap'],['top_match_threshold','Top Match threshold'],['strong_match_threshold','Strong Match threshold'],['good_match_threshold','Good Match threshold'],['low_match_threshold','Low Match threshold']];
-function rankingConfigValues(){const value={...rankingLabState.settings?.config};RANKING_CONFIG_FIELDS.forEach(([key])=>{const input=$(`[data-ranking-config="${key}"]`);if(input)value[key]=Number(input.value)});return value}
-function renderRankingConfig(config){const root=$('#ranking-config-fields');if(!root)return;root.innerHTML=RANKING_CONFIG_FIELDS.map(([key,label])=>`<label><span>${esc(label)}</span><input type="number" data-ranking-config="${key}" value="${Number(config?.[key]??0)}"></label>`).join('')}
-function rankingRow(item,compact=false){const stateLabel=item.state==='ready'?'stored':item.state==='computed'?'live':item.state||'ready';return `<button type="button" class="developer-source-row ranking-row ${item.eligibility==='excluded'?'is-excluded':''}" data-ranking-job="${item.job_id}"><span><strong>${esc(item.job)}</strong><small>${esc(item.company)} · ${esc(item.tier||'—')} · ${esc(item.eligibility||'unknown')}${compact?'':` · ${esc(stateLabel)}`}</small></span><span class="ranking-row-metrics"><b class="ranking-score primary">${item.score??'—'}</b></span></button>`}
-function bindRankingRows(){$$('[data-ranking-job]').forEach(button=>button.onclick=()=>inspectRankingJob(Number(button.dataset.rankingJob)))}
-async function loadRankingLab(){const user=$('#ranking-lab-user');if(!user)return;if(!rankingLabState.userId)rankingLabState.userId=developerUsersCache[0]?.id||authState.user?.id||'';user.innerHTML=developerUsersCache.map(item=>`<option value="${esc(item.id)}" ${item.id===rankingLabState.userId?'selected':''}>${esc(item.email||item.id)}</option>`).join('');if(!rankingLabState.userId)return;try{const data=await api(`/api/admin/developer/ranking?user_id=${encodeURIComponent(rankingLabState.userId)}`);rankingLabState.settings=data.settings;const s=data.status||{},settings=data.settings||{};$('#ranking-lab-status').innerHTML=[developerMetric('Engine','V2',`config v${settings.config_version}`),developerMetric('Evaluated',`${s.evaluated}/${s.total}`,`${s.waiting} waiting`),developerMetric('Stale / errors',`${s.stale} / ${s.failed}`,s.last_evaluation?developerDate(s.last_evaluation):'Never'),developerMetric('Average evaluation',`${s.average_evaluation_ms||0} ms`,s.queue?.count?'Queued / running':'Idle')].join('');$('#ranking-lab-engine-badge').textContent='V2';$('#ranking-inspected-user').textContent=developerUsersCache.find(item=>item.id===rankingLabState.userId)?.email||rankingLabState.userId;renderRankingConfig(settings.config);await loadRankingComparison()}catch(e){$('#ranking-lab-status').innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
-async function loadRankingComparison(){if(!rankingLabState.userId)return;const root=$('#ranking-comparison-list');root.innerHTML='<div class="empty-state">טוען דירוגים…</div>';try{const sort=$('#ranking-comparison-sort').value;const data=await api(`/api/admin/developer/ranking/jobs?user_id=${encodeURIComponent(rankingLabState.userId)}&sort=${encodeURIComponent(sort)}`);rankingLabState.comparison=data;$('#ranking-v2-top').innerHTML=(data.top||[]).map(item=>rankingRow(item,true)).join('')||'<div class="empty-state">אין תוצאות דירוג</div>';root.innerHTML=(data.items||[]).slice(0,100).map(item=>rankingRow(item)).join('')||'<div class="empty-state">אין תוצאות דירוג</div>';bindRankingRows()}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
-async function inspectRankingJob(jobId){const root=$('#ranking-job-inspector');root.hidden=false;root.innerHTML='<div class="empty-state">טוען Inspector…</div>';try{const data=await api(`/api/admin/developer/ranking/users/${encodeURIComponent(rankingLabState.userId)}/jobs/${jobId}`),v=data.ranking||{},e=v.eligibility||{},b=v.breakdown||{};const part=(label,key)=>`<article><span>${label}</span><strong>${b[key]?.score??0} / ${b[key]?.max??0}</strong><small>${esc((b[key]?.reasons||[]).join(' · '))}</small></article>`;root.innerHTML=`<button type="button" class="ranking-inspector-close">×</button><h3>${esc(data.job.title)}</h3><p>${esc(data.job.company)}</p><div class="ranking-inspector-score"><strong>${v.score}%</strong><span>${esc(v.tier)} · ${esc(v.confidence)} confidence</span></div><section><h4>Eligibility · ${esc(e.state)}</h4><p>${esc([...(e.reasons||[]),...(e.warnings||[])].join(' · '))}</p><small>Unknown: ${esc((e.unknown_fields||[]).join(', ')||'none')}</small></section><div class="ranking-breakdown">${part('Role','role')}${part('Skills','skills')}${part('Requirements','requirements')}${part('Preferences','preferences')}</div>`;$('.ranking-inspector-close',root).onclick=()=>{root.hidden=true}}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
-async function previewRankingConfig(){try{const data=await api('/api/admin/developer/ranking/preview',{method:'POST',body:JSON.stringify({user_id:rankingLabState.userId,config:rankingConfigValues(),sample_size:100})}),s=data.statistics||{},root=$('#ranking-preview-stats');root.hidden=false;root.innerHTML=`<strong>Preview בלבד — לא נשמר</strong><span>Promoted ${s.jobs_promoted} · Demoted ${s.jobs_demoted} · Average Δ ${s.average_score_delta}</span>`;$('#ranking-v2-top').innerHTML=(data.preview_top||[]).map(item=>rankingRow(item,true)).join('');bindRankingRows()}catch(e){toast(e.message)}}
-async function applyRankingConfig(){if(!confirm('להחיל את הגדרת הדירוג? הגרסה תעלה וייכנס rerank אסינכרוני לתור.'))return;try{await api('/api/admin/developer/ranking/config',{method:'PUT',body:JSON.stringify({config:rankingConfigValues()})});toast('Ranking config applied');await loadRankingLab()}catch(e){toast(e.message)}}
-async function resetRankingConfig(){if(!confirm('לשחזר את ברירות המחדל של הדירוג?'))return;try{await api('/api/admin/developer/ranking/config/reset',{method:'POST'});toast('Ranking defaults restored');await loadRankingLab()}catch(e){toast(e.message)}}
 function renderDeveloperThemeLab(){const root=$('#developer-theme-lab');if(!root)return;root.innerHTML=Object.values(CAREER_TRACK_UI).map(t=>`<div><strong>${esc(t.label)}</strong><button type="button" data-theme-preview="${t.key}:light">יום</button><button type="button" data-theme-preview="${t.key}:dark">לילה</button></div>`).join('');$$('[data-theme-preview]',root).forEach(b=>b.onclick=()=>{const [track,mode]=b.dataset.themePreview.split(':');Object.values(CAREER_TRACK_UI).forEach(t=>document.body.classList.remove(t.themeClass));document.body.classList.add(CAREER_TRACK_UI[track].themeClass);document.body.classList.toggle('theme-dark',mode==='dark');document.body.classList.toggle('theme-light',mode==='light');auditDeveloperColors();toast(`תצוגת QA: ${developerTrackLabel(track)} · ${mode==='dark'?'לילה':'יום'}`)})}
 function auditDeveloperColors(){const root=$('#developer-color-audit');if(!root)return;const track=document.body.classList.contains('track-electrical-engineering')?'electrical_engineering':document.body.classList.contains('track-industrial-engineering')?'industrial_engineering':'computer_science';const suspicious=[];if(track!=='computer_science'){const blue=/rgb\((?:0|1?\d?\d|2[0-4]\d|25[0-5]),\s*(?:8\d|9\d|1[0-9]\d),\s*(?:1[4-9]\d|2[0-5]\d)\)/;$$('button,input,select,textarea,.panel,.metric,.option-grid label,.check-row label').slice(0,500).forEach(el=>{const c=getComputedStyle(el);if(blue.test(c.borderColor)||blue.test(c.backgroundColor)||blue.test(c.color))suspicious.push(el)})}root.textContent=track==='computer_science'?'Color audit: כחול הוא צבע המסלול ולכן אינו נחשב זליגה.':suspicious.length?`Color audit: נמצאו ${suspicious.length} אלמנטים חשודים לבדיקה.`:'Color audit: לא נמצאה זליגה כחולה במדגם האינטראקטיבי.';root.classList.toggle('warn',suspicious.length>0)}
-async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit()]);await loadRankingLab();renderDeveloperThemeLab();auditDeveloperColors()}
+async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit()]);renderDeveloperThemeLab();auditDeveloperColors()}
 $('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
 $('#developer-preview-non-admin').onclick=enterNonAdminPreview;$('#admin-preview-exit').onclick=exitNonAdminPreview;
 $('#developer-user-search').oninput=renderDeveloperUsers;
 $('#developer-refresh-all').onclick=loadDeveloperCenter;
 $('#developer-rerank').onclick=async()=>{try{await api('/api/admin/developer/rerank',{method:'POST'});toast('Re-rank נכנס לתור');loadDeveloperOverview()}catch(e){toast(e.message)}};
-$('#ranking-lab-user').onchange=event=>{rankingLabState.userId=event.target.value;loadRankingLab()};
-$('#ranking-comparison-sort').onchange=loadRankingComparison;
-$('#ranking-rerank-v2').onclick=async()=>{try{await api(`/api/admin/developer/ranking/rerank?user_id=${encodeURIComponent(rankingLabState.userId)}`,{method:'POST'});toast('V2 rerank queued');await loadRankingLab()}catch(e){toast(e.message)}};
-$('#ranking-preview-config').onclick=previewRankingConfig;$('#ranking-apply-config').onclick=applyRankingConfig;$('#ranking-reset-config').onclick=resetRankingConfig;
 $('#developer-reset-scan-runtime').onclick=async()=>{if(!confirm('לאפס את מצב הסריקה המקומי?'))return;try{await api('/api/admin/developer/scan-runtime/reset',{method:'POST'});toast('מצב הסריקה אופס');loadDeveloperOverview()}catch(e){toast(e.message)}};
 $('#developer-reset-onboarding').onclick=async()=>{if(!confirm('לאפס את ה-Onboarding שלך כדי שיופיע מחדש?'))return;try{await api('/api/admin/developer/onboarding/reset',{method:'POST'});toast('ה-Onboarding אופס')}catch(e){toast(e.message)}};
 $('#developer-hard-refresh').onclick=()=>{if(!confirm('לנקות cache מקומי של תצוגה ולרענן? נתוני השרת לא יימחקו.'))return;['jobpilot-active-view','jobpilot-profile-section'].forEach(k=>localStorage.removeItem(k));location.reload()};

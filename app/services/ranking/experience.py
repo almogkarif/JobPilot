@@ -1,15 +1,37 @@
 from __future__ import annotations
 
 import math
+import re
 
 from ...utils import loads
 from ..matching import SENIORITY_LEVELS, extract_experience
+from ..matching import _optional_experience_context, _experience_clause_span
+from ..job_requirements import normalize_requirement_text
 
 SENIORITY_ORDER = {"student": 0, "entry level": 1, "junior": 2, "mid level": 3, "senior": 4, "lead": 5, "staff": 6, "manager": 6}
 
 
 def parse_experience(job) -> tuple[float | None, float | None]:
     return extract_experience(f"{getattr(job, 'title', '')} {getattr(job, 'description', '')}")
+
+
+def preferred_experience_evidence(job) -> str:
+    """Keep optional experience distinct from missing mandatory requirements."""
+    text = normalize_requirement_text(getattr(job, 'description', '') or '').casefold()
+    for match in re.finditer(r'\bexperience\b|ני?סיון', text):
+        if _optional_experience_context(text, match.start(), match.end()):
+            left, right = _experience_clause_span(text, match.start(), match.end())
+            # Some collectors flatten adjacent bullets into one line. Keep the
+            # previous degree/language "- Must" out of the experience evidence.
+            labels = re.compile(r'[-–—]\s*(?:must|advantage|preferred|יתרון|חובה)\b', re.I)
+            preceding = list(labels.finditer(text, left, match.start()))
+            if preceding:
+                left = preceding[-1].end()
+            following = labels.search(text, match.end(), right)
+            if following:
+                right = following.end()
+            return text[left:right].strip()[:300]
+    return ''
 
 
 
@@ -43,14 +65,9 @@ def experience_requirement_buckets(minimum: float | None, maximum: float | None)
 
 
 def detect_seniority(title: str) -> str | None:
-    lowered = str(title or "").casefold()
-    matches = [level for level, terms in SENIORITY_LEVELS.items() if any(term in lowered for term in terms)]
-    # “Project/Product/Program Manager” names a profession, not necessarily a
-    # people-management seniority band. Treat it as unknown unless another
-    # explicit level (senior/lead/etc.) is present.
-    if "manager" in matches and any(value in lowered for value in ("project manager", "product manager", "program manager")):
-        matches.remove("manager")
-    return max(matches, key=lambda value: SENIORITY_ORDER[value]) if matches else None
+    from ..seniority import detect_title_level
+    level = detect_title_level(title)
+    return None if level == "unknown" else level
 
 
 def profile_seniority(years: float) -> str:

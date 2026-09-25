@@ -18,7 +18,11 @@ def test_cloud_derived_refresh_is_detached_coalesced_and_incremental():
     source = Path(main.__file__).read_text()
     assert "commit_every=50" in source
     assert "priority_limit=8" in source
-    assert "yield_per(50)" in source
+    # Each bounded page must be consumed before committing; a streaming cursor
+    # across commits pins SQLite's snapshot and can break concurrent saves.
+    assert "batch_size = min(commit_every or 50, 50)" in source
+    assert ".limit(limit)).all()" in source
+    assert "yield_per(50)" not in source
     assert "_global_profile_refresh_semaphore" in source
     assert "stale_only=not rescore_jobs" in source
 

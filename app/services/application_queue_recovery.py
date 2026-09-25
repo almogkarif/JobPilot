@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from sqlalchemy import desc, select
+from sqlalchemy import or_, desc, select
 from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_user_profile
@@ -103,7 +103,7 @@ def queue_health(db: Session, career_track: str, *, now: datetime | None = None)
         .join(Job, Application.job_id == Job.id)
         .options(joinedload(Application.job).defer(Job.description).joinedload(Job.source))
         .where(
-            Job.career_track == career_track,
+            _application_in_track(career_track),
             Application.mode == "auto",
             Application.status.in_(("queued", "applying")),
         )
@@ -343,7 +343,7 @@ def recover_stuck_auto_applications(
         .join(Job, Application.job_id == Job.id)
         .options(joinedload(Application.job).joinedload(Job.source))
         .where(
-            Job.career_track == career_track,
+            _application_in_track(career_track),
             Application.mode == "auto", Application.status == "queued",
         )
     ).unique().all()
@@ -440,7 +440,7 @@ def _close_superseded_running_attempts(db: Session, career_track: str, *, now: d
         select(ApplicationAttempt)
         .join(Application, ApplicationAttempt.application_id == Application.id)
         .join(Job, Application.job_id == Job.id)
-        .where(Job.career_track == career_track, ApplicationAttempt.status == "running")
+        .where(_application_in_track(career_track), ApplicationAttempt.status == "running")
         .order_by(ApplicationAttempt.application_id, desc(ApplicationAttempt.id))
     ).all()
     closed: list[int] = []
@@ -459,3 +459,8 @@ def _close_superseded_running_attempts(db: Session, career_track: str, *, now: d
     if closed:
         db.commit()
     return closed
+
+
+def _application_in_track(track):
+    from .catalog_routing import job_in_track, unified_catalog_enabled
+    return or_(job_in_track(track), Application.originating_track == track) if unified_catalog_enabled() else job_in_track(track)

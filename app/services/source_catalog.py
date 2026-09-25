@@ -399,6 +399,10 @@ def recommended_sources_for_track(career_track: str = DEFAULT_TRACK) -> tuple[di
 
 def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) -> int:
     """Install/reconcile the recommended source catalog for one professional track."""
+    from .catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled():
+        from .unified_catalog import install_unified_sources
+        return install_unified_sources(db)
     career_track = normalize_track(career_track)
     catalog = recommended_sources_for_track(career_track)
     if not catalog:
@@ -472,6 +476,14 @@ def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) 
 
 
 def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) -> list[dict]:
+    from .catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled():
+        from .unified_catalog import unified_sources
+        existing = {_source_key(s): s for s in unified_sources(db)}
+        catalog = {_source_key(item): item for items in RECOMMENDED_SOURCES_BY_TRACK.values() for item in items}
+        return [{**item, 'career_track': 'shared', 'installed': key in existing,
+                 'enabled': bool(existing[key].enabled) if key in existing else False}
+                for key, item in catalog.items()]
     career_track = normalize_track(career_track)
     catalog = recommended_sources_for_track(career_track)
     if not catalog:

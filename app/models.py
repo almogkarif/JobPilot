@@ -74,6 +74,7 @@ class Profile(UserOwnedMixin, Base):
     desired_titles_json: Mapped[str] = mapped_column(Text, default="[]")
     preferred_locations_json: Mapped[str] = mapped_column(Text, default="[]")
     preferred_work_modes_json: Mapped[str] = mapped_column(Text, default='["hybrid","remote","onsite"]')
+    seniority_levels_json: Mapped[str] = mapped_column(Text, default="")
     keywords_json: Mapped[str] = mapped_column(Text, default="[]")
     excluded_keywords_json: Mapped[str] = mapped_column(Text, default="[]")
     application_profile_json: Mapped[str] = mapped_column(Text, default="{}")
@@ -92,6 +93,8 @@ class Source(SharedCatalogMixin, Base):
     __table_args__ = (Index("ix_sources_user_track", "user_id", "career_track"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    canonical_source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"), nullable=True, index=True)
+    identity_key: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     name: Mapped[str] = mapped_column(String(160))
     kind: Mapped[str] = mapped_column(String(40))
     identifier: Mapped[str] = mapped_column(String(255))
@@ -118,6 +121,9 @@ class Job(SharedCatalogMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), index=True)
+    canonical_job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id"), nullable=True, index=True)
+    canonical_key: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    classification_json: Mapped[str] = mapped_column(Text, default="{}")
     career_track: Mapped[str] = mapped_column(String(40), default="computer_science", index=True)
     external_id: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(300), index=True)
@@ -186,13 +192,14 @@ class RankingSettings(Base):
 class JobRanking(UserOwnedMixin, Base):
     __tablename__ = "job_rankings"
     __table_args__ = (
-        UniqueConstraint("user_id", "job_id", "engine", name="uq_job_ranking_user_job_engine"),
+        UniqueConstraint("user_id", "job_id", "engine", "career_track", name="uq_job_ranking_user_job_engine_track"),
         Index("ix_job_rankings_user_engine_stale", "user_id", "engine", "stale"),
         Index("ix_job_rankings_user_engine_tier_score", "user_id", "engine", "tier", "score"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    career_track: Mapped[str] = mapped_column(String(40), default="", index=True)
     engine: Mapped[str] = mapped_column(String(20), default="v2", index=True)
     score: Mapped[int] = mapped_column(Integer, default=0)
     tier: Mapped[str] = mapped_column(String(30), default="low_match", index=True)
@@ -215,6 +222,8 @@ class Application(UserOwnedMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    canonical_application_id: Mapped[int | None] = mapped_column(ForeignKey("applications.id"), nullable=True, index=True)
+    originating_track: Mapped[str] = mapped_column(String(40), default="")
     status: Mapped[str] = mapped_column(String(40), default="queued", index=True)
     mode: Mapped[str] = mapped_column(String(40), default="review")
     resume_path: Mapped[str] = mapped_column(String(500), default="")
@@ -408,3 +417,43 @@ class OpenAnswerDraft(UserOwnedMixin, Base):
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class CollectionObservation(Base):
+    """Global source identities; retained independently of catalog deletion."""
+    __tablename__ = "collection_observations"
+    source_kind: Mapped[str] = mapped_column(String(40), primary_key=True)
+    source_identifier: Mapped[str] = mapped_column(String(255), primary_key=True)
+    external_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    ever_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    first_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class JobTrack(SharedCatalogMixin, Base):
+    """One canonical vacancy may be assigned to several professional tracks."""
+    __tablename__ = "job_tracks"
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), primary_key=True)
+    career_track: Mapped[str] = mapped_column(String(40), primary_key=True, index=True)
+    classifier_version: Mapped[str] = mapped_column(String(40), default="")
+    reason: Mapped[str] = mapped_column(Text, default="")
+    confidence: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
+
+class JobSourceIdentity(SharedCatalogMixin, Base):
+    """Collector identity/provenance; multiple boards may describe the same vacancy."""
+    __tablename__ = "job_source_identities"
+    source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), primary_key=True)
+    external_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CatalogMigrationArchive(Base):
+    """Private complete pre-merge row snapshots; no historical field is discarded."""
+    __tablename__ = "catalog_migration_archive"
+    entity_table: Mapped[str] = mapped_column(String(80), primary_key=True)
+    entity_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    canonical_id: Mapped[int] = mapped_column(Integer)
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    migration_version: Mapped[str] = mapped_column(String(40), default="canonical-local-v1")

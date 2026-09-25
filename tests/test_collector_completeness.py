@@ -53,3 +53,25 @@ def test_success_http_with_missing_job_list_is_not_verified_empty(monkeypatch, p
     collector = workday.WorkdayCollector() if provider == 'workday' else smartrecruiters.SmartRecruitersCollector()
     with pytest.raises(PreserveExistingJobs):
         asyncio.run(collector.collect('intel' if provider == 'workday' else 'example'))
+
+
+@pytest.mark.parametrize('provider', ['workday','smartrecruiters'])
+def test_detail_access_block_reports_identity_and_never_claims_complete(provider,monkeypatch):
+    import httpx
+    from app.collectors import smartrecruiters
+    class Client:
+        def __init__(self,**kwargs):pass
+        async def __aenter__(self):return self
+        async def __aexit__(self,*args):pass
+        async def post(self,url,**kwargs):
+            return httpx.Response(200,json={'total':1,'jobPostings':[{'externalPath':'/job/Israel-Haifa/Engineer_123','bulletFields':['123'],'title':'Software Engineer'}]},request=httpx.Request('POST',url))
+        async def get(self,url,**kwargs):
+            if url.endswith('/postings'):
+                return httpx.Response(200,json={'totalFound':1,'content':[{'id':'123','name':'Software Engineer'}]},request=httpx.Request('GET',url))
+            return httpx.Response(403,request=httpx.Request('GET',url))
+    monkeypatch.setattr(workday.httpx,'AsyncClient',Client)
+    collector=workday.WorkdayCollector() if provider=='workday' else smartrecruiters.SmartRecruitersCollector()
+    rows=asyncio.run(collector.collect('intel' if provider=='workday' else 'example'))
+    assert not rows.complete
+    assert rows.blocked_external_ids==('123',)
+    assert not rows

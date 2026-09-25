@@ -6,6 +6,7 @@ from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
 from ..utils import dumps, loads
 from .career_tracks import active_track, normalize_track
+from .catalog_routing import job_in_track
 from .application_queue_recovery import recover_stuck_auto_applications
 from .matching import build_match_context
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
@@ -28,7 +29,7 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         current_profile_fingerprint = profile_fingerprint(profile, track)
         ranking_join = (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
         statement = select(Job, JobRanking).outerjoin(JobRanking, ranking_join).where(
-            Job.career_track == track, Job.is_active.is_(True),
+            job_in_track(track), Job.is_active.is_(True),
             ~select(JobRanking.id).where(JobRanking.job_id == Job.id,
                 current_excluded_condition(profile, settings, track)).correlate(Job).exists(),
         )

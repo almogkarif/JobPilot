@@ -16,13 +16,15 @@ from .job_cleanup import deactivate_or_delete_job, purge_stale_jobs
 from .application_anti_automation import automatic_submission_pause
 from .application_submission import automatic_submit_ready_for_profile, detect_adapter
 from .location_filter import is_israel_location
-from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason, track_job_relevance
+from .matching import build_match_context, extract_experience, extract_skills, hard_exclusion_reason
 from .career_tracks import DEFAULT_TRACK, active_track, auto_submit_is_enabled, normalize_track
 from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
                               job_fingerprint_values, persist_v2_result)
 from .job_text import clean_job_text
+from .collection_metrics import record_observations
+from .catalog_routing import unified_catalog_enabled, track_relevance as track_job_relevance, job_in_track
 from .github_actions import dispatch_application_workflow
 from .user_job_state import set_job_status
 
@@ -37,6 +39,7 @@ async def scan_all_sources(
     progress_callback: Callable[[dict], None] | None = None,
     career_track: str = DEFAULT_TRACK,
     catalog_only: bool = False,
+    _shared_fetches: dict | None = None,
 ) -> dict:
     """Scan enabled sources with bounded concurrency and commit each source immediately.
 
@@ -46,6 +49,9 @@ async def scan_all_sources(
     scan for hours.
     """
     career_track = normalize_track(career_track)
+    if unified_catalog_enabled() and _shared_fetches is None:
+        from .unified_catalog import scan_unified_catalog
+        return await scan_unified_catalog(db, source_ids, progress_callback, career_track, catalog_only)
     profile = None if catalog_only else get_user_profile(db)
     if not catalog_only and not profile:
         raise RuntimeError("Profile is not initialized")
@@ -180,10 +186,24 @@ async def scan_all_sources(
             emit_progress(current_source=source_name)
             try:
                 source_timeout = 90 if str(snapshot["kind"]) == "official_careers" and str(snapshot["identifier"]) == "iai" else SOURCE_SCAN_TIMEOUT_SECONDS
-                items = await asyncio.wait_for(
-                    collector_cls().collect(str(snapshot["identifier"]), str(snapshot["company_name"] or "")),
-                    timeout=source_timeout,
-                )
+                async def fetch():
+                    try:
+                        return await asyncio.wait_for(
+                            collector_cls().collect(str(snapshot["identifier"]), str(snapshot["company_name"] or "")),
+                            timeout=source_timeout,
+                        )
+                    except Exception as exc:
+                        return exc
+                if _shared_fetches is None:
+                    items = await fetch()
+                else:
+                    from .source_catalog import _source_key
+                    key = _source_key(snapshot)
+                    if key not in _shared_fetches:
+                        _shared_fetches[key] = asyncio.create_task(fetch())
+                    items = await _shared_fetches[key]
+                if isinstance(items, Exception):
+                    raise items
                 # Normalize every ATS payload before filtering, persistence and ranking.
                 for item in items:
                     item.description = clean_job_text(item.description)
@@ -192,6 +212,7 @@ async def scan_all_sources(
             except asyncio.TimeoutError:
                 return snapshot, [], f"Source scan timed out after {source_timeout} seconds"
             except PreserveExistingJobs as exc:
+                snapshot["blocked_external_ids"] = exc.blocked_external_ids
                 return snapshot, None, str(exc)[:1000]
             except Exception as exc:  # noqa: BLE001 - one collector must not stop the rest
                 return snapshot, [], str(exc)
@@ -216,6 +237,8 @@ async def scan_all_sources(
             source_filtered_mismatch = 0
 
             if items is None:
+                record_observations(db, source.kind, source.identifier,
+                                    blocked_ids=snapshot.get("blocked_external_ids", ()))
                 source.last_scanned_at = datetime.now(timezone.utc)
                 source.last_error = collect_error or "Source could not be verified; previous jobs preserved"
                 source.health_score = min(50, int(source.health_score or 100))
@@ -274,7 +297,10 @@ async def scan_all_sources(
                 continue
 
             try:
-                complete = bool(getattr(items, "complete", True))
+                blocked_ids = getattr(items, "blocked_external_ids", ())
+                record_observations(db, source.kind, source.identifier,
+                                    (item.external_id for item in items), blocked_ids)
+                complete = bool(getattr(items, "complete", True)) and not blocked_ids
                 total_collected += len(items)
                 israel_items = [item for item in items if is_israel_location(item.location)]
                 source_filtered_foreign = len(items) - len(israel_items)
@@ -312,6 +338,12 @@ async def scan_all_sources(
                     )
                 source_jobs = db.scalars(source_jobs_statement).all()
                 jobs_by_external_id = {job.external_id: job for job in source_jobs}
+                from .unified_catalog import canonical_posting_url
+                jobs_by_posting = {}
+                for existing_job in sorted(source_jobs, key=lambda row: row.id):
+                    posting = canonical_posting_url(source.kind, source.identifier, existing_job.external_id, existing_job.apply_url)
+                    if posting:
+                        jobs_by_posting.setdefault(posting, existing_job)
 
                 for item_index, item in enumerate(eligible_items, start=1):
                     incoming_source_fingerprint = job_fingerprint_values(
@@ -319,6 +351,14 @@ async def scan_all_sources(
                         item.workplace, item.published_at,
                     )
                     job = jobs_by_external_id.get(item.external_id)
+                    posting = canonical_posting_url(source.kind, source.identifier, item.external_id, item.apply_url)
+                    if job is None and posting:
+                        job = jobs_by_posting.get(posting)
+                        if job is not None:
+                            jobs_by_external_id[item.external_id] = job
+                            seen_external_ids.add(job.external_id)
+                            eligible_external_ids.add(job.external_id)
+                            total_merged += 1
                     source_content_changed = True
                     if not job:
                         fingerprint = _job_fingerprint(item.title, item.company, item.location)
@@ -349,6 +389,8 @@ async def scan_all_sources(
                             db.add(job)
                             source_jobs.append(job)
                             jobs_by_external_id[item.external_id] = job
+                            if posting:
+                                jobs_by_posting[posting] = job
                             fingerprint_index[fingerprint] = job
                             total_new += 1
                             source_new += 1
@@ -625,13 +667,14 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     from ..models import Application
 
     career_track = active_track(profile)
+    db.info["ranking_track"] = career_track
     ranking_settings = get_ranking_settings(db)
     query = select(Job).options(load_only(
         Job.id, Job.career_track, Job.skills_json, Job.apply_url, Job.source_id,
     ), joinedload(Job.application), joinedload(Job.source)).outerjoin(
         UserJobState, UserJobState.job_id == Job.id
     ).where(
-        Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", Job.career_track == career_track,
+        Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", job_in_track(career_track),
     )
     query = query.join(JobRanking, (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")).where(
         JobRanking.engine_version == get_ranking_engine().version,
@@ -662,7 +705,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
             bool(candidate[0].is_default),
         ), default=None)
         selected_resume = selected[0] if selected else None
-        application = Application(job_id=job.id, mode="auto",
+        application = Application(job_id=job.id, originating_track=career_track if unified_catalog_enabled() else "", mode="auto",
                                   resume_id=selected_resume.id if selected_resume else None,
                                   resume_path=selected_resume.path if selected_resume else profile.cv_path)
         db.add(application)

@@ -22,6 +22,60 @@ from app.services.ranking.service import (
 import app.main as main_module
 
 
+def test_seniority_visibility_is_sql_only_without_description_reads():
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql, sqlite
+    from app.services.seniority import seniority_visibility_condition
+    profile = SimpleNamespace(seniority_levels_json='["junior","unknown"]')
+    statement = select(Job.id).where(seniority_visibility_condition(profile, Job.title)).limit(100)
+    for dialect in (postgresql.dialect(), sqlite.dialect()):
+        sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
+        assert 'jobs.title' in sql and 'case' in sql and 'limit 100' in sql
+        assert 'description' not in sql
+
+
+def test_optional_experience_evidence_is_bounded_in_ranking_payload():
+    from types import SimpleNamespace
+    from app.services.ranking.experience import preferred_experience_evidence
+    evidence = preferred_experience_evidence(SimpleNamespace(
+        description='Preferred qualifications: Experience with '+('engineering tools '*500)))
+    assert evidence
+    assert len(evidence) <= 300
+
+
+def test_canonical_preview_rejects_remote_startup_before_database_access(monkeypatch):
+    from app.config import settings
+    from app.services.catalog_routing import validate_preview_startup, local_postgres_preview_url
+    from types import SimpleNamespace
+    monkeypatch.setattr(settings, 'unified_catalog_preview', True)
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    for url in ('postgresql://remote/jobpilot_rehearsal_copy',
+                'postgresql://localhost/production',
+                'postgresql://localhost/jobpilot_rehearsal_copy?host=remote'):
+        monkeypatch.setattr(settings, 'database_url', url)
+        assert not local_postgres_preview_url(url)
+        with pytest.raises(RuntimeError, match='isolated database'):
+            validate_preview_startup(SimpleNamespace())
+
+
+def test_canonical_receipt_skips_legacy_catalog_scan():
+    from app.database import _migrate_existing_catalog_to_shared
+    from app.models import CatalogMigrationArchive
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    with engine.begin() as c:
+        c.execute(CatalogMigrationArchive.__table__.insert().values(
+            migration_version='canonical-local-v1', entity_table='__migration__',
+            entity_id=1, canonical_id=1, snapshot_json='{}'))
+        queries = []
+        def record(_conn, _cursor, statement, *_args):
+            queries.append(statement.lower())
+        event.listen(c, 'before_cursor_execute', record)
+        _migrate_existing_catalog_to_shared(c, 'legacy-owner')
+        assert not any('from jobs' in q or 'from sources' in q or 'from job_rankings' in q for q in queries)
+        assert any('select migration_version' in q and 'limit 1' in q for q in queries)
+
+
 def test_interactive_live_view_polling_is_bounded_and_payload_is_tiny():
     javascript = (main_module.STATIC_DIR / "app.js").read_text(encoding="utf-8")
     polling = javascript[javascript.index("async function openInteractiveLiveView"):]
@@ -52,7 +106,7 @@ def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history
     assert ".limit(100 if workspace_allowed else 50)).all()" in source
     assert ".limit(25 if workspace_allowed else 10)).all()" in source
     assert "joinedload(Application.job).defer(Job.description)" in source
-    assert "_auto_apply_queue_snapshot(db, application.job.career_track) if workspace_allowed else {}" in source
+    assert "_auto_apply_queue_snapshot(db, _application_track(application)) if workspace_allowed else {}" in source
     assert "statement = statement.where(Application.id == application_id)" in source
     assert "location_count_statement = location_count_statement.where(automatic_filter)" in source
     assert 'Application.mode.in_(("auto", "audit"))' in source
@@ -64,7 +118,7 @@ def test_dashboard_filtered_job_count_uses_the_existing_bounded_aggregate():
     stats = source[source.index("def _career_track_stats"):source.index("def _career_tracks_payload")]
     assert '"eligible_jobs": 0' in stats
     assert "JobRanking.eligibility_state != \"excluded\"" in stats
-    assert "for track_key, jobs, eligible_jobs, strong_matches, ranking_pending_jobs in job_rows" in stats
+    assert "for track_key, jobs, eligible_jobs, strong_matches, ranking_pending_jobs, ranking_failed_jobs in job_rows" in stats
 
 
 def test_personal_delete_visibility_keeps_existing_bounded_job_reads():
@@ -73,6 +127,8 @@ def test_personal_delete_visibility_keeps_existing_bounded_job_reads():
     assert 'visible_to_user = func.coalesce(UserJobState.status, "new") != "hidden"' in jobs
     assert 'statement = statement.where(visible_to_user)' in jobs
     assert 'location_count_statement = location_count_statement.where(visible_to_user)' in jobs
+    assert 'statement = statement.where(not_submitted)' in jobs
+    assert 'location_count_statement = location_count_statement.where(not_submitted)' in jobs
     assert 'page_size: int = Query(20, ge=1, le=100)' in jobs
     assert 'defer(Job.description)' in jobs
     dashboard = source[source.index("def dashboard("):source.index('@app.get("/api/jobs")')]
@@ -289,12 +345,13 @@ def test_shared_catalog_startup_never_selects_jobs(monkeypatch):
     assert job_selects == []
 
 
-def test_two_stage_ranking_reuses_one_bounded_catalog_stream():
+def test_two_stage_ranking_uses_bounded_keyset_batches():
     source = Path(main_module.__file__).read_text()
     assert "priority_limit=8" in source
     assert "commit_every=50" in source
-    assert "select(Job).where(*predicate).order_by(" in source
-    assert ").yield_per(50)" in source
+    assert "batch_size = min(commit_every or 50, 50)" in source
+    assert "order_date < last_date" in source
+    assert "desc(Job.id)).limit(limit)).all()" in source
     assert "dashboardRankingRecoveryTracks" in Path("app/static/app.js").read_text()
     assert "rescore_jobs=False, refresh_resumes=False, rank_v2=True" in source
 
@@ -344,7 +401,11 @@ def test_dashboard_pending_ranking_uses_existing_aggregate_query():
     source = Path(main_module.__file__).read_text()
     stats_body = source.split("def _career_track_stats", 1)[1].split("def _career_tracks_payload", 1)[0]
     assert '"ranking_pending_jobs": 0' in stats_body
-    assert "catalog_condition & JobRanking.id.is_(None)" in stats_body
+    assert "case((catalog_condition, case((valid_ranking_join, 0), else_=1)), else_=0)" in stats_body
+    # The source aggregate has mutually exclusive local/legacy branches.
+    assert stats_body.count("db.execute(") == 3
+    assert "if unified_catalog_enabled():" in stats_body
+    assert "Job.description" not in stats_body
     assert '"ranking_pending_jobs": ranking_pending_jobs' in source
 
 
@@ -374,6 +435,15 @@ def test_gstat_inline_collection_is_bounded_and_needs_no_detail_downloads():
     assert preset['max_inline_jobs'] == 100
     soup = BeautifulSoup('<div class="jobs_accordion">' + ''.join(card(i) for i in range(105)) + '</div>', 'html.parser')
     assert len(_extract_gstat_job_rows(soup, preset['max_inline_jobs'])) == 100
+
+
+def test_dashboard_scan_suggestions_project_only_three_small_rows():
+    source = Path(main_module.__file__).read_text()
+    query = source.split('scan_suggestions_statement = select(', 1)[1].split('scan_suggestions = [', 1)[0]
+    assert ').limit(3)' in query
+    projection = query.split(').join(', 1)[0]
+    assert 'Job.description' not in projection
+    assert 'Job.id, Job.title, Job.company, Job.location, Job.discovered_at, JobRanking.score' in projection
 
 
 def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descriptions(monkeypatch):
@@ -422,6 +492,104 @@ def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descripti
         assert all('jobs.description' not in statement for statement in job_selects)
         assert db.scalar(select(Job.is_active).where(Job.id == old_id)) is False
         assert db.scalar(select(Job.is_active).where(Job.external_id == 'analyst')) is True
+
+
+def test_shadow_comparison_is_read_only_paginated_and_reports_partial_coverage(tmp_path):
+    import hashlib
+    import sqlite3
+    from scripts.compare_track_classification import audit_local_database
+    from app.services.track_classification import MAX_DESCRIPTION_CHARS
+
+    path = tmp_path / 'snapshot.db'
+    with sqlite3.connect(path) as db:
+        db.execute('CREATE TABLE sources (id INTEGER, kind TEXT, identifier TEXT, company_name TEXT, career_track TEXT, enabled INTEGER, disabled_until TEXT)')
+        db.execute('CREATE TABLE jobs (id INTEGER, source_id INTEGER, external_id TEXT, career_track TEXT, title TEXT, company TEXT, description TEXT, is_active INTEGER, apply_url TEXT)')
+        db.execute("INSERT INTO sources VALUES (1, 'greenhouse', 'example', 'Example', 'computer_science', 1, NULL)")
+        for number in range(1, 4):
+            db.execute("INSERT INTO jobs VALUES (?, 1, ?, ?, ?, ?, ?, 1, 'https://example.com/job')", (number, str(number), 'computer_science', 'Software Engineer', 'Example', 'x' * (MAX_DESCRIPTION_CHARS + 100)))
+    before = hashlib.sha256(path.read_bytes()).hexdigest()
+    report = audit_local_database(path, max_jobs=2)
+    assert report['total_active_rows'] == 3
+    assert report['examined_rows'] == 2
+    assert report['coverage_complete'] is False
+    assert report['activation_allowed'] is False
+    assert all(not row['candidate']['matched_tracks'] for row in report['comparisons'])
+    assert all('description' not in row for row in report['comparisons'])
+    assert all(row['apply_url'] == 'https://example.com/job' for row in report['comparisons'])
+    assert report['review_groups'] == {'source_content': 2}
+    assert all(len(row['education_filter']['evidence']) <= 350 for row in report['comparisons'])
+    assert all(len(row['education_filter']['allowed_profile_degrees']) <= 3 for row in report['comparisons'])
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+    with pytest.raises(ValueError):
+        audit_local_database(path, max_jobs=5001)
+
+
+def test_shadow_comparison_adds_no_production_scan_or_startup_work():
+    import inspect
+    import scripts.compare_track_classification as comparison
+    source = inspect.getsource(comparison.audit_local_database)
+    assert '?mode=ro' in source
+    assert 'PRAGMA query_only = ON' in source
+    assert 'LIMIT ?' in source
+    assert 'substr(description, 1, ?)' in source
+    assert 'substr(apply_url, 1, 1200)' in source
+    assert 'SELECT *' not in source
+    assert 'SessionLocal' not in source
+    for path in ('app/services/scanner.py', 'app/main.py', 'scripts/run_cloud_scan.py'):
+        assert 'shared_source_comparison' not in Path(path).read_text()
+        if path != 'app/main.py':
+            assert 'track_classification' not in Path(path).read_text()
+    # The new manual import classifier is behind the local SQLite-only flag.
+    import_source = inspect.getsource(main_module.import_job)
+    assert 'if unified_catalog_enabled():\n        from .models import JobSourceIdentity' in import_source
+
+
+def test_content_recovery_collectors_are_bounded_without_database_backfill():
+    from app.collectors.official import PRESETS
+    from app.collectors import globale_detail, matrix_detail
+
+    limits = {'speedata': 40, 'microsoft': 80, 'texas-instruments': 40,
+              'philips': 40, 'island': 40, 'mobileye': 180, 'rafael': 180}
+    for key, maximum in limits.items():
+        assert PRESETS[key]['max_detail_jobs'] <= maximum
+        assert PRESETS[key]['detail_response_bytes'] <= 4_000_000
+        assert PRESETS[key]['require_complete_detail']
+    assert globale_detail.MAX_FEED_BYTES == 4_000_000
+    assert globale_detail.MAX_FEED_ROWS <= 200
+    assert matrix_detail.MAX_CATEGORY_REQUESTS <= 40
+    assert matrix_detail.MAX_RESPONSE_BYTES <= 4_000_000
+    assert matrix_detail.MAX_JOBS <= 100
+    assert not PRESETS['global-e']['hydrate_details']
+    assert not PRESETS['matrix-israel']['hydrate_details']
+    for name in ('globale_detail.py', 'matrix_detail.py', 'employer_details.py', 'mobileye_detail.py', 'rafael_detail.py'):
+        source = (Path(__file__).parents[1] / 'app' / 'collectors' / name).read_text()
+        assert 'from ..database' not in source
+        assert 'SessionLocal' not in source
+        assert 'supabase' not in source.lower()
+
+
+def test_collection_history_uses_aggregates_and_write_only_batches():
+    from app.services.collection_metrics import record_observations, collection_metrics
+    statements=[]
+    engine=create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    @event.listens_for(engine,'before_cursor_execute')
+    def capture(conn,cursor,statement,parameters,context,executemany):
+        statements.append(statement)
+    with sessionmaker(bind=engine)() as db:
+        record_observations(db,'test','board',[str(i) for i in range(205)],['1'])
+        assert len(statements)==3
+        assert all('INSERT' in s and 'RETURNING' not in s.upper() for s in statements)
+        statements.clear()
+        result=collection_metrics(db)
+        assert result['observed_unique']==205 and result['ever_blocked_unique']==1
+        assert len(statements)==1
+        assert all('count(' in s.lower() for s in statements)
+        assert all('description' not in s.lower() for s in statements)
+    source=(Path(__file__).parents[1]/'app/main.py').read_text()
+    assert 'seed_retained_history' not in source
+    database=(Path(__file__).parents[1]/'app/database.py').read_text()
+    assert '"collection_observations"' in database
 
 
 def test_cached_exclusion_is_filtered_in_sql_before_description_download(monkeypatch):
@@ -512,6 +680,41 @@ def test_title_filter_comparison_uses_bounded_metadata_pages_only(monkeypatch):
         assert all('RETURNING' not in sql for sql, _ in statements)
 
 
+def test_canonical_stats_keep_two_catalog_aggregates_without_job_bodies(monkeypatch):
+    from sqlalchemy import event
+    from app.config import settings
+    from app.database import Base, set_user_scope
+    from app.services.ranking.service import get_settings
+    from app.models import Profile
+    engine, Factory = _isolated_session_factory()
+    monkeypatch.setattr(settings,'unified_catalog_preview',True)
+    monkeypatch.setattr(settings,'auth_mode','local')
+    monkeypatch.setattr(settings,'database_url','sqlite://')
+    with Factory() as db:
+        set_user_scope(db,'stats-preview')
+        profile=Profile();db.add(profile);db.flush()
+        get_settings(db);db.commit()
+        statements=[]
+        @event.listens_for(engine,'before_cursor_execute')
+        def capture(conn,cursor,statement,parameters,context,executemany):
+            if statement.lstrip().upper().startswith('SELECT'): statements.append(statement)
+        main_module._career_track_stats(db,profile)
+        catalog=[sql for sql in statements if 'FROM sources' in sql or 'FROM jobs' in sql]
+        assert len(catalog)==2
+        assert all('description' not in sql for sql in catalog)
+        assert all('sum(' in sql.lower() for sql in catalog)
+
+
+def test_content_recheck_is_explicit_local_and_bounded():
+    from scripts.recheck_missing_content import MAX_JOBS, MAX_RESPONSE_BYTES, load_cohort
+    from scripts.apply_content_recheck import apply_report
+    import inspect
+    assert MAX_JOBS == 200
+    assert MAX_RESPONSE_BYTES == 4_000_000
+    assert '?mode=ro' in inspect.getsource(load_cohort)
+    assert '?mode=ro' in inspect.getsource(apply_report)
+    assert 'target.exists()' in inspect.getsource(apply_report)
+
 
 def test_resume_delete_does_not_download_file_or_read_job_catalog():
     import inspect
@@ -525,6 +728,7 @@ def test_resume_delete_does_not_download_file_or_read_job_catalog():
     assert "read_bytes" not in request
 
 
+
 def test_hidden_score_cache_rejects_oversized_components():
     from types import SimpleNamespace
     from app.services.ranking import service
@@ -534,3 +738,63 @@ def test_hidden_score_cache_rejects_oversized_components():
     row=SimpleNamespace(error='',engine_version=service.get_ranking_engine().version,
         config_version=1,job_fingerprint='job',result_json=dumps({'breakdown':parts,'_score_cache':{'fingerprint':'profile'}}))
     assert service._cached_scoring(row,'profile','job',SimpleNamespace(config_version=1)) is None
+
+
+def test_postgres_rehearsal_refuses_cloud_before_opening_a_connection():
+    from app.services.canonical_postgres import migrate_postgres_copy
+    engine = create_engine('postgresql+psycopg://example.supabase.co/jobpilot_rehearsal_copy',
+                           creator=lambda: pytest.fail('Rehearsal attempted cloud I/O'))
+    with pytest.raises(RuntimeError, match='loopback'):
+        migrate_postgres_copy(engine, confirmed_copy=True)
+
+
+def test_postgres_preflight_rejects_oversized_catalog_using_only_aggregates():
+    from app.services import canonical_postgres as migration
+    statements = []
+    class AggregateOnly:
+        def execute(self, statement):
+            sql = str(statement)
+            assert 'count(*)' in sql and 'sum(octet_length(to_jsonb(t)::text))' in sql
+            statements.append(sql)
+            return self
+        def mappings(self): return self
+        def one(self):
+            return {'rows': 1, 'bytes': migration.MAX_INPUT_BYTES, 'largest_row': 1}
+    with pytest.raises(RuntimeError, match='byte budget'):
+        migration._preflight(AggregateOnly())
+    assert len(statements) == len(migration.ROW_LIMITS)
+
+
+def test_permalink_compatibility_lookup_is_bounded_and_id_only():
+    import inspect
+    from app.services.unified_catalog import scan_unified_catalog
+    source = inspect.getsource(scan_unified_catalog)
+    lookup = source[source.index('if not job_id and canonical_posting_url'):source.index('job = db.scalar(select(Job).options')]
+    assert 'select(Job.id)' in lookup
+    assert 'Job.source_id == source.id' in lookup
+    assert 'Job.apply_url == item.apply_url' in lookup
+    assert '.limit(1)' in lookup
+    assert 'Job.description' not in lookup
+
+
+def test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_reads():
+    from app.database import _add_runtime_compatibility_columns, _RUNTIME_COMPATIBILITY_COLUMNS
+
+    class SchemaOnly:
+        def __init__(self):
+            self.statements = []
+
+        def execute(self, statement):
+            sql = str(statement)
+            assert sql.startswith('ALTER TABLE ') and ' ADD COLUMN ' in sql
+            self.statements.append(sql)
+
+    connection = SchemaOnly()
+    assert len(_RUNTIME_COMPATIBILITY_COLUMNS) == 5
+    for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
+        _add_runtime_compatibility_columns(connection, table, set())
+    assert len(connection.statements) == 9
+    connection.statements.clear()
+    for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
+        _add_runtime_compatibility_columns(connection, table, set(columns))
+    assert connection.statements == []

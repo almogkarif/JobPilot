@@ -67,6 +67,7 @@ class WorkdayCollector:
                     break
                 offset += len(page_rows)
 
+            blocked_ids: set[str] = set()
             semaphore = asyncio.Semaphore(10)
 
             async def normalize(row: dict) -> NormalizedJob | None:
@@ -76,7 +77,10 @@ class WorkdayCollector:
                         detail_response = await client.get(f"{api_base}{path}")
                         detail_response.raise_for_status()
                         info = detail_response.json().get("jobPostingInfo") or {}
-                    except (httpx.HTTPError, ValueError):
+                    except (httpx.HTTPError, ValueError) as exc:
+                        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in {401, 403, 429}:
+                            blocked_ids.add(str((row.get("bulletFields") or [""])[0] or path.rsplit("_", 1)[-1]))
+                            return None
                         info = {}
                 external_id = str((row.get("bulletFields") or [""])[0] or path.rsplit("_", 1)[-1])
                 location = str(info.get("location") or row.get("locationsText") or "Israel")
@@ -102,7 +106,7 @@ class WorkdayCollector:
 
             jobs = await asyncio.gather(*(normalize(row) for row in rows))
         unique: dict[str, NormalizedJob] = {job.external_id: job for job in jobs if job}
-        return JobCollection(unique.values(), complete=offset >= total)
+        return JobCollection(unique.values(), complete=offset >= total and not blocked_ids, blocked_external_ids=blocked_ids)
 
 
 def _applied_materials_israel_row(row: dict) -> bool:

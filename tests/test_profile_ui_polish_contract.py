@@ -92,12 +92,13 @@ def test_job_auto_submit_click_skips_the_duplicate_preview_confirmation():
     assert "אשר הגשה אוטומטית חד־פעמית" not in queue_job
 
 
-def test_negative_experience_preferences_are_semantically_clear_not_red_selected_cards():
-    assert 'ש<strong class="negative-word">לא</strong> לחפש עבורך' in HTML
-    assert HTML.count('class="negative-x"') >= 5
-    assert ".preference-exclude .option-grid label.is-option-checked" in CSS
-    assert "background:var(--accent-soft-2) !important" in CSS
-    assert ".preference-exclude .negative-x { color:var(--danger)" in CSS
+def test_experience_preferences_use_one_positive_visibility_selection():
+    assert '<legend>רמות ניסיון להצגה</legend>' in HTML
+    assert HTML.count('data-profile-option="seniority_levels"') == 9
+    assert 'רמות שלא סומנו יוסרו לפני הדירוג' in HTML
+    assert 'ללא סימון לא יוצגו משרות' in HTML
+    assert 'data-profile-option="excluded_keywords"' not in HTML
+    assert '<legend>מילים להחרגה מכותרת המשרה</legend>' in HTML
 
 
 def test_readiness_excludes_agent_token_and_names_missing_contact_fields():

@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import timedelta
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.database import SessionLocal
+from app.database import Base, engine, SessionLocal
 from app.main import app
 from app.models import Application, ApplicationAttempt, ApplicationEvent, Blocker, Job, utcnow
 from app.services.application_queue_recovery import (
@@ -15,6 +16,19 @@ from app.services.application_queue_recovery import (
     queue_health,
     recover_stuck_auto_applications,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_recovery_queue():
+    # Other API suites intentionally leave queued applications in the session DB.
+    # Recovery tests assert exact dispatch counts, so begin with an idle test queue.
+    Base.metadata.create_all(engine)
+    with SessionLocal() as db:
+        for application in db.scalars(select(Application).where(
+            Application.status.in_(['queued','applying','needs_input','failed','verification_pending'])
+        )):
+            application.status='saved'
+        db.commit()
 
 
 def _job(client: TestClient, title: str) -> dict:

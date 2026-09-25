@@ -20,7 +20,7 @@ MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certifica
 
 class EligibilityRankingEngine(RankingEngine):
     key = "v2"
-    version = 7
+    version = 10
 
     def rank_job(self, job, profile, config=None, *, context=None, cached_scoring=None) -> RankingResult:
         config = config if isinstance(config, RankingV2Config) else RankingV2Config.from_dict(config) if config else DEFAULT_V2_CONFIG
@@ -107,7 +107,21 @@ class EligibilityRankingEngine(RankingEngine):
         if job_text_quality(getattr(job, "description", "")) != "complete":
             score = min(score, 55)
             eligibility["warnings"].append("Job description is incomplete; recommendation is capped")
-        score = max(0, min(100, round(score)))
+        missing_requirements = []
+        if not eligibility.get("required_degree"):
+            missing_requirements.append("degree")
+        if eligibility.get("required_experience_min") is None and not eligibility.get("experience_preferred_only"):
+            missing_requirements.append("experience")
+        missing_penalty = 30 if missing_requirements else 0
+        eligibility["missing_requirements"] = missing_requirements
+        eligibility["missing_requirements_penalty"] = missing_penalty
+        if missing_penalty:
+            eligibility["warnings"].append(
+                "Unidentified job requirements: " + ", ".join(missing_requirements) + "; penalty: 30 points"
+            )
+        # Apply after existing caps so the deduction is not swallowed by a cap.
+        # Keep raw component scores unchanged: cached scoring must not compound it.
+        score = max(0, min(100, round(score - missing_penalty)))
         if eligibility["state"] == "excluded":
             tier = "excluded"
         elif eligibility["state"] == "stretch":
@@ -122,6 +136,8 @@ class EligibilityRankingEngine(RankingEngine):
             tier = "low_match"
         confidence = recommendation_confidence(job, eligibility, breakdown)
         reasons = [{"type": "positive", "label": reason, "points": 0} for reason in role["reasons"] + skills["reasons"] + requirements["reasons"] + preferences["reasons"]]
+        if missing_penalty:
+            reasons.append({"type": "penalty", "label": eligibility["warnings"][-1], "points": -missing_penalty})
         return RankingResult(
             engine=self.key, score=score, tier=tier, confidence=confidence,
             eligibility=eligibility, breakdown=breakdown, reasons=reasons,

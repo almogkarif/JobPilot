@@ -68,7 +68,7 @@ def test_preview_is_read_only_and_v2_jobs_endpoint_is_available(monkeypatch):
     assert after["config"] == before["config"]
 
 
-def test_rerank_persists_v2_results(monkeypatch):
+def test_rerank_persists_v2_results(monkeypatch, seeded_cs_catalog):
     # Run the worker synchronously for a deterministic persistence assertion.
     monkeypatch.setattr(
         main_module,

@@ -11,7 +11,7 @@ import httpx
 
 from .config import BASE_DIR, settings
 
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = settings.data_dir
 LOCAL_RESUMES = DATA_DIR / "resumes"
 LOCAL_DOCUMENTS = DATA_DIR / "documents"
 LOCAL_SCREENSHOTS = DATA_DIR / "screenshots"

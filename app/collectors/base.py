@@ -22,13 +22,18 @@ class NormalizedJob:
 class PreserveExistingJobs(RuntimeError):
     """The public source temporarily blocked collection; keep its last good rows."""
 
+    def __init__(self, message, *, blocked_external_ids=()):
+        super().__init__(message)
+        self.blocked_external_ids = tuple(blocked_external_ids)
+
 
 class JobCollection(list[NormalizedJob]):
     """A bounded payload that explicitly reports whether absence means closure."""
 
-    def __init__(self, jobs=(), *, complete: bool = True):
+    def __init__(self, jobs=(), *, complete: bool = True, blocked_external_ids=()):
         super().__init__(jobs)
         self.complete = complete
+        self.blocked_external_ids = tuple(blocked_external_ids)
 
 
 class Collector(Protocol):

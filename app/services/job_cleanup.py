@@ -37,6 +37,11 @@ def deactivate_or_delete_job(
     ``removed_at`` is written only on the first transition to inactive so later scans
     cannot extend the retention window accidentally.
     """
+    from .catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled():
+        job.is_active = False
+        job.removed_at = job.removed_at or removed_at or datetime.now(timezone.utc)
+        return False
     if application_has_submission_history(job.application):
         if job.is_active or job.removed_at is None:
             job.is_active = False
@@ -67,6 +72,10 @@ def application_history_visible(job: Job, application: Application, *, now: date
 
 def delete_job_tree(db: Session, job: Job) -> None:
     """Delete a job together with its application, blockers and local screenshots."""
+    from .catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled():
+        deactivate_or_delete_job(db, job)
+        return
     application: Application | None = job.application
     if application:
         for blocker in application.blockers:
@@ -122,6 +131,9 @@ def purge_stale_jobs(
     * Submitted application history is retained for ``application_retention_days``
       from the moment the job disappears from the active catalogue.
     """
+    from .catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled():
+        return 0
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=days)
     history_cutoff = now - timedelta(days=application_retention_days)

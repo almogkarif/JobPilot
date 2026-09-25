@@ -154,9 +154,10 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         # Full IEM palette regression: the large surfaces that previously leaked
         # several legacy CS blue shades must stay track-specific in dark mode too.
         page.evaluate("switchView('jobs')")
-        assert page.locator('.flow-list li').count() >= 1
-        assert not is_blue(rgb('.flow-list li'))
-        assert not is_blue(rgb('.flow-list li b'))
+        page.evaluate("renderScanSuggestions([{id:1,title:'Data Analyst',company:'Fixture',location:'Israel',score:75}])")
+        assert page.locator('.scan-suggestion-card').count() == 1
+        assert not is_blue(rgb('.scan-suggestion-card'))
+        assert not is_blue(rgb('.scan-suggestion-heading span', 'color'))
         assert not is_blue(rgb('.empty-state'))
         assert not is_blue(rgb('.empty-state-icon'))
         assert not is_blue(rgb('.metrics'))
@@ -260,7 +261,9 @@ def test_real_browser_switches_profession_theme_options_and_agent_state():
         assert not is_blue(rgb('#notification-trigger', 'color'))
         assert not is_blue(rgb('#nav button.active .nav-accent', 'stroke'))
         page.evaluate("switchView('jobs')")
-        assert not is_blue(rgb('.flow-list li'))
+        page.evaluate("renderScanSuggestions([{id:1,title:'Data Analyst',company:'Fixture',location:'Israel',score:75}])")
+        assert not is_blue(rgb('.scan-suggestion-card'))
+        assert not is_blue(rgb('.scan-suggestion-heading span', 'color'))
         assert not is_blue(rgb('.empty-state'))
         assert not is_blue(rgb('.empty-state-icon'))
         assert not is_blue(rgb('.metrics'))

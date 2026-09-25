@@ -5,12 +5,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
+    data_dir: Path = BASE_DIR / 'data'
     database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'jobpilot.db'}"
     base_url: str = "http://127.0.0.1:8000"
     agent_token: str = "change-me"
     scan_hour: int = 8
     scan_minute: int = 0
     timezone: str = "Asia/Jerusalem"
+    unified_catalog_preview: bool = False
     scheduler_enabled: bool = True
     auth_mode: str = "local"  # local | supabase
     owner_email: str = ""  # optional admin email; no longer locks the whole instance

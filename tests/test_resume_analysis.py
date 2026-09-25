@@ -115,3 +115,27 @@ def test_docx_resume_extracts_text_and_hyperlink_targets_for_profile_autofill():
     # Skills remain explicit suggestions rather than being silently written.
     assert profile.skills_json == "[]"
     assert any(item["field"] == "skills" and item["value"].casefold() == "python" for item in analysis["suggestions"])
+
+
+def test_github_profile_is_not_replaced_by_project_link():
+    from app.services.resume_analysis import _detected_urls
+    assert _detected_urls('https://github.com/sample/old-project\nhttps://github.com/sample')['github_url'] == 'https://github.com/sample'
+    assert 'github_url' not in _detected_urls('https://github.com/sample/old-project')
+    assert 'github_url' not in _detected_urls('https://github.com/one\nhttps://github.com/two')
+
+
+def test_docx_ignores_unused_relationship_from_deleted_link():
+    from io import BytesIO
+    import zipfile
+    from app.services.resume_analysis import extract_resume_bytes
+    original = _minimal_docx_bytes()
+    result = BytesIO()
+    with zipfile.ZipFile(BytesIO(original)) as source, zipfile.ZipFile(result, 'w') as target:
+        for name in source.namelist():
+            data = source.read(name)
+            if name.endswith('.rels'):
+                data = data.replace(b'<Relationship Id="rId1"', b'<Relationship Id="deleted" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://github.com/sample/deleted-project" TargetMode="External"/><Relationship Id="rId1"')
+            target.writestr(name, data)
+    extracted = extract_resume_bytes(result.getvalue(), 'sample.docx')
+    assert 'deleted-project' not in extracted
+    assert 'https://github.com/almogkarif' in extracted

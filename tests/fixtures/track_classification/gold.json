@@ -1,0 +1,376 @@
+[
+  {
+    "id": "hqa-elbit",
+    "title": "(HQA) Design Quality Engineer",
+    "description": "Lead failure investigations and design quality for avionics development. Support NPI and product reliability.\nRequirements:\nB.Sc. in Mechanical Engineering, Electronics Engineering or Optical Engineering",
+    "matches": [
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "basis": "User-supplied Elbit requirements; electronics and optics accepted, IEM absent."
+  },
+  {
+    "id": "ge-software",
+    "title": "Software Engineer",
+    "description": "Develop and test software services for medical imaging. Implement APIs, automated tests and reliable data processing.\nRequirements: BSc in Computer Science or Software Engineering.",
+    "matches": [
+      "computer_science"
+    ],
+    "forbidden": [
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Representative software vacancy on a multidisciplinary healthcare board; company is not a discipline signal."
+  },
+  {
+    "id": "ge-electrical",
+    "title": "Electrical Engineer",
+    "description": "Design electrical circuits and printed circuit boards for medical imaging devices. Verify electrical safety and signal integrity.\nRequirements: BSc in Electrical Engineering.",
+    "matches": [
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "basis": "Electrical design duties and mandatory EE degree."
+  },
+  {
+    "id": "ge-analyst",
+    "title": "Data Analyst",
+    "description": "Analyze operational data, create SQL queries and Power BI dashboards, and communicate business insights to stakeholders.\nRequirements: Industrial Engineering or Statistics degree.",
+    "matches": [
+      "industrial_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "basis": "Business analytics is IEM; SQL alone does not imply software engineering."
+  },
+  {
+    "id": "embedded-shared",
+    "title": "Embedded Software Engineer",
+    "description": "Develop embedded C++ firmware and RTOS drivers for hardware devices. Debug interfaces and work with hardware engineers.\nRequirements: BSc in Computer Science or Electrical Engineering.",
+    "matches": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "industrial_engineering"
+    ],
+    "basis": "Explicit embedded software with both academic alternatives."
+  },
+  {
+    "id": "ie-quality",
+    "title": "Quality Engineer",
+    "description": "Improve manufacturing quality and production processes, lead investigations and work with supply chain teams.\nRequirements: BSc in Mechanical Engineering or Industrial Engineering.",
+    "matches": [
+      "industrial_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "basis": "Explicit IEM alternative must be retained."
+  },
+  {
+    "id": "mechanical-only-quality",
+    "title": "Quality Engineer",
+    "description": "Lead quality management and support process improvement across production and supply chain.\nRequirements: BSc in Mechanical Engineering.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Shared keywords do not override mechanical-only mandatory qualification."
+  },
+  {
+    "id": "software-qa",
+    "title": "QA Automation Engineer",
+    "description": "Build automated software tests in Python and maintain CI pipelines for web services. Investigate failures and validate APIs.\nRequirements: BSc in Computer Science.",
+    "matches": [
+      "computer_science"
+    ],
+    "forbidden": [
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Software testing rather than manufacturing quality."
+  },
+  {
+    "id": "social-not-soc",
+    "title": "Social Media Manager",
+    "description": "Manage social media campaigns and content planning. Coordinate marketing calendars and analyze audience engagement metrics.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "SOC substring must not match social."
+  },
+  {
+    "id": "performance-not-rf",
+    "title": "Performance Marketing Analyst",
+    "description": "Plan advertising campaigns, report on business performance and analyze campaign conversion data for the marketing organization.",
+    "matches": [],
+    "forbidden": [
+      "electrical_engineering"
+    ],
+    "review": [
+      "industrial_engineering"
+    ],
+    "basis": "RF substring in performance is not radio frequency; generic marketing analyst retained for review."
+  },
+  {
+    "id": "silicon-verification",
+    "title": "Design Verification Engineer",
+    "description": "Verify ASIC RTL with SystemVerilog and UVM test benches. Debug logic and work with chip architecture teams.\nRequirements: BSc in Electrical Engineering or Computer Engineering.",
+    "matches": [
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "basis": "Chip verification is EE, not software QA."
+  },
+  {
+    "id": "frontend",
+    "title": "Frontend Developer",
+    "description": "Build accessible web applications using React and TypeScript. Work with designers and implement tests for reusable UI components.",
+    "matches": [
+      "computer_science"
+    ],
+    "forbidden": [
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Explicit software role without a contradictory requirement."
+  },
+  {
+    "id": "generic-empty",
+    "title": "Project Manager",
+    "description": "",
+    "matches": [],
+    "review": [
+      "industrial_engineering"
+    ],
+    "basis": "No description: no automatic admission."
+  },
+  {
+    "id": "generic-engineer",
+    "title": "Engineer",
+    "description": "We seek an engineer to work across teams. Excellent communication and problem-solving skills are required. Collaborate with stakeholders.",
+    "matches": [],
+    "review": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Generic job title and soft skills cannot establish a discipline."
+  },
+  {
+    "id": "he-ie",
+    "title": "מהנדס/ת תכנון ובקרה",
+    "description": "ניהול תוכניות עבודה ותכנון ייצור, ניתוח נתונים ובקרת מלאי. עבודה עם ממשקים ותכנון משאבים לשרשרת האספקה.\nדרישות התפקיד:\nתואר ראשון בהנדסת תעשיה וניהול - חובה",
+    "matches": [
+      "industrial_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "basis": "Hebrew slash title and single-yod spelling."
+  },
+  {
+    "id": "he-electrical",
+    "title": "מהנדס.ת חשמל",
+    "description": "פיתוח כרטיסים אלקטרוניים, תכנון מעגלים חשמליים וביצוע בדיקות מעבדה. עבודה בצוות פיתוח רב תחומי.\nדרישות התפקיד:\nתואר ראשון בהנדסת חשמל - חובה",
+    "matches": [
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "basis": "Hebrew dotted gender spelling."
+  },
+  {
+    "id": "he-mechanical-project",
+    "title": "מנהל פרויקט",
+    "description": "ניהול פרויקטים, תכנון עבודה ובקרת ייצור של מערכות מכאניות. אחריות על פיתוח מוצרים ועבודה עם קבלני משנה.\nדרישות התפקיד:\nתואר בהנדסת מכונות - חובה",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Project manager is not sufficient when mechanical degree mandatory."
+  },
+  {
+    "id": "legal-operations",
+    "title": "Legal Operations Specialist",
+    "description": "Manage contracts and reporting, improve operational processes and support project planning for the legal team.\nRequirements: Bachelor’s degree in law or two years of hands-on legal experience.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Legal-specific credential/experience, despite operations title."
+  },
+  {
+    "id": "hr",
+    "title": "HR Business Partner",
+    "description": "Work with business leaders on workforce planning, employee relations and hiring. Produce reports and drive people operations programs.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Business keyword is not enough for HR-specific role."
+  },
+  {
+    "id": "ie-supply-chain",
+    "title": "Supply Chain Analyst",
+    "description": "Analyze demand and inventory, manage production planning and improve logistics operations. Build reports and work with ERP systems.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "User policy shadow5: procurement/inventory/logistics roles without an accepted degree, including a preferred IEM degree, are excluded."
+  },
+  {
+    "id": "mechanical-python",
+    "title": "Mechanical Engineer",
+    "description": "Design mechanical systems, improve manufacturing processes and use Python for analysis. Work with electronics and software teams.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Tools and colleagues do not change the profession."
+  },
+  {
+    "id": "cs-other-team",
+    "title": "Backend Software Engineer",
+    "description": "Develop Python APIs for mechanical engineering customers and electrical engineering teams. Build reliable distributed services and automated tests.\nRequirements: Computer Science degree.",
+    "matches": [
+      "computer_science"
+    ],
+    "forbidden": [
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Mentioned customer disciplines are not degree requirements."
+  },
+  {
+    "id": "ie-other-team",
+    "title": "Data Analyst",
+    "description": "Build dashboards for mechanical engineering teams and generate business insights with SQL. Analyze demand, costs and product trends.\nRequirements: BSc in Industrial Engineering.",
+    "matches": [
+      "industrial_engineering"
+    ],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "basis": "Mechanical team mention is not a required degree."
+  },
+  {
+    "id": "conflicting-degree",
+    "title": "Data Analyst",
+    "description": "Build SQL dashboards and analyze production data. Track operational performance and present findings to management.\nRequirements: BSc in Mechanical Engineering.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Explicit incompatible academic requirement overrides analyst title."
+  },
+  {
+    "id": "ie-pref-other-degree",
+    "title": "Data Analyst",
+    "description": "Analyze customer behavior, build SQL reports and work with product stakeholders to improve decision making.\nPreferred Qualifications:\nBSc in Computer Science.",
+    "matches": [
+      "computer_science",
+      "industrial_engineering"
+    ],
+    "forbidden": [
+      "electrical_engineering"
+    ],
+    "basis": "Shadow v3 user policy: named accepted degree governs routing; generic engineering/related CS or EE degrees broaden routing; Data Analyst without mandatory incompatible degree is CS + IEM.",
+    "review": []
+  },
+  {
+    "id": "ie-academic-or-exp",
+    "title": "Data Analyst",
+    "description": "Analyze operational data, build reports and support business teams with dashboards and metrics.\nRequirements: BSc in Computer Science or equivalent practical experience.",
+    "matches": [
+      "computer_science"
+    ],
+    "forbidden": [
+      "electrical_engineering"
+    ],
+    "basis": "Shadow v3 user policy: named accepted degree governs routing; generic engineering/related CS or EE degrees broaden routing; Data Analyst without mandatory incompatible degree is CS + IEM.",
+    "review": []
+  },
+  {
+    "id": "frontend-missing",
+    "title": "Frontend Developer",
+    "description": "Apply now",
+    "matches": [],
+    "review": [
+      "computer_science"
+    ],
+    "basis": "Title alone cannot confirm requirements."
+  },
+  {
+    "id": "three-way-project",
+    "title": "Technical Project Manager",
+    "description": "Manage delivery of multidisciplinary engineering projects, tracking schedules and coordinating engineering teams.\nRequirements: BSc in Industrial Engineering, Electrical Engineering or Computer Science.",
+    "matches": [
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "review": [],
+    "basis": "Latest policy: project management without development is excluded from CS even when its degree is accepted.",
+    "forbidden": []
+  },
+  {
+    "id": "warehouse",
+    "title": "Warehouse Worker",
+    "description": "Pick orders, maintain inventory and coordinate deliveries. Work with logistics teams and update ERP systems for incoming goods.",
+    "matches": [],
+    "forbidden": [
+      "computer_science",
+      "electrical_engineering",
+      "industrial_engineering"
+    ],
+    "basis": "Nonprofessional warehouse role is not a graduate IEM role."
+  },
+  {
+    "id": "firmware",
+    "title": "Firmware Engineer",
+    "description": "Develop low-level firmware for embedded devices in C, debug hardware interfaces and validate device behavior. Work across software and hardware teams.",
+    "matches": [
+      "computer_science",
+      "electrical_engineering"
+    ],
+    "forbidden": [
+      "industrial_engineering"
+    ],
+    "basis": "Explicit firmware overlap, no mandatory degree conflict."
+  }
+]

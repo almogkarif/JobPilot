@@ -5,17 +5,18 @@ JS=(ROOT/"app/static/app.js").read_text()
 CSS=(ROOT/"app/static/styles.css").read_text()
 HTML=(ROOT/"app/static/index.html").read_text()
 
-def test_excluded_has_junior_and_mid_choices():
+def test_seniority_has_junior_and_mid_choices():
     assert "['junior','Junior']" in JS
     assert "['mid level','Mid Level']" in JS
 
-def test_onboarding_experience_preferences_match_main_editor_and_show_negative_x():
+def test_onboarding_experience_preferences_are_a_single_explicit_filter():
     for value in ("student", "entry level", "junior", "mid level", "senior", "lead", "staff", "manager"):
         assert f"['{value}'" in JS
-    assert "רמות ניסיון שתרצה לראות" in JS
-    assert 'רמות ניסיון ש<span class="negative-word">לא</span> לחפש עבורך' in JS
-    assert "onboarding-choice-negative" in JS
-    assert ".onboarding-choice-negative.selected" in CSS
+    assert "רמות ניסיון להצגה" in JS and "רמות ניסיון להצגה" in HTML
+    assert "לא צוינה רמת ניסיון" in JS and "לא צוינה רמת ניסיון" in HTML
+    assert 'data-profile-option="excluded_keywords"' not in HTML
+    assert 'data-profile-option="keywords"' not in HTML
+    assert "ללא סימון לא יוצגו משרות" in JS and "ללא סימון לא יוצגו משרות" in HTML
 
 def test_all_steps_receive_shared_visual_step_class():
     assert "onboarding-step-${step}" in JS

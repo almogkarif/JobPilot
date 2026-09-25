@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from ..models import Job, UserJobState
 
 
 def get_user_job_state(db: Session, job_id: int, *, create: bool = False) -> UserJobState | None:
+    from .catalog_routing import resolve_job, unified_catalog_enabled
+    if unified_catalog_enabled():
+        canonical = resolve_job(db, job_id, options=(load_only(Job.id, Job.canonical_job_id),))
+        if canonical is None:
+            return None
+        job_id = canonical.id
     state = db.scalar(select(UserJobState).where(UserJobState.job_id == job_id))
     if state is None and create:
         state = UserJobState(job_id=job_id)

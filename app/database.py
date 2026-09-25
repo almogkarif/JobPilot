@@ -34,6 +34,7 @@ def set_user_scope(db: Session, user_id: str) -> Session:
     if current and current != user_id:
         # Reusing one identity map across tenants is unsafe even when SQL queries are filtered.
         db.expunge_all()
+        db.info.pop("ranking_track", None)
     db.info["user_id"] = user_id
     return db
 
@@ -71,6 +72,17 @@ def _apply_user_scope(execute_state):
     if not (execute_state.is_select or execute_state.is_update or execute_state.is_delete):
         return
     from .models import SharedCatalogMixin, UserOwnedMixin
+    from .services.catalog_routing import unified_catalog_enabled
+    if unified_catalog_enabled() and not execute_state.execution_options.get("include_legacy_catalog"):
+        from .models import Application, JobRanking
+        execute_state.statement = execute_state.statement.options(with_loader_criteria(
+            Application, lambda cls: cls.canonical_application_id.is_(None), include_aliases=True,
+        ))
+        ranking_track = execute_state.session.info.get("ranking_track")
+        if ranking_track and not execute_state.execution_options.get("all_ranking_tracks"):
+            execute_state.statement = execute_state.statement.options(with_loader_criteria(
+                JobRanking, lambda cls: cls.career_track == ranking_track, include_aliases=True,
+            ))
     execute_state.statement = execute_state.statement.options(
         with_loader_criteria(
             UserOwnedMixin,
@@ -114,10 +126,37 @@ def _stamp_user_scope(session: Session, _flush_context, _instances):
 
 def get_user_profile(db: Session):
     from .models import Profile
-    return db.scalar(select(Profile).order_by(Profile.id).limit(1))
+    profile = db.scalar(select(Profile).order_by(Profile.id).limit(1))
+    if profile:
+        from .services.career_tracks import active_track
+        db.info["ranking_track"] = active_track(profile)
+    return profile
+
+
+_RUNTIME_COMPATIBILITY_COLUMNS = {
+    "sources": {"canonical_source_id": "INTEGER", "identity_key": "VARCHAR(64)"},
+    "jobs": {"canonical_job_id": "INTEGER", "canonical_key": "VARCHAR(64)", "classification_json": "TEXT NOT NULL DEFAULT '{}'"},
+    "job_rankings": {"career_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
+    "applications": {"canonical_application_id": "INTEGER", "originating_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
+    "profiles": {"seniority_levels_json": "TEXT NOT NULL DEFAULT ''"},
+}
+
+
+def _add_runtime_compatibility_columns(connection, table, columns) -> None:
+    # ORM projections include these fields even with canonical routing disabled.
+    # Add no data backfill, canonical constraints, or ranking uniqueness changes.
+    for name, declaration in _RUNTIME_COMPATIBILITY_COLUMNS.get(table, {}).items():
+        if name not in columns:
+            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}"))
 
 
 def _sqlite_additive_migrations(connection) -> None:
+    # Additive compatibility only. Catalog consolidation is an explicit local command.
+    for table in _RUNTIME_COMPATIBILITY_COLUMNS:
+        columns = {row[1] for row in connection.exec_driver_sql(f"PRAGMA table_info({table})")}
+        if columns:
+            _add_runtime_compatibility_columns(connection, table, columns)
+
     columns = {row[1] for row in connection.execute(text("PRAGMA table_info(profiles)"))}
     if "years_experience_options_json" not in columns:
         connection.execute(text(
@@ -254,6 +293,15 @@ def _migrate_existing_catalog_to_shared(connection, preferred_owner: str) -> Non
     tables = set(inspector.get_table_names())
     if not {"sources", "jobs"}.issubset(tables):
         return
+    if 'catalog_migration_archive' in tables:
+        completed = connection.execute(text(
+            "SELECT migration_version FROM catalog_migration_archive "
+            "WHERE entity_table='__migration__' AND entity_id=1 LIMIT 1"
+        )).scalar_one_or_none()
+        if completed:
+            # The explicit canonical migration already owns identity/track mapping.
+            # Legacy remapping would reassign local-owner and collapse track ranks.
+            return
 
     def _rows(sql: str):
         return list(connection.execute(text(sql)).mappings().all())
@@ -524,6 +572,7 @@ def _postgres_multiuser_migration(connection) -> bool:
         if table not in tables:
             continue
         column_map = {c["name"]: c for c in inspect(connection).get_columns(table)}
+        _add_runtime_compatibility_columns(connection, table, column_map)
         user_id_column = column_map.get("user_id")
         if user_id_column is None:
             connection.execute(text(f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR(160)"))
@@ -650,7 +699,7 @@ def _postgres_multiuser_migration(connection) -> bool:
             "app_identity", "profiles", "sources", "jobs", "applications", "blockers",
             "answer_memories", "audit_logs", "resume_profiles", "open_answer_drafts", "agent_devices",
             "job_rankings", "user_job_states", "application_attempts", "application_events", "application_campaigns", "campaign_runs", "email_connections",
-            "ranking_settings",
+            "ranking_settings", "collection_observations", "job_tracks", "job_source_identities", "catalog_migration_archive",
         ]
         for table in private_tables:
             if table not in tables:
@@ -699,6 +748,42 @@ def ensure_compatibility_columns() -> None:
             run_followup_migrations = _postgres_multiuser_migration(connection)
         if run_followup_migrations:
             _migrate_plaintext_application_passwords(connection)
+
+
+def ensure_worker_runtime_schema() -> None:
+    """Keep new workers compatible before the web deployment finishes migrating.
+
+    Inspect only five fixed tables' column metadata; never initialize accounts or
+    scan/backfill catalog rows. The observation ledger starts empty and private.
+    """
+    from .models import CollectionObservation
+
+    with engine.begin() as connection:
+        postgres = engine.dialect.name == "postgresql"
+        if postgres and not connection.execute(text(
+            "SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
+        )).scalar():
+            raise RuntimeError("Schema migration is in progress; retry the worker after deployment")
+        inspector = inspect(connection)
+        tables = set(inspector.get_table_names())
+        for table in _RUNTIME_COMPATIBILITY_COLUMNS:
+            if table in tables:
+                columns = {column["name"] for column in inspector.get_columns(table)}
+                _add_runtime_compatibility_columns(connection, table, columns)
+        created_observations = CollectionObservation.__tablename__ not in tables
+        if created_observations:
+            CollectionObservation.__table__.create(connection)
+        if postgres:
+            table = CollectionObservation.__tablename__
+            if not _postgres_table_rls_enabled(connection, table):
+                connection.execute(text(f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY'))
+            roles = connection.execute(text(
+                "SELECT rolname FROM pg_roles WHERE rolname IN ('anon','authenticated')"
+            )).scalars().all()
+            for role in ["PUBLIC", *roles]:
+                if created_observations or _postgres_role_has_table_grants(connection, table, role):
+                    target = "PUBLIC" if role == "PUBLIC" else f'"{role}"'
+                    connection.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM {target}'))
 
 
 def ensure_job_source_fingerprint_column() -> None:

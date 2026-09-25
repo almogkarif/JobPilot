@@ -12,6 +12,12 @@ import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
+from .employer_details import employer_job_detail, employer_job_closed, matrix_job_rows
+from .globale_detail import collect_globale_rows
+from .matrix_detail import collect_matrix_rows
+from .microsoft_detail import microsoft_position_detail
+from .mobileye_detail import mobileye_job_detail, mobileye_job_closed
+from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
@@ -239,6 +245,24 @@ PRESETS.update({
 })
 
 
+# Verified detail adapters. Limits apply per explicit scan; failures preserve
+# existing records rather than accepting summary cards as complete descriptions.
+for _key, _limit in (('speedata', 40), ('microsoft', 80), ('texas-instruments', 40),
+                     ('philips', 40), ('island', 40), ('mobileye', 180), ('rafael', 180)):
+    PRESETS[_key].update(hydrate_details=True, max_detail_jobs=_limit,
+                         require_complete_detail=True, detail_response_bytes=4_000_000)
+PRESETS['texas-instruments'].update(
+    detail_api_template='https://edbz.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails/{id}',
+    network_id_keys=('Id',), network_id_pattern=r'\d+', network_title_keys=('Title',),
+    network_description_keys=('ExternalDescriptionStr', 'ExternalQualificationsStr'),
+    network_location_keys=('PrimaryLocation',),
+    href_template='https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/{id}/?location=Israel',
+)
+PRESETS['matrix-israel'].update(matrix_inline=True, max_inline_jobs=100,
+    hydrate_details=False, selector='.job-item[job-id]', id_pattern=r'(?i)/(?:משרה|%D7%9E%D7%A9%D7%A8%D7%94)/([^/?#]+)')
+PRESETS['global-e'].update(globale_feed=True, hydrate_details=False)
+
+
 class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
@@ -257,6 +281,10 @@ class OfficialCareersCollector:
         # avoids Chromium/anti-bot timing issues. Dynamic boards fall back to
         # Playwright below when the static response contains no usable job links.
         rows: list[dict] = []
+        if preset.get("globale_feed"):
+            rows = await collect_globale_rows()
+        if preset.get("matrix_inline"):
+            rows = await collect_matrix_rows(str(preset["url"]))
         if preset.get("data_url"):
             try:
                 rows = await _collect_data_rows(preset)
@@ -313,8 +341,14 @@ class OfficialCareersCollector:
         if preset.get("hydrate_details") and rows:
             rows = await _hydrate_detail_rows(rows, preset)
 
+        blocked_ids = tuple(str(row.get("_external_id") or match.group(1)) for row in rows if row.get("_detail_blocked")
+                            and (match := _resolve_row_href(row, preset)[1]))
         results: dict[str, NormalizedJob] = {}
         for row in rows:
+            if row.get("_detail_blocked"):
+                continue
+            if preset.get("require_complete_detail") and not ((row.get("_detail_complete") or row.get("_structured_description")) and job_text_quality(row.get("text")) == "complete"):
+                continue
             if preset.get("require_job_schema") and not row.get("_verified_job"):
                 continue
             href, match = _resolve_row_href(row, preset)
@@ -341,10 +375,13 @@ class OfficialCareersCollector:
             location_text = text[:500] if preset.get("location_from_detail_header") else text
             explicit_location = str(row.get("location") or "")
             location = _extract_israel_location(explicit_location or location_text)
+            if identifier == "elbit" and (not explicit_location or location == "Israel"):
+                location = _elbit_hashtag_location(text) or location
             if not location and not explicit_location and preset.get("trusted_israel_feed"):
                 location = "Israel"
-            results[match.group(1)] = NormalizedJob(
-                external_id=match.group(1), title=title, company=company_name or preset["company"],
+            external_id = str(row.get("_external_id") or match.group(1))
+            results[external_id] = NormalizedJob(
+                external_id=external_id, title=title, company=company_name or preset["company"],
                 location=location, workplace=_normalized_workplace(row.get("workplace")), description=text,
                 apply_url=href, source_url=href,
                 metadata={"verified_country_board": "g-stat.com"} if identifier == "g-stat" else {},
@@ -352,9 +389,10 @@ class OfficialCareersCollector:
         normalized = list(results.values())
         if not normalized:
             raise PreserveExistingJobs(
-                f"{preset['company']} did not expose a reliable job payload; preserving the last successful snapshot"
+                f"{preset['company']} did not expose a reliable job payload; preserving the last successful snapshot",
+                blocked_external_ids=blocked_ids
             ) from rendered_error
-        return JobCollection(normalized, complete=False)
+        return JobCollection(normalized, complete=False, blocked_external_ids=blocked_ids)
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:
@@ -938,6 +976,8 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
             except (ValueError, TypeError):
                 pass
     soup = BeautifulSoup(response.text, "html.parser")
+    if preset.get("matrix_inline"):
+        return matrix_job_rows(soup, str(preset["url"]), int(preset["max_inline_jobs"]))
     if preset.get("embedded_positions"):
         data = soup.select_one("#smartApplyData")
         if not data:
@@ -1035,7 +1075,28 @@ def _dedupe_rows(rows: list[dict], preset: dict) -> list[dict]:
     return list(unique.values())
 
 
-async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
+async def _bounded_detail_get(client, url: str, byte_limit: int | None):
+    if not byte_limit:
+        return await client.get(url)
+    origin = urlparse(url).netloc
+    for attempt in range(4):
+        async with client.stream('GET', url, follow_redirects=False) as response:
+            if response.is_redirect:
+                target = urljoin(url, response.headers.get('location', ''))
+                if attempt == 3 or urlparse(target).netloc != origin or urlparse(target).scheme != 'https':
+                    raise ValueError('Employer detail redirect exceeded safe limits')
+                # Close without downloading an unbounded intermediate body.
+                url = target
+                continue
+            payload = bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(payload) + len(chunk) > byte_limit:
+                    raise ValueError('Employer detail response exceeded byte limit')
+                payload.extend(chunk)
+            return httpx.Response(response.status_code, content=bytes(payload), request=response.request)
+
+
+async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavailable: bool = False) -> list[dict]:
     """Bind each external ID to its official detail title/location concurrently."""
     rows = _dedupe_rows(rows, preset)
     structured = [row for row in rows if row.get("_structured_description") and job_text_quality(row.get("text")) == "complete"]
@@ -1050,40 +1111,75 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
         async def one(row: dict) -> dict:
             href, match = _resolve_row_href(row, preset)
             if not href or not match:
-                return row
+                return {**row, "_detail_status": "invalid_job_url"}
             if row.get("_structured_description") and job_text_quality(row.get("text")) == "complete":
                 return row
             if preset.get("hydrate_missing_title_only") and _row_has_human_title(row):
                 return row
             try:
                 async with semaphore:
-                    response = await client.get(
+                    response = await _bounded_detail_get(client,
                         str(preset["detail_api_template"]).format(id=match.group(1))
-                        if preset.get("detail_api_template") else href
+                        if preset.get("detail_api_template") else href, preset.get("detail_response_bytes")
                     )
+                if preset.get("company") == "Rafael" and is_rafael_access_challenge(response.status_code, response.text):
+                    return {**row, "_detail_blocked": True, "_detail_status": "blocked", "_http_status": response.status_code}
                 if response.status_code in {404, 410}:
-                    return {**row, "_invalid_detail": True}
+                    return {**row, "_invalid_detail": True, "_detail_status": "unavailable", "_http_status": response.status_code}
+                if response.status_code in {401, 403, 429}:
+                    return {**row, "_detail_blocked": True, "_detail_status": "blocked", "_http_status": response.status_code}
                 if response.status_code >= 400:
-                    return row
+                    return {**row, "_detail_status": "http_error", "_http_status": response.status_code}
+                if preset.get("company") == "Microsoft" and not _job_posting_detail(BeautifulSoup(response.text, "html.parser")):
+                    api_url = ("https://apply.careers.microsoft.com/api/pcsx/position_details"
+                               f"?position_id={match.group(1)}&domain=microsoft.com&hl=en")
+                    async with semaphore:
+                        api_response = await _bounded_detail_get(client, api_url, 4_000_000)
+                    if api_response.status_code in {404, 410}:
+                        return {**row, "_invalid_detail": True, "_detail_status": "unavailable",
+                                "_http_status": api_response.status_code}
+                    if api_response.status_code in {401, 403, 429}:
+                        return {**row, "_detail_blocked": True, "_detail_status": "blocked",
+                                "_http_status": api_response.status_code}
+                    if api_response.status_code == 200:
+                        detail = microsoft_position_detail(api_response.json(), match.group(1))
+                        if detail:
+                            if detail.pop("_availability_unverified"):
+                                return {**row, **detail, "_detail_status": "availability_unverified",
+                                        "_detail_blocked": True}
+                            return {**row, **detail}
                 if preset.get("detail_api_template"):
                     details = _extract_structured_job_rows(response.text, preset)
-                    return next((detail for detail in details if _resolve_row_href(detail, preset)[0] == href), row)
+                    return next(({**detail, "href": href, "_detail_complete": True, "_verified_job": True}
+                                 for detail in details if _resolve_row_href(detail, preset)[1]
+                                 and _resolve_row_href(detail, preset)[1].group(1) == match.group(1)
+                                 and job_text_quality(detail.get("text")) == "complete"), row)
                 final_href = str(response.url)
+                if preset.get("require_complete_detail"):
+                    final_match = re.search(str(preset["id_pattern"]), final_href)
+                    if not final_match or final_match.group(1) != match.group(1):
+                        return row
                 if preset.get("validate_detail_redirects") and not re.search(
                     str(preset["id_pattern"]), final_href,
                 ):
                     # A successful redirect to the careers home page is the
                     # provider's tombstone for a role that no longer exists.
-                    return {**row, "_invalid_detail": True}
+                    return {**row, "_invalid_detail": True, "_detail_status": "unavailable", "_http_status": response.status_code}
                 soup = BeautifulSoup(response.text, "html.parser")
+                if employer_job_closed(soup) or (preset.get("company") == "Mobileye" and mobileye_job_closed(soup)):
+                    return {**row, "_invalid_detail": True, "_detail_status": "unavailable", "_http_status": response.status_code}
                 heading = soup.select_one(str(preset.get("detail_title_selector") or "h1, main h2, article h2, [role='main'] h2"))
                 title = heading.get_text(" ", strip=True) if heading else ""
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
                 body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
-                structured_detail = _job_posting_detail(soup)
+                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company"))) or _job_posting_detail(soup)
+                if preset.get("require_complete_detail") and not structured_detail:
+                    return row
                 if structured_detail:
                     title, text, _ = structured_detail
+                    if preset.get("require_complete_detail") and len(text) > 24000:
+                        return row
                 if preset.get("company") == "Apple":
                     text = _apple_embedded_detail_text(response.text) or text
                 canonical = soup.select_one('link[rel="canonical"]')
@@ -1095,23 +1191,26 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict) -> list[dict]:
                 # into an unusable row during detail hydration.
                 hydrated_href = canonical_href or final_href
                 hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
+                if preset.get("require_complete_detail") and canonical_href and (not hydrated_match or hydrated_match.group(1) != match.group(1)):
+                    return row
                 hydrated_title = title.strip()
                 title_is_template = "{{" in hydrated_title or "}}" in hydrated_title
                 result = dict(row)
                 result["_verified_job"] = bool(structured_detail)
+                result["_detail_complete"] = bool(structured_detail) and job_text_quality(text) == "complete"
                 if structured_detail:
-                    result["location"] = structured_detail[2]
+                    result["location"] = structured_detail[2] or row.get("location") or ""
                 result.update({
                     "href": hydrated_href if hydrated_match else href,
                     "title": hydrated_title if hydrated_title and not title_is_template else row.get("title") or "",
                     "linkText": hydrated_title if hydrated_title and not title_is_template else row.get("linkText") or "",
-                    "text": text if not title_is_template and job_text_quality(text) != "missing" and len(text) > len(str(row.get("text") or "")) else row.get("text") or "",
+                    "text": text if not title_is_template and job_text_quality(text) != "missing" and (result["_detail_complete"] or len(text) > len(str(row.get("text") or ""))) else row.get("text") or "",
                 })
                 return result
-            except Exception:
-                return row
+            except Exception as exc:
+                return {**row, "_detail_status": "fetch_error", "_detail_error": type(exc).__name__}
         hydrated = await asyncio.gather(*(one(row) for row in rows))
-        return [row for row in hydrated if not row.get("_invalid_detail")]
+        return hydrated if retain_unavailable else [row for row in hydrated if not row.get("_invalid_detail")]
 
 
 def _job_posting_detail(soup: BeautifulSoup) -> tuple[str, str, str] | None:
@@ -1207,8 +1306,9 @@ def _resolve_row_href(row: dict, preset: dict) -> tuple[str, re.Match[str] | Non
     base_url = str(preset["url"])
     raw_target = raw_href or data_href or data_url
     href = urljoin(base_url, raw_target) if raw_target else ""
-    searchable = " ".join(part for part in (href, raw_href, data_href, data_url, onclick) if part)
-    match = re.search(str(preset["id_pattern"]), searchable)
+    # Match individual targets: joining them can append the next URL to a slug.
+    match = next((found for part in (href, raw_href, data_href, data_url, onclick)
+                  if part and (found := re.search(str(preset["id_pattern"]), part))), None)
     if match and (not href or not re.search(str(preset["id_pattern"]), href)):
         template = str(preset.get("href_template") or "")
         if template:
@@ -1321,6 +1421,23 @@ _HEBREW_ISRAEL_LOCATIONS = {
     "באר יעקב": "Be'er Yaakov, Israel", "אשדוד": "Ashdod, Israel", "יבנה": "Yavne, Israel",
     'נתב"ג': "Ben Gurion Airport, Israel", "נתב״ג": "Ben Gurion Airport, Israel",
 }
+
+
+def _elbit_hashtag_location(text: str) -> str:
+    """Recognize location tags, without interpreting arbitrary hashtags as cities."""
+    def key(value: str) -> str:
+        return re.sub(r"[\s_'’\-]+", "", value).casefold()
+
+    names = dict(_HEBREW_ISRAEL_LOCATIONS)
+    names.update({city: _extract_israel_location(city) for city in _ISRAEL_CITY_NAMES})
+    names.update({value.removesuffix(", Israel"): value for value in _HEBREW_ISRAEL_LOCATIONS.values()})
+    known = {key(name): location for name, location in names.items()}
+    locations = []
+    for tag in re.findall(r"(?<!\w)#([^#\n\r]+)", text):
+        location = known.get(key(tag.strip(" .,:;")))
+        if location and location not in locations:
+            locations.append(location)
+    return "; ".join(locations)
 
 
 def _extract_israel_location(text: str) -> str:

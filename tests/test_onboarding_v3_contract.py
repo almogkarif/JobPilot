@@ -7,7 +7,7 @@ JS=(ROOT/'app/static/app.js').read_text()
 CSS=(ROOT/'app/static/styles.css').read_text()
 
 def test_onboarding_starts_with_extensible_career_track_choice():
-    assert "onboardingSteps = ['track','resume','skills','preferences','review','ranking']" in JS
+    assert "onboardingSteps = ['track','resume','resume-review','skills','preferences','review','ranking']" in JS
     assert 'state.careerTracks' in JS
     assert 'onboardingTrackConfig' in JS
     assert 'onboardingChooseTrack' in JS

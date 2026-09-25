@@ -12,8 +12,8 @@ def test_resume_has_clear_success_state():
 
 def test_preferences_are_choice_boxes_not_raw_primary_text_fields():
     assert "onboardingChoiceBox('title'" in JS
-    assert "onboardingChoiceBox('keyword'" in JS
-    assert "onboardingChoiceBox('excluded'" in JS
+    assert "onboardingChoiceBox('seniority'" in JS
+    assert "onboardingChoiceBox('excluded'" not in JS
     assert "onboarding-choice-grid" in CSS
     assert "ob-titles-extra" in JS
 

@@ -1,470 +1,266 @@
 # JobPilot
 
-**A full-stack job discovery, matching, and human-in-the-loop application platform.**
+**Find relevant jobs. Understand the match. Track every application.**
 
-[**Open the live application**](https://jobpilot-zxgg.onrender.com) · [**View the source code**](https://github.com/almogkarif/JobPilot) · [Architecture](#architecture) · [Run locally](#quick-start--local-mode)
+JobPilot collects jobs from official career sites and public applicant-tracking systems, filters them against a personal profile, and explains each compatibility score. Supported application flows can run through a Playwright worker, with explicit approval and a handoff when user input is needed.
 
-> **Recruiter?** Start with the [60-second overview](#for-recruiters--60-second-overview), then open the live application and choose **Continue as guest** (`המשך כאורח`). The product UI is intentionally built in Hebrew with full RTL support; the engineering documentation is in English.
+[Live application](https://jobpilot-zxgg.onrender.com) · [Run locally](#run-locally) · [Ranking](#how-ranking-works) · [Architecture](#architecture) · [Development](#development)
 
-JobPilot scans official career sites and public ATS boards, normalizes and filters jobs, scores each role against a user's profile, and can prepare or submit supported ATS forms through a local or isolated cloud Playwright worker under explicit, one-time user approval.
+The interface is in **Hebrew, with RTL support**, light and dark themes, and desktop and mobile layouts. This README describes the current working tree; the hosted application may be on an earlier revision.
 
-The project started as a local-first personal tool and evolved into a small multi-user cloud application with Supabase authentication/storage, PostgreSQL persistence, Docker deployment, scheduled scanning, and tenant-isolated data.
+![JobPilot dashboard in light mode, showing match statistics and recommended jobs](docs/screenshots/dashboard-light.png)
 
-> **Current version:** `v0.3.2`  
-> **UI:** Hebrew / RTL  
-> **Backend:** FastAPI + SQLAlchemy  
-> **Cloud:** PostgreSQL + Supabase + Render  
-> **Automation:** Playwright + GitHub Actions
+*Screenshots use fictional jobs and a demonstration profile in an isolated local database. Company names, scores and counts are illustrative; they are not live vacancies or production metrics.*
 
-![JobPilot dashboard](docs/screenshots/dashboard-light.png)
+## What you can do
 
-## For recruiters — 60-second overview
+- **Discover jobs** across official employer sites and ATS providers, including Greenhouse, Lever, Ashby, SmartRecruiters, Workday and company-specific collectors.
+- **Choose a professional track:** Computer Science, Electrical Engineering, or Industrial Engineering & Management.
+- **Filter before scoring** using your search preferences, then inspect an explainable match score for eligible jobs.
+- **Search and organize results** by title, company, location, score and application status. Submitted jobs are hidden by default in the Jobs tab; a toggle brings them back.
+- **Manage a profile and resume versions**, with structured education, experience, skills and reusable application answers.
+- **Prepare supported applications**, resolve missing information, and track queue state, attempts and submission evidence.
 
-JobPilot is an end-to-end production project rather than a UI prototype. It brings together data collection, normalization, explainable ranking, multi-user authentication, browser automation, security controls, cloud deployment, and a responsive frontend in one working system.
-
-| What to evaluate | Where it appears |
-| --- | --- |
-| Product thinking | Job discovery, ranked recommendations, application tracking, profile onboarding, and explicit human approval before submission |
-| Backend engineering | FastAPI APIs, SQLAlchemy models, PostgreSQL/SQLite support, background scanning, data cleanup, and per-source failure isolation |
-| Data and ranking | Multi-source normalization, career-track filtering, resume-derived profile data, deterministic scoring, and readable match explanations |
-| Automation | A local Playwright agent that fills supported ATS forms, pauses on uncertainty, and hands control back to the user |
-| Security and reliability | Supabase Auth, tenant isolation, private file storage, hashed device tokens, fail-closed automation, and automated tests |
-| Delivery | Docker deployment on Render and scheduled scan workers in GitHub Actions |
-
-### Quick product walkthrough
-
-1. Open the [live application](https://jobpilot-zxgg.onrender.com).
-2. Select **Continue as guest** (`המשך כאורח`) to explore without creating an account.
-3. Review the dashboard and open the ranked jobs list to inspect scores and match explanations.
-4. Switch between Computer Science, Electrical Engineering, and Industrial Engineering & Management to see track-specific jobs and preferences.
-5. Visit Sources, Applications, Profile, and Settings to see the rest of the workflow.
-
-Guest access is read-only and uses the live job catalog, so personal changes and application actions are disabled. The hosted web application demonstrates the product and ranking workflow; browser-based application filling runs locally by design because it requires a private browser session and explicit user handoff.
-
-## Why I built it
-
-Searching for jobs is repetitive, but fully automating applications creates obvious quality and trust problems. JobPilot is built around a different idea: automate collection, filtering, ranking, repetitive form filling, and tracking — while keeping uncertain answers, CAPTCHAs, and the final submit action visible to the user.
-
-The project combines product work, backend engineering, browser automation, data modeling, scoring logic, cloud deployment, security boundaries, and a custom frontend in one system.
-
-## Engineering highlights
-
-- **Multi-source job ingestion** from Greenhouse, Ashby, Lever, SmartRecruiters, Google Careers, Workday, and company-specific career pages.
-- **Deterministic matching engine** with explainable 0–100 scoring based on titles, seniority, skills, experience, location, work mode, keywords, exclusions, company, and freshness.
-- **Multi-user cloud architecture** with Supabase Auth, PostgreSQL, per-user workspaces, and tenant isolation enforced in the application data layer.
-- **Human-in-the-loop browser automation** using a persistent local Playwright agent for application preparation.
-- **Fail-closed automation controls** for unknown required questions, CAPTCHA detection, ambiguous submissions, and final-submit approval.
-- **Local + cloud modes** using the same application codebase: SQLite/local storage for a personal installation, or PostgreSQL/Supabase for deployment.
-- **Background scanning** runs in GitHub Actions, isolated from the Render web process, with bounded concurrency, stale-job cleanup, per-source error isolation, and durable progress stored in PostgreSQL.
-- **Dockerized web deployment** on Render plus a separate GitHub Actions scan worker, so browser-heavy collectors cannot exhaust the web service memory.
-- **Custom build-free frontend** with Hebrew RTL support, light/dark themes, command palette, keyboard navigation, responsive layouts, and persistent UI state.
-- **Automated test coverage** across API behavior, matching, tenant isolation, cloud auth/storage contracts, browser automation, collectors, and UI flows.
-
-## Architecture
-
-```text
-                           ┌───────────────────────────────┐
-                           │ Official career sites / ATS  │
-                           │ Greenhouse · Ashby · Lever   │
-                           │ Workday · Google · custom    │
-                           └───────────────┬───────────────┘
-                                           │
-                                           ▼
-                                ┌──────────────────────┐
-                                │ Collectors + parser  │
-                                └──────────┬───────────┘
-                                           │
-                         normalize · Israel filter · dedupe
-                                           │
-                                           ▼
-                                ┌──────────────────────┐
-                                │ Matching engine      │
-                                │ explainable 0–100    │
-                                └──────────┬───────────┘
-                                           │
-                    ┌──────────────────────┴──────────────────────┐
-                    │                                             │
-                    ▼                                             ▼
-          ┌──────────────────┐                         ┌────────────────────┐
-          │ SQLite           │                         │ PostgreSQL         │
-          │ local mode       │                         │ cloud mode         │
-          └────────┬─────────┘                         └─────────┬──────────┘
-                   └──────────────────────┬──────────────────────┘
-                                          ▼
-                               ┌──────────────────────┐
-                               │ FastAPI application  │
-                               │ API + static UI      │
-                               └──────────┬───────────┘
-                                          │
-                  ┌───────────────────────┴────────────────────────┐
-                  │                                                │
-                  ▼                                                ▼
-       ┌─────────────────────┐                         ┌──────────────────────┐
-       │ Browser UI          │                         │ Local Playwright     │
-       │ jobs/profile/admin  │                         │ Application Agent    │
-       └─────────────────────┘                         └──────────┬───────────┘
-                                                                │
-                                                 fill · pause · handoff
-                                                                │
-                                                                ▼
-                                                     final user review
-```
-
-### Cloud boundary
-
-The server can run remotely with either a local browser agent or an isolated cloud worker. The cloud worker is limited to supported anonymous ATS flows; sites requiring an existing personal session, CAPTCHA, or manual intervention are handed back to the local agent/user.
-
-In cloud mode:
-
-- Supabase handles user authentication.
-- PostgreSQL stores application data.
-- Supabase Storage stores private resumes and screenshots.
-- Private rows carry a `user_id` and are automatically scoped to the active user.
-- PostgreSQL startup hardening enables RLS on private tables and removes direct browser access to those tables.
-- Per-device agent tokens are revocable and stored hashed rather than in plaintext.
-- The application agent can be restricted to a configured account during beta deployments.
-- Every claimed task creates an idempotent attempt record; a submission is not marked successful without structured confirmation evidence.
-- Optional Gmail read-only verification can confirm ambiguous submissions from receipt emails without storing message contents.
+Guest mode offers read-only exploration without creating an account. Personal profile changes and application actions require a user workspace; available features depend on deployment configuration.
 
 ## Product tour
 
 ### Dashboard
 
-The dashboard summarizes active jobs, strong matches, queued/submitted applications, blockers, scanner state, and recommended jobs.
+A summary of the job catalog, personal matches, applications and pending actions. The “חם מהסריקה” panel selects up to three additional jobs discovered in the last 14 days with a current score of at least 70, excluding the five main recommendations and jobs already submitted, hidden or skipped. It can be empty when no jobs meet those conditions.
 
-![Dashboard in dark mode](docs/screenshots/dashboard-dark.png)
+![JobPilot dashboard in dark mode](docs/screenshots/dashboard-dark.png)
 
-### Job discovery and ranking
+### Jobs and match details
 
-Jobs are normalized into one model regardless of source. The Jobs view supports text search, score/status filters, compact or comfortable layouts, match explanations, missing skills, queueing, skipping, and permanent deletion.
+Search, location filters, sorting and pagination keep the list manageable. Each job has a stable ID with a copy button, individual eligibility indicators, score components and the original description. Long descriptions and explanations scroll inside compact panels.
 
-![Ranked jobs](docs/screenshots/jobs.png)
+![Jobs view with search controls and ranked cards](docs/screenshots/jobs.png)
 
-### Ranked search preferences
+![Job details showing eligibility, job ID and an explanation of the score](docs/screenshots/job-details.png)
 
-Search preferences are ordered, not just selected. Users can rank desired job families, seniority, skills, locations, work modes, and positive keywords. Higher-priority preferences contribute more to the matching score, while explicit exclusions act as hard filters.
+### Search preferences
 
-![Ranked search preferences](docs/screenshots/search-preferences.png)
+Configure desired roles, skills, experience, locations, work modes and exclusions. Changes that only affect visibility can reuse valid scoring components; newly eligible jobs are scored when needed.
 
-### Professional tracks
+One seniority selection controls visibility: checked levels are included, unchecked levels are filtered before scoring, including in dashboard suggestions. Jobs without an explicit title level have a separate option. An empty selection shows no jobs.
 
-JobPilot treats a profession as a first-class search context. `v0.3.2` includes:
-
-- **Computer Science** — software, infrastructure, algorithms, AI/ML, research, and backend roles.
-- **Electrical Engineering** — electronics, hardware, embedded systems, verification, board design, control, RF, and related engineering roles.
-- **Industrial Engineering & Management** — operations, analytics/BI, supply chain, planning, procurement, projects, process improvement, manufacturing, quality, and NPI.
-
-Sources, jobs, matching preferences, resumes, applications, and recommendations are isolated by career track. Identity and reusable application answers remain shared intentionally.
-
-### Profile and resume intelligence
-
-The profile stores structured information commonly requested by ATS forms: identity, contact details, links, work authorization, education, employment, languages, certifications, compensation preferences, and resume versions.
-
-Resume analysis extracts skills, names, contact details, and professional links. Blank profile fields are filled automatically after an upload, while existing user-entered values are preserved and never overwritten silently.
-
-![Structured profile](docs/screenshots/profile.png)
-
-### Application workflow
-
-Applications move through explicit states such as queued, applying, blocked, failed, and submitted. Automatic queueing and automatic final submission are deliberately separate controls.
-
-![Application queue](docs/screenshots/applications.png)
-
-The local agent can:
-
-1. Open the official application URL.
-2. Find and open the application flow.
-3. Reuse an existing session or create an account when appropriate.
-4. Fill supported contact, work, education, language, website, skill, and questionnaire fields.
-5. Upload the selected resume.
-6. Continue through intermediate steps.
-7. Stop when it encounters an unknown required question, CAPTCHA, missing profile value, or ambiguous page state.
-8. Pause before final submission unless a one-time approval is explicitly available.
-
-### Human-in-the-loop blockers
-
-JobPilot creates an actionable blocker instead of guessing when it encounters:
-
-- CAPTCHA or human verification;
-- an unfamiliar required field;
-- missing profile data;
-- unsupported/ambiguous application controls;
-- a form waiting for final review;
-- a submission without a reliable success signal.
-
-Blockers can store the page URL, explanation, options, and screenshot. The user can answer, remember an approved answer, retry, skip, or finish manually.
+![Search preferences in the Hebrew RTL interface](docs/screenshots/search-preferences.png)
 
 ### Sources
 
-Sources can be enabled, disabled, installed from the built-in catalog, added manually, inspected, or removed. One failing collector does not stop the rest of a scan.
+Inspect source state, enable or disable boards, and add supported sources. Collectors normalize listings into a common job model. Incomplete or blocked feeds preserve existing jobs rather than treating missing results as proof that every vacancy has closed.
 
-![Career sources](docs/screenshots/sources.png)
+![Source management and collection status](docs/screenshots/sources.png)
 
-## Matching model
+## How ranking works
 
-The matching engine is deterministic and returns both a score and readable reasons.
+Ranking is deterministic: the scoring path does not require an LLM call.
 
-| Signal | Behavior |
+1. **Collect and normalize** the source posting, title, description and location.
+2. **Determine track relevance and eligibility** against the user's profile and configured filters.
+3. **Stop for excluded jobs.** Persist the eligibility explanation without computing a full compatibility score.
+4. **Score eligible jobs** using four components, with these default weights:
+
+| Component | Maximum | What it measures |
+| --- | ---: | --- |
+| Role match | 40 | Desired title or related role family |
+| Skills and technologies | 35 | Required and preferred skills found in the profile |
+| Professional requirements | 15 | Education and identified professional prerequisites |
+| Preferences | 10 | Location, work mode and preference keywords |
+
+The final score is bounded to **0–100**, with deductions and caps explained separately. An unidentified degree or experience requirement currently incurs a **single 30-point deduction**, including when both are unknown. Experience explicitly listed as an advantage is distinguished from a missing requirement.
+
+Degree indicators distinguish an explicit match, a preference or related alternative, and a mismatch. Unknown information remains visible so the user can inspect the original posting. A high score is a recommendation, not a guarantee of eligibility or application success.
+
+Stored results are reused when their job content, relevant profile inputs, engine and configuration remain valid. Changes to eligibility do not automatically require recalculating every score component.
+
+Implementation details: [filter-first ranking](docs/RANKING_FILTER_FIRST.md).
+
+## Professional tracks and the unified catalog
+
+| Track | Examples |
 | --- | --- |
-| Desired title | Strong positive signal, weighted by preference rank |
-| Seniority | Rewards desired levels and penalizes roles that are too senior |
-| Skills | Scores overlap and weights higher-priority profile skills more heavily |
-| Experience | Compares extracted year requirements with configured experience |
-| Location | Rewards preferred Israeli locations in priority order |
-| Work mode | Rewards remote, hybrid, or onsite according to preference |
-| Keywords | Adds a smaller ranked bonus without double-counting seniority |
-| Exclusions | Hard-filter unwanted title/domain/seniority patterns |
-| Freshness | Adds a small bonus to recently published jobs |
-| Company | Adds a modest signal without overriding role fit |
+| Computer Science | Software development, algorithms, AI/ML, research, embedded software and QA |
+| Electrical Engineering | Hardware, verification, FPGA/ASIC, RF, signal processing and embedded engineering |
+| Industrial Engineering & Management | Analytics/BI, operations, planning, supply chain, procurement, projects and information systems |
 
-Scores are clamped to `0..100` and each contribution is exposed to the UI.
+Classification considers the role and stated education requirements. A job may belong to more than one track; different users retain their own preferences and ranking results.
 
-## Safety principles
+**Local preview:** the unified-source catalog and migration workflow are being validated on isolated local databases. They are not enabled in cloud deployments by default. The preview collects each canonical board once, maps a job to its relevant tracks, and keeps personal rankings separate. Do not infer production rollout from the screenshots.
 
-JobPilot's default is **prepare, review, then submit**.
+See [canonical catalog rollout and verification](docs/CANONICAL_CATALOG_LOCAL.md).
 
-- It does not bypass CAPTCHAs.
-- It does not automate inside LinkedIn.
-- It does not invent skills, experience, or application answers.
-- Unknown required questions become blockers.
-- Final submission is disabled by default in local mode.
-- One-time final approval is consumed when a task is claimed to reduce duplicate submission risk.
-- Agent tasks are claimed atomically.
-- Stuck tasks can return to the queue after a timeout.
-- Application attempts and blockers are auditable.
+## Application workflow
 
-Browser profiles, resumes, application passwords, database files, and application screenshots are treated as private runtime data and are excluded from Git.
+```mermaid
+flowchart LR
+    A[Choose job and resume] --> B[Queue supported application]
+    B --> C[Worker fills known fields]
+    C --> D{More input needed?}
+    D -->|Yes| E[User resolves blocker]
+    E --> C
+    D -->|No| F[Review / approved submission]
+    F --> G[Verify receipt and track result]
+```
 
-## Tech stack
+- A local Playwright agent can use a persistent browser session.
+- An isolated cloud worker handles configured supported ATS flows.
+- Unknown required questions, CAPTCHA, authentication challenges and ambiguous pages require user input.
+- Automatic queueing and permission to submit are separate controls. Final submission is disabled by default in local configuration.
+- Submission attempts retain history and evidence. An ambiguous outcome can remain pending verification.
+- LinkedIn application flows are not automated.
 
-| Area | Technology |
+The web application and browser worker are separate processes. Installing the web server alone does not start an application agent.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Sources[Official career sites and ATS feeds] --> Collectors[Collectors and normalization]
+    Collectors --> Catalog[(Job catalog)]
+    Catalog --> Eligibility[Track and personal eligibility]
+    Profile[Profile, preferences and resume skills] --> Eligibility
+    Eligibility --> Ranking[Deterministic ranking and cached results]
+    Ranking --> API[FastAPI]
+    API --> UI[HTML / CSS / JavaScript · Hebrew RTL]
+    UI --> Queue[Application queue]
+    Queue --> Worker[Local or isolated cloud Playwright worker]
+    Worker --> Evidence[Attempts, blockers and submission evidence]
+    Evidence --> API
+```
+
+| Layer | Implementation |
 | --- | --- |
-| Backend | Python 3.11+ / FastAPI / Pydantic |
-| ORM | SQLAlchemy 2 |
-| Local database | SQLite |
-| Cloud database | PostgreSQL / Supabase |
-| Authentication | Supabase Auth |
-| File storage | Local filesystem or Supabase Storage |
-| Browser automation | Playwright / Chromium |
-| Collection/parsing | HTTPX / BeautifulSoup / Playwright where rendering is required |
-| Frontend | Vanilla JavaScript / HTML / CSS, Hebrew RTL |
-| Deployment | Docker / Render |
-| Scanning | GitHub Actions worker + PostgreSQL-backed scan queue/status |
-| Testing | Pytest + FastAPI TestClient + browser/UI tests |
+| API and validation | Python, FastAPI, Pydantic |
+| Persistence | SQLAlchemy 2; SQLite locally, PostgreSQL for cloud |
+| Cloud identity and files | Supabase Auth and private Storage |
+| Collection | HTTPX, BeautifulSoup and Playwright where needed |
+| Frontend | Build-free vanilla JavaScript, HTML and CSS |
+| Automation | Playwright / Chromium |
+| Deployment | Docker, Render and GitHub Actions workers |
+| Tests | Pytest, FastAPI TestClient and Playwright browser tests |
 
-## Quick start — local mode
+Private data is scoped to the active user. Cloud deployments support revocable agent tokens and private file storage. Scans can run in external workers so browser-heavy collection does not share the web process's resources.
+
+## Run locally
 
 ### Requirements
 
 - macOS or Linux
-- Python 3.11+
-- approximately 1 GB free for the environment and Playwright browser
+- Python 3.11 or later
+- Chromium installed through Playwright for browser-based collectors and application automation
 
-### Start the server
+### Start the web application
 
 ```bash
-cp .env.example .env
+git clone https://github.com/almogkarif/JobPilot.git
+cd JobPilot
 ./start.sh
 ```
 
-Open:
+Open **http://127.0.0.1:8000**.
 
-```text
-http://127.0.0.1:8000
+The script creates `.venv`, installs dependencies and creates `.env` from the example if it does not exist. It also replaces the example agent token with a random value when OpenSSL is available. Review `.env` before connecting external services.
+
+Install the browser when needed:
+
+```bash
+.venv/bin/python -m playwright install chromium
 ```
 
-`start.sh` creates the virtual environment when needed, installs dependencies, creates `.env`, and replaces the insecure example agent token with a random value when OpenSSL is available.
+If port 8000 is occupied:
 
-### Start the local application agent
+```bash
+JOBPILOT_PORT=8001 ./start.sh
+```
 
-In a second terminal:
+Set `JOBPILOT_BASE_URL` to the same URL when connecting an agent to a different port.
+
+### Start the local agent
+
+In another terminal:
 
 ```bash
 ./start-agent.sh
 ```
 
-The first run installs Playwright Chromium. Visible browser mode is the default and final submission remains disabled unless explicitly configured.
+Visible browser mode is the default. Configure the agent URL and token to match the web server. Do not enable final submission until you have reviewed the application workflow and permissions.
 
 ### Manual installation
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
 pip install -r requirements.txt
 python -m playwright install chromium
 cp .env.example .env
 python run.py
 ```
 
-## Cloud deployment
+Copy the environment template only for a fresh installation; preserve an existing `.env`.
 
-The repository includes everything required for a small cloud deployment:
+## Configuration and cloud deployment
 
-```text
-Dockerfile
-render.yaml
-.env.cloud.example
-.github/workflows/jobpilot-scan.yml
-scripts/migrate_to_cloud.py
-CLOUD-SETUP.md
-CLOUD-SETUP-HE.md
-```
-
-High-level flow:
-
-```text
-GitHub repository
-      │
-      ▼
-Render Blueprint ──────► FastAPI server
-      │                       │
-      │                       ├──► Supabase Auth
-      │                       ├──► PostgreSQL
-      │                       └──► Supabase Storage
-      │
-      └── GitHub Actions ───► collectors + matching ───► PostgreSQL
-
-Local Mac ─────────────► authenticated Agent API ─► Playwright/Chromium
-Cloud worker ──────────► supported anonymous ATS ─► evidence receipt
-```
-
-Deployment values are supplied as environment variables; real credentials are never committed to the repository.
-
-For the complete setup, see:
-
-- [`CLOUD-SETUP.md`](CLOUD-SETUP.md) — English
-- [`CLOUD-SETUP-HE.md`](CLOUD-SETUP-HE.md) — Hebrew
-
-## Important configuration
+Use [`.env.example`](.env.example) for local mode and [`.env.cloud.example`](.env.cloud.example) for cloud configuration.
 
 | Variable | Purpose |
 | --- | --- |
-| `JOBPILOT_AUTH_MODE` | `local` or `supabase` |
-| `JOBPILOT_STORAGE_MODE` | local filesystem or Supabase Storage |
-| `JOBPILOT_DATABASE_URL` | SQLite or PostgreSQL SQLAlchemy URL |
-| `JOBPILOT_BASE_URL` | Public/local server URL used by agents |
-| `JOBPILOT_AGENT_TOKEN` | Legacy/local shared agent secret |
-| `JOBPILOT_WORKER_TYPE` | `local` or `cloud`; cloud claims only the supported anonymous ATS allowlist |
-| `JOBPILOT_APPLICATION_AGENT_OWNER_EMAIL` | Optional account allowed to pair the cloud application agent |
-| `JOBPILOT_ALLOWED_EMAILS` | Optional cloud allowlist |
-| `JOBPILOT_MAX_USERS` | Admission cap for a small deployment |
-| `JOBPILOT_SUPABASE_URL` | Supabase project URL |
-| `JOBPILOT_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase key |
-| `JOBPILOT_SUPABASE_SECRET_KEY` | Server-only Supabase key |
-| `JOBPILOT_CRON_SECRET` | Compatibility secret for the legacy cron endpoint |
-| `JOBPILOT_GITHUB_ACTIONS_TOKEN` | Fine-grained GitHub token used by Render only to dispatch a manual scan workflow |
-| `JOBPILOT_SCAN_EXECUTION_MODE` | Set to `external` in cloud so Render never runs collectors |
-| `JOBPILOT_AUTO_SUBMIT` | Local agent final-submit permission; default false |
-| `JOBPILOT_GOOGLE_OAUTH_CLIENT_ID` / `...SECRET` | Optional Google OAuth web credentials for Gmail receipt verification |
-| `JOBPILOT_GOOGLE_OAUTH_REDIRECT_URI` | Exact public callback: `/api/integrations/gmail/callback` |
+| `JOBPILOT_AUTH_MODE` | Local identity or Supabase authentication |
+| `JOBPILOT_DATABASE_URL` | SQLite or PostgreSQL connection |
+| `JOBPILOT_STORAGE_MODE` | Local filesystem or Supabase Storage |
+| `JOBPILOT_BASE_URL` | Server URL used by the worker |
+| `JOBPILOT_AGENT_TOKEN` | Agent authentication secret |
+| `JOBPILOT_WORKER_TYPE` | Local or cloud worker |
+| `JOBPILOT_AUTO_SUBMIT` | Local agent final-submit permission; defaults to false |
+| `JOBPILOT_SCHEDULER_ENABLED` | Enable or disable scheduled work |
+| `JOBPILOT_SCAN_EXECUTION_MODE` | In-process or external scanning, as configured for the deployment |
 
-### Background submission worker
+Deployment files include `Dockerfile`, `Dockerfile.worker`, `render.yaml`, and the scan/application workflows in `.github/workflows/`.
 
-`Dockerfile.worker` runs the Playwright worker separately from the web service. Supply `JOBPILOT_BASE_URL`, a paired `JOBPILOT_AGENT_TOKEN`, and `JOBPILOT_WORKER_TYPE=cloud`. The worker accepts Greenhouse, Comeet, Lever, Ashby, SmartRecruiters, and Workday tasks that carry a consumed one-time approval. Workday additionally requires a saved application-site password; CAPTCHA, email/MFA challenges, custom sites, and uncertain pages still stop safely for user input. Keep one replica while using the beta queue.
+- [Cloud setup — English](CLOUD-SETUP.md)
+- [Cloud setup — Hebrew](CLOUD-SETUP-HE.md)
+- [Database egress budget and query rules](docs/SUPABASE_EGRESS.md)
 
-For a no-cost public-repository deployment, `.github/workflows/jobpilot-application.yml` runs one isolated headless worker on demand. The web server dispatches it immediately after one-time approval. An administrator adds `JOBPILOT_AGENT_TOKEN` and `JOBPILOT_BASE_URL` as GitHub Actions repository secrets once. The credential-management card is admin-only; regular users can request background submissions but never receive or manage worker credentials. Each workflow is restricted to its dispatched application and is tenant-scoped to that application's owner before any profile, resume, or result access.
+Keep Supabase server secrets, database credentials and worker tokens outside Git. Optional Gmail receipt verification requires its own OAuth configuration.
 
-The Applications page provides a dry run before campaign activation, daily and total caps, a company deny-list, durable attempt history, and a verification receipt. A queued task can finish in `verification_pending`; it becomes `submitted` only after page evidence or an optional Gmail receipt confirms it.
-
-See `.env.example` and `.env.cloud.example` for safe templates.
-
-## Project structure
-
-```text
-jobpilot/
-├── app/
-│   ├── collectors/            # ATS and official-career collectors
-│   ├── services/              # scanning, matching, cleanup, source catalog
-│   ├── static/                # build-free Hebrew RTL frontend
-│   ├── auth.py                # cloud identity + agent device auth
-│   ├── database.py            # engine, tenant scoping, migrations
-│   ├── main.py                # FastAPI API, scheduler, static app
-│   ├── models.py              # SQLAlchemy models
-│   ├── schemas.py             # Pydantic request models
-│   └── storage.py             # local/Supabase storage adapters
-├── agent/
-│   ├── browser.py             # application navigation/filling
-│   ├── fields.py              # approved profile/question mapping
-│   └── run_agent.py           # polling, claim, handoff, reporting
-├── scripts/
-│   └── migrate_to_cloud.py    # SQLite -> cloud migration helper
-├── docs/screenshots/
-├── tests/
-├── .github/workflows/
-├── Dockerfile
-├── render.yaml
-├── start.sh
-├── start-agent.sh
-└── run.py
-```
-
-## Testing
-
-Run the complete suite:
+## Development
 
 ```bash
+source .venv/bin/activate
 pip install -r requirements-test.txt
+python -m playwright install chromium
 pytest -q
 ```
 
-Useful focused suites:
+Focused checks:
 
 ```bash
-pytest -q tests/test_matching.py
-pytest -q tests/test_api.py
-pytest -q tests/test_cloud_mode.py
-pytest -q tests/test_multiuser_isolation.py
-pytest -q tests/test_agent_browser_flow.py
+pytest -q tests/test_ranking_v2.py tests/test_ranking_targeted_refresh.py
+pytest -q tests/test_api.py tests/test_multiuser_isolation.py
+pytest -q tests/test_supabase_egress_optimization.py
+pytest -q tests/test_ui_e2e.py
 ```
 
-The suite covers matching behavior, Israel-only filtering, API contracts, scanner resilience, profile/career-track state, cloud authentication, tenant isolation, storage adapters, agent-device tokens, browser form handling, blockers, resume handling, and final-submit controls.
-
-## Current limitations
-
-- Career sites change markup and anti-bot behavior; collectors occasionally require maintenance.
-- Some ATS widgets still need dedicated adapters even when they look like standard form controls.
-- The cloud worker supports only allowlisted anonymous ATS flows; session-bound and unsupported forms still require the local agent.
-- Application-agent access can be intentionally restricted to one configured account during the current beta architecture.
-- LinkedIn application flows are intentionally not automated.
-- Automatic answers are limited to supplied profile data and explicitly approved answer-library entries.
-- The cloud deployment is designed for a small private user group, not large-scale public SaaS traffic.
-
-## Privacy and repository hygiene
-
-The repository intentionally ignores private runtime data such as:
+Browser tests start an isolated local server and require permission to bind a loopback port. Test results depend on the revision and environment; screenshots do not imply that the complete test suite has passed.
 
 ```text
-.env
-data/*.db
-data/resumes/*
-data/screenshots/*
-agent/browser-profile/
+app/
+  collectors/          ATS and employer-specific ingestion
+  services/ranking/    Eligibility, score components and result reuse
+  services/            Scanning, classification, catalog and application services
+  static/              Hebrew RTL interface
+  main.py              API and application lifecycle
+  models.py            Persistence models
+  database.py          Database setup and user scoping
+agent/                 Browser worker and form handling
+scripts/               Scan workers, comparisons and migration tools
+tests/                 API, ranking, isolation, collector and browser tests
+docs/                  Technical notes and product screenshots
 ```
 
-Before publishing a fork or deployment, verify staged files with:
+## Limitations
 
-```bash
-git status
-git diff --cached --name-only
-```
+Employer sites and ATS forms change, and some block automated collection. Extracted requirements can be incomplete; users should review the source posting. Automation supports specific flows and pauses where it cannot proceed reliably. The cloud configuration targets a small deployment, and its database/storage resource budget must be respected.
 
-Never commit Supabase secret keys, database passwords, agent tokens, resumes, application screenshots, or Chromium profile data.
-
-## Version 0.3.2
-
-The current release focuses on cloud hardening and the transition from a personal local application to a small multi-user deployment:
-
-- per-user and per-career-track source controls;
-- Supabase authentication and private storage;
-- PostgreSQL tenant isolation and startup hardening;
-- local per-device application agents with revocable tokens;
-- bounded multi-user scan concurrency;
-- Docker/Render deployment configuration;
-- browser-heavy scanning isolated in GitHub Actions, with durable DB-backed progress;
-- improved collector URL identity and official-career parsing;
-- UI hardening across desktop/mobile and both professional themes.
-
-## Disclaimer
-
-JobPilot is an automation project, not a guarantee of application success. Users are responsible for reviewing submitted information and for complying with the terms and policies of each career site.
+Resumes, private application screenshots, browser profiles, `.env` files and database copies are runtime data, not repository assets. The screenshots in this README contain demonstration data only.

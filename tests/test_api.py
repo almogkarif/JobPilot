@@ -45,7 +45,7 @@ def test_health_and_dashboard():
         assert "ranking_pending_jobs" in dashboard
         assert dashboard["ranking_refresh"] == {
             "running": False, "message": "", "phase": "", "completed": 0,
-            "total": 0, "eta_seconds": None,
+            "total": 0, "eta_seconds": None, "failed": 0,
         }
         assert set(dashboard["readiness"]) >= {
             "ready", "profile_complete", "resume_uploaded", "sources_enabled", "agent_token_secure"
@@ -114,8 +114,13 @@ def test_demo_jobs_and_sources_are_never_exposed_by_product_endpoints():
 
 def test_already_applied_job_stays_in_jobs_and_is_removed_from_dashboard():
     with TestClient(app) as client:
-        before = client.get("/api/dashboard").json()["recent_jobs"]
-        job = next(item for item in before if item["status"] != "submitted")
+        imported = client.post("/api/jobs/import", json={
+            "title": "Junior Software Developer", "company": "Submission Filter Fixture",
+            "location": "Tel Aviv, Israel", "description": "Develop Python software. BSc in Computer Science. 0-2 years experience.",
+            "apply_url": "https://jobs.test-fixture.invalid/submission-filter",
+        })
+        assert imported.status_code == 200
+        job = imported.json()
 
         response = client.post(f"/api/jobs/{job['id']}/mark-submitted")
         assert response.status_code == 200
@@ -128,6 +133,13 @@ def test_already_applied_job_stays_in_jobs_and_is_removed_from_dashboard():
         assert listed.status_code == 200
         assert listed.json()["status"] == "submitted"
         assert listed.json()["application_id"] == application["id"]
+
+        all_jobs = client.get("/api/jobs?paginated=true&page_size=100&exclude_submitted=false").json()
+        remaining = client.get("/api/jobs?paginated=true&page_size=100&exclude_submitted=true").json()
+        assert job["id"] in {item["id"] for item in all_jobs["items"]}
+        assert job["id"] not in {item["id"] for item in remaining["items"]}
+        assert all(item["status"] != "submitted" for item in remaining["items"])
+        assert remaining["total"] < all_jobs["total"]
 
         dashboard_ids = {item["id"] for item in client.get("/api/dashboard").json()["recent_jobs"]}
         assert job["id"] not in dashboard_ids

@@ -28,7 +28,7 @@ def test_wix_opaque_oracle_and_seat_identifiers_are_not_treated_as_titles():
     assert not PRESETS["wix"].get("hydrate_missing_title_only", False)
 
 
-def test_dashboard_uses_highest_scores_from_full_active_catalog_not_only_today():
+def test_dashboard_uses_highest_scores_from_full_active_catalog_not_only_today(seeded_cs_catalog):
     with TestClient(app) as client:
         with SessionLocal() as db:
             set_user_scope(db, LOCAL_USER_ID)

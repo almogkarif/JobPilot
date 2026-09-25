@@ -17,7 +17,7 @@ def test_regular_users_receive_professional_errors_while_admin_keeps_diagnostics
 
 def test_regular_application_copy_describes_outcomes_instead_of_infrastructure():
     assert "אם אתר הגיוס דורש אימות אנושי" in HTML
-    assert "מפעיל את ההגשה המאובטחת" in HTML
+    assert "ההגשה תיעצר ותבקש את עזרתך" in HTML
     assert "הגשה מאובטחת ברקע" in JS
     assert "הדפדפן המאובטח עדיין לא מוכן" in JS
     assert "שירות ההגשה הופעל" in JS

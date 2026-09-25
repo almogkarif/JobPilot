@@ -56,6 +56,7 @@ CAREER_TRACK_BY_KEY = {track.key: track for track in CAREER_TRACKS}
 TRACK_FIELDS = (
     "years_experience",
     "years_experience_options_json",
+    "seniority_levels_json",
     "skills_json",
     "desired_titles_json",
     "preferred_locations_json",
@@ -84,6 +85,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     COMPUTER_SCIENCE: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
+        "seniority_levels_json": "",
         "skills_json": dumps([]),
         "desired_titles_json": dumps([
             "software engineer", "backend", "r&d", "research engineer",
@@ -101,6 +103,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     INDUSTRIAL_ENGINEERING: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
+        "seniority_levels_json": "",
         "skills_json": dumps([]),
         "desired_titles_json": dumps([
             "industrial engineer", "business analyst", "data analyst", "operations analyst",
@@ -124,6 +127,7 @@ TRACK_DEFAULTS: dict[str, dict[str, Any]] = {
     ELECTRICAL_ENGINEERING: {
         "years_experience": 0.0,
         "years_experience_options_json": dumps(["0"]),
+        "seniority_levels_json": "",
         "skills_json": dumps([]),
         "desired_titles_json": dumps(["electrical engineer", "hardware engineer", "fpga engineer", "asic", "vlsi", "verification engineer", "embedded engineer", "firmware engineer", "analog engineer", "rf engineer", "board design"]),
         "preferred_locations_json": dumps(["Israel", "Haifa", "Tel Aviv", "Jerusalem"]),

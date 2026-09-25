@@ -11,6 +11,7 @@ from ..config import settings
 from ..models import AuditLog, Source, utcnow
 from ..utils import dumps, loads
 from .career_tracks import normalize_track
+from .catalog_routing import unified_catalog_enabled
 
 SCAN_EVENT = "scan_run"
 ACTIVE_STATUSES = {"queued", "running"}
@@ -18,7 +19,8 @@ STALE_AFTER = timedelta(hours=2)
 
 
 def _scan_entity(career_track: str) -> str:
-    return f"scan:{normalize_track(career_track)}"
+    from .catalog_routing import unified_catalog_enabled
+    return "scan:shared" if unified_catalog_enabled() else f"scan:{normalize_track(career_track)}"
 
 
 def _details(log: AuditLog | None) -> dict:
@@ -206,7 +208,7 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
         return False, scheduled, finished_local
 
     latest = db.scalar(select(func.max(Source.last_scanned_at)).where(
-        Source.career_track == career_track,
+        Source.canonical_source_id.is_(None) if unified_catalog_enabled() else Source.career_track == career_track,
         Source.enabled.is_(True),
         Source.kind != "demo",
     ))

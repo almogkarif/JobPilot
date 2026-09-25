@@ -8,6 +8,7 @@ from ..utils import loads
 from .career_tracks import COMPUTER_SCIENCE, ELECTRICAL_ENGINEERING, active_track
 from .degree_requirements import extract_degree_requirement_details, profile_degree_level
 from .job_requirements import iter_requirement_clauses, normalize_requirement_text, section_kind_at
+from .seniority import SENIORITY_LEVELS
 
 KNOWN_SKILLS = {
     "c++": ["c++", "cpp"],
@@ -86,16 +87,6 @@ KNOWN_SKILLS = {
     "rf": ["rf", "radio frequency", "rfic"],
 }
 
-SENIORITY_LEVELS = {
-    "student": {"student", "intern", "internship", "סטודנט"},
-    "entry level": {"entry level", "graduate", "new grad", "בוגר", "ללא ניסיון"},
-    "junior": {"junior", "jr.", "jr ", "ג׳וניור"},
-    "mid level": {"mid level", "mid-level", "intermediate"},
-    "senior": {"senior", "sr.", "sr ", "סניור"},
-    "lead": {"lead engineer", "team lead", "technical lead", "ראש צוות"},
-    "staff": {"staff engineer", "principal", "architect"},
-    "manager": {"engineering manager", "manager", "director", "מנהל"},
-}
 CS_STRONG_TITLE_TERMS = {
     "software engineer", "software developer", "software architect", "sw engineer", "sw developer", "sw automation",
     "developer", "backend", "back-end", "frontend",
@@ -773,14 +764,19 @@ def track_job_relevance(job, career_track: str) -> tuple[bool, str]:
     return False, "outside_iem_scope"
 
 
-def hard_exclusion_reason(job, profile, excluded_keywords: list[str] | None = None) -> str | None:
+def hard_exclusion_reason(job, profile, excluded_keywords: list[str] | None = None, seniority_levels=None) -> str | None:
     """Return a reason when the job title matches a profile exclusion."""
     title = str(getattr(job, "title", "") or "").casefold()
+    from .seniority import detect_title_level, selected_seniority_levels
+    level = detect_title_level(title)
+    selected = selected_seniority_levels(profile, excluded_keywords) if seniority_levels is None else seniority_levels
+    if level not in selected:
+        return f"excluded seniority: {level}"
     raw_excluded = excluded_keywords if excluded_keywords is not None else loads(profile.excluded_keywords_json, [])
     excluded = [str(value).casefold().strip() for value in raw_excluded if str(value).strip()]
-    excluded_levels = {level for level in SENIORITY_LEVELS if level in excluded}
+    excluded_levels = set() if getattr(profile, "seniority_levels_json", "") else {level for level in SENIORITY_LEVELS if level in excluded}
     for level in excluded_levels:
-        if any(term in title for term in SENIORITY_LEVELS[level]):
+        if detect_title_level(title) == level:
             return f"excluded seniority: {level}"
     for keyword in excluded:
         if keyword not in SENIORITY_LEVELS and _contains_variant(title, keyword):

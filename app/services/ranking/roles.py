@@ -57,7 +57,7 @@ def role_match(job, desired_titles: list[str], track: str, maximum: int) -> dict
     elif title_families and not desired_titles:
         ratio, reasons = .72, [f"Track role family: {', '.join(sorted(title_families))}"]
     elif title_families:
-        ratio, reasons = .42, ["Role belongs to the track but not a desired family"]
+        ratio, reasons = .20, ["Role belongs to the track but not a desired family"]
     else:
         ratio, reasons = .12, ["No reliable role-family match"]
     return {"score": round(maximum * ratio), "max": maximum, "families": sorted(title_families), "desired_families": sorted(desired_families), "reasons": reasons}
