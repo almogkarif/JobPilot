@@ -1,3 +1,6 @@
+import re
+import time
+import pytest
 from playwright.sync_api import expect
 from tests.test_ui_e2e import browser_page, live_server
 
@@ -53,14 +56,22 @@ def test_seniority_checkboxes_save_draft_and_empty_selection(browser_page):
     assert not errors
 
 
-def test_onboarding_seniority_round_trip_and_empty_selection(browser_page):
+@pytest.mark.parametrize('save_delay', [0, 0.2])
+def test_onboarding_seniority_round_trip_and_empty_selection(browser_page, save_delay):
     page, errors = browser_page
     url = page.url.rstrip('/')
     _prepare(page, url)
+    def delayed_profile(route):
+        if route.request.method == 'PATCH':
+            time.sleep(save_delay)
+        route.continue_()
+    page.route('**/api/profile', delayed_profile)
     page.evaluate('openOnboarding(true)')
     page.locator('[data-ob-track]').first.click()
-    for _ in range(3):
+    expect(page.locator('#onboarding-title')).to_have_text('נכיר את הניסיון שלך')
+    for title in ('זה מה שמילאנו עבורך', 'מה באמת מייצג אותך?', 'נחדד את החיפוש'):
         page.locator('#onboarding-next').click()
+        expect(page.locator('#onboarding-title')).to_have_text(title)
     expect(page.locator('#onboarding-title')).to_have_text('נחדד את החיפוש')
     junior = page.locator('[data-ob-choice="seniority"][data-value="junior"]')
     unknown = page.locator('[data-ob-choice="seniority"][data-value="unknown"]')
@@ -71,10 +82,15 @@ def test_onboarding_seniority_round_trip_and_empty_selection(browser_page):
             control.click()
     assert page.request.get(url + '/api/profile').json()['seniority_levels'] == []
     page.locator('#onboarding-next').click()
+    expect(page.locator('#onboarding-content')).to_have_class(re.compile('onboarding-step-review'))
     page.locator('#onboarding-back').click()
+    expect(page.locator('#onboarding-title')).to_have_text('נחדד את החיפוש')
     assert page.locator('[data-ob-choice="seniority"].selected').count() == 0
-    with page.expect_response(lambda r: r.url.endswith('/api/profile') and r.request.method == 'PATCH'):
+    with page.expect_response(lambda r: r.url.endswith('/api/profile') and r.request.method == 'PATCH'
+                              and r.request.post_data_json.get('seniority_levels') == ['unknown']) as saved_response:
         unknown.click()
+    assert saved_response.value.ok
+    assert saved_response.value.json()['seniority_levels'] == ['unknown']
     assert page.request.get(url + '/api/profile').json()['seniority_levels'] == ['unknown']
     expect(page.locator('#ob-keywords-extra')).to_have_value('infrastructure')
     expect(page.locator('#ob-excluded-extra')).to_have_value('sales')

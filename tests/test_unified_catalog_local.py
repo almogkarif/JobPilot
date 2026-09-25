@@ -18,6 +18,10 @@ from test_canonical_postgres import postgres_cluster  # noqa: F401 - shared isol
 
 @pytest.fixture(params=['sqlite', 'postgresql'])
 def preview_db(monkeypatch, tmp_path, request):
+    from app import main
+    # Preview scans use one shared status entry. Keep it scoped to this fixture
+    # so later legacy-mode tests do not inherit a different status structure.
+    monkeypatch.setattr(main, 'scan_states_by_user', {})
     monkeypatch.setattr(settings, 'unified_catalog_preview', True)
     monkeypatch.setattr(settings, 'auth_mode', 'local')
     # Every DB dependency is explicitly bound to a disposable test engine.

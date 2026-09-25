@@ -34,6 +34,18 @@ jobs:
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
 
+      - name: Enable local PostgreSQL integration tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          postgres_bin=""
+          for executable in /usr/lib/postgresql/*/bin/initdb; do
+            if [ -x "$executable" ]; then postgres_bin="${executable%/initdb}"; fi
+          done
+          test -x "$postgres_bin/initdb"
+          test -x "$postgres_bin/pg_ctl"
+          echo "JOBPILOT_TEST_POSTGRES_BIN=$postgres_bin" >> "$GITHUB_ENV"
+
       - name: Run test suite
         run: python -m pytest -q --ignore=tests/test_agent_browser_flow.py
 
