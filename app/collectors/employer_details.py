@@ -10,6 +10,8 @@ from ..services.job_text import clean_job_text
 def _domestic_board_location(company: str, location: str) -> str:
     # These are explicit location-field labels observed on the domestic boards;
     # never infer a vacancy's country from footer text or the employer's address.
+    if company == 'Retym' and location == 'Ramat-Gan (Tel-Aviv area)':
+        return 'Ramat Gan, Israel'
     labels = {
         'Mekorot': {'מרכז, עין שמר', 'דרום, אשקלון', 'שפלה, אחיסמך', 'דרום, אילת',
                     'צפון, אתר אשכול (חנתון)', 'דרום, שדרות', 'מרכז, מתקן השפד"ן'},
@@ -30,6 +32,20 @@ def employer_job_detail(soup: BeautifulSoup, company: str, *, external_id: str =
     if company == 'Speedata':
         body = soup.select_one('main')
         heading = body.select_one('h1,h2') if body else None
+    elif company == 'Retym':
+        body = soup.select_one('.comeet-position-info')
+        heading = soup.select_one('.comeet-position-name')
+        location_node = soup.select_one('.comeet-position-location')
+        advertised_ids = []
+        for node in soup.select('meta[property="og:url"]'):
+            advertised = urlsplit(str(node.get('content') or ''))
+            match = re.search(r'/careers-2/co/[^/]+/([A-Za-z0-9]{2,3}\.[A-Za-z0-9]{3})/', advertised.path)
+            if advertised.hostname in {'retym.com', 'www.retym.com'} and match:
+                advertised_ids.append(match.group(1))
+        if (not external_id or external_id not in advertised_ids
+                or not location_node or not body or not body.select_one('.comeet-position-requirements')):
+            return None
+        location = location_node.get_text(' ', strip=True)
     elif company == 'Island':
         body = soup.select_one('.career_content-right')
         heading = soup.select_one('h1.h2')

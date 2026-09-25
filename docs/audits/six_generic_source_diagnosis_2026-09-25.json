@@ -1,0 +1,85 @@
+{
+  "checked_at": "2026-09-25T15:25:57.626484+00:00",
+  "scope": "Public HTTP only; no browser or database; maximum3 concurrent requests,4MBresponse cap,30secondstimeout,4redirectmaximum. Thirteen logicalrequests incloneWorkdayPOSTsearch. Counts snapshotonly. HTTP200 is not proof of healthy extraction.",
+  "sources": [
+    {
+      "identifier": "scd",
+      "url": "https://scdusa-ir.com/find-a-job/",
+      "final_url": "https://scdusa-ir.com/find-a-job/",
+      "http_status": 200,
+      "bytes": 131680,
+      "diagnosis": "invalid_category_rows_wrong_regional_board",
+      "cause": "Generic links select eight department/category pages; official page contains three inline roles, while the linked global page describes USA operations. No Israel vacancy verified.",
+      "next_step": "Use the actual Israel employer portal once verified; do not label categories or USA-site content as Israel jobs."
+    },
+    {
+      "identifier": "flex-israel",
+      "url": "https://flex.com/careers/israel-en",
+      "final_url": "https://flex.com/careers/israel-en",
+      "http_status": 200,
+      "bytes": 302482,
+      "diagnosis": "wrong_extraction_target",
+      "cause": "Israel careers landing page has language-navigation links, not vacancy cards. Its Search jobs CTA explicitly links Flextronics Workday Careers with an Israel country filter.",
+      "next_step": "Use officially linked Workday feed under retained source identity. One direct public API probe returned400; adapter request contract still needs verification.",
+      "official_link": "https://flextronics.wd1.myworkdayjobs.com/en-US/Careers?Location_Country=084562884af243748dad7c84c304d89a"
+    },
+    {
+      "identifier": "siemens-eda",
+      "url": "https://www.siemens.com/en-us/company/jobs/",
+      "final_url": "https://www.siemens.com/en-us/company/jobs/",
+      "http_status": 200,
+      "bytes": 245177,
+      "diagnosis": "wrong_extraction_target",
+      "cause": "Corporate careers-information links are being parsed as jobs. Official Explore all jobs opens jobs.siemens.com; Israel search visibly contains genuine JobDetail links.",
+      "next_step": "Build bounded ATS result/detail parser; do not treat general careers content as vacancies.",
+      "official_link": "https://jobs.siemens.com/en_US/externaljobs",
+      "verified_search": "https://jobs.siemens.com/en_US/externaljobs/SearchJobs?search=Israel"
+    },
+    {
+      "identifier": "nova",
+      "url": "https://www.novami.com/career",
+      "final_url": "https://www.novami.com/career",
+      "http_status": 403,
+      "bytes": 146,
+      "diagnosis": "invalid_asset_rows_and_current_http403",
+      "cause": "Earlier parser returned JSON/CSS asset URLs. Independent primary-page request now returned403; no bypass attempted, so current vacancies remain unverified.",
+      "next_step": "Exclude assets from candidates, then verify actual employer job feed when public access succeeds."
+    },
+    {
+      "identifier": "retym",
+      "url": "https://retym.com/careers-2/",
+      "final_url": "https://retym.com/careers-2/",
+      "http_status": 200,
+      "bytes": 367347,
+      "diagnosis": "id_collision_and_missing_card_location",
+      "cause": "Regex captures the location slug, collapsing35 unique Comeet vacancies into4 groups. Fifteen genuine cards sit under explicit Ramat-Gan(Tel-Avivarea) heading; verified sample detail has full requirements.",
+      "next_step": "Extract actual Comeet job ID, bind location to its group/detail header, hydrate full job sections with bounds. Keep partialsnapshot for identity transition.",
+      "visible_roles": 35,
+      "explicit_israel_roles": 15,
+      "sample_url": "https://retym.com/careers-2/co/ramat-gan-tel-aviv-area/67.051/analog-design-engineer/all/",
+      "sample_location": "Ramat-Gan (Tel-Aviv area)",
+      "verified_normalized_sample_location": "Ramat Gan, Israel"
+    },
+    {
+      "identifier": "speedata",
+      "url": "https://www.speedata.io/careers-1",
+      "final_url": "https://www.speedata.io/careers-1",
+      "http_status": 200,
+      "bytes": 837605,
+      "diagnosis": "listing_location_lost_during_hydration",
+      "cause": "Seven listing cards explicitly show Israel. Sample detailed AlgorithmEngineer page omits location; hydration replaces listingtext so the explicit per-card country is lost.",
+      "next_step": "Preserve card-local location before hydration; never infer from pagefooter. Keep partialsnapshot.",
+      "visible_roles": 7,
+      "explicit_israel_roles": 7,
+      "sample_url": "https://www.speedata.io/careers/algorithm-engineer",
+      "sample_location": "Israel (listing card)",
+      "remaining_exclusion": {
+        "url": "https://www.speedata.io/careers/senior-sw-engineer-%5Bcodegen%5D",
+        "http_status": 200,
+        "canonical": "https://www.speedata.io/careers/senior-sw-engineer-[codegen]",
+        "full_detail_characters": 1882,
+        "reason": "Strict canonical-ID comparison rejects equivalent percent-encoded brackets; parser defect, not missing/closed job. Not fixed in this bounded follow-up."
+      }
+    }
+  ]
+}

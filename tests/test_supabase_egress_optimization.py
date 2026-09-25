@@ -585,7 +585,7 @@ def test_content_recovery_collectors_are_bounded_without_database_backfill():
     from app.collectors.official import PRESETS
     from app.collectors import globale_detail, matrix_detail
 
-    limits = {'speedata': 40, 'microsoft': 80, 'texas-instruments': 40,
+    limits = {'retym': 40, 'speedata': 40, 'microsoft': 80, 'texas-instruments': 40,
               'philips': 40, 'island': 40, 'mobileye': 180, 'rafael': 180}
     for key, maximum in limits.items():
         assert PRESETS[key]['max_detail_jobs'] <= maximum

@@ -64,6 +64,18 @@ def test_detail_redirect_cannot_replace_job_with_different_job(monkeypatch):
     assert rows[0]['title'] == 'Old title'
 
 
+@pytest.mark.parametrize('canonical_id, accepted', [
+    ('compiler-[codegen]', True),
+    ('different-[codegen]', False),
+])
+def test_detail_canonical_identity_allows_equivalent_url_encoding(monkeypatch, canonical_id, accepted):
+    rows = hydrate(monkeypatch, 'speedata',
+        f'<link rel="canonical" href="https://www.speedata.io/careers/{canonical_id}">'
+        f'<main><h2>Compiler Engineer</h2><p>{DETAIL}</p></main>',
+        url='https://www.speedata.io/careers/compiler-%5Bcodegen%5D')
+    assert bool(rows[0].get('_detail_complete')) is accepted
+
+
 def test_ti_api_includes_external_qualifications_not_internal_notes(monkeypatch):
     payload = json.dumps({'items': [{'Id': '123', 'Title': 'Engineer', 'PrimaryLocation': 'Israel', 'ExternalDescriptionStr': DETAIL, 'ExternalQualificationsStr': 'M.Sc. Electrical Engineering required', 'InternalQualificationsStr': 'Internal-only notes'}]})
     rows = hydrate(monkeypatch, 'texas-instruments', payload)

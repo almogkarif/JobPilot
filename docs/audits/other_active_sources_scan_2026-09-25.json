@@ -1,0 +1,2602 @@
+{
+  "checked_at": "2026-09-25T15:15:29.763038+00:00",
+  "scope": "Public HTTP-only check of every other enabled source definition plus retained Optimove official source. Browser fallback explicitly disabled; browser-dependent failures are not production failure proofs. No database access; 3 concurrent feeds;90s/feed.",
+  "sources": [
+    {
+      "kind": "google_careers",
+      "identifier": "israel",
+      "name": "Google — Hardware Israel",
+      "checked_at": "2026-09-25T15:13:27.898982+00:00",
+      "collected": 20,
+      "israel": 20,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 20,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Embedded Firmware Engineer, DSP, Google Cloud",
+          "url": "https://www.google.com/about/careers/applications/jobs/results/72893091396100806-senior-embedded-firmware-engineer-dsp-google-cloud",
+          "location": "Tel Aviv, Israel; Haifa, Israel"
+        },
+        {
+          "title": "Senior CAD Infra Engineer",
+          "url": "https://www.google.com/about/careers/applications/jobs/results/88824357752578758-senior-cad-infra-engineer",
+          "location": "Tel Aviv, Israel; Haifa, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "apple",
+      "name": "Apple — Hardware Israel",
+      "checked_at": "2026-09-25T15:13:27.899003+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "amazon",
+      "name": "Amazon — Annapurna Labs Israel",
+      "checked_at": "2026-09-25T15:13:27.899011+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "workday",
+      "identifier": "nvidia",
+      "name": "NVIDIA — Hardware Israel",
+      "checked_at": "2026-09-25T15:13:27.903973+00:00",
+      "collected": 40,
+      "israel": 40,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 40,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Silicon Security Architect",
+          "url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel-Yokneam/Senior-Silicon-Security-Architect_JR2017969",
+          "location": "Israel, Yokneam"
+        },
+        {
+          "title": "Senior Security Architect",
+          "url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel-Tel-Aviv/Senior-Security-Architect_JR2018353",
+          "location": "Israel, Tel Aviv"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "workday",
+      "identifier": "intel",
+      "name": "Intel — Hardware & Silicon Israel",
+      "checked_at": "2026-09-25T15:13:27.904015+00:00",
+      "collected": 21,
+      "israel": 21,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 21,
+      "error": "",
+      "samples": [
+        {
+          "title": "CPU Circuit Design Engineer",
+          "url": "https://intel.wd1.myworkdayjobs.com/External/job/Israel-Haifa/CPU-Circuit-Design-Engineer_JR0283142",
+          "location": "Israel, Haifa"
+        },
+        {
+          "title": "Power Management Firmware Architect",
+          "url": "https://intel.wd1.myworkdayjobs.com/External/job/Israel-Petah-Tikva/Power-Management-Firmware-Architect_JR0285320",
+          "location": "Israel, Petah-Tikva"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "microsoft",
+      "name": "Microsoft — Silicon Israel",
+      "checked_at": "2026-09-25T15:13:30.260132+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "smartrecruiters",
+      "identifier": "CheckPointSoftwareTechnologies2",
+      "name": "Check Point — Operations",
+      "checked_at": "2026-09-25T15:13:30.260308+00:00",
+      "collected": 101,
+      "israel": 101,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 101,
+      "error": "",
+      "samples": [
+        {
+          "title": "Security Software Engineer — Container Network Security",
+          "url": "https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/744000151664219-security-software-engineer-container-network-security?oga=true",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel"
+        },
+        {
+          "title": "Versatile Software Developer – WAF Capabilities",
+          "url": "https://jobs.smartrecruiters.com/CheckPointSoftwareTechnologies2/744000151559419-versatile-software-developer-waf-capabilities?oga=true",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "paloalto",
+      "name": "Palo Alto Networks Israel",
+      "checked_at": "2026-09-25T15:13:31.904324+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "wix",
+      "name": "Wix — Operations & Analytics",
+      "checked_at": "2026-09-25T15:13:31.914439+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "monday",
+      "name": "monday.com — Operations & Analytics",
+      "checked_at": "2026-09-25T15:13:31.919447+00:00",
+      "collected": 10,
+      "israel": 5,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 10,
+      "error": "",
+      "samples": [
+        {
+          "title": "Agent Engineer, Luna",
+          "url": "https://monday.com/careers/0b0b653c-2d75-4bbb-aea1-1a805620b740",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "AI Enablement Solutions Manager",
+          "url": "https://monday.com/careers/90467078-1be0-4714-94ca-4ae521b3675e",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "cisco",
+      "name": "Cisco — Silicon & Hardware Israel",
+      "checked_at": "2026-09-25T15:13:32.905734+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ibm",
+      "name": "IBM Careers Israel",
+      "checked_at": "2026-09-25T15:13:32.905914+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: IBM temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "salesforce",
+      "name": "Salesforce Israel — Business Operations",
+      "checked_at": "2026-09-25T15:13:32.906041+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Salesforce temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "meta",
+      "name": "Meta Careers Israel",
+      "checked_at": "2026-09-25T15:13:34.186758+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Meta temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "qualcomm",
+      "name": "Qualcomm — Hardware Israel",
+      "checked_at": "2026-09-25T15:13:34.187178+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "samsung",
+      "name": "Samsung Research Israel — Hardware",
+      "checked_at": "2026-09-25T15:13:34.187399+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "workday",
+      "identifier": "applied-materials",
+      "name": "Applied Materials — Electrical & Hardware",
+      "checked_at": "2026-09-25T15:13:34.187582+00:00",
+      "collected": 40,
+      "israel": 40,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 40,
+      "error": "",
+      "samples": [
+        {
+          "title": "Talent Acquisition Partner- Temp Position",
+          "url": "https://amat.wd1.myworkdayjobs.com/External/job/RehovotISR/Talent-Acquisition-Partner--Temp-Position_R2628424",
+          "location": "Rehovot, Israel"
+        },
+        {
+          "title": "System Integration Engineer",
+          "url": "https://amat.wd1.myworkdayjobs.com/External/job/RehovotISR/System-Integration-Engineer_R2612347",
+          "location": "Rehovot, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "philips",
+      "name": "Philips Israel — Operations",
+      "checked_at": "2026-09-25T15:13:35.442177+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "elbit",
+      "name": "Elbit Systems — Electrical Engineering",
+      "checked_at": "2026-09-25T15:13:35.442973+00:00",
+      "collected": 579,
+      "israel": 545,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 579,
+      "error": "",
+      "samples": [
+        {
+          "title": "חרט.ת",
+          "url": "https://elbitsystemscareer.com/job/?jid=20548",
+          "location": "Be'er Sheva, Israel"
+        },
+        {
+          "title": "מוביל.ה לתפקיד אסטרטגי באגף הביקורת",
+          "url": "https://elbitsystemscareer.com/job/?jid=20622",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "rafael",
+      "name": "Rafael — Electrical Engineering",
+      "checked_at": "2026-09-25T15:13:37.363343+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Rafael temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "iai",
+      "name": "IAI — Electrical Engineering",
+      "checked_at": "2026-09-25T15:13:37.444659+00:00",
+      "collected": 518,
+      "israel": 513,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 518,
+      "error": "",
+      "samples": [
+        {
+          "title": "ראש/ת מנהל תקשורת שיווקית וקשרי לקוחות",
+          "url": "https://jobs.iai.co.il/job/76050151/",
+          "location": "Ben Gurion Airport, Israel"
+        },
+        {
+          "title": "ראש/ת תחום תכנון ובקרה רכש",
+          "url": "https://jobs.iai.co.il/job/76050130/",
+          "location": "Ben Gurion Airport, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "smartrecruiters",
+      "identifier": "Cyberark1",
+      "name": "CyberArk — Business Operations",
+      "checked_at": "2026-09-25T15:13:38.588772+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "smartrecruiters",
+      "identifier": "ServiceNow",
+      "name": "ServiceNow — Business & Engineering Israel",
+      "checked_at": "2026-09-25T15:13:38.757266+00:00",
+      "collected": 11,
+      "israel": 11,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 11,
+      "error": "",
+      "samples": [
+        {
+          "title": "Sr Staff Product Manager (Armis)",
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151651323-sr-staff-product-manager-armis-?oga=true",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel"
+        },
+        {
+          "title": "Data Operations Team Lead (Armis)",
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151647220-data-operations-team-lead-armis-?oga=true",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "aqua",
+      "name": "Aqua Security Careers",
+      "checked_at": "2026-09-25T15:13:38.881334+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "sunflower",
+      "name": "Sunflower — Business & Operations Israel",
+      "checked_at": "2026-09-25T15:13:38.881612+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Sunflower temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "moonactive",
+      "name": "Moon Active — Product & Operations Israel",
+      "checked_at": "2026-09-25T15:13:39.797035+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Moon Active temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "claroty",
+      "name": "Claroty — Revenue & Business Operations Israel",
+      "checked_at": "2026-09-25T15:13:40.175743+00:00",
+      "collected": 24,
+      "israel": 10,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 24,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Platform- Software Engineer Team Leader",
+          "url": "https://www.comeet.com/jobs/Claroty/F2.004/ai-platform--software-engineer-team-leader/CE.079",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Backend Software Engineer",
+          "url": "https://www.comeet.com/jobs/Claroty/F2.004/backend-software-engineer/55.278",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "vastdata",
+      "name": "VAST Data — Hardware Israel",
+      "checked_at": "2026-09-25T15:13:40.496007+00:00",
+      "collected": 160,
+      "israel": 20,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 158,
+      "error": "",
+      "samples": [
+        {
+          "title": "Cloud FinOps Engineer",
+          "url": "https://www.comeet.com/jobs/vastdata/43.001/cloud-finops-engineer/5A.66C",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Cloud Senior software Engineer",
+          "url": "https://www.comeet.com/jobs/vastdata/43.001/cloud-senior-software-engineer/DB.366",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "gloat",
+      "name": "Gloat — Product & Business Operations Israel",
+      "checked_at": "2026-09-25T15:13:40.569870+00:00",
+      "collected": 5,
+      "israel": 5,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 5,
+      "error": "",
+      "samples": [
+        {
+          "title": "Devops Engineer",
+          "url": "https://www.comeet.com/jobs/gloat/E5.000/devops-engineer/4F.276",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Growth Marketing Lead (AI-Native)",
+          "url": "https://www.comeet.com/jobs/gloat/E5.000/growth-marketing-lead-ai-native/14.E64",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "silverfort",
+      "name": "Silverfort — Business Operations Israel",
+      "checked_at": "2026-09-25T15:13:42.935410+00:00",
+      "collected": 35,
+      "israel": 11,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 35,
+      "error": "",
+      "samples": [
+        {
+          "title": "DevOps Platform Engineer",
+          "url": "https://www.comeet.com/jobs/silverfort/54.007/devops-platform-engineer/72.E6C",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Enterprise Applications Engineer (Maternity Cover)",
+          "url": "https://www.comeet.com/jobs/silverfort/54.007/enterprise-applications-engineer-maternity-cover/4E.E67",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "4manalytics",
+      "name": "4M Analytics Careers Israel",
+      "checked_at": "2026-09-25T15:13:43.312062+00:00",
+      "collected": 8,
+      "israel": 4,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 8,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior HR Business Partner",
+          "url": "https://www.comeet.com/jobs/4Manalytics/B6.00F/senior-hr-business-partner/C9.B6E",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Software Engineer, Data Core",
+          "url": "https://www.comeet.com/jobs/4Manalytics/B6.00F/software-engineer-data-core/AD.C69",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "exodigo",
+      "name": "Exodigo — Hardware & Systems Israel",
+      "checked_at": "2026-09-25T15:13:44.235781+00:00",
+      "collected": 59,
+      "israel": 13,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 59,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Algorithms Engineer",
+          "url": "https://www.comeet.com/jobs/exodigo/89.005/ai-algorithms-engineer/9E.074",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Algorithm Developer",
+          "url": "https://www.comeet.com/jobs/exodigo/89.005/algorithm-developer/EF.273",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "paragon",
+      "name": "Paragon Careers Israel",
+      "checked_at": "2026-09-25T15:13:49.075064+00:00",
+      "collected": 24,
+      "israel": 23,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 24,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Engineer",
+          "url": "https://www.comeet.com/jobs/paragon/76.006/ai-engineer/8B.A66",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "AI Research Scientist",
+          "url": "https://www.comeet.com/jobs/paragon/76.006/ai-research-scientist/9F.C6C",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "legitsecurity",
+      "name": "Legit Security Careers Israel",
+      "checked_at": "2026-09-25T15:13:56.081300+00:00",
+      "collected": 9,
+      "israel": 5,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 9,
+      "error": "",
+      "samples": [
+        {
+          "title": "Engineering Tech Lead",
+          "url": "https://www.comeet.com/jobs/legitsecurity.com/37.004/engineering-tech-lead/6B.D6B",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Head of Engineering",
+          "url": "https://www.comeet.com/jobs/legitsecurity.com/37.004/head-of-engineering/93.276",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "voyantis",
+      "name": "Voyantis Careers Israel",
+      "checked_at": "2026-09-25T15:13:59.898361+00:00",
+      "collected": 9,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 9,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI-native Software Engineer",
+          "url": "https://www.comeet.com/jobs/voyantis/86.00B/ai-native-software-engineer/89.E6C",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Data Analyst",
+          "url": "https://www.comeet.com/jobs/voyantis/86.00B/data-analyst/F5.27C",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "arbe",
+      "name": "Arbe Robotics — Israel",
+      "checked_at": "2026-09-25T15:14:00.428191+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Arbe Robotics temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "playtika",
+      "name": "Playtika — IEM Israel",
+      "checked_at": "2026-09-25T15:14:01.106956+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Playtika did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "fiverr",
+      "name": "Fiverr — IEM Israel",
+      "checked_at": "2026-09-25T15:14:01.417141+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Fiverr did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ministry-of-defense-il",
+      "name": "משרד הביטחון — EE Israel",
+      "checked_at": "2026-09-25T15:14:02.126777+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: משרד הביטחון did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "tower-semiconductor",
+      "name": "Tower Semiconductor — EE Israel",
+      "checked_at": "2026-09-25T15:14:02.700831+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Tower Semiconductor did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "icl",
+      "name": "ICL — EE Israel",
+      "checked_at": "2026-09-25T15:14:03.375116+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: ICL did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "teva",
+      "name": "Teva — EE Israel",
+      "checked_at": "2026-09-25T15:14:03.710764+00:00",
+      "collected": 10,
+      "israel": 10,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 10,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Director, Strategy Office & Transformation",
+          "url": "https://www.careers.teva/careers/job/563602813530788",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Manager, GCO Systems and Automation PM",
+          "url": "https://www.careers.teva/careers/job/563602813525481",
+          "location": "Netanya, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "strauss",
+      "name": "Strauss Group — EE Israel",
+      "checked_at": "2026-09-25T15:14:04.330422+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Strauss Group did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "osem-nestle",
+      "name": "Osem-Nestle — EE Israel",
+      "checked_at": "2026-09-25T15:14:05.285478+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Osem-Nestle did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "cocacola-israel",
+      "name": "החברה המרכזית למשקאות — EE Israel",
+      "checked_at": "2026-09-25T15:14:06.073869+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: החברה המרכזית למשקאות did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "fox-group",
+      "name": "Fox Group — IEM Israel",
+      "checked_at": "2026-09-25T15:14:06.220290+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Fox Group did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "shufersal",
+      "name": "Shufersal — IEM Israel",
+      "checked_at": "2026-09-25T15:14:06.336956+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Shufersal did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "super-pharm",
+      "name": "Super-Pharm — IEM Israel",
+      "checked_at": "2026-09-25T15:14:06.462574+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Super-Pharm did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "deloitte-israel",
+      "name": "Deloitte Israel — IEM Israel",
+      "checked_at": "2026-09-25T15:14:07.054438+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Deloitte Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ey-israel",
+      "name": "EY Israel — IEM Israel",
+      "checked_at": "2026-09-25T15:14:09.975984+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: EY Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "pwc-israel",
+      "name": "PwC Israel — IEM Israel",
+      "checked_at": "2026-09-25T15:14:10.078275+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: PwC Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "kpmg-israel",
+      "name": "KPMG Israel — IEM Israel",
+      "checked_at": "2026-09-25T15:14:10.484919+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: KPMG Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ness-israel",
+      "name": "Ness — EE Israel",
+      "checked_at": "2026-09-25T15:14:10.499768+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Ness did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "matrix-israel",
+      "name": "Matrix — EE Israel",
+      "checked_at": "2026-09-25T15:14:11.098415+00:00",
+      "collected": 100,
+      "israel": 25,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 100,
+      "error": "",
+      "samples": [
+        {
+          "title": "מפתח/ת RPA",
+          "url": "https://www.matrix.co.il/jobs/משרה/%d7%9e%d7%a4%d7%aa%d7%97%d7%aa-rpa2/",
+          "location": "Haifa, Israel"
+        },
+        {
+          "title": "מהנדס/ת DevOps & SRE",
+          "url": "https://www.matrix.co.il/jobs/משרה/%d7%9e%d7%94%d7%a0%d7%93%d7%a1%d7%aa-devops-sre/",
+          "location": "Haifa, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "malam-team",
+      "name": "Malam Team — EE Israel",
+      "checked_at": "2026-09-25T15:14:11.357858+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Malam Team did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "one-technologies",
+      "name": "ONE Technologies — EE Israel",
+      "checked_at": "2026-09-25T15:14:11.483892+00:00",
+      "collected": 10,
+      "israel": 10,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 10,
+      "error": "",
+      "samples": [
+        {
+          "title": "לארגון ביטחוני דרוש/ה מפתח/ת DevOps (NM27673)",
+          "url": "https://www.one1.co.il/?share_job_id=3568",
+          "location": "Yavne, Israel"
+        },
+        {
+          "title": "דרוש/ה איש/אשת בדיקות תוכנה (QA) – CRM Dynamics לארגון מוביל במרכז!",
+          "url": "https://www.one1.co.il/?share_job_id=3567",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "elad-systems",
+      "name": "Elad Systems — IEM Israel",
+      "checked_at": "2026-09-25T15:14:11.639988+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Elad Systems did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "israel-post",
+      "name": "Israel Post — IEM Israel",
+      "checked_at": "2026-09-25T15:14:13.232807+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Israel Post did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ups-israel",
+      "name": "UPS — IEM Israel",
+      "checked_at": "2026-09-25T15:14:13.988074+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: UPS did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "dhl-israel",
+      "name": "DHL — IEM Israel",
+      "checked_at": "2026-09-25T15:14:15.174341+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: DHL did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "israel-railways",
+      "name": "Israel Railways — EE Israel",
+      "checked_at": "2026-09-25T15:14:15.952104+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Israel Railways did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ashdod-port",
+      "name": "Ashdod Port — EE Israel",
+      "checked_at": "2026-09-25T15:14:16.180114+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Ashdod Port did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "haifa-port",
+      "name": "Haifa Port — EE Israel",
+      "checked_at": "2026-09-25T15:14:16.695015+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Haifa Port did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "bank-leumi",
+      "name": "Bank Leumi — IEM Israel",
+      "checked_at": "2026-09-25T15:14:16.772410+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Bank Leumi did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "bank-hapoalim",
+      "name": "Bank Hapoalim — IEM Israel",
+      "checked_at": "2026-09-25T15:14:17.479031+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Bank Hapoalim did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "discount-bank",
+      "name": "Israel Discount Bank — IEM Israel",
+      "checked_at": "2026-09-25T15:14:19.731956+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Israel Discount Bank did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "cal",
+      "name": "Cal — IEM Israel",
+      "checked_at": "2026-09-25T15:14:19.922179+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Cal did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "max",
+      "name": "Max — IEM Israel",
+      "checked_at": "2026-09-25T15:14:20.219957+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Max did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "isracard",
+      "name": "Isracard — IEM Israel",
+      "checked_at": "2026-09-25T15:14:20.400448+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Isracard did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "harel",
+      "name": "Harel — IEM Israel",
+      "checked_at": "2026-09-25T15:14:20.929317+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Harel did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "phoenix",
+      "name": "The Phoenix — IEM Israel",
+      "checked_at": "2026-09-25T15:14:21.165518+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: The Phoenix did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "migdal",
+      "name": "Migdal — IEM Israel",
+      "checked_at": "2026-09-25T15:14:22.048757+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Migdal did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "clalit",
+      "name": "Clalit — IEM Israel",
+      "checked_at": "2026-09-25T15:14:24.748239+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Clalit did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "maccabi-health",
+      "name": "Maccabi Healthcare — IEM Israel",
+      "checked_at": "2026-09-25T15:14:26.644136+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Maccabi Healthcare did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "sheba",
+      "name": "Sheba Medical Center — EE Israel",
+      "checked_at": "2026-09-25T15:14:27.633972+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Sheba Medical Center did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ichilov",
+      "name": "Ichilov Medical Center — EE Israel",
+      "checked_at": "2026-09-25T15:14:28.092777+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Ichilov Medical Center did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "rapyd",
+      "name": "Rapyd Careers Israel",
+      "checked_at": "2026-09-25T15:14:28.136468+00:00",
+      "collected": 32,
+      "israel": 16,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 32,
+      "error": "",
+      "samples": [
+        {
+          "title": "Compliance Operations Expert - Infra",
+          "url": "https://www.comeet.com/jobs/rapyd/73.00E/compliance-operations-expert---infra/6C.27F",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Controller",
+          "url": "https://www.comeet.com/jobs/rapyd/73.00E/controller/4D.A49",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "tipalti",
+      "name": "Tipalti Careers Israel",
+      "checked_at": "2026-09-25T15:14:28.804282+00:00",
+      "collected": 21,
+      "israel": 6,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 21,
+      "error": "",
+      "samples": [
+        {
+          "title": "Applied AI Scientist",
+          "url": "https://tipalti.com/jobs/?gh_jid=6201950004",
+          "location": "Tel Aviv District, Israel"
+        },
+        {
+          "title": "Director of Product Management",
+          "url": "https://tipalti.com/jobs/?gh_jid=6186950004",
+          "location": "Tel Aviv District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "guesty",
+      "name": "Guesty Careers Israel",
+      "checked_at": "2026-09-25T15:14:29.311101+00:00",
+      "collected": 19,
+      "israel": 3,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 19,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director of CX Operations",
+          "url": "https://www.comeet.com/jobs/guesty/10.000/director-of-cx-operations/13.275",
+          "location": "Israel"
+        },
+        {
+          "title": "Head of Finance Applications",
+          "url": "https://www.comeet.com/jobs/guesty/10.000/head-of-finance-applications/0D.F6D",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "papaya-global",
+      "name": "Papaya Global Careers Israel",
+      "checked_at": "2026-09-25T15:14:29.500071+00:00",
+      "collected": 53,
+      "israel": 6,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 53,
+      "error": "",
+      "samples": [
+        {
+          "title": "Key Account Manager",
+          "url": "https://www.comeet.com/jobs/papayaglobal/16.005/key-account-manager/23.C6E-90.207",
+          "location": "Herzliya, Israel"
+        },
+        {
+          "title": "Payroll Accountant (Maternity Leave Replacement)",
+          "url": "https://www.comeet.com/jobs/papayaglobal/16.005/payroll-accountant-maternity-leave-replacement/56.071",
+          "location": "Herzliya, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "hibob",
+      "name": "HiBob Careers Israel",
+      "checked_at": "2026-09-25T15:14:29.500101+00:00",
+      "collected": 79,
+      "israel": 19,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 79,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior IT Platform Engineer",
+          "url": "https://hibob-fa0ad69d0cb34a.careers.hibob.com/jobs/96c4f519-f64b-4a99-941f-8e2ca79e004c",
+          "location": "IL, Israel"
+        },
+        {
+          "title": "Finance Applications Product Manager",
+          "url": "https://hibob-fa0ad69d0cb34a.careers.hibob.com/jobs/e41aa061-751d-436f-a34c-d8f7bb65cb57",
+          "location": "IL, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "fundbox",
+      "name": "Fundbox Careers Israel",
+      "checked_at": "2026-09-25T15:14:30.649344+00:00",
+      "collected": 3,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 3,
+      "error": "",
+      "samples": [
+        {
+          "title": "Capital Markets Manager",
+          "url": "https://fundbox.careers.hibob.com/jobs/3bd99eb8-2faa-4c18-a5a0-771ed630bcf8",
+          "location": "NY, United States"
+        },
+        {
+          "title": "Instructional Designer",
+          "url": "https://fundbox.careers.hibob.com/jobs/ded5ed69-debe-4821-8098-fdd6f1bce653",
+          "location": "Remote TX, United States"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "pentera",
+      "name": "Pentera Careers Israel",
+      "checked_at": "2026-09-25T15:14:30.906188+00:00",
+      "collected": 23,
+      "israel": 12,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 23,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Security Researcher",
+          "url": "https://www.comeet.com/jobs/pentera/C5.00D/ai-security-researcher/20.376",
+          "location": "Israel"
+        },
+        {
+          "title": "Cloud Product Manager",
+          "url": "https://www.comeet.com/jobs/pentera/C5.00D/cloud-product-manager/3C.179",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "island",
+      "name": "Island Careers Israel",
+      "checked_at": "2026-09-25T15:14:31.020300+00:00",
+      "collected": 37,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 37,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior C++ Engineer",
+          "url": "https://www.island.io/positions/position-6e_d38",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Senior Platform Engineer (DevEx / DevOps)",
+          "url": "https://www.island.io/positions/position-ef_d3b",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "cyera",
+      "name": "Cyera Careers Israel",
+      "checked_at": "2026-09-25T15:14:31.171290+00:00",
+      "collected": 222,
+      "israel": 31,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 222,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Research Team Lead",
+          "url": "https://www.comeet.com/jobs/cyera/17.008/ai-research-team-lead/75.277",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "AI Researcher",
+          "url": "https://www.comeet.com/jobs/cyera/17.008/ai-researcher/2B.D67",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "upwind",
+      "name": "Upwind Careers Israel",
+      "checked_at": "2026-09-25T15:14:31.931670+00:00",
+      "collected": 77,
+      "israel": 18,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 77,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Software Engineer",
+          "url": "https://www.comeet.com/jobs/upwind/49.004/ai-software-engineer/4C.C69",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Backend Software Engineer",
+          "url": "https://www.comeet.com/jobs/upwind/49.004/backend-software-engineer/BA.04A",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "grip-security",
+      "name": "Grip Security Careers Israel",
+      "checked_at": "2026-09-25T15:14:32.495902+00:00",
+      "collected": 2,
+      "israel": 1,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 2,
+      "error": "",
+      "samples": [
+        {
+          "title": "R&D Team Lead",
+          "url": "https://www.comeet.com/jobs/grip/A8.001/rd-team-lead/2B.E5C",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "reco",
+      "name": "Reco Careers Israel",
+      "checked_at": "2026-09-25T15:14:33.416204+00:00",
+      "collected": 3,
+      "israel": 2,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 3,
+      "error": "",
+      "samples": [
+        {
+          "title": "Corporate Controller",
+          "url": "https://www.comeet.com/jobs/reco/3A.00D/corporate-controller/BD.177",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Product Manager",
+          "url": "https://www.comeet.com/jobs/reco/3A.00D/product-manager/74.E58",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "coralogix",
+      "name": "Coralogix Careers Israel",
+      "checked_at": "2026-09-25T15:14:34.532711+00:00",
+      "collected": 46,
+      "israel": 10,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 46,
+      "error": "",
+      "samples": [
+        {
+          "title": "Backend Engineer",
+          "url": "https://www.comeet.com/jobs/coralogix/06.004/backend-engineer/0E.C68",
+          "location": "Ramat Gan, Israel"
+        },
+        {
+          "title": "Director of Engineering Security",
+          "url": "https://www.comeet.com/jobs/coralogix/06.004/director-of-engineering-security/D5.077",
+          "location": "Ramat Gan, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "atera",
+      "name": "Atera Careers Israel",
+      "checked_at": "2026-09-25T15:14:34.593955+00:00",
+      "collected": 8,
+      "israel": 7,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 8,
+      "error": "",
+      "samples": [
+        {
+          "title": "Controller",
+          "url": "https://www.comeet.com/jobs/atera/63.00B/controller/3D.B6A",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Director of Sales",
+          "url": "https://www.comeet.com/jobs/atera/63.00B/director-of-sales/EE.E6C",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "kaltura",
+      "name": "Kaltura Careers Israel",
+      "checked_at": "2026-09-25T15:14:35.280251+00:00",
+      "collected": 25,
+      "israel": 17,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 25,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Engineer",
+          "url": "https://www.comeet.com/jobs/kaltura/E2.00D/ai-engineer/E2.076",
+          "location": "Israel"
+        },
+        {
+          "title": "AI Tech Lead",
+          "url": "https://www.comeet.com/jobs/kaltura/E2.00D/ai-tech-lead/25.F62",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "natural-intelligence",
+      "name": "Natural Intelligence Careers Israel",
+      "checked_at": "2026-09-25T15:14:35.336819+00:00",
+      "collected": 4,
+      "israel": 4,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 4,
+      "error": "",
+      "samples": [
+        {
+          "title": "Business Development Manager",
+          "url": "https://www.comeet.com/jobs/naturalint/71.001/business-development-manager/43.F61",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "HR Director",
+          "url": "https://www.comeet.com/jobs/naturalint/71.001/hr-director/85.F6F",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "etoro",
+      "name": "eToro Careers Israel",
+      "checked_at": "2026-09-25T15:14:35.474441+00:00",
+      "collected": 21,
+      "israel": 4,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 21,
+      "error": "",
+      "samples": [
+        {
+          "title": "Account Manager, Dutch-speaking",
+          "url": "https://www.comeet.com/jobs/etoro/41.009/account-manager-dutch-speaking/5A.D65",
+          "location": "Tel Aviv District, Israel"
+        },
+        {
+          "title": "IT Service Specialist",
+          "url": "https://www.comeet.com/jobs/etoro/41.009/it-service-specialist/95.D6B",
+          "location": "Tel Aviv District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "lemonade",
+      "name": "Lemonade Careers Israel",
+      "checked_at": "2026-09-25T15:14:35.548854+00:00",
+      "collected": 39,
+      "israel": 23,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 39,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Backend Engineer - Platform",
+          "url": "https://makers.lemonade.com/role/senior-backend-engineer--platform-tel-aviv-israel-5a856db7",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Senior Director of Engineering",
+          "url": "https://makers.lemonade.com/role/senior-director-of-engineering-tel-aviv-israel-1d294035",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "earnix",
+      "name": "Earnix Careers Israel",
+      "checked_at": "2026-09-25T15:14:35.597913+00:00",
+      "collected": 13,
+      "israel": 3,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 13,
+      "error": "",
+      "samples": [
+        {
+          "title": "Data Scientist - AI Research",
+          "url": "https://www.comeet.com/jobs/earnix/93.00B/data-scientist---ai-research/D5.D67",
+          "location": "Ramat Gan, Israel"
+        },
+        {
+          "title": "IT Manager",
+          "url": "https://www.comeet.com/jobs/earnix/93.00B/it-manager/A3.D65",
+          "location": "Ramat Gan, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "nayax",
+      "name": "Nayax Careers Israel",
+      "checked_at": "2026-09-25T15:14:36.109790+00:00",
+      "collected": 24,
+      "israel": 5,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 24,
+      "error": "",
+      "samples": [
+        {
+          "title": "Development Team Lead - Nayax Capital",
+          "url": "https://www.comeet.com/jobs/nayax/13.009/development-team-lead---nayax-capital/8D.F65",
+          "location": "Israel"
+        },
+        {
+          "title": "NOC Team Leader",
+          "url": "https://www.comeet.com/jobs/nayax/13.009/noc-team-leader/4D.173",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "global-e",
+      "name": "Global-e Careers Israel",
+      "checked_at": "2026-09-25T15:14:36.173838+00:00",
+      "collected": 32,
+      "israel": 11,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 32,
+      "error": "",
+      "samples": [
+        {
+          "title": "Assistant Controller",
+          "url": "https://www.global-e.com/careers/da-566/",
+          "location": "Petah Tikva, Israel"
+        },
+        {
+          "title": "Commercial Legal Counsel",
+          "url": "https://www.global-e.com/careers/0a-273/",
+          "location": "Petah Tikva, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "priority-software",
+      "name": "Priority Software Careers Israel",
+      "checked_at": "2026-09-25T15:14:36.342288+00:00",
+      "collected": 9,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 9,
+      "error": "",
+      "samples": [
+        {
+          "title": "Level 2 Technical Support Representative (Hospitality)",
+          "url": "https://www.priority-software.com/careers/level-2-technical-support-representative-hospitality/",
+          "location": "Haifa, Israel"
+        },
+        {
+          "title": "Customer Migration Project Manager",
+          "url": "https://www.priority-software.com/careers/customer-migration-project-manager/",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "amdocs",
+      "name": "Amdocs Careers Israel",
+      "checked_at": "2026-09-25T15:14:37.341290+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "unity",
+      "name": "Unity Careers Israel",
+      "checked_at": "2026-09-25T15:14:37.440822+00:00",
+      "collected": 9,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 9,
+      "error": "",
+      "samples": [
+        {
+          "title": "Workplace Experience Coordinator",
+          "url": "https://unitytech.wd1.myworkdayjobs.com/Unity/job/Tel-Aviv-Israel/Workplace-Experience-Coordinator_JOBREQ-2616551",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Senior Data Scientist",
+          "url": "https://unitytech.wd1.myworkdayjobs.com/Unity/job/Tel-Aviv-Israel/Senior-Data-Scientist_JOBREQ-2616456",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "personetics",
+      "name": "Personetics Careers Israel",
+      "checked_at": "2026-09-25T15:14:37.456621+00:00",
+      "collected": 12,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 12,
+      "error": "",
+      "samples": [
+        {
+          "title": "Applied Data Scientist",
+          "url": "https://www.comeet.com/jobs/personetics/83.00A/applied-data-scientist/A0.379",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Business Applications Manager",
+          "url": "https://www.comeet.com/jobs/personetics/83.00A/business-applications-manager/CD.071",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "g-stat",
+      "name": "G-STAT — Data Analyst & BI",
+      "checked_at": "2026-09-25T15:14:37.550073+00:00",
+      "collected": 37,
+      "israel": 37,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 37,
+      "error": "",
+      "samples": [
+        {
+          "title": "Lead Data Engineer - (JB-3211)",
+          "url": "https://g-stat.com/jobs/lead-data-engineer/",
+          "location": "Israel"
+        },
+        {
+          "title": "PMO מנוסה - (JB-3210)",
+          "url": "https://g-stat.com/jobs/pmo-מנוסה/",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "workday",
+      "identifier": "kla-israel",
+      "name": "KLA Israel — Electrical & Systems",
+      "checked_at": "2026-09-25T15:14:37.799231+00:00",
+      "collected": 40,
+      "israel": 40,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 40,
+      "error": "",
+      "samples": [
+        {
+          "title": "Regional Trade Compliance Program Manager",
+          "url": "https://kla.wd1.myworkdayjobs.com/Israel/job/Yavne-Israel/Regional-Trade-Compliance-Program-Manager_2638257",
+          "location": "Yavne, Israel"
+        },
+        {
+          "title": "Optical Practical Engineer",
+          "url": "https://kla.wd1.myworkdayjobs.com/Israel/job/Yavne-Israel/Optical-Integration-Engineer_2635434",
+          "location": "Yavne, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "workday",
+      "identifier": "medtronic",
+      "name": "Medtronic Israel — Operations",
+      "checked_at": "2026-09-25T15:14:38.231346+00:00",
+      "collected": 24,
+      "israel": 24,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 24,
+      "error": "",
+      "samples": [
+        {
+          "title": "Israel Country Director EA & IHS Leader",
+          "url": "https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers/job/Herzliya-Tel-Aviv-Israel/Director-Enterprise-Accounts---Integrated-Health-Solutions--Israel_R66249-1",
+          "location": "Herzliya, Tel Aviv, Israel"
+        },
+        {
+          "title": "Senior Procurement Specialist / Strategic Buyer",
+          "url": "https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers/job/Jerusalem-Jerusalem-Israel/Senior-Strategic-Sourcing-Specialist_R71825-1",
+          "location": "Jerusalem, Jerusalem, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "tefen",
+      "name": "Tefen — IEM Israel",
+      "checked_at": "2026-09-25T15:14:39.842946+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Tefen did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "niram-gitan",
+      "name": "Niram Gitan — IEM Israel",
+      "checked_at": "2026-09-25T15:14:39.956947+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Niram Gitan did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "friedenson",
+      "name": "Fridenson — IEM Israel",
+      "checked_at": "2026-09-25T15:14:40.048946+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Fridenson did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "netafim",
+      "name": "Netafim Careers Israel",
+      "checked_at": "2026-09-25T15:14:41.877187+00:00",
+      "collected": 20,
+      "israel": 2,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 20,
+      "error": "",
+      "samples": [
+        {
+          "title": "Executive Administrative Assistant",
+          "url": "https://careers.netafim.com/jobs/8326939-executive-administrative-assistant",
+          "location": "Israel"
+        },
+        {
+          "title": "קניין/ית רכש תפעולי - Buyer",
+          "url": "https://careers.netafim.com/jobs/8308105-buyer",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "zim",
+      "name": "ZIM Careers Israel",
+      "checked_at": "2026-09-25T15:14:44.060738+00:00",
+      "collected": 73,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 73,
+      "error": "",
+      "samples": [
+        {
+          "title": "Assistant Controller CPA",
+          "url": "https://www.zim.com/careers/job-opportunities/81D6A",
+          "location": "Haifa, Israel"
+        },
+        {
+          "title": "B2B Marketing Specialist",
+          "url": "https://www.zim.com/careers/job-opportunities/4CC61",
+          "location": "Haifa, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "kornit-digital",
+      "name": "Kornit Digital Careers Israel",
+      "checked_at": "2026-09-25T15:14:44.392891+00:00",
+      "collected": 14,
+      "israel": 12,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 14,
+      "error": "",
+      "samples": [
+        {
+          "title": "Chemistry Researcher (9 Months Maternity Leave Replacement)",
+          "url": "https://www.comeet.com/jobs/kornit/11.00F/chemistry-researcher-9-months-maternity-leave-replacement/82.27C",
+          "location": "Israel, Rosh Haayin, Afek Park"
+        },
+        {
+          "title": "Controller",
+          "url": "https://www.comeet.com/jobs/kornit/11.00F/controller/6D.F66",
+          "location": "Israel, Rosh Haayin, Afek Park"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ide-technologies",
+      "name": "IDE Technologies Careers Israel",
+      "checked_at": "2026-09-25T15:14:44.602144+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "SourceDataQualityError: Unreliable source data: IDE Technologies Careers Israel returned too few distinct application links (1/12)",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "pg-israel",
+      "name": "Procter & Gamble Israel Careers Israel",
+      "checked_at": "2026-09-25T15:14:45.021691+00:00",
+      "collected": 2,
+      "israel": 2,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 2,
+      "error": "",
+      "samples": [
+        {
+          "title": "Financial Analyst Internship",
+          "url": "https://pg.wd5.myworkdayjobs.com/1000/job/TEL-AVIV-GENERAL-OFFICE/Financial-Analyst-Internship_R000158442",
+          "location": "TEL AVIV GENERAL OFFICE, Israel"
+        },
+        {
+          "title": "Internship Supply Chain & Logistics",
+          "url": "https://pg.wd5.myworkdayjobs.com/1000/job/TEL-AVIV-GENERAL-OFFICE/Internship-Supply-Chain---Logistics_R000149325",
+          "location": "TEL AVIV GENERAL OFFICE, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "valens",
+      "name": "Valens Semiconductor — Hardware Israel",
+      "checked_at": "2026-09-25T15:14:49.358332+00:00",
+      "collected": 4,
+      "israel": 4,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "Customer Program Manager (CPM) Valens HQ, Hod Hasharon, Israel R&D Full Time",
+          "url": "https://www.valens.com/position/customer-program-manager/",
+          "location": "Hod Hasharon, Israel"
+        },
+        {
+          "title": "RT Embedded SW Engineer Valens HQ, Hod Hasharon, Israel R&D Full Time",
+          "url": "https://www.valens.com/position/embedded-sw-engineer/",
+          "location": "Hod Hasharon, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "nextsilicon",
+      "name": "NextSilicon — Hardware Israel",
+      "checked_at": "2026-09-25T15:14:49.889949+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "retym",
+      "name": "Retym — Semiconductor Israel",
+      "checked_at": "2026-09-25T15:14:50.349953+00:00",
+      "collected": 4,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior BackEnd (Physical design) Engineer Other  ·  Full-time  ·  Intermediate",
+          "url": "https://retym.com/careers-2/co/armenia/6F.E5C/senior-backend-physical-design-engineer/all",
+          "location": ""
+        },
+        {
+          "title": "Engineering Site Manager – Semiconductor Startup Other",
+          "url": "https://retym.com/careers-2/co/austin-texas/0D.F5D/engineering-site-manager-semiconductor-startup/all",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "hailo",
+      "name": "Hailo — AI Silicon Israel",
+      "checked_at": "2026-09-25T15:14:50.396344+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "pliops",
+      "name": "Pliops — Storage Silicon Israel",
+      "checked_at": "2026-09-25T15:14:50.636291+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Pliops did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "chain-reaction",
+      "name": "Chain Reaction — Hardware Israel",
+      "checked_at": "2026-09-25T15:14:50.765337+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "scd",
+      "name": "SCD — SemiConductor Devices",
+      "checked_at": "2026-09-25T15:14:51.698256+00:00",
+      "collected": 8,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 1,
+      "error": "",
+      "samples": [
+        {
+          "title": "Engineering",
+          "url": "https://scdusa-ir.com/find-a-job/engineering/",
+          "location": ""
+        },
+        {
+          "title": "Finance",
+          "url": "https://scdusa-ir.com/find-a-job/finance/",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "cadence",
+      "name": "Cadence Design Systems — Israel",
+      "checked_at": "2026-09-25T15:14:52.610948+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "texas-instruments",
+      "name": "Texas Instruments — Israel",
+      "checked_at": "2026-09-25T15:14:52.611549+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "flex-israel",
+      "name": "Flex — Hardware Israel",
+      "checked_at": "2026-09-25T15:14:52.611573+00:00",
+      "collected": 2,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "DE",
+          "url": "https://flex.com/de/careers/israel-en/",
+          "location": ""
+        },
+        {
+          "title": "עִברִית",
+          "url": "https://flex.com/careers/israel",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "siemens-eda",
+      "name": "Siemens EDA — Israel",
+      "checked_at": "2026-09-25T15:14:52.616444+00:00",
+      "collected": 6,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 2,
+      "error": "",
+      "samples": [
+        {
+          "title": "How to apply Learn about our application process, our guidelines for the use of AI in applications, and get access to useful tips that can guide you through the various steps.",
+          "url": "https://www.siemens.com/en-us/company/jobs/how-to-apply/",
+          "location": ""
+        },
+        {
+          "title": "Siemens Graduate Program In an international 2-year entry-level program with three assignments you build up in-depth knowledge and experience.",
+          "url": "https://www.siemens.com/en-us/company/jobs/growth-careers/siemens-graduate-program/",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "marvell",
+      "name": "Marvell — Israel",
+      "checked_at": "2026-09-25T15:14:52.735225+00:00",
+      "collected": 7,
+      "israel": 7,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 7,
+      "error": "",
+      "samples": [
+        {
+          "title": "Principal Signal/Power integrity Engineer",
+          "url": "https://marvell.wd1.myworkdayjobs.com/MarvellCareers/job/Yokneam/Principal-Signal-Power-integrity-Engineer_2603478",
+          "location": "Yokneam, Israel"
+        },
+        {
+          "title": "Hardware Board Design Senior Staff Engineer",
+          "url": "https://marvell.wd1.myworkdayjobs.com/MarvellCareers/job/Yokneam/Hardware-Board-Design-Senior-Staff-Engineer_2603477",
+          "location": "Yokneam, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "broadcom-israel",
+      "name": "Broadcom — Israel",
+      "checked_at": "2026-09-25T15:14:53.378433+00:00",
+      "collected": 2,
+      "israel": 2,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 2,
+      "error": "",
+      "samples": [
+        {
+          "title": "DFT Engineer",
+          "url": "https://broadcom.wd1.myworkdayjobs.com/External_Career/job/ISR-Tel-Aviv-University/DFT-Engineer_R026695-5",
+          "location": "ISR-Tel Aviv University, Israel"
+        },
+        {
+          "title": "R&D Engineer Hardware",
+          "url": "https://broadcom.wd1.myworkdayjobs.com/External_Career/job/ISR-Tel-Aviv-University/R-D-Engineer-Hardware_R026230-3",
+          "location": "ISR-Tel Aviv University, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "synopsys-israel",
+      "name": "Synopsys — Israel",
+      "checked_at": "2026-09-25T15:14:53.426666+00:00",
+      "collected": 10,
+      "israel": 6,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Staff Technical Applications Engineer, STA & ECO Raanana, Israel Category: Engineering Posted: 09/22/2026 Job ID: 18814",
+          "url": "https://careers.synopsys.com/job/raanana/senior-staff-technical-applications-engineer-sta-and-eco/44408/101040901216",
+          "location": "Ra'anana, Israel"
+        },
+        {
+          "title": "Applications Engineering, Staff Engineer DFT Israel Off-site Category: Engineering Posted: 09/20/2026 Job ID: 18852",
+          "url": "https://careers.synopsys.com/job/haifa/applications-engineering-staff-engineer-dft/44408/100945625024",
+          "location": "Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "arm-israel",
+      "name": "Arm — Israel",
+      "checked_at": "2026-09-25T15:14:54.083871+00:00",
+      "collected": 9,
+      "israel": 6,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 4,
+      "error": "",
+      "samples": [
+        {
+          "title": "Staff GPU Verification Engineer",
+          "url": "https://careers.arm.com/job/raanana/staff-gpu-verification-engineer/33099/92956824784",
+          "location": "Ra'anana, Israel"
+        },
+        {
+          "title": "Staff AI Research Scientist - Physical AI",
+          "url": "https://careers.arm.com/job/raanana/staff-ai-research-scientist-physical-ai/33099/99346417872",
+          "location": "Ra'anana, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "dustphotonics",
+      "name": "DustPhotonics — Israel",
+      "checked_at": "2026-09-25T15:14:54.673659+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: DustPhotonics did not expose a reliable job payload; preserving the last successful snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "wiliot",
+      "name": "Wiliot — Hardware Israel",
+      "checked_at": "2026-09-25T15:14:55.611097+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "vayyar",
+      "name": "Vayyar Imaging — Israel",
+      "checked_at": "2026-09-25T15:14:55.845415+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Vayyar Imaging temporarily blocked automated access; preserving the last successful job snapshot",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "trieye",
+      "name": "TriEye — Israel",
+      "checked_at": "2026-09-25T15:14:55.869723+00:00",
+      "collected": 1,
+      "israel": 1,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "FPGA and Embedded SW Platform Team Lead Tel Aviv",
+          "url": "https://trieye.tech/careers/co/tel-aviv/7E.27B/fpga-and-embedded-sw-platform-team-lead/all",
+          "location": "Tel Aviv, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "speedata",
+      "name": "Speedata — Israel",
+      "checked_at": "2026-09-25T15:14:56.936043+00:00",
+      "collected": 6,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 6,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Software Engineer – Spark",
+          "url": "https://www.speedata.io/careers/senior-software-engineer-%E2%80%93-spark",
+          "location": ""
+        },
+        {
+          "title": "Algorithm Engineer",
+          "url": "https://www.speedata.io/careers/algorithm-engineer",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "proteantecs",
+      "name": "proteanTecs — Israel",
+      "checked_at": "2026-09-25T15:14:57.055838+00:00",
+      "collected": 16,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 16,
+      "error": "",
+      "samples": [
+        {
+          "title": "C++ Senior Software Engineer",
+          "url": "https://www.proteantecs.com/careerinfo?pi=C0.662",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Circuit Design Engineer",
+          "url": "https://www.proteantecs.com/careerinfo?pi=FB.D6C",
+          "location": "Haifa, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "innoviz",
+      "name": "Innoviz — Israel",
+      "checked_at": "2026-09-25T15:14:57.095406+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "camtek",
+      "name": "Camtek — Israel",
+      "checked_at": "2026-09-25T15:14:57.652550+00:00",
+      "collected": 29,
+      "israel": 21,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 29,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI SW Infrastructure Engineer",
+          "url": "https://www.camtek.com/careers/open-positions/CD.658/",
+          "location": "Migdal Haemek, Israel"
+        },
+        {
+          "title": "Application Development Engineer",
+          "url": "https://www.camtek.com/careers/open-positions/18.E44/",
+          "location": "Migdal Haemek, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "nova",
+      "name": "Nova — Israel",
+      "checked_at": "2026-09-25T15:14:57.903059+00:00",
+      "collected": 2,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [
+        {
+          "title": "Slide 5.json",
+          "url": "https://www.novami.com/wp-content/themes/corppix/career_site/JSON/slide-5.json",
+          "location": ""
+        },
+        {
+          "title": "Applyjob.css",
+          "url": "https://www.novami.com/wp-content/themes/corppix/career_site/applyJob.css",
+          "location": ""
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "neuroblade",
+      "name": "NeuroBlade — Israel",
+      "checked_at": "2026-09-25T15:14:58.015660+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Browser fallback disabled for independent HTTP-only audit",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "hp",
+      "name": "HP Careers Israel",
+      "checked_at": "2026-09-25T15:14:58.606961+00:00",
+      "collected": 9,
+      "israel": 9,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 9,
+      "error": "",
+      "samples": [
+        {
+          "title": "Integrator – Industrial Digital Printing Production Line",
+          "url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite/job/Kiryat-Gat-South-District-Israel/Integrator---Industrial-Digital-Printing-Production-Line_3167955-1/apply?source=HPCompanyWebsite&src=Eightfold",
+          "location": "Kiryat-Gat, South District, Israel"
+        },
+        {
+          "title": "Global Customer Service Engineer",
+          "url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite/job/Ness-Ziona-Center-District-Israel/Global-Customer-Service-Engineer_UNI2621-1/apply?source=HPCompanyWebsite&src=Eightfold",
+          "location": "Ness Ziona, Center District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "smartrecruiters",
+      "identifier": "WesternDigital",
+      "name": "Western Digital Careers Israel",
+      "checked_at": "2026-09-25T15:14:58.753723+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": true,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "solaredge",
+      "name": "SolarEdge Careers Israel",
+      "checked_at": "2026-09-25T15:14:59.051485+00:00",
+      "collected": 111,
+      "israel": 48,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 111,
+      "error": "",
+      "samples": [
+        {
+          "title": "Analog Chip Designer",
+          "url": "https://www.comeet.com/jobs/SolarEdge/71.00A/analog-chip-designer/22.A6A",
+          "location": "Maskit I - Herzliya, Israel"
+        },
+        {
+          "title": "Analog Hardware Team Leader",
+          "url": "https://www.comeet.com/jobs/SolarEdge/71.00A/analog-hardware-team-leader/F3.C62",
+          "location": "Hamada 1, Herzliya, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "stratasys",
+      "name": "Stratasys Careers Israel",
+      "checked_at": "2026-09-25T15:15:00.588756+00:00",
+      "collected": 13,
+      "israel": 13,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 13,
+      "error": "",
+      "samples": [
+        {
+          "title": "NPI Engineer (Mechanical)",
+          "url": "https://careers.stratasys.com/job/Rehovot-NPI-Engineer-%28Mechanical%29-IL/1408565000/",
+          "location": "Rehovot, Israel"
+        },
+        {
+          "title": "Help Desk & Field Service Technician",
+          "url": "https://careers.stratasys.com/job/Rehovot-Help-Desk-&-Field-Service-Technician-IL/1425896000/",
+          "location": "Rehovot, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "motorola-solutions",
+      "name": "Motorola Solutions Careers Israel",
+      "checked_at": "2026-09-25T15:15:01.261109+00:00",
+      "collected": 3,
+      "israel": 3,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 3,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Sales Manager - Government Sector",
+          "url": "https://motorolasolutions.wd5.myworkdayjobs.com/Careers/job/Tel-Aviv-Israel-ZIL87/Senior-Sales-Manager---Government-Sector_R65555",
+          "location": "Tel Aviv, Israel (ZIL87)"
+        },
+        {
+          "title": "International Sales Engineer Silvus– Israel",
+          "url": "https://motorolasolutions.wd5.myworkdayjobs.com/Careers/job/Israel-Offsite-ZIL99/International-Sales-Engineer---Israel_R67872",
+          "location": "Israel Offsite (ZIL99)"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "ge-healthcare",
+      "name": "GE HealthCare Careers Israel",
+      "checked_at": "2026-09-25T15:15:02.079242+00:00",
+      "collected": 30,
+      "israel": 30,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 30,
+      "error": "",
+      "samples": [
+        {
+          "title": "Quality Engineer",
+          "url": "https://gehc.wd5.myworkdayjobs.com/GEHC_ExternalSite/job/Haifa-HEALTHCARE-HA-IL-2/Quality-Engineer_R4046917-2",
+          "location": "Haifa HEALTHCARE HA IL 2, Israel"
+        },
+        {
+          "title": "MI Software Principal Architect",
+          "url": "https://gehc.wd5.myworkdayjobs.com/GEHC_ExternalSite/job/Haifa/MI-Software-Principal-Architect_R4042489-1",
+          "location": "Haifa, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "boston-scientific",
+      "name": "Boston Scientific Careers Israel",
+      "checked_at": "2026-09-25T15:15:04.843397+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 0,
+      "error": "",
+      "samples": [],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "jnj-israel",
+      "name": "Johnson & Johnson Israel Careers Israel",
+      "checked_at": "2026-09-25T15:15:05.166287+00:00",
+      "collected": 22,
+      "israel": 22,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 22,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Manager, Business Unit Human Resources Leader",
+          "url": "https://jj.wd5.myworkdayjobs.com/JJ/job/Yokneam-Haifa-District-Israel/Senior-Manager--Business-Unit-Human-Resources-Leader_R-100109-1",
+          "location": "Yokneam, Haifa District, Israel"
+        },
+        {
+          "title": "Clinical Support",
+          "url": "https://jj.wd5.myworkdayjobs.com/JJ/job/Kibbutz-Shefayim-Center-District-Israel/Clinical-Support_R-100261",
+          "location": "Kibbutz Shefayim, Center District, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "electra-group",
+      "name": "Electra Group Careers Israel",
+      "checked_at": "2026-09-25T15:15:07.355946+00:00",
+      "collected": 39,
+      "israel": 39,
+      "complete": false,
+      "blocked_count": 0,
+      "full_descriptions": 39,
+      "error": "",
+      "samples": [
+        {
+          "title": "טכנאי/ת מיזוג אוויר",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=17992",
+          "location": "Jerusalem, Israel"
+        },
+        {
+          "title": "מנהל/ת פרויקטים אינסטלציה מנוסה",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18309",
+          "location": "Jerusalem, Israel"
+        }
+      ],
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "mekorot",
+      "name": "Mekorot Careers Israel",
+      "checked_at": "2026-09-25T15:15:24.095687+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "SourceDataQualityError: Unreliable source data: Mekorot Careers Israel returned too few distinct application links (1/33)",
+      "source_definition_verified": true
+    },
+    {
+      "kind": "official_careers",
+      "identifier": "optimove",
+      "name": "Optimove Careers Israel",
+      "checked_at": "2026-09-25T15:15:25.208601+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "ValueError: Unsupported official careers preset: optimove",
+      "source_definition_verified": false,
+      "scope_note": "Extra retained source was hypothesized as official_careers:optimove; this identifier is not in current presets. Do not count as a verified production-source failure without actual inventory."
+    }
+  ],
+  "followups": {
+    "checked_at": "2026-09-25T15:22:07.584160+00:00",
+    "ide-technologies": {
+      "result": "scanner_quality_fixed",
+      "collected": 12,
+      "israel": 12
+    },
+    "mekorot": {
+      "result": "scanner_quality_fixed",
+      "collected": 33,
+      "note": "Actual feed accepted by validate_source_payload after preserving employer-specific job query parameter."
+    }
+  },
+  "interpretation": "147 verified enabled definitions plus 1 explicitly unverified legacy-source probe. Browser fallback disabled. Nonempty responses are not automatically valid vacancy inventories; scd/flex-israel/siemens-eda/nova contain navigation/assets, retym/speedata lack explicit parsed locations. See follow-up reports."
+}

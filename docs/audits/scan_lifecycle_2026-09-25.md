@@ -67,9 +67,25 @@ response guards but predates the other lifecycle changes above. Its old Israel,
 track-match and updated counters are not suitable for measuring the corrected
 behavior. Collection counts, new counts and errors can still be audited.
 
-The scan was still running when this report section was written; production
-source outcomes and deployment verification must be recorded separately before
-claiming the full source audit is complete.
+The scan was cancelled at **15:22:16 UTC**. GitHub's check annotation confirms:
+`The job has exceeded the maximum execution time of 45m0s`.
+Collector feed messages continued through 15:20:55 (Voyantis). No final
+`[source]` summary or `[ranking]` output was produced, so the run does not prove
+successful completion or provide reliable per-source persistence totals.
+
+The batching correction was pushed in `2fec4e3`; real-feed URL quality corrections
+followed in `13d658f`. Neither was used by the timed-out scan. Do not infer that
+they resolve the production duration until a new measured run completes. Another
+bulk scan is gated on a fresh user-supplied Supabase Usage reading; baseline before
+this run was 3.276 GB. No additional bulk database scan was triggered for this audit.
 
 See the [33 disabled-source audit](pending_sources_scan_2026-09-25.md) for
 public evidence distinguishing failed collection from genuinely empty inventories.
+
+## Subsequent CI and adapter verification
+
+- Commit `2fec4e3`: GitHub Actions run 36152560046 passed, including 1,580 main tests and 98 browser-agent tests; one existing Starlette/AnyIO deprecation warning remains.
+- Commit `13d658f`: GitHub Actions run 36153445263 passed.
+- Retym/Speedata and equivalent canonical URL encoding changes: 96 focused official-collector, adapter, detail and egress tests passed locally, with no skips or warnings in that run. The new equivalent-encoding regression failed before the canonical comparison fix; a different job identity remains rejected. These late changes are not covered by the two earlier CI results.
+
+Full public-source evidence and remaining failures: [source audit overview](source_scan_overview_2026-09-25.md).

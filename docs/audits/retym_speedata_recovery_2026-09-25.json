@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-09-25T15:28:43.955751+00:00",
+  "scope": "Sequential public employer collectors, maximum3 concurrentHTTPconnections, no browser/database. Productionqualitygate executed. Partial snapshots retained.",
+  "sources": [
+    {
+      "identifier": "retym",
+      "error": "Retym did not expose a reliable job payload; preserving the last successful snapshot",
+      "error_type": "PreserveExistingJobs",
+      "http_requests": 71
+    },
+    {
+      "identifier": "speedata",
+      "collected": 6,
+      "israel": 6,
+      "complete": false,
+      "quality_gate": "passed",
+      "full_descriptions": 6,
+      "http_requests": 8,
+      "samples": [
+        {
+          "id": "senior-software-engineer-%E2%80%93-spark",
+          "title": "Senior Software Engineer – Spark",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/senior-software-engineer-%E2%80%93-spark"
+        },
+        {
+          "id": "algorithm-engineer",
+          "title": "Algorithm Engineer",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/algorithm-engineer"
+        },
+        {
+          "id": "data-infrastructure-engineer",
+          "title": "Data Infrastructure Engineer",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/data-infrastructure-engineer"
+        }
+      ]
+    }
+  ]
+}

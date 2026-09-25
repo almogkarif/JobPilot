@@ -1,0 +1,389 @@
+{
+  "checked_at": "2026-09-25T15:29:45.109878+00:00",
+  "scope": "27 source collectors requiring full runtime validation,90s/source,3concurrent; isolated headless Playwright Chromium launched by existing collectors, never user Chrome or its profile. Public career reads only; no database, applications, or submissions.",
+  "sources": [
+    {
+      "identifier": "apple",
+      "name": "Apple — Hardware Israel",
+      "checked_at": "2026-09-25T15:28:22.790167+00:00",
+      "collected": 20,
+      "israel": 20,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Hardware Engineering Student",
+          "url": "https://jobs.apple.com/en-il/details/200676938-1451/hardware-engineering-student?team=HRDWR",
+          "location": "Haifa, Israel"
+        },
+        {
+          "title": "Hardware Engineering Student",
+          "url": "https://jobs.apple.com/en-il/details/200676938-0865/hardware-engineering-student?team=HRDWR",
+          "location": "Haifa, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "amazon",
+      "name": "Amazon — Annapurna Labs Israel",
+      "checked_at": "2026-09-25T15:28:22.790193+00:00",
+      "collected": 10,
+      "israel": 10,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Package Layout Design Engineer Annapurna Labs AI Silicon Packaging",
+          "url": "https://www.amazon.jobs/en/jobs/10559483/package-layout-design-engineer-annapurna-labs-ai-silicon-packaging",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Business Development Representative Hebrew Speaker AWS Start Up Demand Generation",
+          "url": "https://www.amazon.jobs/en/jobs/10559366/business-development-representative-hebrew-speaker-aws-start-up-demand-generation",
+          "location": "Tel Aviv, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "microsoft",
+      "name": "Microsoft — Silicon Israel",
+      "checked_at": "2026-09-25T15:28:22.790203+00:00",
+      "collected": 12,
+      "israel": 12,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Software Engineering INTERN",
+          "url": "https://apply.careers.microsoft.com/careers/job/1970393556957962?domain=microsoft.com",
+          "location": "Israel"
+        },
+        {
+          "title": "Senior Security Design Engineer",
+          "url": "https://apply.careers.microsoft.com/careers/job/1970393556997829?domain=microsoft.com",
+          "location": "Tel Aviv, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "paloalto",
+      "name": "Palo Alto Networks Israel",
+      "checked_at": "2026-09-25T15:28:27.586193+00:00",
+      "collected": 15,
+      "israel": 15,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Linux Detection Researcher (Cortex)",
+          "url": "https://jobs.paloaltonetworks.com/en/job/tel-aviv/senior-linux-detection-researcher-cortex/47263/99101926288",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Sr Staff Data Scientist",
+          "url": "https://jobs.paloaltonetworks.com/en/job/petah-tikva/sr-staff-data-scientist/47263/101081218016",
+          "location": "Petah Tikva, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "wix",
+      "name": "Wix — Operations & Analytics",
+      "checked_at": "2026-09-25T15:28:36.838209+00:00",
+      "collected": 33,
+      "israel": 33,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Product Manager - WOW",
+          "url": "https://careers.wix.com/position/oracle-1cde0a80-e2b2-587b-95d6-dd600388f932-T1788788675-744000151591749",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Creative Product Marketing Manager - Base44",
+          "url": "https://careers.wix.com/position/REF3106P-744000151543868",
+          "location": "Tel Aviv, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "cisco",
+      "name": "Cisco — Silicon & Hardware Israel",
+      "checked_at": "2026-09-25T15:28:38.177573+00:00",
+      "collected": 9,
+      "israel": 9,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Software Architect & Technical Leader",
+          "url": "https://careers.cisco.com/global/en/job/CISCISGLOBAL2021915EXTERNALENGLOBAL/Senior-Software-Architect-Technical-Leader",
+          "location": "Tel Aviv, Israel"
+        },
+        {
+          "title": "Engineering Project Manager",
+          "url": "https://careers.cisco.com/global/en/job/CISCISGLOBAL2022405EXTERNALENGLOBAL/Engineering-Project-Manager",
+          "location": "Tel Aviv, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "ibm",
+      "name": "IBM Careers Israel",
+      "checked_at": "2026-09-25T15:28:38.866188+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: IBM did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "salesforce",
+      "name": "Salesforce Israel — Business Operations",
+      "checked_at": "2026-09-25T15:28:44.992217+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Salesforce temporarily blocked automated access; preserving the last successful job snapshot"
+    },
+    {
+      "identifier": "meta",
+      "name": "Meta Careers Israel",
+      "checked_at": "2026-09-25T15:28:48.840459+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Meta temporarily blocked automated access; preserving the last successful job snapshot"
+    },
+    {
+      "identifier": "qualcomm",
+      "name": "Qualcomm — Hardware Israel",
+      "checked_at": "2026-09-25T15:28:54.327692+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Qualcomm did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "samsung",
+      "name": "Samsung Research Israel — Hardware",
+      "checked_at": "2026-09-25T15:28:57.584418+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Samsung Research Israel did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "philips",
+      "name": "Philips Israel — Operations",
+      "checked_at": "2026-09-25T15:29:01.354568+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Philips did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "rafael",
+      "name": "Rafael — Electrical Engineering",
+      "checked_at": "2026-09-25T15:29:07.197879+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Rafael did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "aqua",
+      "name": "Aqua Security Careers",
+      "checked_at": "2026-09-25T15:29:07.727810+00:00",
+      "collected": 9,
+      "israel": 5,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "It Support Engineer",
+          "url": "https://www.aquasec.com/about-us/careers/co/ramat-gan-israel/9E.F63/it-support-engineer/all",
+          "location": "Ramat-Gan, Israel"
+        },
+        {
+          "title": "Office Operations Manager",
+          "url": "https://www.aquasec.com/about-us/careers/co/ramat-gan-israel/36.076/office-operations-manager/all",
+          "location": "Ramat-Gan, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "sunflower",
+      "name": "Sunflower — Business & Operations Israel",
+      "checked_at": "2026-09-25T15:29:11.315036+00:00",
+      "collected": 27,
+      "israel": 0,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Legal Counsel",
+          "url": "https://www.comeet.com/jobs/sunflower/AA.009/legal-counsel/71.F5E",
+          "location": ""
+        },
+        {
+          "title": "CS Team Lead",
+          "url": "https://www.comeet.com/jobs/sunflower/AA.009/cs--team-lead/61.F57",
+          "location": ""
+        }
+      ]
+    },
+    {
+      "identifier": "moonactive",
+      "name": "Moon Active — Product & Operations Israel",
+      "checked_at": "2026-09-25T15:29:14.051642+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Moon Active temporarily blocked automated access; preserving the last successful job snapshot"
+    },
+    {
+      "identifier": "arbe",
+      "name": "Arbe Robotics — Israel",
+      "checked_at": "2026-09-25T15:29:17.979953+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Arbe Robotics did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "nextsilicon",
+      "name": "NextSilicon — Hardware Israel",
+      "checked_at": "2026-09-25T15:29:19.546862+00:00",
+      "collected": 11,
+      "israel": 6,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Emulation Engineer",
+          "url": "https://www.nextsilicon.com/careers/emulation-engineer/",
+          "location": "Israel"
+        },
+        {
+          "title": "Hardware Technical Program Manager",
+          "url": "https://www.nextsilicon.com/careers/hardware-technical-program-manager/",
+          "location": "Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "hailo",
+      "name": "Hailo — AI Silicon Israel",
+      "checked_at": "2026-09-25T15:29:21.608629+00:00",
+      "collected": 1,
+      "israel": 1,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Hailo has amazing openings!",
+          "url": "https://hailo.ai/company-overview/careers/hailo-has-amazing-openings/07.432/",
+          "location": "Tel Aviv, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "chain-reaction",
+      "name": "Chain Reaction — Hardware Israel",
+      "checked_at": "2026-09-25T15:29:23.808617+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Chain Reaction did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "cadence",
+      "name": "Cadence Design Systems — Israel",
+      "checked_at": "2026-09-25T15:29:24.550470+00:00",
+      "collected": 17,
+      "israel": 0,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Mixed- Signal Systems and Verification Engineer",
+          "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/BANGALORE/Mixed--Signal-Systems-and-Verification-Engineer_R55855",
+          "location": ""
+        },
+        {
+          "title": "Sr IT Architect",
+          "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/SAN-JOSE/AI-Senior-Staff-Systems-Engineer_R51191",
+          "location": ""
+        }
+      ]
+    },
+    {
+      "identifier": "texas-instruments",
+      "name": "Texas Instruments — Israel",
+      "checked_at": "2026-09-25T15:29:27.225615+00:00",
+      "collected": 5,
+      "israel": 5,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Field Applications Engineering Intern",
+          "url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/25005912/?location=Israel",
+          "location": "Ra'anana, Israel"
+        },
+        {
+          "title": "Field Applications Engineering Intern",
+          "url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/25017899/?location=Israel",
+          "location": "Ra'anana, Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "dustphotonics",
+      "name": "DustPhotonics — Israel",
+      "checked_at": "2026-09-25T15:29:29.273524+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: DustPhotonics did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "wiliot",
+      "name": "Wiliot — Hardware Israel",
+      "checked_at": "2026-09-25T15:29:31.685146+00:00",
+      "collected": 1,
+      "israel": 0,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Api.js",
+          "url": "https://www.comeet.co/careers-api/api.js",
+          "location": ""
+        }
+      ]
+    },
+    {
+      "identifier": "vayyar",
+      "name": "Vayyar Imaging — Israel",
+      "checked_at": "2026-09-25T15:29:32.039950+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; preserving the last successful snapshot"
+    },
+    {
+      "identifier": "innoviz",
+      "name": "Innoviz — Israel",
+      "checked_at": "2026-09-25T15:29:34.778340+00:00",
+      "collected": 2,
+      "israel": 1,
+      "complete": false,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director of Sales & Business Development - EU Defense & Security",
+          "url": "https://innoviz.tech/careers-3/co/israel/CF.E6E/director-of-sales-business-development-eu-defense-security/all",
+          "location": "Israel"
+        }
+      ]
+    },
+    {
+      "identifier": "neuroblade",
+      "name": "NeuroBlade — Israel",
+      "checked_at": "2026-09-25T15:29:34.985912+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "PreserveExistingJobs: NeuroBlade did not expose a reliable job payload; preserving the last successful snapshot"
+    }
+  ]
+}

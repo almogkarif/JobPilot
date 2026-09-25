@@ -1,0 +1,64 @@
+{
+  "checked_at": "2026-09-25T15:36:53.378842+00:00",
+  "scope": "Sequential public employer collectors, maximum3 concurrentHTTPconnections, no browser/database. Productionqualitygate executed. Partial snapshots retained.",
+  "sources": [
+    {
+      "identifier": "retym",
+      "collected": 35,
+      "israel": 15,
+      "complete": false,
+      "quality_gate": "passed",
+      "full_descriptions": 35,
+      "http_requests": 71,
+      "samples": [
+        {
+          "id": "67.051",
+          "title": "Analog Design Engineer",
+          "location": "Ramat Gan, Israel",
+          "url": "https://retym.com/careers-2/co/ramat-gan-tel-aviv-area/67.051/analog-design-engineer/all/"
+        },
+        {
+          "id": "BE.E51",
+          "title": "BackEnd (Physical design) Engineer",
+          "location": "Ramat Gan, Israel",
+          "url": "https://retym.com/careers-2/co/ramat-gan-tel-aviv-area/BE.E51/backend-physical-design-engineer/all/"
+        },
+        {
+          "id": "EE.640",
+          "title": "DSP Algorithm Engineer",
+          "location": "Ramat Gan, Israel",
+          "url": "https://retym.com/careers-2/co/ramat-gan-tel-aviv-area/EE.640/dsp-algorithm-engineer/all/"
+        }
+      ]
+    },
+    {
+      "identifier": "speedata",
+      "collected": 7,
+      "israel": 7,
+      "complete": false,
+      "quality_gate": "passed",
+      "full_descriptions": 7,
+      "http_requests": 8,
+      "samples": [
+        {
+          "id": "senior-software-engineer-%E2%80%93-spark",
+          "title": "Senior Software Engineer – Spark",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/senior-software-engineer-%E2%80%93-spark"
+        },
+        {
+          "id": "algorithm-engineer",
+          "title": "Algorithm Engineer",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/algorithm-engineer"
+        },
+        {
+          "id": "data-infrastructure-engineer",
+          "title": "Data Infrastructure Engineer",
+          "location": "Israel",
+          "url": "https://www.speedata.io/careers/data-infrastructure-engineer"
+        }
+      ]
+    }
+  ]
+}

@@ -65,7 +65,7 @@ PRESETS = {
     # employer's own careers surface; the track filter later keeps Israel/EE roles.
     "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
     "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
-    "retym": {"url": "https://retym.com/careers-2/", "selector": 'a[href*="/careers-2/"]', "id_pattern": r"/careers-2/(?:co/)?([^/?#]+)/?", "company": "Retym", "prefer_link_text": True, "http_first": True},
+    "retym": {"url": "https://retym.com/careers-2/", "selector": 'a.comeet-position[href]', "id_pattern": r"/careers-2/co/[^/?#]+/([A-Za-z0-9]{2,3}\.[A-Za-z0-9]{3})/", "company": "Retym", "prefer_link_text": True, "http_first": True},
     "hailo": {"url": "https://hailo.ai/company-overview/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Hailo", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "static_only": True, "allow_empty": True,
         "preserve_on_empty": True, "allow_no_links": True},
@@ -251,10 +251,12 @@ PRESETS.update({
 
 # Verified detail adapters. Limits apply per explicit scan; failures preserve
 # existing records rather than accepting summary cards as complete descriptions.
-for _key, _limit in (('speedata', 40), ('microsoft', 80), ('texas-instruments', 40),
+for _key, _limit in (('retym', 40), ('speedata', 40), ('microsoft', 80), ('texas-instruments', 40),
                      ('philips', 40), ('island', 40), ('mobileye', 180), ('rafael', 180)):
     PRESETS[_key].update(hydrate_details=True, max_detail_jobs=_limit,
                          require_complete_detail=True, detail_response_bytes=4_000_000)
+PRESETS['retym'].update(listing_response_bytes=4_000_000, listing_canonical_on_detail=True)
+PRESETS['speedata'].update(listing_card_location=True)
 PRESETS['texas-instruments'].update(
     detail_api_template='https://edbz.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails/{id}',
     network_id_keys=('Id',), network_id_pattern=r'\d+', network_title_keys=('Title',),
@@ -1053,7 +1055,16 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
             container = parent
             node = parent
         heading = container.select_one("h1,h2,h3,h4,[role='heading']") if hasattr(container, "select_one") else None
+        card_location = ""
+        if preset.get("listing_card_location"):
+            card = element.find_parent(attrs={"role": "listitem"})
+            # Speedata displays a dedicated country paragraph within each Wix card.
+            # Never promote a footer address or another vacancy's location.
+            if card and any(node.get_text(" ", strip=True).casefold() == "israel"
+                            for node in card.select("p")):
+                card_location = "Israel"
         rows.append({
+            "location": card_location,
             "href": str(element.get("href") or ""),
             "dataHref": str(element.get("data-href") or ""),
             "dataUrl": str(element.get("data-url") or ""),
@@ -1203,7 +1214,9 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
                 body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
-                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1)) or _job_posting_detail(soup)
+                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1))
+                if not structured_detail and preset.get("company") != "Retym":
+                    structured_detail = _job_posting_detail(soup)
                 if preset.get("require_complete_detail") and not structured_detail:
                     return row
                 if structured_detail:
@@ -1219,8 +1232,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                     if (advertised.hostname == listing.hostname
                             and unquote(advertised.path).rstrip('/') == unquote(listing.path).rstrip('/')
                             and not advertised.query):
-                        # Electra advertises the list URL as canonical on every
-                        # detail. The final URL and printed vacancy ID were both
+                        # Electra and Retym advertise the list URL as canonical.
+                        # The final URL and employer-specific vacancy identity were both
                         # checked above; retain that exact vacancy URL.
                         canonical_href = ""
                 # Branded Comeet pages sometimes return an unresolved client-side
@@ -1230,7 +1243,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 # into an unusable row during detail hydration.
                 hydrated_href = canonical_href or final_href
                 hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
-                if preset.get("require_complete_detail") and canonical_href and (not hydrated_match or hydrated_match.group(1) != match.group(1)):
+                if preset.get("require_complete_detail") and canonical_href and (not hydrated_match or unquote(hydrated_match.group(1)) != unquote(match.group(1))):
                     return row
                 hydrated_title = title.strip()
                 title_is_template = "{{" in hydrated_title or "}}" in hydrated_title

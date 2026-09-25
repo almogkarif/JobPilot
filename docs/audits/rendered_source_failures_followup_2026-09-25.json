@@ -1,0 +1,1501 @@
+{
+  "checked_at": "2026-09-25T15:38:07.730162+00:00",
+  "scope": "All13 failed full-runtime sources plus3 nonempty zero-Israel sources from rendered_sources_scan_2026-09-25.json. This follow-up used HTTP only.",
+  "coverage": {
+    "failed_sources_expected": 13,
+    "failed_sources_checked": 13,
+    "nonempty_zero_israel_expected": 3,
+    "nonempty_zero_israel_checked": 3,
+    "total_sources": 16,
+    "missing": 0
+  },
+  "counts": {
+    "parser_runtime_gap": 4,
+    "discovered_ats": 4,
+    "http_blocked": 3,
+    "wrong_url": 1,
+    "location_loss": 2,
+    "asset_false_positive": 1,
+    "wrong_landing": 1
+  },
+  "previous_report": {
+    "file": "rendered_sources_scan_2026-09-25.json",
+    "checked_at": "2026-09-25T15:29:45.109878+00:00"
+  },
+  "constraints": {
+    "public_page_probes": 16,
+    "content_inspections": 13,
+    "additional_api_requests": 3,
+    "total_public_requests_excluding_redirects": 32,
+    "max_concurrency": 3,
+    "timeout_seconds": 25,
+    "response_max_bytes": 4000000,
+    "api_row_limit_cadence": 20,
+    "browser_control": false,
+    "new_browser_runtime": false,
+    "database_requests": 0,
+    "applications_sent": 0,
+    "code_configuration_changes": 0
+  },
+  "limitations": [
+    "Prior full-runtime results are preserved with their original timestamps; none was rerun here.",
+    "Two complete false-negative role payload counts are verified: Sunflower27 and Wiliot9. Cadence5 is a listing count, not a full-description validation.",
+    "Generic HTTP200 client shells do not establish complete job inventory or eliminate runtime-specific access issues.",
+    "Discovered ATS assets/links are next-step evidence, not proof of a working replacement feed.",
+    "Public Comeet embed-token values were omitted from report URLs; the employer publishes them in COMEET.init configuration.",
+    "No unsuccessful source is labeled as having zero vacancies."
+  ],
+  "sources": [
+    {
+      "identifier": "ibm",
+      "name": "IBM Careers Israel",
+      "checked_at": "2026-09-25T15:31:26.861130+00:00",
+      "previous_collector_result": {
+        "identifier": "ibm",
+        "name": "IBM Careers Israel",
+        "checked_at": "2026-09-25T15:28:38.866188+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: IBM did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+        "status": 200,
+        "final_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+        "response_bytes": 126020,
+        "sha256": "b7dc414abd1346b08d2864bf5ac59f802446a7a579c0713cc58f030fd0770274",
+        "ats_links": []
+      },
+      "category": "parser_runtime_gap",
+      "finding": "Current HTTP200 page is a small client-rendered IBM search shell and links careers.ibm.com job-alert/profile surfaces. The full collector still found no reliable payload. The precise search API/detail mapping is unresolved; no zero-job conclusion.",
+      "minimal_next_step": "Inspect the current employer search component and exact job URLs; avoid turning marketing/profile links into vacancies.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "ibm",
+        "checked_at": "2026-09-25T15:32:34.713323+00:00",
+        "requested_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+        "status": 200,
+        "final_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+        "response_bytes": 126020,
+        "sha256": "b7dc414abd1346b08d2864bf5ac59f802446a7a579c0713cc58f030fd0770274",
+        "title": "Search jobs | IBM Careers",
+        "headings": [
+          "Come search jobs like an IBMer.",
+          "Keep exploring."
+        ],
+        "ats_links": [],
+        "recruitment_links": [
+          "https://careers.ibm.com/en_US/careers/JobAlerts?source=WEB_Search_NA",
+          "https://careers.ibm.com/en_US/globalform?source=WEB_Search_NA",
+          "https://www.ibm.com/careers",
+          "https://www.ibm.com/careers/locations",
+          "https://www.ibm.com/careers/search"
+        ],
+        "iframe_sources": [
+          "about:blank"
+        ],
+        "visible_text_characters": 584,
+        "challenge_markers": [],
+        "short_page_text": "Search jobs | IBM Careers Home Careers Search Jobs Come search jobs like an IBMer. From leading the way in groundbreaking technologies to making a difference in local communities, bring your skills to transform the way the world works. Keep exploring. Talent Network Stay up to date on career related news and events. Join our Talent Network Job Alerts Get notified on job openings that match your skills. Turn on Job Alerts Search Jobs Come empower, invent and advance like an IBMer. Search jobs Locations Discover countless stories of impact and collaboration. Explore our Locations"
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "qualcomm",
+      "name": "Qualcomm — Hardware Israel",
+      "checked_at": "2026-09-25T15:31:27.169130+00:00",
+      "previous_collector_result": {
+        "identifier": "qualcomm",
+        "name": "Qualcomm — Hardware Israel",
+        "checked_at": "2026-09-25T15:28:54.327692+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Qualcomm did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://careers.qualcomm.com/careers?location=Israel",
+        "status": 200,
+        "final_url": "https://careers.qualcomm.com/careers?location=Israel",
+        "response_bytes": 296533,
+        "sha256": "83b88573cd2c353d1a077662a487b094064dfae3ed0f58fb3b5f6eb304320cf9",
+        "ats_links": [
+          "https://app.eightfold.ai/careers?domain=qualcomm.com",
+          "https://eightfold.ai/privacy-policy/&#34;}},",
+          "https://qualcomm.eightfold.ai/careerhub"
+        ]
+      },
+      "category": "discovered_ats",
+      "finding": "Reachable official page publishes Eightfold careers?domain=qualcomm.com and Qualcomm careerhub links. Current generic /job/ extraction failed; the employer-specific public protocol is not mapped.",
+      "minimal_next_step": "Investigate the published Eightfold PCSX search/detail route and exact country/location filtering; no new API query was made for Qualcomm.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "qualcomm",
+        "checked_at": "2026-09-25T15:32:34.756899+00:00",
+        "requested_url": "https://careers.qualcomm.com/careers?location=Israel",
+        "status": 200,
+        "final_url": "https://careers.qualcomm.com/careers?location=Israel",
+        "response_bytes": 296533,
+        "sha256": "1e44932a63b633ab5d241d0bd0af8585ae13f008ff99525ca134900941944c2e",
+        "title": "Qualcomm Careers | Engineering Jobs and More | Qualcomm",
+        "headings": [],
+        "ats_links": [
+          "https://app.eightfold.ai&#34;},",
+          "https://app.eightfold.ai/careers?domain=qualcomm.com",
+          "https://eightfold.ai/privacy-policy/&#34;}},",
+          "https://qualcomm.eightfold.ai/careerhub",
+          "https://static.vscdn.net/fonts/css/eightfold-font-base.css",
+          "https://static.vscdn.net/images/careers/demo/eightfolddemo-pcsx-demo/1731648414::jq-css-bundle.css",
+          "https://static.vscdn.net/images/careers/demo/eightfolddemo-pcsx-demo/1731648414::jq-css-bundle.css&#39;",
+          "https://static.vscdn.net/images/careers/demo/eightfolddemo-pcsx-demo/bootstrap-style.css",
+          "https://static.vscdn.net/images/careers/demo/eightfolddemo-pcsx-demo/bootstrap-style.css&#39;",
+          "https://static.vscdn.net/images/eightfolddemo-araparla.com/login-background.png&#34;}},"
+        ],
+        "recruitment_links": [
+          "https://careers.qualcomm.com/gen/i18n_data_en.a8a0de36.js",
+          "https://careers.qualcomm.com/gen/js/base.df0a37eeb2ad2ad3851a2f3a7bf662ab.js",
+          "https://careers.qualcomm.com/gen/js/base_i18n.040cfd6430780e3830b99941e66a824a.js",
+          "https://careers.qualcomm.com/gen/js/bootstrap-datepicker.52f776c78c7c4138d957d55e49b5d0e4.js",
+          "https://careers.qualcomm.com/gen/js/bootstrap.v5.min.295fca799df673217ef6b8066252ef77.js",
+          "https://careers.qualcomm.com/gen/js/ef-0.e3a903f8961d8e04.js",
+          "https://careers.qualcomm.com/gen/js/ef-1.8efc9c56c820bc97.js",
+          "https://careers.qualcomm.com/gen/js/ef-11.c68868baebf71a21.js",
+          "https://careers.qualcomm.com/gen/js/ef-12.4f81b148503583e9.js",
+          "https://careers.qualcomm.com/gen/js/ef-13.ed66e48f62ba678f.js",
+          "https://careers.qualcomm.com/gen/js/ef-14.49e71b97bf5f4c2a.js",
+          "https://careers.qualcomm.com/gen/js/ef-15.3dce9ea903005fd0.js",
+          "https://careers.qualcomm.com/gen/js/ef-16.23e2a91ec3eacbc1.js",
+          "https://careers.qualcomm.com/gen/js/ef-17.967147ae7d2075a3.js",
+          "https://careers.qualcomm.com/gen/js/ef-18.c33faf61d0eb974c.js",
+          "https://careers.qualcomm.com/gen/js/ef-19.6360ac41f5c8b6de.js",
+          "https://careers.qualcomm.com/gen/js/ef-2.bc21cedad31a55a2.js",
+          "https://careers.qualcomm.com/gen/js/ef-20.799f4f2f74c5a676.js",
+          "https://careers.qualcomm.com/gen/js/ef-21.7cf0bcdac2dd382b.js",
+          "https://careers.qualcomm.com/gen/js/ef-22.c2ba8012d6d7aa65.js"
+        ],
+        "iframe_sources": [],
+        "visible_text_characters": 191652,
+        "challenge_markers": []
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "salesforce",
+      "name": "Salesforce Israel — Business Operations",
+      "checked_at": "2026-09-25T15:31:26.891065+00:00",
+      "previous_collector_result": {
+        "identifier": "salesforce",
+        "name": "Salesforce Israel — Business Operations",
+        "checked_at": "2026-09-25T15:28:44.992217+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Salesforce temporarily blocked automated access; preserving the last successful job snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://careers.salesforce.com/en/jobs/?search=&country=Israel",
+        "status": 200,
+        "final_url": "https://www.salesforce.com/company/careers/jobs/?search=&country=Israel&bc=HL",
+        "response_bytes": 121376,
+        "sha256": "36b587a5ab87cee80c9d68d63f2224ce76995485b74c61616a09999a3aeb73a7",
+        "ats_links": []
+      },
+      "category": "parser_runtime_gap",
+      "finding": "Configured careers.salesforce.com URL now redirects to www.salesforce.com/company/careers/jobs/ with the Israel query retained. HTTP200 is a careers.js client shell. Earlier runtime access failure is not reproduced by this simple page read; current job-fetch protocol remains unresolved.",
+      "minimal_next_step": "Inspect the employer-published https://c.salesforce.com/digital/xsf/components/v1-stable/careers.js component and its public data contract before changing old /en/jobs selectors.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "salesforce",
+        "checked_at": "2026-09-25T15:32:34.761153+00:00",
+        "requested_url": "https://www.salesforce.com/company/careers/jobs/?search=&country=Israel&bc=HL",
+        "status": 200,
+        "final_url": "https://www.salesforce.com/company/careers/jobs/?search=&country=Israel&bc=HL",
+        "response_bytes": 121376,
+        "sha256": "bd16ccc31480ff093d35ee7786db554ac715ea6a95c02648527acfb5c6b114ae",
+        "title": "Salesforce Jobs | Salesforce",
+        "headings": [],
+        "ats_links": [],
+        "recruitment_links": [
+          "https://c.salesforce.com/digital/xsf/components/v1-stable/careers.js",
+          "https://www.salesforce.com/company/careers/jobs/?search=&country=Israel&bc=HL#main-content"
+        ],
+        "iframe_sources": [],
+        "visible_text_characters": 44,
+        "challenge_markers": [],
+        "short_page_text": "Salesforce Jobs | Salesforce Skip to content"
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "meta",
+      "name": "Meta Careers Israel",
+      "checked_at": "2026-09-25T15:31:26.895480+00:00",
+      "previous_collector_result": {
+        "identifier": "meta",
+        "name": "Meta Careers Israel",
+        "checked_at": "2026-09-25T15:28:48.840459+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Meta temporarily blocked automated access; preserving the last successful job snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+        "status": 200,
+        "final_url": "https://www.metacareers.com/jobsearch/?offices%5B0%5D=Tel+Aviv%2C+Israel",
+        "response_bytes": 391701,
+        "sha256": "091fdd1d890fe4c7721964c0d4d8750bf2de3a295cdbcb77e06ac8a19c43179a",
+        "ats_links": []
+      },
+      "category": "parser_runtime_gap",
+      "finding": "Configured /jobs route redirects to /jobsearch/ with the Tel Aviv office query. The HTTP200 body is a Meta Careers client shell; the previous full collector could not extract jobs. A facebook.csod.com link exists but its purpose/current vacancy coverage is unverified.",
+      "minimal_next_step": "Verify the current public jobsearch protocol and ID binding; do not infer a working replacement board from a standalone CSOD link.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "meta",
+        "checked_at": "2026-09-25T15:32:35.008954+00:00",
+        "requested_url": "https://www.metacareers.com/jobsearch/?offices%5B0%5D=Tel+Aviv%2C+Israel",
+        "status": 200,
+        "final_url": "https://www.metacareers.com/jobsearch/?offices%5B0%5D=Tel+Aviv%2C+Israel",
+        "response_bytes": 391703,
+        "sha256": "7fd586407bb58f09bc4051d4841c49f269a3e008949d54b739c4b3f49cf03f58",
+        "title": "Meta Careers",
+        "headings": [],
+        "ats_links": [
+          "https://facebook.csod.com/"
+        ],
+        "recruitment_links": [],
+        "iframe_sources": [],
+        "visible_text_characters": 12,
+        "challenge_markers": [],
+        "short_page_text": "Meta Careers"
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "rafael",
+      "name": "Rafael — Electrical Engineering",
+      "checked_at": "2026-09-25T15:31:27.998659+00:00",
+      "previous_collector_result": {
+        "identifier": "rafael",
+        "name": "Rafael — Electrical Engineering",
+        "checked_at": "2026-09-25T15:29:07.197879+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Rafael did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://career.rafael.co.il/search/",
+        "status": 247,
+        "final_url": "https://career.rafael.co.il/search/",
+        "response_bytes": 457,
+        "sha256": "2860457da7d8bd4f085a6de240b0d483228c88c41ab5dc523d7faa83e7523b5f",
+        "ats_links": []
+      },
+      "category": "http_blocked",
+      "finding": "Configured route returns HTTP247 with kramericaindustries.ac_v2.lib.js, rbzns and winsocks challenge code and an empty body. This is an observed anti-bot challenge, not no vacancies.",
+      "minimal_next_step": "Keep failed/unknown status. Use an authorized public alternate if verified; do not bypass the challenge or interpret it as empty inventory.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "rafael",
+        "checked_at": "2026-09-25T15:32:35.233447+00:00",
+        "requested_url": "https://career.rafael.co.il/search/",
+        "status": 247,
+        "final_url": "https://career.rafael.co.il/search/",
+        "response_bytes": 457,
+        "sha256": "e172511be708a187991e553accffb366b2dcb877937e599e13e8b79d668612f8",
+        "title": "",
+        "headings": [],
+        "ats_links": [],
+        "recruitment_links": [
+          "https://career.rafael.co.il/kramericaindustries.ac_v2.lib.js"
+        ],
+        "iframe_sources": [],
+        "visible_text_characters": 0,
+        "challenge_markers": [],
+        "short_page_text": ""
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "samsung",
+      "name": "Samsung Research Israel — Hardware",
+      "checked_at": "2026-09-25T15:31:27.793437+00:00",
+      "previous_collector_result": {
+        "identifier": "samsung",
+        "name": "Samsung Research Israel — Hardware",
+        "checked_at": "2026-09-25T15:28:57.584418+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Samsung Research Israel did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://research.samsung.com/sril/careers",
+        "status": 404,
+        "final_url": "https://research.samsung.com/sril/careers",
+        "response_bytes": 116,
+        "sha256": "d3e56896a31c85534d8859a18b453a1840dbad13198212df97ea1d14d7e6297f",
+        "ats_links": []
+      },
+      "category": "wrong_url",
+      "finding": "Configured research.samsung.com/sril/careers returns HTTP404. The failure is a missing configured route, not an empty vacancy list.",
+      "minimal_next_step": "Find the current employer-owned SRIL recruitment entry point before choosing a parser.",
+      "collector_rerun_in_this_followup": false,
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "philips",
+      "name": "Philips Israel — Operations",
+      "checked_at": "2026-09-25T15:31:27.881209+00:00",
+      "previous_collector_result": {
+        "identifier": "philips",
+        "name": "Philips Israel — Operations",
+        "checked_at": "2026-09-25T15:29:01.354568+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Philips did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.careers.philips.com/il/en/search-results",
+        "status": 200,
+        "final_url": "https://www.careers.philips.com/il/en/search-results",
+        "response_bytes": 180879,
+        "sha256": "1ad171d03cbdf329a94eca455455d9a3208ae49ae4ba240848826a4035a483b8",
+        "ats_links": [
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Board-Design-Engineer_585359-1",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Board-Design-Engineer_585359-1/apply?source=Philips_Career_Site",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/FPGA-Design-Engineer_585361",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/FPGA-Design-Engineer_585361/apply?source=Philips_Career_Site",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Manual-Assembler------_588965-1",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Manual-Assembler------_588965-1/apply?source=Philips_Career_Site",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Physicist_586919-1",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Physicist_586919-1/apply?source=Philips_Career_Site",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Product-industrialization-engineer_577629-1",
+          "https://philips.wd3.myworkdayjobs.com/jobs-and-careers/job/Haifa/Product-industrialization-engineer_577629-1/apply?source=Philips_Career_Site"
+        ]
+      },
+      "category": "discovered_ats",
+      "finding": "Official HTTP200 search page publishes explicit Philips Workday Haifa role URLs plus Phenom frontend assets. The existing generic page/detail reader failed despite these real recruitment links.",
+      "minimal_next_step": "Verify the published philips.wd3.myworkdayjobs.com/jobs-and-careers board and its full role/country mapping; no Workday API request was made for Philips in this pass.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "philips",
+        "checked_at": "2026-09-25T15:32:35.442330+00:00",
+        "requested_url": "https://www.careers.philips.com/il/en/search-results",
+        "status": 200,
+        "final_url": "https://www.careers.philips.com/il/en/search-results",
+        "response_bytes": 180879,
+        "sha256": "a095098c7b78aa04a558c1c745631bb6c5c57589d3b0bef379e7d23456219b9f",
+        "title": "Search results | Find the available job openings at Philips",
+        "headings": [
+          "Find what you're looking for at Philips",
+          "Find what you're looking for at Philips",
+          "follow us"
+        ],
+        "ats_links": [
+          "https://assets.phenompeople.com",
+          "https://assets.phenompeople.com/CareerConnectResources/common/assets/images/gray.png",
+          "https://cdn-bot.phenompeople.com/txm-bot/prod-ir/prod-ir.js",
+          "https://cdn-prod-static.phenompeople.com/CareerConnectResources/COMMON/js/applyStudioBundles/uex/V1/apply-utils.umd.js",
+          "https://cdn.phenompeople.com",
+          "https://cdn.phenompeople.com/CareerConnectResources/CANVUS/canvas/icons/system-icons-1789032934566.svg",
+          "https://cdn.phenompeople.com/CareerConnectResources/PHILUS/canvas/common/canvas-global-branding1789136144360.css",
+          "https://cdn.phenompeople.com/CareerConnectResources/PHILUS/canvas/common/fontfaces/fontface-1783950085612.css",
+          "https://cdn.phenompeople.com/CareerConnectResources/PHILUS/canvas/dstenantcss/main1784100975390.css",
+          "https://cdn.phenompeople.com/CareerConnectResources/PHILUS/images/Shield_White_2014-1691559045170.png",
+          "https://cdn.phenompeople.com/CareerConnectResources/PHILUS/images/Wordmarklogo-Careerwebsie-1744690608191.jpg",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/bootstrap/phw-runner-1790060572903.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/common/phw-common-1790060573002.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/launchScript/launch-script-1790060572799.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/vendor/vue3_1719567713796.min.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477678823_ph-basic-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477705359_vendor-bundle-part1-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477715895_vendor-bundle-part2-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477744200_ph-loader-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1773309022884_ph-tracking-5.0.js"
+        ],
+        "recruitment_links": [
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/bootstrap/phw-runner-1790060572903.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/common/phw-common-1790060573002.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/launchScript/launch-script-1790060572799.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/canvas/vendor/vue3_1719567713796.min.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477678823_ph-basic-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477705359_vendor-bundle-part1-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477715895_vendor-bundle-part2-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1766477744200_ph-loader-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1773309022884_ph-tracking-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1773309038427_ph-app-config-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1782373088040_ph-common-bundle-part1-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1782373095865_ph-common-bundle-part2-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/common/js/globalplatform/1785942565044_require-5.0.js",
+          "https://cdn.phenompeople.com/CareerConnectResources/prod/PHILUS/en_il/desktop/assets/scripts/1713181856718-custom.js",
+          "https://www.careers.philips.com/",
+          "https://www.careers.philips.com/il/en"
+        ],
+        "iframe_sources": [
+          "https://www.googletagmanager.com/ns.html?id=GTM-M9MR45W"
+        ],
+        "visible_text_characters": 451,
+        "challenge_markers": [],
+        "short_page_text": "Search results | Find the available job openings at Philips Find what you're looking for at Philips Do the work of your lives to help the life of others. No results for \"${pageStateData.searchKeyword}\" No results for \"${pageStateData.placeVal}\" Would you like to consider the job categories below? Career Site Cookie Settings Personal Information follow us © Koninklijke Philips N.V., 2004 - 2025. All rights reserved. 1e65270de3d8423bb2f5069dd7dcadab"
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "sunflower",
+      "name": "Sunflower — Business & Operations Israel",
+      "checked_at": "2026-09-25T15:31:28.218380+00:00",
+      "previous_collector_result": {
+        "identifier": "sunflower",
+        "name": "Sunflower — Business & Operations Israel",
+        "checked_at": "2026-09-25T15:29:11.315036+00:00",
+        "collected": 27,
+        "israel": 0,
+        "complete": false,
+        "error": "",
+        "samples": [
+          {
+            "title": "Legal Counsel",
+            "url": "https://www.comeet.com/jobs/sunflower/AA.009/legal-counsel/71.F5E",
+            "location": ""
+          },
+          {
+            "title": "CS Team Lead",
+            "url": "https://www.comeet.com/jobs/sunflower/AA.009/cs--team-lead/61.F57",
+            "location": ""
+          }
+        ]
+      },
+      "official_page": {
+        "requested_url": "https://www.comeet.com/jobs/sunflower/AA.009",
+        "status": 200,
+        "final_url": "https://www.comeet.com/jobs/sunflower/AA.009",
+        "response_bytes": 148828,
+        "sha256": "deec655cc3751205c01df93e37b74a0fbb7370577c93a1b1f2e14929536c2cd1",
+        "ats_links": [
+          "https://help.comeet.com/en/articles/5342603-cookie-policy-for-careers-website",
+          "https://help.comeet.com/en/collections/1808450-terms-policies",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=medium",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=original",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=small",
+          "https://www.comeet.com/jobs/sunflower/AA.009",
+          "https://www.comeet.com/jobs/sunflower/AA.009/automation-qa-engineer/42.F63",
+          "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer---payments/81.B6A",
+          "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer/0D.A61",
+          "https://www.comeet.com/jobs/sunflower/AA.009/business-analyst/01.F5D"
+        ]
+      },
+      "category": "location_loss",
+      "finding": "Previous collector returned27 rows with blank locations. The exact same public board embeds27 jobs with country=IL, city=Tel Aviv-Yafo and27 complete descriptions. This is a verified normalization/parser false negative, not zero Israel jobs.",
+      "minimal_next_step": "Parse COMPANY_POSITIONS_DATA with the existing Comeet structure, including custom_fields.details and explicit location country/city. Preserve original UID and employer role URL; keep partial bounds.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "sunflower",
+        "checked_at": "2026-09-25T15:32:35.679546+00:00",
+        "requested_url": "https://www.comeet.com/jobs/sunflower/AA.009",
+        "status": 200,
+        "final_url": "https://www.comeet.com/jobs/sunflower/AA.009",
+        "response_bytes": 148695,
+        "sha256": "8791e79d6b8e84886bc621728395b1ebd441fd1593335dd92c83d8e4dbada6f7",
+        "title": "Spark Hire Recruit Jobs | Spark Hire Recruit - Collaborative Recruiting",
+        "headings": [
+          "{{company.name}} - Careers",
+          "{{company.name}}",
+          "About {{company.name}}",
+          "Current Openings",
+          "{{positions.sortingKey || 'General'}}"
+        ],
+        "ats_links": [
+          "https://comeet-euw-app.s3.amazonaws.com/2729/7f060b033e5ce777d4ad148aed55e1edb08c9199",
+          "https://help.comeet.com/en/articles/5342603-cookie-policy-for-careers-website",
+          "https://help.comeet.com/en/collections/1808450-terms-policies",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=medium",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=original",
+          "https://www.comeet.co/pub/sunflower/AA.009/logo?size=small",
+          "https://www.comeet.com/common/careers.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular-animate.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular-cookies.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular-resource.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular-sanitize.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular-touch.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/angular.min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/1.8.2/underscore-min.js?rc-311-10",
+          "https://www.comeet.com/common/vendor/iframeResizer.contentWindow.min.js",
+          "https://www.comeet.com/jobs/sunflower/AA.009",
+          "https://www.comeet.com/jobs/sunflower/AA.009/automation-qa-engineer/42.F63",
+          "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer---payments/81.B6A",
+          "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer/0D.A61",
+          "https://www.comeet.com/jobs/sunflower/AA.009/business-analyst/01.F5D"
+        ],
+        "recruitment_links": [
+          "https://help.comeet.com/en/articles/5342603-cookie-policy-for-careers-website",
+          "https://www.comeet.com/common/careers.js?rc-311-10",
+          "https://www.comeet.com/jobs/sunflower/AA.009"
+        ],
+        "iframe_sources": [],
+        "visible_text_characters": 976,
+        "challenge_markers": [],
+        "short_page_text": "﻿ Spark Hire Recruit Jobs | Spark Hire Recruit - Collaborative Recruiting {{company.name}} - Careers {{getCareerHeaderText}} An error occured. Please try again {{company.name}} About {{company.name}} Thanks for your interest in {{company.name}}. We're sorry, but there are currently no open positions. Contact us on our website . We don't have any open positions at this time. Please visit again soon. Current Openings {{selectedPositionFilter ? selectedPositionFilter.displayName : 'Who can apply'}} {{::option.optionName}} Apply {{getFilterText(filterName)}} {{::filter}} ({{getFilterCount(filterName, filter)}}) No results Select all Clear Apply {{positions.sortingKey || 'General'}} {{ position.name || '(Unnamed Position)'}} Employee only {{position.location.displayName || position.location.name }} {{position.department }} {{ position.experienceLevel }} {{ position.employmentType }} Employee only No positions match your filter Clear filters Terms & Policies · Cookies"
+      },
+      "structured_evidence": {
+        "identifier": "sunflower",
+        "rows": 27,
+        "explicit_israel_rows": 27,
+        "full_israel_descriptions": 27,
+        "samples": [
+          {
+            "id": "42.F63",
+            "title": "Automation QA Engineer",
+            "location_name": "TLV",
+            "country": "IL",
+            "city": "Tel Aviv-Yafo",
+            "url": "https://www.comeet.com/jobs/sunflower/AA.009/automation-qa-engineer/42.F63"
+          },
+          {
+            "id": "0D.A61",
+            "title": "BI Developer",
+            "location_name": "TLV",
+            "country": "IL",
+            "city": "Tel Aviv-Yafo",
+            "url": "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer/0D.A61"
+          },
+          {
+            "id": "81.B6A",
+            "title": "BI Developer - Payments",
+            "location_name": "TLV",
+            "country": "IL",
+            "city": "Tel Aviv-Yafo",
+            "url": "https://www.comeet.com/jobs/sunflower/AA.009/bi-developer---payments/81.B6A"
+          }
+        ],
+        "checked_at": "2026-09-25T15:32:35.679546+00:00",
+        "source_url": "https://www.comeet.com/jobs/sunflower/AA.009"
+      },
+      "inventory_conclusion": "27 complete explicitly Israel role payloads verified"
+    },
+    {
+      "identifier": "moonactive",
+      "name": "Moon Active — Product & Operations Israel",
+      "checked_at": "2026-09-25T15:31:29.028292+00:00",
+      "previous_collector_result": {
+        "identifier": "moonactive",
+        "name": "Moon Active — Product & Operations Israel",
+        "checked_at": "2026-09-25T15:29:14.051642+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Moon Active temporarily blocked automated access; preserving the last successful job snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.moonactive.com/careers/",
+        "status": 200,
+        "final_url": "https://www.moonactive.com/careers/",
+        "response_bytes": 44281,
+        "sha256": "ae047dd45c2c77d2d651ae51867763af0427e4b9f14ab5213be674f07bfc84a5",
+        "ats_links": []
+      },
+      "category": "parser_runtime_gap",
+      "finding": "Current official careers page responds HTTP200 with career content. Earlier full collector reported blocked access, but no challenge was detected in this fresh page response; a reliable vacancy payload remains unverified.",
+      "minimal_next_step": "Inspect current employer client data and UID mapping. Distinguish transient/rendered access failures from a confirmed permanent block.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "moonactive",
+        "checked_at": "2026-09-25T15:32:35.912855+00:00",
+        "requested_url": "https://www.moonactive.com/careers/",
+        "status": 200,
+        "final_url": "https://www.moonactive.com/careers/",
+        "response_bytes": 44281,
+        "sha256": "ae047dd45c2c77d2d651ae51867763af0427e4b9f14ab5213be674f07bfc84a5",
+        "title": "Moon Active - Careers",
+        "headings": [
+          "JOIN THE CREW",
+          "The Moon Code",
+          "Check Out our @lifeatmoonactive Page"
+        ],
+        "ats_links": [],
+        "recruitment_links": [
+          "https://www.moonactive.com/careers/"
+        ],
+        "iframe_sources": [],
+        "visible_text_characters": 1343,
+        "challenge_markers": []
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "chain-reaction",
+      "name": "Chain Reaction — Hardware Israel",
+      "checked_at": "2026-09-25T15:31:29.060170+00:00",
+      "previous_collector_result": {
+        "identifier": "chain-reaction",
+        "name": "Chain Reaction — Hardware Israel",
+        "checked_at": "2026-09-25T15:29:23.808617+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Chain Reaction did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://chain-reaction.io/careers/",
+        "status": 200,
+        "final_url": "https://chain-reaction.io/careers/",
+        "response_bytes": 76962,
+        "sha256": "5037b1e63f35ad964fac22613a716f59822e2b757e0ffe45ed28d3ab640d7402",
+        "ats_links": []
+      },
+      "category": "discovered_ats",
+      "finding": "Official careers page responds HTTP200 and publishes Comeet WordPress plugin Version3.0.2 assets. Current generic route matching did not recover reliable vacancies.",
+      "minimal_next_step": "Verify the employer Comeet board/identity mapping and full details, not arbitrary /careers/ navigation links.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "chain-reaction",
+        "checked_at": "2026-09-25T15:32:36.186636+00:00",
+        "requested_url": "https://chain-reaction.io/careers/",
+        "status": 200,
+        "final_url": "https://chain-reaction.io/careers/",
+        "response_bytes": 76962,
+        "sha256": "e04bd9d70f3b8470fef9bc3dca2d2a01e3feed46a6a24962818e3c3e3232112a",
+        "title": "",
+        "headings": [
+          "We’re Hiring!",
+          "Career Inquiries"
+        ],
+        "ats_links": [
+          "https://chain-reaction.io/wp-content/plugins/comeet-wp-plugin-Version-3.0.2/css/comeet-cards.css?ver=1726585794",
+          "https://chain-reaction.io/wp-content/plugins/comeet-wp-plugin-Version-3.0.2/css/comeet-reset.css?ver=1726585794",
+          "https://chain-reaction.io/wp-content/plugins/comeet-wp-plugin-Version-3.0.2/js/comeet-src.js?ver=1726585794",
+          "https://chain-reaction.io/wp-content/plugins/comeet-wp-plugin-Version-3.0.2/js/comeet.js?ver=1726585794",
+          "https://chain-reaction.io/wp-content/themes/chain/css/comeet-form.css?1790350356"
+        ],
+        "recruitment_links": [
+          "https://chain-reaction.io/careers/",
+          "https://chain-reaction.io/careers/#wpcf7-f47-o3",
+          "https://chain-reaction.io/careers/#wpcf7-f47-p19-o1",
+          "https://chain-reaction.io/careers/#wpcf7-f5-o2"
+        ],
+        "iframe_sources": [
+          "https://www.google.com/recaptcha/api/fallback?k=6LcMUSIqAAAAAOIGkOlNYXsI1K3-Q7olf0D2904e"
+        ],
+        "visible_text_characters": 5149,
+        "challenge_markers": []
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "arbe",
+      "name": "Arbe Robotics — Israel",
+      "checked_at": "2026-09-25T15:31:29.034509+00:00",
+      "previous_collector_result": {
+        "identifier": "arbe",
+        "name": "Arbe Robotics — Israel",
+        "checked_at": "2026-09-25T15:29:17.979953+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Arbe Robotics did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://arberobotics.com/career/",
+        "status": 200,
+        "final_url": "https://arberobotics.com/career/",
+        "response_bytes": 188412,
+        "sha256": "3f046e2d57d1031dc13b7e075748e9395ea6a1f54f2d78e2ef3c721e0a2b555c",
+        "ats_links": []
+      },
+      "category": "discovered_ats",
+      "finding": "Reachable Arbe Careers page publishes Comeet WordPress plugin scripts and styles. Current generic /careers/<slug> parsing produced no verified jobs.",
+      "minimal_next_step": "Discover the employer Comeet UID/feed from the published integration and validate complete roles and locations.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "arbe",
+        "checked_at": "2026-09-25T15:32:36.472634+00:00",
+        "requested_url": "https://arberobotics.com/career/",
+        "status": 200,
+        "final_url": "https://arberobotics.com/career/",
+        "response_bytes": 188412,
+        "sha256": "ea45af21139294b1d32caabf555aea7ebc632c06aaa082b2129e56b71e823932",
+        "title": "Arbe Careers – Join the Radar Innovation Team",
+        "headings": [
+          "We’re working towards a zero-road-fatality future. Join us.",
+          "Join Us"
+        ],
+        "ats_links": [
+          "https://arberobotics.com/wp-content/plugins/comeet-wp-plugin-master/css/comeet-cards.css",
+          "https://arberobotics.com/wp-content/plugins/comeet-wp-plugin-master/css/comeet-reset.css",
+          "https://arberobotics.com/wp-content/plugins/comeet-wp-plugin-master/js/comeet.js?ver=4e660ad961b3c1bb0064aa897db76610"
+        ],
+        "recruitment_links": [
+          "https://arberobotics.com/career/",
+          "https://arberobotics.com/career/#/",
+          "https://arberobotics.com/career/#1",
+          "https://arberobotics.com/career/#2",
+          "https://arberobotics.com/career/#3",
+          "https://arberobotics.com/career/#gf_4",
+          "https://arberobotics.com/career/#open_positions",
+          "https://arberobotics.com/career/co/customer-success/33.D67/customer-support-manager/all",
+          "https://arberobotics.com/career/co/customer-success/all",
+          "https://arberobotics.com/career/co/engineering/2B.96F/radar-system-engineer/all",
+          "https://arberobotics.com/career/co/engineering/43.B6E/embedded-sw-engineer/all",
+          "https://arberobotics.com/career/co/engineering/80.A56/radar-system-integration-engineer/all",
+          "https://arberobotics.com/career/co/engineering/B1.D64/dsp-software-team-leader/all",
+          "https://arberobotics.com/career/co/engineering/all",
+          "https://arberobotics.com/career/co/infrastructure/64.E6A/it-engineer/all",
+          "https://arberobotics.com/career/co/infrastructure/all",
+          "https://arberobotics.com/career/co/operations/5F.F63/ic-product-engineer/all",
+          "https://arberobotics.com/career/co/operations/all",
+          "https://arberobotics.com/careers/",
+          "https://arberobotics.com/zh-hans/career/"
+        ],
+        "iframe_sources": [
+          "about:blank",
+          "about:blank"
+        ],
+        "visible_text_characters": 6993,
+        "challenge_markers": []
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "wiliot",
+      "name": "Wiliot — Hardware Israel",
+      "checked_at": "2026-09-25T15:31:29.673958+00:00",
+      "previous_collector_result": {
+        "identifier": "wiliot",
+        "name": "Wiliot — Hardware Israel",
+        "checked_at": "2026-09-25T15:29:31.685146+00:00",
+        "collected": 1,
+        "israel": 0,
+        "complete": false,
+        "error": "",
+        "samples": [
+          {
+            "title": "Api.js",
+            "url": "https://www.comeet.co/careers-api/api.js",
+            "location": ""
+          }
+        ]
+      },
+      "official_page": {
+        "requested_url": "https://www.wiliot.com/careers",
+        "status": 200,
+        "final_url": "https://www.wiliot.com/careers",
+        "response_bytes": 109414,
+        "sha256": "b175669df163f93d68af6451f4849dabfcdfdfe73c5378c2f60d58dc7f6f179f",
+        "ats_links": [
+          "https://www.comeet.co/careers-api/api.js",
+          "https://www.comeet.co/jobs/F6.003/social_form?token=OMITTED_PUBLIC_EMBED_TOKEN&company-uid=F6.003&company-name=Wiliot&color=9A63FF&font-size=14px&button-font-size=16px&embedded=true"
+        ]
+      },
+      "category": "asset_false_positive",
+      "finding": "Previous collector returned one Api.js row pointing to the Comeet JavaScript library, not a vacancy. The official page publishes Comeet companyF6.003; its valid public feed returns24 jobs,9 explicitly Israel with9 complete descriptions.",
+      "minimal_next_step": "Reject script/static-asset URLs as vacancies and replace the broad careers regex with the employer-published Comeet feed. Bind real job UID/role URLs and explicit location fields; retain bounded partial behavior.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "wiliot",
+        "checked_at": "2026-09-25T15:32:36.772065+00:00",
+        "requested_url": "https://www.wiliot.com/careers",
+        "status": 200,
+        "final_url": "https://www.wiliot.com/careers",
+        "response_bytes": 109414,
+        "sha256": "b175669df163f93d68af6451f4849dabfcdfdfe73c5378c2f60d58dc7f6f179f",
+        "title": "Careers at Wiliot | Join the Physical AI Team",
+        "headings": [
+          "We're Hiring",
+          "Join our Team",
+          "CyberSec Engineer",
+          "Data Analyst",
+          "Data Solutions Analyst",
+          "Data Solutions Team Lead",
+          "DevOps Engineer",
+          "Field Technician"
+        ],
+        "ats_links": [
+          "https://www.comeet.co/careers-api/api.js",
+          "https://www.comeet.co/jobs/F6.003/social_form?token=OMITTED_PUBLIC_EMBED_TOKEN&company-uid=F6.003&company-name=Wiliot&color=9A63FF&font-size=14px&button-font-size=16px&embedded=true"
+        ],
+        "recruitment_links": [
+          "https://www.comeet.co/jobs/F6.003/social_form?token=OMITTED_PUBLIC_EMBED_TOKEN&company-uid=F6.003&company-name=Wiliot&color=9A63FF&font-size=14px&button-font-size=16px&embedded=true",
+          "https://www.wiliot.com/careers",
+          "https://www.wiliot.com/positions/position-12_d69",
+          "https://www.wiliot.com/positions/position-14_079",
+          "https://www.wiliot.com/positions/position-18_767",
+          "https://www.wiliot.com/positions/position-2a_f46",
+          "https://www.wiliot.com/positions/position-52_451",
+          "https://www.wiliot.com/positions/position-52_f66",
+          "https://www.wiliot.com/positions/position-65_a6c",
+          "https://www.wiliot.com/positions/position-67_e6f",
+          "https://www.wiliot.com/positions/position-6a_d6d",
+          "https://www.wiliot.com/positions/position-7c_277",
+          "https://www.wiliot.com/positions/position-8f_f6d",
+          "https://www.wiliot.com/positions/position-8f_f6e",
+          "https://www.wiliot.com/positions/position-91_b62",
+          "https://www.wiliot.com/positions/position-a6_d68",
+          "https://www.wiliot.com/positions/position-b7_b6b",
+          "https://www.wiliot.com/positions/position-d2_c6b",
+          "https://www.wiliot.com/positions/position-d5_f60",
+          "https://www.wiliot.com/positions/position-df_274"
+        ],
+        "iframe_sources": [
+          "https://www.youtube.com/embed/2d8ZUqbSJLI?start=25&enablejsapi=1",
+          "https://www.comeet.co/jobs/F6.003/social_form?token=OMITTED_PUBLIC_EMBED_TOKEN&company-uid=F6.003&company-name=Wiliot&color=9A63FF&font-size=14px&button-font-size=16px&embedded=true",
+          "https://www.googletagmanager.com/ns.html?id=GTM-KX9RFV5L"
+        ],
+        "visible_text_characters": 6912,
+        "challenge_markers": []
+      },
+      "structured_evidence": {
+        "identifier": "wiliot",
+        "checked_at": "2026-09-25T15:33:52.366943+00:00",
+        "endpoint_without_public_embed_token": "https://www.comeet.co/careers-api/2.0/company/F6.003/positions?details=true",
+        "public_embed_token_provenance": "COMEET.init in employer careers page; value omitted from report",
+        "status": 200,
+        "response_bytes": 125729,
+        "sha256": "acf19a67e97bd716db0383cb4828b5c422cb5cf3578233b17cf604f278d1f553",
+        "rows": 24,
+        "explicit_israel_rows": 9,
+        "full_israel_descriptions": 9,
+        "samples": [
+          {
+            "id": "52.F66",
+            "title": "DevOps Engineer",
+            "location": {
+              "name": "Israel - Tel Aviv",
+              "country": "IL",
+              "city": "Tel Aviv-Jaffa",
+              "state": "Tel Aviv District",
+              "postal_code": "6492102",
+              "street_name": "144 Derech Menachem Begin",
+              "arrival_instructions": "<p>Wework Midtown Floor 33, Wiliot</p><p><span><br/></span></p>",
+              "street_number": "144",
+              "timezone": "Asia/Jerusalem",
+              "location_uid": "6A.202",
+              "is_remote": true
+            },
+            "url": "https://www.comeet.com/jobs/wiliot/F6.003/devops-engineer/52.F66"
+          },
+          {
+            "id": "91.B62",
+            "title": "Field Technician",
+            "location": {
+              "name": "Israel - Caesarea",
+              "country": "IL",
+              "city": "Caesarea",
+              "state": "Haifa District",
+              "postal_code": "3079861",
+              "street_name": "8 Ha-Tokhen Street",
+              "arrival_instructions": "<p>Our office is located at HaTohen 8, 3rd floor Industrial and Business Park, Caesarea.<br/>Waze Link: <a href=\"https://www.waze.com/live-map/directions/israel/haifa-district/caesarea/wiliot?to=place.ChIJP9d0htkNHRURX7AbirCjVoY\" target=\"_blank\">Wiliot Office</a></p><p><br/><span></span><br/></p>",
+              "street_number": "8",
+              "timezone": "Asia/Jerusalem",
+              "location_uid": "98.201",
+              "is_remote": true
+            },
+            "url": "https://www.comeet.com/jobs/wiliot/F6.003/field-technician/91.B62"
+          },
+          {
+            "id": "6A.D6D",
+            "title": "Firmware Engineer",
+            "location": {
+              "name": "Israel - Caesarea",
+              "country": "IL",
+              "city": "Caesarea",
+              "state": "Haifa District",
+              "postal_code": "3079861",
+              "street_name": "8 Ha-Tokhen Street",
+              "arrival_instructions": "<p>Our office is located at HaTohen 8, 3rd floor Industrial and Business Park, Caesarea.<br/>Waze Link: <a href=\"https://www.waze.com/live-map/directions/israel/haifa-district/caesarea/wiliot?to=place.ChIJP9d0htkNHRURX7AbirCjVoY\" target=\"_blank\">Wiliot Office</a></p><p><br/><span></span><br/></p>",
+              "street_number": "8",
+              "timezone": "Asia/Jerusalem",
+              "location_uid": "98.201",
+              "is_remote": true
+            },
+            "url": "https://www.comeet.com/jobs/wiliot/F6.003/firmware-engineer/6A.D6D"
+          }
+        ]
+      },
+      "inventory_conclusion": "9 complete explicitly Israel role payloads verified; Api.js is not a job"
+    },
+    {
+      "identifier": "vayyar",
+      "name": "Vayyar Imaging — Israel",
+      "checked_at": "2026-09-25T15:31:29.754076+00:00",
+      "previous_collector_result": {
+        "identifier": "vayyar",
+        "name": "Vayyar Imaging — Israel",
+        "checked_at": "2026-09-25T15:29:32.039950+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://vayyar.com/recruitment/",
+        "status": 200,
+        "final_url": "https://vayyar.com/recruitment/",
+        "response_bytes": 348736,
+        "sha256": "a7568fbbc39623be7d8dea156947cf4adb7a42f273199bdcc6296f54fe00faec",
+        "ats_links": []
+      },
+      "category": "wrong_landing",
+      "finding": "Configured /recruitment/ returns a page titled Learn More About Us, while publishing https://vayyar.com/careers as a distinct recruitment link. The current generic source returns no job payload.",
+      "minimal_next_step": "Inspect the explicitly published /careers replacement before changing selectors; replacement was not fetched in this pass.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "vayyar",
+        "checked_at": "2026-09-25T15:32:36.814177+00:00",
+        "requested_url": "https://vayyar.com/recruitment/",
+        "status": 200,
+        "final_url": "https://vayyar.com/recruitment/",
+        "response_bytes": 348736,
+        "sha256": "a7568fbbc39623be7d8dea156947cf4adb7a42f273199bdcc6296f54fe00faec",
+        "title": "Learn More About Us - Vayyar",
+        "headings": [
+          "When your technology saves lives, you sense the urgency of your work.",
+          "We think you might like this position:",
+          "Hear our CEO explain what we do"
+        ],
+        "ats_links": [],
+        "recruitment_links": [
+          "https://vayyar.com/careers",
+          "https://vayyar.com/recruitment/",
+          "https://vayyar.com/recruitment/#content",
+          "https://vayyar.com/recruitment/?uael-modal-action=ae58399"
+        ],
+        "iframe_sources": [
+          "https://www.googletagmanager.com/ns.html?id=GTM-M8LVBQ5"
+        ],
+        "visible_text_characters": 3796,
+        "challenge_markers": []
+      },
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "cadence",
+      "name": "Cadence Design Systems — Israel",
+      "checked_at": "2026-09-25T15:31:29.103056+00:00",
+      "previous_collector_result": {
+        "identifier": "cadence",
+        "name": "Cadence Design Systems — Israel",
+        "checked_at": "2026-09-25T15:29:24.550470+00:00",
+        "collected": 17,
+        "israel": 0,
+        "complete": false,
+        "error": "",
+        "samples": [
+          {
+            "title": "Mixed- Signal Systems and Verification Engineer",
+            "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/BANGALORE/Mixed--Signal-Systems-and-Verification-Engineer_R55855",
+            "location": ""
+          },
+          {
+            "title": "Sr IT Architect",
+            "url": "https://cadence.wd1.myworkdayjobs.com/en-US/External_Careers/job/SAN-JOSE/AI-Senior-Staff-Systems-Engineer_R51191",
+            "location": ""
+          }
+        ]
+      },
+      "official_page": {
+        "requested_url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+        "status": 200,
+        "final_url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+        "response_bytes": 7882,
+        "sha256": "6f5371ff08adbc56080b42aaab583b851a01314b146a459b7c161a20b43a6478",
+        "ats_links": [
+          "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+          "https://cadence.wd1.myworkdayjobs.com/External_Careers/assets/logo"
+        ]
+      },
+      "category": "location_loss",
+      "finding": "Previous generic collector returned17 global Workday links with blank locations. Public Workday Israel text search returns7 rows including foreign matches; the exact employer-provided Location_Country Israel facet returns5 listings. Blank scraped locations are a demonstrated parser false negative.",
+      "minimal_next_step": "Use the existing native Workday pattern with hostcadence.wd1.myworkdayjobs.com, tenantcadence, siteExternal_Careers and the verified Location_Country facet. Hydrate and validate complete details before enabling the mapping; this diagnostic checked listings only.",
+      "collector_rerun_in_this_followup": false,
+      "content_inspection": {
+        "identifier": "cadence",
+        "checked_at": "2026-09-25T15:32:36.885819+00:00",
+        "requested_url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+        "status": 200,
+        "final_url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+        "response_bytes": 7882,
+        "sha256": "4de73b40227ed376b05e2606097629464c4df4d7ef10ef289b08982a813b5ce5",
+        "title": "",
+        "headings": [],
+        "ats_links": [
+          "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+          "https://cadence.wd1.myworkdayjobs.com/External_Careers/assets/logo"
+        ],
+        "recruitment_links": [],
+        "iframe_sources": [],
+        "visible_text_characters": 0,
+        "challenge_markers": [],
+        "short_page_text": ""
+      },
+      "structured_evidence": {
+        "text_query": {
+          "identifier": "cadence",
+          "url": "https://cadence.wd1.myworkdayjobs.com/wday/cxs/cadence/External_Careers/jobs",
+          "query": {
+            "appliedFacets": {},
+            "limit": 20,
+            "offset": 0,
+            "searchText": "Israel"
+          },
+          "checked_at": "2026-09-25T15:33:45.298056+00:00",
+          "status": 200,
+          "response_bytes": 2934,
+          "sha256": "fd598ea34b36d139f02b9afa861173d05b1302cb1658da65cf39df875c59720e",
+          "total": 7,
+          "rows": [
+            {
+              "title": "Sr Application Engineer",
+              "externalPath": "/job/KATOWICE-01/Sr-Application-Engineer_R55027",
+              "locationsText": "KATOWICE 01",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R55027"
+              ]
+            },
+            {
+              "title": "Functional Verification Engineer - Applied ML",
+              "externalPath": "/job/PETAH-TIKVA/Applied-ML---Lead-Functional-Verification-Engineer_R53822",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R53822"
+              ]
+            },
+            {
+              "title": "Senior Principal Functional Verification Engineer - Applied ML",
+              "externalPath": "/job/PETAH-TIKVA/Applied-ML---Senior-Principal-Functional-Verification-Engineer_R53825-1",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R53825"
+              ]
+            },
+            {
+              "title": "Lead Application Engineer - Custom IC",
+              "externalPath": "/job/PETAH-TIKVA-01/Sr-Application-Engineer_R54184-1",
+              "locationsText": "PETAH TIKVA 01",
+              "postedOn": "Posted 3 Days Ago",
+              "bulletFields": [
+                "R54184"
+              ]
+            },
+            {
+              "title": "Application Engineer - Physical Design (Back-End)",
+              "externalPath": "/job/PETAH-TIKVA/Application-Engineer---Physical-Design--Back-End-_R54943",
+              "locationsText": "2 Locations",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R54943"
+              ]
+            },
+            {
+              "title": "Application Engineer – AI & Verification Solutions",
+              "externalPath": "/job/PETAH-TIKVA/Application-Engineer---AI---Verification-Solutions_R55844",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R55844"
+              ]
+            },
+            {
+              "title": "Credit & Collections Specialist",
+              "externalPath": "/job/DUBLIN/Credit---Collections-Specialist_R52078",
+              "locationsText": "DUBLIN",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R52078"
+              ]
+            }
+          ],
+          "facets": [
+            {
+              "facetParameter": "Location_Country",
+              "descriptor": "Country",
+              "values": [
+                {
+                  "descriptor": "Israel",
+                  "id": "084562884af243748dad7c84c304d89a",
+                  "count": 5
+                },
+                {
+                  "descriptor": "Ireland",
+                  "id": "04a05835925f45b3a59406a2a6b72c8a",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Poland",
+                  "id": "131d5ac7e3ee4d7b962bdc96e498e412",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "facetParameter": "Location_Region_State_Province",
+              "descriptor": "State/Region/Province",
+              "values": [
+                {
+                  "descriptor": "Dublin",
+                  "id": "deaadda0e7dc4726a28d1221725f3de5",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Center District",
+                  "id": "3c145ef71da8436da952514d03d954ef",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Silesian",
+                  "id": "6204f0ee48994e51a48cfacf8eecfb88",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "facetParameter": "workerSubType",
+              "descriptor": "Job Type",
+              "values": [
+                {
+                  "descriptor": "Regular",
+                  "id": "f1fb037aee284ce78ac3518b03680c41",
+                  "count": 6
+                },
+                {
+                  "descriptor": "Fixed Term (Fixed Term)",
+                  "id": "65569d4cb86f4cf8a1f0c214cc0748c2",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "facetParameter": "timeType",
+              "descriptor": "Time Type",
+              "values": [
+                {
+                  "descriptor": "Full time",
+                  "id": "59ec2ade908946248e84acbf58584a93",
+                  "count": 7
+                }
+              ]
+            },
+            {
+              "facetParameter": "locationMainGroup",
+              "values": [
+                {
+                  "facetParameter": "locations",
+                  "descriptor": "Locations",
+                  "values": [
+                    {
+                      "descriptor": "DUBLIN",
+                      "id": "6418637d4d5010bf8a99cfb0b4456151",
+                      "count": 1
+                    },
+                    {
+                      "descriptor": "KATOWICE 01",
+                      "id": "f8ea2ed2fecb105cb1e7b9bcd01511c2",
+                      "count": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "country_facet_query": {
+          "identifier": "cadence",
+          "url": "https://cadence.wd1.myworkdayjobs.com/wday/cxs/cadence/External_Careers/jobs",
+          "query": {
+            "appliedFacets": {
+              "Location_Country": [
+                "084562884af243748dad7c84c304d89a"
+              ]
+            },
+            "limit": 20,
+            "offset": 0,
+            "searchText": ""
+          },
+          "checked_at": "2026-09-25T15:35:29.527622+00:00",
+          "status": 200,
+          "response_bytes": 3922,
+          "sha256": "9f5884ccd259cc72512906b48e6c81dff235d85a4c3b74208cbd24670471eab1",
+          "total": 5,
+          "rows": [
+            {
+              "title": "Lead Application Engineer - Custom IC",
+              "externalPath": "/job/PETAH-TIKVA-01/Sr-Application-Engineer_R54184-1",
+              "locationsText": "PETAH TIKVA 01",
+              "postedOn": "Posted 3 Days Ago",
+              "bulletFields": [
+                "R54184"
+              ]
+            },
+            {
+              "title": "Application Engineer – AI & Verification Solutions",
+              "externalPath": "/job/PETAH-TIKVA/Application-Engineer---AI---Verification-Solutions_R55844",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R55844"
+              ]
+            },
+            {
+              "title": "Application Engineer - Physical Design (Back-End)",
+              "externalPath": "/job/PETAH-TIKVA/Application-Engineer---Physical-Design--Back-End-_R54943",
+              "locationsText": "2 Locations",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R54943"
+              ]
+            },
+            {
+              "title": "Senior Principal Functional Verification Engineer - Applied ML",
+              "externalPath": "/job/PETAH-TIKVA/Applied-ML---Senior-Principal-Functional-Verification-Engineer_R53825-1",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R53825"
+              ]
+            },
+            {
+              "title": "Functional Verification Engineer - Applied ML",
+              "externalPath": "/job/PETAH-TIKVA/Applied-ML---Lead-Functional-Verification-Engineer_R53822",
+              "locationsText": "PETAH TIKVA",
+              "postedOn": "Posted 30+ Days Ago",
+              "bulletFields": [
+                "R53822"
+              ]
+            }
+          ],
+          "facets": [
+            {
+              "facetParameter": "Location_Country",
+              "descriptor": "Country",
+              "values": [
+                {
+                  "descriptor": "India",
+                  "id": "c4f78be1a8f14da0ab49ce1162348a5e",
+                  "count": 197
+                },
+                {
+                  "descriptor": "United States of America",
+                  "id": "bc33aa3152ec42d4995f4791a106ed09",
+                  "count": 155
+                },
+                {
+                  "descriptor": "China",
+                  "id": "6cb77610a8a543aea2d6bc10457e35d4",
+                  "count": 95
+                },
+                {
+                  "descriptor": "Taiwan",
+                  "id": "a4e08b475d6a4176853c9d1cb9854e02",
+                  "count": 32
+                },
+                {
+                  "descriptor": "Ireland",
+                  "id": "04a05835925f45b3a59406a2a6b72c8a",
+                  "count": 29
+                },
+                {
+                  "descriptor": "Korea, Republic of",
+                  "id": "7a5a2aadf9d34086a2bfbfd408bc28da",
+                  "count": 27
+                },
+                {
+                  "descriptor": "Brazil",
+                  "id": "1a29bb1357b240ab99a2fa755cc87c0e",
+                  "count": 19
+                },
+                {
+                  "descriptor": "Canada",
+                  "id": "a30a87ed25634629aa6c3958aa2b91ea",
+                  "count": 16
+                },
+                {
+                  "descriptor": "Japan",
+                  "id": "8b705da2becf43cfaccc091da0988ab2",
+                  "count": 10
+                },
+                {
+                  "descriptor": "United Kingdom",
+                  "id": "29247e57dbaf46fb855b224e03170bc7",
+                  "count": 9
+                },
+                {
+                  "descriptor": "France",
+                  "id": "54c5b6971ffb4bf0b116fe7651ec789a",
+                  "count": 6
+                },
+                {
+                  "descriptor": "Israel",
+                  "id": "084562884af243748dad7c84c304d89a",
+                  "count": 5
+                },
+                {
+                  "descriptor": "Germany",
+                  "id": "dcc5b7608d8644b3a93716604e78e995",
+                  "count": 4
+                },
+                {
+                  "descriptor": "Belgium",
+                  "id": "a04ea128f43a42e59b1e6a19e8f0b374",
+                  "count": 3
+                },
+                {
+                  "descriptor": "Greece",
+                  "id": "566388c1eb974c42bd9e3da4c2f57d60",
+                  "count": 3
+                },
+                {
+                  "descriptor": "Poland",
+                  "id": "131d5ac7e3ee4d7b962bdc96e498e412",
+                  "count": 3
+                },
+                {
+                  "descriptor": "Mexico",
+                  "id": "e2adff9272454660ac4fdb56fc70bb51",
+                  "count": 3
+                },
+                {
+                  "descriptor": "Italy",
+                  "id": "8cd04a563fd94da7b06857a79faaf815",
+                  "count": 2
+                },
+                {
+                  "descriptor": "Finland",
+                  "id": "0afb2fa656da42e8bfb6d47bd24a26fa",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Singapore",
+                  "id": "80938777cac5440fab50d729f9634969",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Sweden",
+                  "id": "6a800a4736884df5826858d435650f45",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Malaysia",
+                  "id": "972dc4ba8d454bc0b893ff84b1529077",
+                  "count": 1
+                },
+                {
+                  "descriptor": "Vietnam",
+                  "id": "db69e8c8446c11de98360015c5e6daf6",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "facetParameter": "Location_Region_State_Province",
+              "descriptor": "State/Region/Province",
+              "values": [
+                {
+                  "descriptor": "Center District",
+                  "id": "3c145ef71da8436da952514d03d954ef",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "facetParameter": "workerSubType",
+              "descriptor": "Job Type",
+              "values": [
+                {
+                  "descriptor": "Regular",
+                  "id": "f1fb037aee284ce78ac3518b03680c41",
+                  "count": 5
+                }
+              ]
+            },
+            {
+              "facetParameter": "timeType",
+              "descriptor": "Time Type",
+              "values": [
+                {
+                  "descriptor": "Full time",
+                  "id": "59ec2ade908946248e84acbf58584a93",
+                  "count": 5
+                }
+              ]
+            },
+            {
+              "facetParameter": "locationMainGroup",
+              "values": [
+                {
+                  "facetParameter": "locations",
+                  "descriptor": "Locations",
+                  "values": [
+                    {
+                      "descriptor": "PETAH TIKVA",
+                      "id": "6418637d4d5010bf8a9ab2533ecc6219",
+                      "count": 4
+                    },
+                    {
+                      "descriptor": "HAIFA",
+                      "id": "6418637d4d5010bf8a9aa313639c620a",
+                      "count": 1
+                    },
+                    {
+                      "descriptor": "PETAH TIKVA 01",
+                      "id": "66d4cbf1706c102705d01ed993b33344",
+                      "count": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "full_job_details_verified": false
+      },
+      "inventory_conclusion": "5 explicit Israel country-filtered listings verified; full descriptions not audited"
+    },
+    {
+      "identifier": "neuroblade",
+      "name": "NeuroBlade — Israel",
+      "checked_at": "2026-09-25T15:31:29.835936+00:00",
+      "previous_collector_result": {
+        "identifier": "neuroblade",
+        "name": "NeuroBlade — Israel",
+        "checked_at": "2026-09-25T15:29:34.985912+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: NeuroBlade did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.neuroblade.com/careers/",
+        "status": 403,
+        "final_url": "https://www.neuroblade.com/careers/",
+        "response_bytes": 146,
+        "sha256": "32f2fa940d4b4fe19aca1e53a24e5aac29c57b7c5ee78588325b87f1b649c864",
+        "ats_links": []
+      },
+      "category": "http_blocked",
+      "finding": "Configured careers page returns HTTP403. The previous full collector also failed; neither result establishes no vacancies.",
+      "minimal_next_step": "Retain failed/unknown status; verify a current employer-owned public alternative if one exists.",
+      "collector_rerun_in_this_followup": false,
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    },
+    {
+      "identifier": "dustphotonics",
+      "name": "DustPhotonics — Israel",
+      "checked_at": "2026-09-25T15:31:29.603759+00:00",
+      "previous_collector_result": {
+        "identifier": "dustphotonics",
+        "name": "DustPhotonics — Israel",
+        "checked_at": "2026-09-25T15:29:29.273524+00:00",
+        "collected": null,
+        "israel": null,
+        "error": "PreserveExistingJobs: DustPhotonics did not expose a reliable job payload; preserving the last successful snapshot"
+      },
+      "official_page": {
+        "requested_url": "https://www.dustphotonics.com/careers/",
+        "status": 403,
+        "final_url": "https://www.dustphotonics.com/careers/",
+        "response_bytes": 52,
+        "sha256": "889403e5cfbb7981f7a26aced0d7492524e5397d6996f7fccd67562d2a4a71a3",
+        "ats_links": []
+      },
+      "category": "http_blocked",
+      "finding": "Configured careers URL returns HTTP403 in this environment. This is a tested-route access failure, not proof of permanent blocking or zero openings.",
+      "minimal_next_step": "Retain failed/unknown status; verify an official alternate without bypassing access controls.",
+      "collector_rerun_in_this_followup": false,
+      "inventory_conclusion": "unknown; failed page/collector is not evidence of zero vacancies"
+    }
+  ]
+}

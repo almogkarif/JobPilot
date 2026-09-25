@@ -1,0 +1,907 @@
+{
+  "checked_at": "2026-09-25T15:19:59.015112+00:00",
+  "scope": "Bounded read-only investigation of four active-source empty results; no code/source configuration changes.",
+  "constraints": {
+    "public_http_checks": 16,
+    "max_concurrency": 3,
+    "max_response_bytes": 4000000,
+    "timeout_seconds": 25,
+    "max_redirects": 4,
+    "browser_control": false,
+    "database_requests": 0,
+    "applications_sent": 0
+  },
+  "sources": [
+    {
+      "identifier": "Cyberark1",
+      "kind": "smartrecruiters",
+      "state": "stale_or_moved_tenant",
+      "israel_query_count": 0,
+      "global_query_count": 0,
+      "official_page": "https://www.cyberark.com/careers/",
+      "official_final_url": "https://www.paloaltonetworks.com/idira",
+      "replacement_careers_link": "https://jobs.paloaltonetworks.com/en/",
+      "collector_observation": "The SmartRecruiters API returns valid empty lists both globally and for country=il. Existing collector therefore labels the empty response complete=True. That is transport/list completeness, not evidence that the replacement employer recruitment surface has no roles.",
+      "root_cause": "The configured SmartRecruiters tenant is no longer a useful active vacancy source; current CyberArk official URL redirects into Palo Alto Networks and links its recruiting site.",
+      "minimal_fix_proposal": "Review the already configured official_careers/paloalto source for coverage of the former CyberArk roles. Then explicitly retire/alias Cyberark1 while preserving canonical identities, history and manual overrides. Do not point Cyberark1 at the full Palo Alto feed as a second duplicate source. No change applied.",
+      "evidence_keys": [
+        "cyberark-il",
+        "cyberark-global",
+        "cyberark-official",
+        "paloalto-official"
+      ]
+    },
+    {
+      "identifier": "amdocs",
+      "kind": "official_careers",
+      "state": "verified_empty_israel_on_current_board",
+      "israel_query_count": 0,
+      "global_query_count": 19,
+      "global_rows_enumerated": 19,
+      "unique_global_ids": 19,
+      "explicit_israel_global_rows": 0,
+      "official_page": "https://jobs.amdocs.com/careers?location=Israel",
+      "collector_observation": "Current public PCSX response is valid; both global pages enumerate the declared19 rows and all explicit locations are outside Israel. The operational collector returns empty complete=False.",
+      "root_cause": "No current Israel results on the audited Amdocs board; this run found no parser failure or moved API endpoint.",
+      "minimal_fix_proposal": "No collector change supported. Keep partial preservation and monitor future scans; this does not establish absence on every possible employer recruiting channel.",
+      "global_locations": [
+        {
+          "id": 563431014894227,
+          "title": "Technical & Business Operations Specialist",
+          "locations": [
+            "MEX-CDMX, Mexico City, Terret (AM)"
+          ]
+        },
+        {
+          "id": 563431014922180,
+          "title": "Vendor Operations Manager",
+          "locations": [
+            "Mexico-Guadalajara (AM)"
+          ]
+        },
+        {
+          "id": 563431014919746,
+          "title": "General Ledger Accountant (US GAAP)",
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014935623,
+          "title": "Finance System Analyst",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014928215,
+          "title": "Finance Operations Professional",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014919730,
+          "title": "Senior Accounting Analyst (US GAAP)",
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014933815,
+          "title": "Fiber Engineer",
+          "locations": [
+            "Gurgaon,India"
+          ]
+        },
+        {
+          "id": 563431014930558,
+          "title": "Fiber Engineer",
+          "locations": [
+            "India- Gurgaon (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431013109848,
+          "title": "Fiber Engineer",
+          "locations": [
+            "Gurgaon,India"
+          ]
+        },
+        {
+          "id": 563431014872071,
+          "title": "Software Engineer",
+          "locations": [
+            "USA-GA, Alpharetta, 500 NorthPoint (CU)"
+          ]
+        },
+        {
+          "id": 563431014818515,
+          "title": "Director - Program Management",
+          "locations": [
+            "USA-WA, Bellevue, Factoria Blvd SE (AM)"
+          ]
+        },
+        {
+          "id": 563431014731113,
+          "title": "Finance Operations Professional (Graduate)",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014786033,
+          "title": "Financial Analysis Team Lead",
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014690443,
+          "title": "Tax Expert",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014700743,
+          "title": "Category Manager, Strategic Sourcing (Technology ,Service & Transformation)",
+          "locations": [
+            "USA-FL, Miami, Alhambra Plaza (AM)"
+          ]
+        },
+        {
+          "id": 563431014617512,
+          "title": "Digital Media Technician",
+          "locations": [
+            "Pune,India"
+          ]
+        },
+        {
+          "id": 563431014203695,
+          "title": "Site Facilities Management Expert (Onsite)",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014600564,
+          "title": "Client Services Account Manager",
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ]
+        },
+        {
+          "id": 563431014473239,
+          "title": "Payroll Specialist- EMEA",
+          "locations": [
+            "Manila,Philippines"
+          ]
+        }
+      ],
+      "evidence_keys": [
+        "amdocs-il",
+        "amdocs-global",
+        "amdocs-global-page2",
+        "amdocs-official"
+      ]
+    },
+    {
+      "identifier": "WesternDigital",
+      "kind": "smartrecruiters",
+      "state": "verified_empty_israel_query_current_tenant",
+      "israel_query_count": 0,
+      "global_query_count": 333,
+      "global_rows_enumerated": 1,
+      "official_page": "https://www.westerndigital.com/careers",
+      "official_ats_link": "https://careers.smartrecruiters.com/WesternDigital",
+      "collector_observation": "The current official careers page links exactly the configured SmartRecruiters tenant. Its global API lists333 postings while country=il returns totalFound0. Complete=True follows the complete empty country-filtered API response.",
+      "root_cause": "Valid current Israel-filtered API empty result; no tenant or parser mismatch observed. The initially tested older /company/careers page is404, but it is not the collector endpoint.",
+      "minimal_fix_proposal": "No collector change supported. Keep the existing current tenant. Do not infer absence from separate subsidiaries or recruitment systems.",
+      "evidence_keys": [
+        "wd-il",
+        "wd-global",
+        "wd-official",
+        "wd-current-official"
+      ]
+    },
+    {
+      "identifier": "boston-scientific",
+      "kind": "official_careers",
+      "state": "valid_empty_query_broader_inventory_unverified",
+      "israel_query_count": 0,
+      "global_query_count": 591,
+      "global_rows_enumerated": 10,
+      "official_page": "https://www.bostonscientific.com/en-US/careers.html",
+      "official_ats_link": "https://bostonscientific.eightfold.ai/careers",
+      "collector_observation": "Official employer page still links the configured Eightfold board. PCSX global search reports591 positions; exact location=Israel query returns0. Applied filters include includeRemote=1 and includeRelocation=0.",
+      "root_cause": "Working protocol with an empty exact location search; no parser failure or moved tenant observed. The591-row global board was not exhaustively enumerated, so employer-wide Israel inventory remains unverified.",
+      "minimal_fix_proposal": "No demonstrated parser repair. Retain complete=False and query-scoped diagnostics. If a complete inventory conclusion is required, verify the employer UI country/location filter semantics before widening search; do not guess parameters.",
+      "evidence_keys": [
+        "boston-il",
+        "boston-global",
+        "boston-official"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "key": "cyberark-il",
+      "url": "https://api.smartrecruiters.com/v1/companies/Cyberark1/postings?limit=1&offset=0&country=il",
+      "checked_at": "2026-09-25T15:15:53.526974+00:00",
+      "status": 200,
+      "final_url": "https://api.smartrecruiters.com/v1/companies/Cyberark1/postings?limit=1&offset=0&country=il",
+      "bytes": 50,
+      "sha256": "8a25a787ab5845d9df7f2354ec126a0d8fb09841884023f7cd9a47bf4c5079ac",
+      "payload_fields": {
+        "offset": 0,
+        "limit": 1,
+        "totalFound": 0,
+        "content": 0
+      },
+      "sample_rows": []
+    },
+    {
+      "key": "cyberark-global",
+      "url": "https://api.smartrecruiters.com/v1/companies/Cyberark1/postings?limit=1&offset=0",
+      "checked_at": "2026-09-25T15:15:53.574436+00:00",
+      "status": 200,
+      "final_url": "https://api.smartrecruiters.com/v1/companies/Cyberark1/postings?limit=1&offset=0",
+      "bytes": 50,
+      "sha256": "8a25a787ab5845d9df7f2354ec126a0d8fb09841884023f7cd9a47bf4c5079ac",
+      "payload_fields": {
+        "offset": 0,
+        "limit": 1,
+        "totalFound": 0,
+        "content": 0
+      },
+      "sample_rows": []
+    },
+    {
+      "key": "cyberark-official",
+      "url": "https://www.cyberark.com/careers/",
+      "checked_at": "2026-09-25T15:15:53.578555+00:00",
+      "status": 200,
+      "final_url": "https://www.paloaltonetworks.com/idira",
+      "bytes": 599412,
+      "sha256": "1a9c30ed5457817e9675333f17f55d434c070c61514acf5f234a96c76adafb80",
+      "title": "Idira | The Identity Security Platform - Palo Alto Networks",
+      "recruitment_links": [
+        "https://jobs.paloaltonetworks.com/en/"
+      ]
+    },
+    {
+      "key": "amdocs-il",
+      "url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&location=Israel&start=0&hl=en",
+      "checked_at": "2026-09-25T15:15:53.724116+00:00",
+      "status": 200,
+      "final_url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&location=Israel&start=0&hl=en",
+      "bytes": 13515,
+      "sha256": "d366edcf48917972e852e3ff839a9fab1ffbc0663f60a3b4b126f77a373b8678",
+      "payload_fields": {
+        "positions": 0,
+        "filterDef": 3,
+        "count": 0,
+        "sortBy": "distance",
+        "appliedFilters": 2,
+        "debug": 0,
+        "savedSearchMetadata": 2,
+        "resultsMetaData": 2
+      },
+      "sample_rows": []
+    },
+    {
+      "key": "amdocs-global",
+      "url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&start=0&hl=en",
+      "checked_at": "2026-09-25T15:15:53.733071+00:00",
+      "status": 200,
+      "final_url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&start=0&hl=en",
+      "bytes": 17964,
+      "sha256": "c740ff953aeb5dc2937b7dc7d3ed74a55275dc2c49cbf4d4648a613011e2b534",
+      "payload_fields": {
+        "positions": 10,
+        "filterDef": 3,
+        "count": 19,
+        "sortBy": "hot",
+        "appliedFilters": 0,
+        "debug": 0,
+        "savedSearchMetadata": 2,
+        "resultsMetaData": 2
+      },
+      "sample_rows": [
+        {
+          "id": 563431014894227,
+          "name": "Technical & Business Operations Specialist",
+          "location": null,
+          "locations": [
+            "MEX-CDMX, Mexico City, Terret (AM)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014922180,
+          "name": "Vendor Operations Manager",
+          "location": null,
+          "locations": [
+            "Mexico-Guadalajara (AM)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014919746,
+          "name": "General Ledger Accountant (US GAAP)",
+          "location": null,
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014935623,
+          "name": "Finance System Analyst",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014928215,
+          "name": "Finance Operations Professional",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014919730,
+          "name": "Senior Accounting Analyst (US GAAP)",
+          "location": null,
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014933815,
+          "name": "Fiber Engineer",
+          "location": null,
+          "locations": [
+            "Gurgaon,India"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014930558,
+          "name": "Fiber Engineer",
+          "location": null,
+          "locations": [
+            "India- Gurgaon (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431013109848,
+          "name": "Fiber Engineer",
+          "location": null,
+          "locations": [
+            "Gurgaon,India"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014872071,
+          "name": "Software Engineer",
+          "location": null,
+          "locations": [
+            "USA-GA, Alpharetta, 500 NorthPoint (CU)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        }
+      ]
+    },
+    {
+      "key": "amdocs-official",
+      "url": "https://jobs.amdocs.com/careers?location=Israel",
+      "checked_at": "2026-09-25T15:15:54.188332+00:00",
+      "status": 200,
+      "final_url": "https://jobs.amdocs.com/careers?location=Israel",
+      "bytes": 311043,
+      "sha256": "965d7eda7a38a388108576cbeb23d68e000222a82e6903115c0fef01cad70070",
+      "title": "Careers at Amdocs",
+      "recruitment_links": [
+        "/careerhub/me?action=edit&trackApplicationStatus=false&hl=en&profile_type=candidate&domain=amdocs.com&customredirect=1",
+        "/careers/join?domain=amdocs.com",
+        "https://app.eightfold-eu.ai/careers?domain=amdocs.com#upload",
+        "https://jobs.amdocs.com/careers?domain=amdocs.com#upload",
+        "https://jobs.amdocs.com/content/Search-by-Location/?locale=en_US&utm_source=careersite",
+        "https://jobs.amdocs.com/content/fields-of-work/?locale=en_US",
+        "https://www.amdocs.com/careers/benefits",
+        "https://www.amdocs.com/careers/fields-of-work",
+        "https://www.amdocs.com/careers/home",
+        "https://www.amdocs.com/careers/life-at-amdocs",
+        "https://www.amdocs.com/careers/locations"
+      ]
+    },
+    {
+      "key": "amdocs-global-page2",
+      "url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&start=10&hl=en",
+      "checked_at": "2026-09-25T15:16:47.274486+00:00",
+      "status": 200,
+      "final_url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&query=&start=10&hl=en",
+      "bytes": 17626,
+      "sha256": "ed23e5a427cf469c1bf85096ab473486f0e353087292120c7ae415a04056e91b",
+      "payload_fields": {
+        "positions": 9,
+        "filterDef": 3,
+        "count": 19,
+        "sortBy": "hot",
+        "appliedFilters": 0,
+        "debug": 0,
+        "savedSearchMetadata": 2,
+        "resultsMetaData": 2
+      },
+      "sample_rows": [
+        {
+          "id": 563431014818515,
+          "name": "Director - Program Management",
+          "location": null,
+          "locations": [
+            "USA-WA, Bellevue, Factoria Blvd SE (AM)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014731113,
+          "name": "Finance Operations Professional (Graduate)",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014786033,
+          "name": "Financial Analysis Team Lead",
+          "location": null,
+          "locations": [
+            "Brazil- Sao Paulo (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014690443,
+          "name": "Tax Expert",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014700743,
+          "name": "Category Manager, Strategic Sourcing (Technology ,Service & Transformation)",
+          "location": null,
+          "locations": [
+            "USA-FL, Miami, Alhambra Plaza (AM)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014617512,
+          "name": "Digital Media Technician",
+          "location": null,
+          "locations": [
+            "Pune,India"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014203695,
+          "name": "Site Facilities Management Expert (Onsite)",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014600564,
+          "name": "Client Services Account Manager",
+          "location": null,
+          "locations": [
+            "Cyprus- Limassol (Amdocs Site)"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563431014473239,
+          "name": "Payroll Specialist- EMEA",
+          "location": null,
+          "locations": [
+            "Manila,Philippines"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        }
+      ]
+    },
+    {
+      "key": "wd-il",
+      "url": "https://api.smartrecruiters.com/v1/companies/WesternDigital/postings?limit=1&offset=0&country=il",
+      "checked_at": "2026-09-25T15:16:47.305277+00:00",
+      "status": 200,
+      "final_url": "https://api.smartrecruiters.com/v1/companies/WesternDigital/postings?limit=1&offset=0&country=il",
+      "bytes": 50,
+      "sha256": "8a25a787ab5845d9df7f2354ec126a0d8fb09841884023f7cd9a47bf4c5079ac",
+      "payload_fields": {
+        "offset": 0,
+        "limit": 1,
+        "totalFound": 0,
+        "content": 0
+      },
+      "sample_rows": []
+    },
+    {
+      "key": "wd-global",
+      "url": "https://api.smartrecruiters.com/v1/companies/WesternDigital/postings?limit=1&offset=0",
+      "checked_at": "2026-09-25T15:16:47.309130+00:00",
+      "status": 200,
+      "final_url": "https://api.smartrecruiters.com/v1/companies/WesternDigital/postings?limit=1&offset=0",
+      "bytes": 2391,
+      "sha256": "ca3805c06647a5be82226e93ac931093b17b899cd60ac8b1219d208ad734c52b",
+      "payload_fields": {
+        "offset": 0,
+        "limit": 1,
+        "totalFound": 333,
+        "content": 1
+      },
+      "sample_rows": [
+        {
+          "id": "744000151759859",
+          "name": "Senior Executive IT Support",
+          "location": {
+            "city": "Singapore",
+            "country": "sg",
+            "remote": false,
+            "hybrid": false,
+            "latitude": "1.2811866",
+            "longitude": "103.8503404",
+            "fullLocation": "Singapore, , Singapore"
+          },
+          "locations": null,
+          "ref": "https://api.smartrecruiters.com/v1/companies/WesternDigital/postings/744000151759859",
+          "postingUrl": null,
+          "applyUrl": null
+        }
+      ]
+    },
+    {
+      "key": "wd-official",
+      "url": "https://www.westerndigital.com/company/careers",
+      "checked_at": "2026-09-25T15:16:47.547079+00:00",
+      "status": 404,
+      "final_url": "https://www.westerndigital.com/company/careers",
+      "bytes": 982446,
+      "sha256": "c3c7bd503b209877ca6fccc7c0b9c92d1d7477df054794f99c7073f95e51c7f6",
+      "title": "Page Not Found | WD",
+      "recruitment_links": [
+        "/careers"
+      ]
+    },
+    {
+      "key": "boston-il",
+      "url": "https://bostonscientific.eightfold.ai/api/pcsx/search?domain=bostonscientific.com&query=&location=Israel&start=0&hl=en",
+      "checked_at": "2026-09-25T15:16:47.584812+00:00",
+      "status": 200,
+      "final_url": "https://bostonscientific.eightfold.ai/api/pcsx/search?domain=bostonscientific.com&query=&location=Israel&start=0&hl=en",
+      "bytes": 4810,
+      "sha256": "585d4698b87116e7a43f72cf2b12d352cff5f9619613fc834872b498a24dd837",
+      "payload_fields": {
+        "positions": 0,
+        "filterDef": 3,
+        "count": 0,
+        "sortBy": "distance",
+        "appliedFilters": 2,
+        "debug": 0,
+        "savedSearchMetadata": 2,
+        "resultsMetaData": 2
+      },
+      "sample_rows": []
+    },
+    {
+      "key": "boston-global",
+      "url": "https://bostonscientific.eightfold.ai/api/pcsx/search?domain=bostonscientific.com&query=&start=0&hl=en",
+      "checked_at": "2026-09-25T15:16:47.627318+00:00",
+      "status": 200,
+      "final_url": "https://bostonscientific.eightfold.ai/api/pcsx/search?domain=bostonscientific.com&query=&start=0&hl=en",
+      "bytes": 9306,
+      "sha256": "6ab93b837ab3ed0cb663206a47cef774b98415abe62d1cb5f965a5a164b791c8",
+      "payload_fields": {
+        "positions": 10,
+        "filterDef": 3,
+        "count": 591,
+        "sortBy": "hot",
+        "appliedFilters": 0,
+        "debug": 0,
+        "savedSearchMetadata": 2,
+        "resultsMetaData": 2
+      },
+      "sample_rows": [
+        {
+          "id": 563602813603273,
+          "name": "Strategic Sourcing Specialist III Electronics",
+          "location": null,
+          "locations": [
+            "Arden Hills US-MA, United States |  N/A"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813328229,
+          "name": "Principal Systems Engineer - P5",
+          "location": null,
+          "locations": [
+            "Maple Grove US-MN, United States | US-MN-Arden Hills, US-MN-Maple Grove"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813611144,
+          "name": "Travel & Expense Specialist, Customer Engagement (Off Roll)",
+          "location": null,
+          "locations": [
+            "Gurgaon, India |  N/A"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813403894,
+          "name": "Senior Legal Analyst, Digital, AI & Contracts",
+          "location": null,
+          "locations": [
+            "Gurgaon IN-HR, India |  N/A"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813525707,
+          "name": "Associate II, Warehouse",
+          "location": null,
+          "locations": [
+            "Gurgaon IN-HR, India |  N/A"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813389231,
+          "name": "Senior Strategic Sourcing Specialist - Electronics",
+          "location": null,
+          "locations": [
+            "Arden Hills US-MN, United States | US-MN-Arden Hills"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813541428,
+          "name": "R&D Systems III / Systèmes R-D III",
+          "location": null,
+          "locations": [
+            "Montreal CA-QC, Canada | Canada-QC-Montreal"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813337340,
+          "name": "Senior R&D Manager, Software/Firmware | Gestionnaire principal(e), R-D, logiciels/micrologiciels",
+          "location": null,
+          "locations": [
+            "Montreal CA-QC, Canada | Canada-QC-Montreal"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602813341626,
+          "name": "Senior Supplier Engineer - A&I",
+          "location": null,
+          "locations": [
+            "Arden Hills US-MN, United States | US-MN-Arden Hills"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        },
+        {
+          "id": 563602812972348,
+          "name": "Product Owner Lead, Data & AI, APAC(Malaysia / Taiwan-Based)",
+          "location": null,
+          "locations": [
+            "Kuala Lumpur, Malaysia | Taiwan-Taipei City"
+          ],
+          "ref": null,
+          "postingUrl": null,
+          "applyUrl": null
+        }
+      ]
+    },
+    {
+      "key": "boston-official",
+      "url": "https://www.bostonscientific.com/en-US/careers.html",
+      "checked_at": "2026-09-25T15:16:47.869528+00:00",
+      "status": 200,
+      "final_url": "https://www.bostonscientific.com/en-US/careers.html",
+      "bytes": 154645,
+      "sha256": "2c375cd321cb434dc0bc99119ae85a90d254419595dabda0cc540b075076cf77",
+      "title": "\n      Medical Technology Careers \n       - Boston Scientific\n    ",
+      "recruitment_links": [
+        "/content/dam/bostonscientific/corporate/careers/pay-transparency-nondiscrimination-provision.pdf",
+        "/en-US/careers.html",
+        "/en-US/careers/benefits.html",
+        "/en-US/careers/life-at-boston-scientific.html",
+        "/en-US/careers/recruiting-scam-alert.html",
+        "/en-US/careers/search-apply.html",
+        "/en-US/careers/students.html",
+        "/en-US/careers/working-here.html",
+        "https://bostonscientific.eightfold.ai/careers",
+        "https://bostonscientific.eightfold.ai/careers/join?domain=bostonscientific.com",
+        "https://www.bostonscientific.com/en-US/careers.html"
+      ]
+    },
+    {
+      "key": "paloalto-official",
+      "url": "https://jobs.paloaltonetworks.com/en/",
+      "checked_at": "2026-09-25T15:16:48.038955+00:00",
+      "status": 200,
+      "final_url": "https://jobs.paloaltonetworks.com/en/",
+      "bytes": 1042858,
+      "sha256": "c0869f206edba85ce7afa02700f8a07c7210aa7859fb4ca6e9dd660325a66984",
+      "title": "Explore Careers and Jobs in Cybersecurity at Palo Alto Networks",
+      "recruitment_links": [
+        "/EN/search-jobs",
+        "/early-in-career",
+        "/emea-jobs",
+        "/en/Barbara-grow-sales-career-Palo-Alto-Networks",
+        "/en/EMEA-Magda-sales-career-growth",
+        "/en/Enrique-global-customer-support-career-Spain",
+        "/en/Gilad-Palo-Alto-Networks-Unit-42-Israel-Career-Growth",
+        "/en/Josie-global-career-SASE-GTM-Canada",
+        "/en/Mike-ten-things-to-know-unit-42-incident-response-careers",
+        "/en/Must-Know-Facts-from-an-Early-Career-Product-Manager",
+        "/en/Nico-sr-product-manager-career-advice",
+        "/en/Palo-Alto-Networks-Sales-jobs-Belgium-EMEA-onboarding",
+        "/en/Rachel-early-talent-career-advice",
+        "/en/Taylor-early-in-career-solutions-consultant-tips",
+        "/en/bdr-to-territory-sales-manager-trevor-career-journey",
+        "/en/blog-atheel-leadership-journey-unit-42-career-growth",
+        "/en/blog-josh-staff-software-engineer-qa-career-growth",
+        "/en/blog-tammy-sales-leader-career-pivot-cyberark-acquisition",
+        "/en/career-growth-Palo-Alto-Networks-early-talent-to-systems-engineering-leader",
+        "/en/career-growth-uae-sales-sabine-technical-to-sales-pivot",
+        "/en/career-pivots-sales-marketing-emily-journey",
+        "/en/career-switch-cybersecurity-palo-alto-networks-joko",
+        "/en/cybersecurity-sales-career-development-journey-lisa",
+        "/en/cybersecurity-sales-career-growth-UAE",
+        "/en/diana-stoica-solution-consultant-career-growth-france",
+        "/en/early-in-career",
+        "/en/global-customer-services-jobs",
+        "/en/grow-customer-success-career-service-delivery-lead-spain",
+        "/en/grow-sales-career-at-Palo-Alto-Networks-Belgium",
+        "/en/grow-sales-engineering-career-palo-alto-networks-usa",
+        "/en/growing-career-in-tech-sales-usa-abbey",
+        "/en/growing-sales-career-Palo-Alto-Networks-Italy-Anto",
+        "/en/infotech-jobs",
+        "/en/jo-machine-identity-security-career-growth-emea",
+        "/en/legal-jobs",
+        "/en/marketing-jobs",
+        "/en/pre-sales-systems-engineer-career-advice-usa",
+        "/en/product-manager-career-advice-palo-alto-networks-north-america",
+        "/en/sales-bdr-manager-career-growth",
+        "/en/sales-career-area",
+        "/en/sales-palo-alto-networks-new-york-career-growth-evan",
+        "/en/saved-jobs",
+        "/en/search-jobs",
+        "/en/starting-a-cybersecurity-systems-engineering-career",
+        "/global-customer-services-jobs",
+        "/infotech-jobs",
+        "/latam-jobs",
+        "/legal-jobs",
+        "/marketing-jobs",
+        "/sales-career-area"
+      ]
+    },
+    {
+      "key": "wd-current-official",
+      "url": "https://www.westerndigital.com/careers",
+      "checked_at": "2026-09-25T15:17:38.390592+00:00",
+      "status": 200,
+      "final_url": "https://www.westerndigital.com/careers",
+      "bytes": 1024239,
+      "sha256": "1efd4615c04d6c9b926b6af03775395083151691d7c3f4337b313b424050fa23",
+      "title": "Explore Western Digital Career Opportunities  | WD",
+      "recruitment_links": [
+        "/careers",
+        "/careers/applicant-policies-and-disclaimers",
+        "/careers/meet-western-digital",
+        "/careers/salute-to-service",
+        "/careers/students-and-grads",
+        "/careers/total-rewards",
+        "https://careers.smartrecruiters.com/WesternDigital",
+        "https://jobs.westerndigital.com/applicant-policies-and-disclaimers",
+        "https://join.smartrecruiters.com/WesternDigital/9fe694bc-5b4b-4504-8ac1-d45934769384-u-s-recruiting-lcf-general",
+        "https://join.smartrecruiters.com/WesternDigital/e0f2e65f-7b19-4cd5-b1dd-9b677ec5b7ef-global-professional-talent-community-career-site",
+        "mailto:jobs.accommodations@wdc.com"
+      ]
+    },
+    {
+      "key": "amdocs-corporate",
+      "url": "https://www.amdocs.com/careers/home",
+      "checked_at": "2026-09-25T15:17:38.422436+00:00",
+      "status": 200,
+      "final_url": "https://www.amdocs.com/careers/home",
+      "bytes": 1146,
+      "sha256": "cbf113230d20729e37399e7ebab036abf214cdc4b2f731bf51c7f9579dafec11",
+      "title": "",
+      "recruitment_links": []
+    }
+  ],
+  "notes": [
+    "Counts are live snapshots and can change between requests.",
+    "Only Amdocs global listing was exhaustively enumerated within this bounded audit.",
+    "CyberArk replacement coverage was not collected or asserted here; the existing Palo Alto source should be reviewed before retirement or alias migration.",
+    "Original audit reports remain unchanged."
+  ]
+}

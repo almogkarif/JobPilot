@@ -743,3 +743,23 @@ usually return much less. Job descriptions are not selected for unchanged scans.
 Regression coverage: `test_new_source_expansion_does_not_enable_unbounded_official_pages`
 and `tests/test_zim_ide_collectors.py` enforce the request path, row/response/content
 bounds, identity/location rules, missing dates and partial snapshot behavior.
+
+### Retym and Speedata parser corrections — 25 September 2026
+
+Retym now uses the actual Comeet vacancy ID rather than the location slug. It
+fetches one bounded public listing plus at most 40 details, each capped at 4 MB,
+using the existing detail downloader (at most four redirect hops per logical
+request). At hourly scanning this is at most 984 logical employer requests/day,
+3,936 redirect-inclusive request hops/day and 3.936 GB/day of external body
+traffic in the pessimistic size ceiling. No Supabase request originates in these
+adapters. Extracted descriptions remain capped at 24,000 characters, at most
+3.84 MB of potential UTF-8 body writes for 40 newly recovered jobs per scan;
+subsequent database/ranking transfers remain under the shared 64 MiB/day ledger.
+Both snapshots stay partial, avoiding closure inferences during ID recovery.
+
+Speedata preserves an explicit Israel paragraph from the same Wix listing card
+before full-description hydration; it adds no requests, detail limits or database
+reads. Footer addresses and neighboring cards are excluded. The collector egress
+regression now covers Retym's detail/byte bounds, and the recovery integration
+tests execute the production payload-quality validator before accepting results.
+No database migration, startup backfill or production scan is added by this fix.
