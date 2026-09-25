@@ -19,6 +19,8 @@ from .microsoft_detail import microsoft_position_detail
 from .mobileye_detail import mobileye_job_detail, mobileye_job_closed
 from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from .expansion_ats import VERIFIED_ATS_IDENTIFIERS, collect_expansion_feed
+from .workday import EXPANSION_WORKDAY_IDENTIFIERS
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
 from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
@@ -261,13 +263,19 @@ PRESETS['texas-instruments'].update(
 PRESETS['matrix-israel'].update(matrix_inline=True, max_inline_jobs=100,
     hydrate_details=False, selector='.job-item[job-id]', id_pattern=r'(?i)/(?:משרה|%D7%9E%D7%A9%D7%A8%D7%94)/([^/?#]+)')
 PRESETS['global-e'].update(globale_feed=True, hydrate_details=False)
+PRESETS['netafim'].update(
+    url='https://careers.netafim.com/jobs', selector='a[href*="/jobs/"]',
+    id_pattern=r'/jobs/(\d+)-', detail_response_bytes=4_000_000,
+)
 
 
 class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
-        if identifier in {"marvell", "broadcom-israel"}:
+        if identifier in VERIFIED_ATS_IDENTIFIERS:
+            return await collect_expansion_feed(identifier, company_name or PRESETS[identifier]["company"])
+        if identifier in {"marvell", "broadcom-israel"} | EXPANSION_WORKDAY_IDENTIFIERS:
             from .workday import WorkdayCollector
             jobs = await WorkdayCollector().collect(identifier, company_name)
             # Keep legacy records until a separate, explicit reconciliation: the

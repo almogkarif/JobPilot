@@ -1,4 +1,4 @@
-"""Explicit PostgreSQL rehearsal on a disposable loopback database, never startup."""
+"""Explicit bounded PostgreSQL consolidation, never called by startup."""
 from __future__ import annotations
 
 import json
@@ -83,14 +83,38 @@ def _preflight(c):
 
 def migrate_postgres_copy(engine, *, confirmed_copy=False):
     validate_rehearsal_target(engine, confirmed_copy)
+    return _migrate_postgres(engine, version=VERSION, rehearsal=True)
+
+
+def migrate_cloud_catalog(engine, *, expected_project: str, confirmed=False, dry_run=True):
+    """Explicit Supabase operation; defaults to rolling the entire transaction back."""
+    from .catalog_routing import CLOUD_CATALOG_VERSION
+    validate_cloud_target(engine, expected_project=expected_project, confirmed=confirmed)
+    return _migrate_postgres(engine, version=CLOUD_CATALOG_VERSION, rehearsal=False, dry_run=dry_run)
+
+
+def validate_cloud_target(engine, *, expected_project: str, confirmed=False):
+    import re
+    url = engine.url
+    direct = url.host == f'db.{expected_project}.supabase.co'
+    pooler = (bool(url.host) and url.host.endswith('.pooler.supabase.com')
+              and url.username == f'postgres.{expected_project}')
+    if (not confirmed or not re.fullmatch(r'[a-z]{20}', expected_project)
+            or engine.dialect.name != 'postgresql' or url.database != 'postgres'
+            or not (direct or pooler) or (pooler and url.port != 5432)
+            or set(url.query) - {'sslmode', 'connect_timeout', 'application_name'}):
+        raise RuntimeError('Requires the explicitly confirmed Supabase project and session connection')
+
+
+def _migrate_postgres(engine, *, version, rehearsal, dry_run=False):
     with engine.begin() as c:
         c.execute(text("SET LOCAL lock_timeout='2s'"))
         c.execute(text("SET LOCAL statement_timeout='120s'"))
         c.execute(text('SET LOCAL search_path=public'))
         actual = c.execute(text('SELECT current_database(), host(inet_server_addr())')).one()
-        if actual[0] != engine.url.database or actual[1] not in {'127.0.0.1', '::1'}:
+        if actual[0] != engine.url.database or (rehearsal and actual[1] not in {'127.0.0.1', '::1'}):
             raise RuntimeError('Connected server is not the requested loopback rehearsal copy')
-        if not c.execute(text("SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-canonical-rehearsal-v1'))")).scalar():
+        if not c.execute(text("SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))")).scalar():
             raise RuntimeError('Another canonical rehearsal is running')
         tables = set(inspect(c).get_table_names())
         if set(ROW_LIMITS) - tables:
@@ -102,7 +126,7 @@ def migrate_postgres_copy(engine, *, confirmed_copy=False):
             receipt = c.execute(text("SELECT migration_version,octet_length(snapshot_json) FROM catalog_migration_archive "
                                      "WHERE entity_table='__migration__' AND entity_id=1")).first()
             if receipt:
-                if receipt[0] != VERSION or receipt[1] > MAX_REPORT_BYTES:
+                if receipt[0] != version or receipt[1] > MAX_REPORT_BYTES:
                     raise RuntimeError('Incompatible or oversized migration receipt')
                 report = json.loads(c.execute(text("SELECT snapshot_json FROM catalog_migration_archive "
                                                     "WHERE entity_table='__migration__' AND entity_id=1")).scalar_one())
@@ -127,7 +151,7 @@ def migrate_postgres_copy(engine, *, confirmed_copy=False):
             if c.execute(text(f'SELECT 1 FROM {model.__tablename__} LIMIT 1')).first():
                 raise RuntimeError('Copy already contains canonical data without a receipt')
         _lockdown(c, ['job_tracks', 'job_source_identities', 'catalog_migration_archive'])
-        report = _migrate_catalog(c, version=VERSION)
+        report = _migrate_catalog(c, version=version)
         _lockdown(c, ['job_rankings', 'legacy_job_rankings_canonical_v1'])
         # Startup expects the model's index names on the operational table.
         # Renaming a PostgreSQL table does not release its old index names.
@@ -139,10 +163,14 @@ def migrate_postgres_copy(engine, *, confirmed_copy=False):
                 c.execute(text(f'ALTER INDEX {quote(index.name)} RENAME TO {quote(archived_name)}'))
             index.create(c)
         report['preflight'] = budget
-        report['mode'] = 'local_postgres_rehearsal_only'
+        report['mode'] = 'local_postgres_rehearsal_only' if rehearsal else 'cloud_catalog'
         payload = json.dumps(report, ensure_ascii=False)
         if len(payload.encode()) > MAX_REPORT_BYTES:
             raise RuntimeError('Rehearsal report byte budget exceeded')
         c.execute(text("UPDATE catalog_migration_archive SET snapshot_json=:report "
                        "WHERE entity_table='__migration__' AND entity_id=1"), {'report': payload})
-        return report
+        if report['unmapped_state']:
+            raise RuntimeError('Catalog migration left unmapped private state')
+        if dry_run:
+            c.rollback()
+        return {**report, 'dry_run': dry_run}

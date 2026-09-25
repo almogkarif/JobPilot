@@ -618,7 +618,7 @@ def _prepare_shared_catalog() -> dict[str, list[int]]:
     """
     repaired_by_track: dict[str, list[int]] = {track.key: [] for track in CAREER_TRACKS}
     with user_session(SHARED_CATALOG_USER_ID) as db:
-        for definition in CAREER_TRACKS:
+        for definition in (CAREER_TRACKS[:1] if unified_catalog_enabled() else CAREER_TRACKS):
             install_recommended_sources(db, definition.key)
     return repaired_by_track
 
@@ -626,8 +626,9 @@ def _prepare_shared_catalog() -> dict[str, list[int]]:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global scheduler_task, startup_retry_tasks
-    from .services.catalog_routing import validate_preview_startup
+    from .services.catalog_routing import validate_preview_startup, initialize_catalog_runtime
     validate_preview_startup(engine)
+    initialize_catalog_runtime(engine)
     _ensure_dirs()
     Base.metadata.create_all(bind=engine)
     ensure_compatibility_columns()
@@ -2827,6 +2828,10 @@ def edit_source(source_id: int, payload: SourceUpdate, request: Request, db: Ses
     for target in targets:
         for key, value in payload.model_dump(exclude_none=True).items():
             setattr(target, key, value)
+        if payload.enabled is not None:
+            metadata = loads(target.metadata_json, {})
+            metadata['enabled_override'] = payload.enabled
+            target.metadata_json = dumps(metadata)
         if payload.enabled is True:
             target.disabled_until = None
             target.consecutive_failures = 0
@@ -6070,7 +6075,7 @@ async def agent_upload_screenshot(application_id: int, token: str = Form(...), a
 @app.get("/api/agent/tasks/next")
 def agent_next_task(request: Request, agent_id: str, token: str = "", worker_type: str = "local",
                     application_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
-    if unified_catalog_enabled():
+    if settings.unified_catalog_preview:
         return {"task": None}
     agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
     worker_type = str(worker_type or "local").strip().lower()

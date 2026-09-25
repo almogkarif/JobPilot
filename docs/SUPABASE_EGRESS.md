@@ -564,3 +564,58 @@ No catalog rows, descriptions, profiles or Storage files are added to reads.
 `test_busy_startup_migration_has_bounded_boolean_only_reads` enforces the bound.
 The concurrent PostgreSQL regression verifies that even an older lock owner that
 does not add the new columns cannot let the new web instance access them early.
+
+### Cloud unified catalog rollout — 25 September 2026
+
+Activation is a completed `canonical-cloud-v1` receipt, read once per web/worker
+process using two metadata/one-row queries. No catalog/description/receipt JSON is
+loaded at startup. The explicit GitHub maintenance workflow serializes against
+scans, checks idle application workers and requires a quiesced web service. A
+rollback rehearsal runs before the committing transaction. Existing originals
+stay in private RLS-protected archives; profiles and document Storage are untouched.
+Preflight returns ten aggregate rows and refuses >128 MiB input, >256 KiB rows or
+per-table row ceilings. Full migration reads use 100-row pages; two passes therefore
+budget <=256 MiB base payload plus bounded child/verification/protocol overhead
+(conservatively 512 MiB one-time). Never schedule this maintenance workflow.
+
+The cloud scanner has one catalog run instead of three track runs. It accepts at
+most 20,000 incoming postings/run, 2,000/source, 50,000 existing canonical jobs and
+10,000 source identities/source. Foreign postings are counted without persisting
+them. Unchanged jobs load compact fingerprints/identity and an 80-character
+classifier version, never descriptions or full classification JSON. Reconciliation
+returns at most 10,001 IDs and refuses concurrent growth beyond the supported bound.
+
+Ranking joins explicitly select the user's active track; body pages contain at
+most 100 rows, at most 256 KiB per row, 5,000 rows and 16 MiB per user refresh.
+Large backlogs advance over bounded refreshes; completing one portion leaves the
+rest stale for a later run. Oversized individual records and exhausted budgets
+stay deferred, with an explicit audit reason. Eligibility still precedes scoring; unchanged scores are reused. A finite
+16 MiB/run bound alone would be 384 MiB/user/day hourly, which is NOT safe under
+5 GB. Consequently cloud automatic catalog transfers share a persisted 64 MiB/day
+reservation across users/scanners, charging a 2x allowance before payload reads.
+The reservation ceiling is 1.875 GiB/30 days. Exhaustion can defer subsequent
+hourly scans/ranking until the next UTC day; the hourly schedule is not a promise
+that every source will be fetched each hour under the free-tier allowance. Metadata, profile/settings, API/UI,
+auto-application, Storage and protocol traffic beyond that allowance must still
+be monitored separately; the guard does not claim to meter all Supabase traffic.
+Reservation/control reads are single-row, with one transaction advisory lock per
+reservation. At 2,000 source reservations and 50 ranking pages × 10 accounts,
+2,500 reservations/hour × 24 × a 1 KiB allowance is about 58.6 MiB/day
+of additional control traffic; actual current source count is much smaller.
+After the first denied reservation, the scanner defers remaining sources without
+further budget probes; ranking stops its current refresh at the first denial.
+
+Twenty-seven newly verified adapters retain their existing source identities. Public
+employer calls are capped at 317 additional requests/scan (7,608/day hourly),
+returning at most 4,280 additional normalized rows. These employer responses do not
+consume Supabase egress, but persistence/ranking does and uses the budgets above.
+The 19 new single-response ATS routes cap decompressed responses at 4 MB/200 rows;
+Global-e has the same cap; Island and Netafim hydrate <=40 details each; five
+Workday routes return <=40 jobs each. Pending-adapter defaults are promoted once when verified;
+manual enable overrides and previously verified disabled sources remain unchanged.
+
+Verification: `test_cloud_catalog_rollout.py`, `test_canonical_migration_batching.py`,
+`test_unified_rollout_sources.py`, `test_catalog_ranking_bounds.py`, and
+`test_supabase_egress_optimization.py`. Supabase Usage before rollout showed
+3.17 GB / 5 GB on 25 September. Record actual production preflight and post-rollout
+usage before another bulk scan; do not infer usage from the local snapshot.

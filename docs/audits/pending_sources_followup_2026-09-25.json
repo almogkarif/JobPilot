@@ -1,0 +1,287 @@
+{
+  "checked_at": "2026-09-25T11:25:09.223668+00:00",
+  "scope": "Follow-up of remaining40 after27 live-verified repairs",
+  "note": "Unresolved does not mean impossible. Parser/protocol/discovery gaps are unfinished engineering; access failures are observations for the tested route only. Empty Israel searches do not prove a company has no Israel openings. No database requests or application submissions.",
+  "sources": [
+    {
+      "identifier": "snyk",
+      "company": "Snyk",
+      "category": "adapter_discovery",
+      "finding_and_next_step": "Official page still names Greenhouse, but both public boards-api.greenhouse.io/v1/boards/snyk/jobs and job-boards.greenhouse.io/snyk returned404. Find the replacement tenant from current employer client data; do not reuse the stale token.",
+      "initial_official_url": "https://snyk.io/careers/all-jobs/"
+    },
+    {
+      "identifier": "xm-cyber",
+      "company": "XM Cyber",
+      "category": "empty_alternative_feed",
+      "finding_and_next_step": "Marketing endpoint403; public Comeet board https://www.comeet.com/jobs/xmcyber/15.005 returned200 with zero embedded positions. Verify whether the employer moved ATS or currently has no published openings before activation.",
+      "initial_official_url": "https://xmcyber.com/careers/"
+    },
+    {
+      "identifier": "astrix-security",
+      "company": "Astrix Security",
+      "category": "access_observed",
+      "finding_and_next_step": "Direct official careers request403. Search-index copy of the official page says No jobs found; this is not live vacancy evidence. A reachable employer ATS has not yet been established.",
+      "initial_official_url": "https://astrix.security/careers/"
+    },
+    {
+      "identifier": "starkware",
+      "company": "StarkWare",
+      "category": "parser_gap",
+      "finding_and_next_step": "Exact /position/<slug>/ links and full HTML descriptions are readable, but the current JSON-LD-only validator rejects them. Sample Blockchain Security Researcher has no explicit location in its vacancy body; verify location and add a precise employer detail reader.",
+      "initial_official_url": "https://starkware.co/careers/"
+    },
+    {
+      "identifier": "priority-software",
+      "company": "Priority Software",
+      "category": "parser_gap",
+      "finding_and_next_step": "Exact careers slug links return full descriptions without JobPosting schema. Verified selectors: h1.single-careers__title, .single-careers__content-wrapper, .single-careers__tag for location. Implement bounded employer detail reader, exclude .related-careers, and live-verify all returned rows.",
+      "initial_official_url": "https://www.priority-software.com/careers/"
+    },
+    {
+      "identifier": "sapiens",
+      "company": "Sapiens",
+      "category": "parser_gap",
+      "finding_and_next_step": "Replacement https://careers.sapiens.com/ is reachable and links SuccessFactors (company=SapiensQA). Its Israel search still yields no validated payload with the existing collector. Verify that this is the current production board before implementing a dedicated search/detail parser.",
+      "initial_official_url": "https://sapiens.com/careers/"
+    },
+    {
+      "identifier": "amdocs",
+      "company": "Amdocs",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Employer-linked Eightfold page https://jobs.amdocs.com/careers?location=Israel returns200. /api/apply/v2/jobs returned403 Not authorized for PCSX. Inspect the current public PCSX search protocol; this is not proof that public browser access is impossible.",
+      "initial_official_url": "https://jobs.amdocs.com/"
+    },
+    {
+      "identifier": "verint",
+      "company": "Verint",
+      "category": "adapter_discovery",
+      "finding_and_next_step": "Official careers page200, no structured vacancies exposed to current bounded collector. Follow the public job-search entry point and determine its ATS; no alternate verified feed yet.",
+      "initial_official_url": "https://www.verint.com/careers/"
+    },
+    {
+      "identifier": "oracle",
+      "company": "Oracle",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Official URL now redirects to https://careers.oracle.com/en/sites/jobsearch. Oracle Cloud candidate UI is client-rendered; determine its public recruitingCE siteNumber and Israel filter, then add bounded list/detail requests.",
+      "initial_official_url": "https://careers.oracle.com/jobs/"
+    },
+    {
+      "identifier": "sap-israel",
+      "company": "SAP",
+      "category": "access_observed",
+      "finding_and_next_step": "Both configured Israel landing page and https://jobs.sap.com/search/?q=&locationsearch=Israel returned403. A usable employer-owned alternate has not been verified.",
+      "initial_official_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/"
+    },
+    {
+      "identifier": "dell",
+      "company": "Dell Technologies",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Official careers URL redirects to https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers (Oracle candidate experience). The stale generic homepage route cannot enumerate vacancies; inspect its public Oracle recruitingCE site configuration.",
+      "initial_official_url": "https://jobs.dell.com/"
+    },
+    {
+      "identifier": "hp",
+      "company": "HP",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Employer-linked https://apply.hp.com/careers?location=Israel returns200. Old /api/apply/v2/jobs returned403 Not authorized for PCSX. Implement current public PCSX list/detail protocol after inspecting its client; do not use the hp-sandbox links found in page markup.",
+      "initial_official_url": "https://jobs.hp.com/"
+    },
+    {
+      "identifier": "analog-devices",
+      "company": "Analog Devices",
+      "category": "no_current_israel_evidence",
+      "finding_and_next_step": "Workday https://analogdevices.wd1.myworkdayjobs.com/External is reachable. Public Israel text search returned200 total0 and discovery exposed no Israel facet. Official analog.com request timed out; current Israel vacancies remain unverified, not an API-access failure.",
+      "initial_official_url": "https://careers.analog.com/"
+    },
+    {
+      "identifier": "stratasys",
+      "company": "Stratasys",
+      "category": "parser_gap",
+      "finding_and_next_step": "https://careers.stratasys.com/search/?q=&locationsearch=Israel lists13 job links. Detail sample returned200 with h1, span.jobdescription and p#job-location, but no JobPosting schema. Add the precise SuccessFactors detail reader and country normalization; existing regex-only trial correctly stayed disabled.",
+      "initial_official_url": "https://careers.stratasys.com/"
+    },
+    {
+      "identifier": "ericsson",
+      "company": "Ericsson",
+      "category": "access_observed",
+      "finding_and_next_step": "Configured official page403; no readable employer-linked structured board has been established in this pass. Needs additional official ATS discovery, not a claim of permanent blocking.",
+      "initial_official_url": "https://www.ericsson.com/en/careers"
+    },
+    {
+      "identifier": "nokia",
+      "company": "Nokia",
+      "category": "access_observed",
+      "finding_and_next_step": "Configured official page403; no readable employer-linked structured board has been established in this pass. Needs additional official ATS discovery, not a claim of permanent blocking.",
+      "initial_official_url": "https://www.nokia.com/about-us/careers/"
+    },
+    {
+      "identifier": "elspec",
+      "company": "Elspec",
+      "category": "access_observed",
+      "finding_and_next_step": "Configured official page403. A current employer-owned alternate or job feed has not been verified; do not infer that there are no vacancies.",
+      "initial_official_url": "https://www.elspec-ltd.com/careers/"
+    },
+    {
+      "identifier": "jabil-israel",
+      "company": "Jabil",
+      "category": "no_current_israel_evidence",
+      "finding_and_next_step": "Official page links jabil.wd5.myworkdayjobs.com/Jabil_Careers. Its public Israel search returned200 total0. Board transport is working, but no current Israel payload exists to verify the proposed normalization.",
+      "initial_official_url": "https://careers.jabil.com/"
+    },
+    {
+      "identifier": "boston-scientific",
+      "company": "Boston Scientific",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Official page links https://bostonscientific.eightfold.ai/careers; Israel page returns200. Old /api/apply/v2/jobs returned403 Not authorized for PCSX. Inspect current public PCSX protocol instead of enabling generic navigation scraping.",
+      "initial_official_url": "https://www.bostonscientific.com/en-US/careers.html"
+    },
+    {
+      "identifier": "orcam",
+      "company": "OrCam",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official URL redirects to homepage, but public https://orcam.zohorecruit.com/careers returns many numeric jobid links. Exact jobid override was tried; existing JobPosting-only detail parser still returned no verified jobs. Implement Zoho public detail extraction with UUID/numeric identity and location checks.",
+      "initial_official_url": "https://www.orcam.com/en-us/careers/"
+    },
+    {
+      "identifier": "deep-instinct",
+      "company": "Deep Instinct",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official page has inline open-role sections; search-indexed official content currently lists five overseas roles. Existing generic collector cannot extract them. Inspect bounded inline role detail blocks and explicit locations; do not treat a marketing biography mentioning Tel Aviv as job location.",
+      "initial_official_url": "https://www.deepinstinct.com/careers"
+    },
+    {
+      "identifier": "zim",
+      "company": "ZIM",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official page200 has /careers/job-opportunities/<id> links (e.g.6E909). Existing generic pattern does not validate a structured detail payload. Needs precise employer vacancy detail parser, not a new homepage scraper.",
+      "initial_official_url": "https://www.zim.com/careers/job-opportunities"
+    },
+    {
+      "identifier": "ormat",
+      "company": "Ormat Technologies",
+      "category": "access_observed",
+      "finding_and_next_step": "Configured employer page403; no verified alternate ATS route was found during this pass. Additional employer-owned careers discovery remains open.",
+      "initial_official_url": "https://www.ormat.com/en/company/careers/"
+    },
+    {
+      "identifier": "ide-technologies",
+      "company": "IDE Technologies",
+      "category": "parser_gap",
+      "finding_and_next_step": "Replacement https://ide-tech.com/en/join-us/ returns200 with inline role sections and share links carrying numeric ?job= identifiers. Exact-ID hydration trial returned no JobPosting payload. Parse individual employer accordion/card sections with complete requirements and explicit location; mailto applications remain separate from collection.",
+      "initial_official_url": "https://ide-tech.com/en/career/"
+    },
+    {
+      "identifier": "sodastream",
+      "company": "SodaStream",
+      "category": "adapter_discovery",
+      "finding_and_next_step": "Configured /pages/careers returns404; careers.sodastream.com DNS lookup fails. Locate the current employer careers page/PepsiCo recruitment route and verify ownership before configuring it.",
+      "initial_official_url": "https://sodastream.com/pages/careers"
+    },
+    {
+      "identifier": "delta-galil",
+      "company": "Delta Galil",
+      "category": "access_observed",
+      "finding_and_next_step": "Configured employer page403; a readable current employer-owned job feed has not yet been verified. Additional alternate ATS discovery is needed.",
+      "initial_official_url": "https://www.deltagalil.com/careers/"
+    },
+    {
+      "identifier": "tnuva",
+      "company": "Tnuva",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official page200 does not expose job URLs/payloads to the static collector. Inspect the employer client-side recruitment widget/API and its job identity fields.",
+      "initial_official_url": "https://www.tnuva.co.il/jobs/"
+    },
+    {
+      "identifier": "unilever-israel",
+      "company": "Unilever Israel",
+      "category": "no_current_israel_evidence",
+      "finding_and_next_step": "Official page links unilever.wd3.myworkdayjobs.com/Unilever_Experienced_Professionals. Workday Israel text search returned200 total0 and no Israel facet. Do not label the working endpoint blocked; no current Israel vacancy was independently verified.",
+      "initial_official_url": "https://careers.unilever.com/en/israel"
+    },
+    {
+      "identifier": "loreal-israel",
+      "company": "L'Oréal Israel",
+      "category": "protocol_gap",
+      "finding_and_next_step": "Official careers URL redirects to /en_US/content, a global landing page rather than job results. Follow its public job-search route and implement a bounded Israel filter/details mapping.",
+      "initial_official_url": "https://careers.loreal.com/"
+    },
+    {
+      "identifier": "rambam",
+      "company": "Rambam",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official careers page lists categories. IT category /about-rambam/careers/digital-it-jobs/ also failed structured collection. Inspect individual vacancy/attachment content; category pages must never become jobs.",
+      "initial_official_url": "https://www.rambam.org.il/about-rambam/careers/"
+    },
+    {
+      "identifier": "hadassah",
+      "company": "Hadassah",
+      "category": "parser_gap",
+      "finding_and_next_step": "Exact /wanted/position-<number>/ pages are readable and contain vacancy text, but only BreadcrumbList schema. The exact-ID trial returns no jobs as designed. Add a narrow heading/body parser that excludes footer/navigation and records explicit role requirements.",
+      "initial_official_url": "https://he.hadassah.org.il/wanted/careers/"
+    },
+    {
+      "identifier": "meuhedet",
+      "company": "Meuhedet",
+      "category": "adapter_discovery",
+      "finding_and_next_step": "Configured English careers page lists employer-information sections, not vacancies. Locate its current Hebrew job-search application and verify its public feed before activation.",
+      "initial_official_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/"
+    },
+    {
+      "identifier": "assuta",
+      "company": "Assuta Medical Centers",
+      "category": "access_observed",
+      "finding_and_next_step": "Old URLs404; https://www.assuta.co.il/jobs/ was found on the employer page but redirects to a Radware/PerfDrive bot challenge. No challenge bypass attempted. A public alternate ATS or accessible route is needed.",
+      "initial_official_url": "https://www.assuta.co.il/about/jobs/"
+    },
+    {
+      "identifier": "bezeq",
+      "company": "Bezeq",
+      "category": "parser_gap",
+      "finding_and_next_step": "Configured route redirects to /career_new/ and returns200 but no static job payload. Inspect the current public client-side recruitment API; old generic route has no reliable job identities.",
+      "initial_official_url": "https://www.bezeq.co.il/career/"
+    },
+    {
+      "identifier": "cellcom",
+      "company": "Cellcom",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official careers page200, no static vacancy links recognized. Discover the employer recruitment widget/API rather than enabling the navigation-only response.",
+      "initial_official_url": "https://www.cellcom.co.il/career/"
+    },
+    {
+      "identifier": "partner",
+      "company": "Partner",
+      "category": "adapter_discovery",
+      "finding_and_next_step": "Both /n/career and /career/ return404. Locate a current official recruitment entry point before implementing its adapter.",
+      "initial_official_url": "https://www.partner.co.il/n/career"
+    },
+    {
+      "identifier": "hot",
+      "company": "HOT",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official route redirects to /heb/careersearch/ with200. Current static parser exposes no reliable job payload; inspect the public search form/endpoint and individual job details.",
+      "initial_official_url": "https://www.hot.net.il/heb/career/"
+    },
+    {
+      "identifier": "electra-group",
+      "company": "Electra Group",
+      "category": "parser_gap",
+      "finding_and_next_step": "Exact ?job_id=<number> pages are readable; sample17992 has .job_form, .job_title, .job_city and .job-list with requirements. Regex-only trial failed because no JobPosting schema exists. Add a precise employer detail reader and reject forms/neighboring postings.",
+      "initial_official_url": "https://www.electra.co.il/career/משרות"
+    },
+    {
+      "identifier": "mekorot",
+      "company": "Mekorot",
+      "category": "parser_gap",
+      "finding_and_next_step": "Replacement https://careers.mekorot.co.il/open-jobs/ returns200 with individual ?job=<encoded slug> links. Detail sample uses h2.single_page_heading, .single_job_banner_subheading and .long_div requirement blocks, but no JobPosting schema. Add a bounded employer-specific detail parser; old /careers404 is not an external blocker.",
+      "initial_official_url": "https://www.mekorot.co.il/careers/"
+    },
+    {
+      "identifier": "iec",
+      "company": "Israel Electric Corporation",
+      "category": "parser_gap",
+      "finding_and_next_step": "Official careers page200 is a client-side shell without recognized vacancy payload. Inspect its public listing API and fixed job identifiers before activation.",
+      "initial_official_url": "https://www.iec.co.il/careers"
+    }
+  ]
+}

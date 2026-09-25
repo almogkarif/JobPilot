@@ -795,6 +795,9 @@ def ensure_worker_runtime_schema() -> None:
                     target = "PUBLIC" if role == "PUBLIC" else f'"{role}"'
                     connection.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM {target}'))
 
+    from .services.catalog_routing import initialize_catalog_runtime
+    initialize_catalog_runtime(engine)
+
 
 def ensure_job_source_fingerprint_column() -> None:
     """Ensure the small egress-optimization column exists for external workers.

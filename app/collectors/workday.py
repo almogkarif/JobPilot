@@ -7,10 +7,16 @@ import httpx
 
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from ..services.location_filter import is_israel_location
+from ..services.job_text import job_text_quality
 from ..utils import html_to_text
 
 
 WORKDAY_PRESETS = {
+    "ge-healthcare": ("gehc.wd5.myworkdayjobs.com", "gehc", "GEHC_ExternalSite", "GE HealthCare"),
+    "jnj-israel": ("jj.wd5.myworkdayjobs.com", "jj", "JJ", "Johnson & Johnson Israel"),
+    "unity": ("unitytech.wd1.myworkdayjobs.com", "unitytech", "Unity", "Unity"),
+    "motorola-solutions": ("motorolasolutions.wd5.myworkdayjobs.com", "motorolasolutions", "Careers", "Motorola Solutions"),
+    "pg-israel": ("pg.wd5.myworkdayjobs.com", "pg", "1000", "Procter & Gamble Israel"),
     "marvell": ("marvell.wd1.myworkdayjobs.com", "marvell", "MarvellCareers", "Marvell"),
     "broadcom-israel": ("broadcom.wd1.myworkdayjobs.com", "broadcom", "External_Career", "Broadcom"),
     "nvidia": ("nvidia.wd5.myworkdayjobs.com", "nvidia", "NVIDIAExternalCareerSite", "NVIDIA"),
@@ -19,6 +25,8 @@ WORKDAY_PRESETS = {
     "kla-israel": ("kla.wd1.myworkdayjobs.com", "kla", "Israel", "KLA"),
     "medtronic": ("medtronic.wd1.myworkdayjobs.com", "medtronic", "MedtronicCareers", "Medtronic"),
 }
+
+EXPANSION_WORKDAY_IDENTIFIERS = frozenset({"unity", "motorola-solutions", "pg-israel", "ge-healthcare", "jnj-israel"})
 
 
 class WorkdayCollector:
@@ -33,7 +41,7 @@ class WorkdayCollector:
         async with httpx.AsyncClient(timeout=40, follow_redirects=True) as client:
             applied_facets = {}
             search_text = "Israel"
-            if identifier in {"marvell", "broadcom-israel"}:
+            if identifier in {"marvell", "broadcom-israel"} | EXPANSION_WORKDAY_IDENTIFIERS:
                 discovery = await client.post(f"{api_base}/jobs", json={
                     "appliedFacets": {}, "limit": 20, "offset": 0, "searchText": "",
                 })
@@ -43,18 +51,24 @@ class WorkdayCollector:
                     raise PreserveExistingJobs("Workday did not expose a verified Israel location filter")
                 search_text = ""
             offset = 0
+            listing_pages = 0
             total = 1
-            max_results = 120 if identifier == "nvidia" else 100
+            max_results = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS else (120 if identifier == "nvidia" else 100)
             while offset < total and offset < max_results:
+                if identifier in EXPANSION_WORKDAY_IDENTIFIERS and listing_pages >= 2:
+                    break
                 response = await client.post(f"{api_base}/jobs", json={
                     "appliedFacets": applied_facets, "limit": 20, "offset": offset, "searchText": search_text,
                 })
                 response.raise_for_status()
+                listing_pages += 1
                 payload = response.json()
                 if "total" not in payload or not isinstance(payload.get("jobPostings"), list):
                     raise PreserveExistingJobs("Workday returned an unrecognized job-list payload")
                 total = int(payload.get("total") or 0)
                 page_rows = payload.get("jobPostings") or []
+                if identifier in EXPANSION_WORKDAY_IDENTIFIERS and len(page_rows) > 20:
+                    raise PreserveExistingJobs("Workday ignored its 20-row page limit")
                 if applied_facets:
                     rows.extend(page_rows)
                 elif identifier == "applied-materials":
@@ -83,8 +97,17 @@ class WorkdayCollector:
                             return None
                         info = {}
                 external_id = str((row.get("bulletFields") or [""])[0] or path.rsplit("_", 1)[-1])
+                if identifier in EXPANSION_WORKDAY_IDENTIFIERS and job_text_quality(info.get("jobDescription")) != "complete":
+                    blocked_ids.add(external_id)
+                    return None
                 location = str(info.get("location") or row.get("locationsText") or "Israel")
                 if applied_facets:
+                    if identifier in EXPANSION_WORKDAY_IDENTIFIERS and not is_israel_location(location):
+                        # A multi-location vacancy can have a foreign primary
+                        # office. The verified facet establishes Israel eligibility;
+                        # do not label that foreign city as being in Israel.
+                        location = next((str(value) for value in (info.get("additionalLocations") or [])
+                                         if is_israel_location(str(value))), "Israel")
                     location = f"{location}, Israel" if "israel" not in location.casefold() else location
                 elif identifier == "applied-materials":
                     location = _normalize_applied_location(location, path)
@@ -99,7 +122,9 @@ class WorkdayCollector:
                     company=company_name or default_company,
                     location=location,
                     workplace="remote" if "remote" in location.casefold() else "onsite",
-                    description=html_to_text(info.get("jobDescription")),
+                    description=(html_to_text(info.get("jobDescription"))[:24000]
+                                 if identifier in EXPANSION_WORKDAY_IDENTIFIERS
+                                 else html_to_text(info.get("jobDescription"))),
                     apply_url=str(info.get("externalUrl") or f"https://{host}/en-US/{site}{path}"),
                     source_url=f"https://{host}/en-US/{site}{path}",
                 )

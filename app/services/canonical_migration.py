@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import json
 from types import SimpleNamespace
 
-from sqlalchemy import MetaData, select, text
+from sqlalchemy import DateTime, MetaData, bindparam, text
 
 from ..models import JobRanking, ApplicationEvent, UserJobState
 from .track_classification import classify_job, TRACKS
@@ -16,6 +16,7 @@ from .job_cleanup import SUBMITTED_APPLICATION_STATUSES
 from .ranking.service import job_fingerprint_values
 
 VERSION = 'canonical-local-v1'
+BATCH_SIZE = 100
 
 
 def migrate_local_copy(engine, *, confirmed_copy=False):
@@ -30,6 +31,35 @@ def _migrate_catalog(c, *, version=VERSION):
     postgres = c.dialect.name == 'postgresql'
     def rows(sql, params=None):
         return [dict(r) for r in c.execute(text(sql), params or {}).mappings()]
+    def pages(table, columns='*', where='1=1'):
+        last_id = None
+        while True:
+            page = rows(f'SELECT {columns} FROM {table} WHERE ({where}) '
+                        + ('AND id>:last_id ' if last_id is not None else '')
+                        + 'ORDER BY id LIMIT :limit', dict(last_id=last_id, limit=BATCH_SIZE))
+            if not page:
+                return
+            yield from page
+            last_id = page[-1]['id']
+
+    # Textual SQL deliberately preserves legacy fields/defaults exactly. Bind
+    # datetime values explicitly rather than relying on sqlite3's deprecated
+    # implicit datetime adapter. Unmodified SQLite snapshot strings stay strings.
+    def statement(sql, params):
+        dates = {key for row in params for key, value in row.items()
+                 if isinstance(value, datetime)}
+        return text(sql).bindparams(*(bindparam(key, type_=DateTime(timezone=True)) for key in dates))
+
+    pending = defaultdict(list)
+    def flush(sql=None):
+        for query in ([sql] if sql is not None else list(pending)):
+            batch = pending.pop(query, [])
+            if batch:
+                c.execute(statement(query, batch), batch)
+    def enqueue(sql, params):
+        pending[sql].append(params)
+        if len(pending[sql]) >= BATCH_SIZE:
+            flush(sql)
     done = rows("SELECT snapshot_json FROM catalog_migration_archive WHERE entity_table='__migration__' AND entity_id=1")
     if done:
         return {**json.loads(done[0]['snapshot_json']), 'already_migrated': True}
@@ -43,14 +73,15 @@ def _migrate_catalog(c, *, version=VERSION):
               'application_conflicts': 0, 'state_migrations': 0, 'state_conflicts': 0, 'states_created': 0,
               'unclassified': 0, 'unmapped_state': [], 'changed_jobs': [], 'unclassified_jobs': [], 'examples': []}
     def archive(table, row, canonical_id):
-        c.execute(text('INSERT INTO catalog_migration_archive '
-            '(entity_table,entity_id,canonical_id,snapshot_json,migration_version) VALUES (:t,:i,:c,:s,:v) ON CONFLICT(entity_table,entity_id) DO NOTHING'),
+        enqueue('INSERT INTO catalog_migration_archive '
+            '(entity_table,entity_id,canonical_id,snapshot_json,migration_version) VALUES (:t,:i,:c,:s,:v) ON CONFLICT(entity_table,entity_id) DO NOTHING',
             dict(t=table,i=row['id'],c=canonical_id,s=json.dumps(row,ensure_ascii=False,default=str),v=version))
     source_groups = defaultdict(list)
     source_by_id = {s['id']:s for s in sources}
     for source in sources:
         source_groups[(source['kind'].strip().lower(),source['identifier'].strip().lower())].append(source)
     source_map = {}
+    source_updates = []
     for key, group in source_groups.items():
         canonical = min(group, key=lambda s:(bool(json.loads(s['metadata_json'] or '{}').get('retired') or json.loads(s['metadata_json'] or '{}').get('duplicate_of')), s['id']))
         enabled = any(s['enabled'] and not json.loads(s['metadata_json'] or '{}').get('retired') for s in group)
@@ -58,11 +89,15 @@ def _migrate_catalog(c, *, version=VERSION):
             source_map[source['id']] = canonical['id']
             archive('sources', source, canonical['id'])
             if source['id'] != canonical['id']:
-                c.execute(text('UPDATE sources SET canonical_source_id=:canonical, enabled=FALSE, identity_key=NULL WHERE id=:id'),
+                enqueue('UPDATE sources SET canonical_source_id=:canonical, enabled=FALSE, identity_key=NULL WHERE id=:id',
                           dict(canonical=canonical['id'],id=source['id']))
                 report['source_aliases'] += 1
-        c.execute(text("UPDATE sources SET career_track='shared', identity_key=:key, enabled=:enabled WHERE id=:id"),
-                  dict(key=source_identity(*key), enabled=enabled,id=canonical['id']))
+        source_updates.append(dict(key=source_identity(*key), enabled=enabled,id=canonical['id']))
+    # Release any existing alias identity slots before filling canonical slots.
+    flush()
+    for update in source_updates:
+        enqueue("UPDATE sources SET career_track='shared', identity_key=:key, enabled=:enabled WHERE id=:id", update)
+    flush()
     # Union exact board IDs and exact posting URLs; no title-only guesses.
     parent = {j['id']:j['id'] for j in jobs}
     def find(i):
@@ -87,7 +122,7 @@ def _migrate_catalog(c, *, version=VERSION):
         for j in group:
             job_map[j['id']] = canonical['id']; old_tracks[j['id']] = j['career_track']
     # Refuse ambiguous in-flight workers rather than duplicate/resubmit them.
-    applications = rows('SELECT * FROM applications ORDER BY id')
+    applications = list(pages('applications'))
     app_groups = defaultdict(list)
     for a in applications:
         if a['job_id'] not in job_map:
@@ -98,8 +133,12 @@ def _migrate_catalog(c, *, version=VERSION):
         if len(group)>1 and any(a['status']=='applying' for a in group):
             raise RuntimeError(f"Consolidation requires idle workers for applications {[a['id'] for a in group]}")
     app_winners = {}
+    verified_attempts = {}
+    for attempt in pages('application_attempts', 'id,application_id,finished_at,started_at',
+                         "verification_state='verified'"):
+        verified_attempts[attempt['application_id']] = attempt
     for (uid,jid), group in app_groups.items():
-        verified = {r['application_id'] for r in rows("SELECT application_id FROM application_attempts WHERE verification_state='verified' AND application_id IN ("+','.join(str(a['id']) for a in group)+')')}
+        verified = verified_attempts.keys()
         def priority(a):
             submitted = bool(a['submitted_at']) or a['status'] in SUBMITTED_APPLICATION_STATUSES or a['id'] in verified
             return (not submitted, a['job_id'] != jid, a['id'])
@@ -112,7 +151,7 @@ def _migrate_catalog(c, *, version=VERSION):
                       originating_track=evidence.get('originating_track') or old_tracks[evidence['job_id']])
         if evidence['id'] in verified and merged['status'] not in SUBMITTED_APPLICATION_STATUSES:
             merged['status'] = 'submitted'
-            receipt = rows("SELECT finished_at,started_at FROM application_attempts WHERE application_id=:id AND verification_state='verified' ORDER BY id DESC LIMIT 1",dict(id=evidence['id']))[0]
+            receipt = verified_attempts[evidence['id']]
             merged['submitted_at'] = merged['submitted_at'] or receipt['finished_at'] or receipt['started_at']
         app_winners[(uid,jid)] = merged
         for a in group:
@@ -126,7 +165,7 @@ def _migrate_catalog(c, *, version=VERSION):
                     archive(table,child,keeper['id'])
                 c.execute(text(f'UPDATE {table} SET application_id=:winner WHERE application_id=:id'),dict(winner=keeper['id'],id=a['id']))
             report['application_conflicts'] += 1
-        c.execute(text('UPDATE applications SET '+','.join(f'{k}=:{k}' for k in merged if k not in {'id','user_id'})+' WHERE id=:id'),merged)
+        c.execute(statement('UPDATE applications SET '+','.join(f'{k}=:{k}' for k in merged if k not in {'id','user_id'})+' WHERE id=:id', [merged]),merged)
         report['application_migrations'] += sum(a['job_id']!=jid for a in group)
         for a in group:
             if a['job_id']!=jid and old_tracks[a['job_id']] in TRACKS:
@@ -140,13 +179,21 @@ def _migrate_catalog(c, *, version=VERSION):
         if merged['submitted_at'] or merged['status'] in SUBMITTED_APPLICATION_STATUSES:
             for blocker in rows("SELECT * FROM blockers WHERE application_id=:id AND status='open'",dict(id=keeper['id'])):
                 archive('blockers',blocker,keeper['id'])
-            c.execute(text("UPDATE blockers SET status='resolved',resolved_at=:now WHERE application_id=:id AND status='open'"),
-                      dict(id=keeper['id'],now=datetime.now(timezone.utc)))
+            params = dict(id=keeper['id'],now=datetime.now(timezone.utc))
+            c.execute(statement("UPDATE blockers SET status='resolved',resolved_at=:now WHERE application_id=:id AND status='open'", [params]), params)
 
     # Active classification is compared on unique physical vacancies per track.
+    # The projected index above enforces the 50,000-row ceiling; full payloads
+    # are fetched once in bounded pages, including aliases spanning page edges.
+    full_jobs = {job['id']: job for job in pages('jobs')}
+    for job in full_jobs.values():
+        if job_map[job['id']] != job['id']:
+            enqueue('UPDATE jobs SET canonical_job_id=:jid,is_active=FALSE,canonical_key=NULL WHERE id=:id',
+                    dict(jid=job_map[job['id']],id=job['id']))
+    flush()
     for group in groups.values():
         jid = job_map[group[0]['id']]
-        full = rows('SELECT * FROM jobs WHERE id IN ('+','.join(str(j['id']) for j in group)+')')
+        full = [full_jobs[j['id']] for j in group]
         canonical = next(j for j in full if j['id']==jid)
         payload = max(full,key=lambda j:(bool(j['is_active']),len(j['description'] or ''),str(j['updated_at'] or '')))
         before = {j['career_track'] for j in full if j['is_active'] and j['career_track'] in TRACKS}
@@ -175,12 +222,11 @@ def _migrate_catalog(c, *, version=VERSION):
         for j in full:
             archive('jobs',j,jid)
             if j['id']!=jid:
-                c.execute(text('UPDATE jobs SET canonical_job_id=:jid,is_active=FALSE,canonical_key=NULL WHERE id=:id'),dict(jid=jid,id=j['id']))
                 report['job_aliases'] += 1
             key = (source_map[j['source_id']],j['external_id'])
-            c.execute(text('INSERT INTO job_source_identities(source_id,external_id,job_id,is_active,last_seen_at,user_id) '
+            enqueue('INSERT INTO job_source_identities(source_id,external_id,job_id,is_active,last_seen_at,user_id) '
                 'VALUES (:sid,:ext,:jid,:active,:now,:uid) ON CONFLICT(source_id,external_id) DO UPDATE SET is_active=' +
-                ('job_source_identities.is_active OR excluded.is_active' if postgres else 'max(is_active,excluded.is_active)')),
+                ('job_source_identities.is_active OR excluded.is_active' if postgres else 'max(is_active,excluded.is_active)'),
                 dict(sid=key[0],ext=key[1],jid=jid,active=j['is_active'],now=datetime.now(timezone.utc),uid=j['user_id']))
         source = source_by_id[canonical['source_id']]
         fields = {k:payload[k] for k in ('title','company','location','workplace','description','apply_url','source_url','published_at','skills_json','experience_min','experience_max','degree_requirement','degree_required','degree_experience_alternative')}
@@ -196,13 +242,14 @@ def _migrate_catalog(c, *, version=VERSION):
             canonical_key=canonical_job_key(source['kind'],source['identifier'],canonical['external_id'],payload['apply_url']),
             classification_json=json.dumps(classification.to_dict(),ensure_ascii=False),
             source_fingerprint=job_fingerprint_values('shared',payload['title'],payload['description'],payload['location'],payload['workplace'],published))
-        c.execute(text('UPDATE jobs SET '+','.join(f'{k}=:{k}' for k in fields if k!='id')+' WHERE id=:id'),fields)
+        enqueue('UPDATE jobs SET '+','.join(f'{k}=:{k}' for k in fields if k!='id')+' WHERE id=:id',fields)
         for track in matched:
             decision = next(d for d in classification.decisions if d.track==track)
-            c.execute(text('INSERT INTO job_tracks(job_id,career_track,classifier_version,reason,user_id) VALUES(:id,:t,:v,:r,:u) ON CONFLICT(job_id,career_track) DO NOTHING'),
+            enqueue('INSERT INTO job_tracks(job_id,career_track,classifier_version,reason,user_id) VALUES(:id,:t,:v,:r,:u) ON CONFLICT(job_id,career_track) DO NOTHING',
                       dict(id=jid,t=track,v=classification.version,r=json.dumps(decision.reasons),u=canonical['user_id']))
+    flush()
     states = defaultdict(list)
-    for row in rows('SELECT * FROM user_job_states ORDER BY id'):
+    for row in pages('user_job_states'):
         states[(row['user_id'],job_map[row['job_id']])].append(row)
     weights = {'submitted':100,'interview':100,'offer':100,'hidden':90,'saved':80,'queued':70,'applying':70,'skipped':60,'new':0}
     for (uid,jid), group in states.items():
@@ -212,7 +259,7 @@ def _migrate_catalog(c, *, version=VERSION):
         status = chosen['status']
         app = app_winners.get((uid,jid))
         if status != 'hidden' and app and (app['submitted_at'] or app['status'] in {'submitted','interview','offer'}): status=app['status']
-        c.execute(text('UPDATE user_job_states SET job_id=:jid,status=:s WHERE id=:id'),dict(jid=jid,s=status,id=keeper['id']))
+        enqueue('UPDATE user_job_states SET job_id=:jid,status=:s WHERE id=:id',dict(jid=jid,s=status,id=keeper['id']))
         report['state_migrations'] += sum(r['job_id']!=jid for r in group)
         report['state_conflicts'] += max(0,len(group)-1)
         for row in group:
@@ -222,15 +269,16 @@ def _migrate_catalog(c, *, version=VERSION):
         if (uid,jid) not in states:
             c.execute(UserJobState.__table__.insert().values(user_id=uid,job_id=jid,status=application['status']))
             report['states_created'] += 1
-    for row in rows('SELECT * FROM open_answer_drafts'):
+    for row in pages('open_answer_drafts'):
         if row['job_id']!=job_map[row['job_id']]:
             archive('open_answer_drafts',row,job_map[row['job_id']])
-            c.execute(text('UPDATE open_answer_drafts SET job_id=:jid WHERE id=:id'),dict(jid=job_map[row['job_id']],id=row['id']))
-    for row in rows("SELECT * FROM campaign_runs WHERE activated_at IS NULL"):
+            enqueue('UPDATE open_answer_drafts SET job_id=:jid WHERE id=:id',dict(jid=job_map[row['job_id']],id=row['id']))
+    for row in pages('campaign_runs', where='activated_at IS NULL'):
         archive('campaign_runs',row,row['id'])
-        c.execute(text("UPDATE campaign_runs SET preview_token_hash='',preview_expires_at=NULL WHERE id=:id"),dict(id=row['id']))
+        enqueue("UPDATE campaign_runs SET preview_token_hash='',preview_expires_at=NULL WHERE id=:id",dict(id=row['id']))
+    flush()
     # Keep the complete old ranking table. New table supports independent track scores.
-    ranking_rows = rows('SELECT * FROM job_rankings ORDER BY id')
+    ranking_rows = list(pages('job_rankings'))
     c.exec_driver_sql('ALTER TABLE job_rankings RENAME TO legacy_job_rankings_canonical_v1')
     metadata = MetaData()
     from ..models import Job
@@ -252,7 +300,8 @@ def _migrate_catalog(c, *, version=VERSION):
         if key not in winners or str(row['evaluated_at'] or '') > str(winners[key]['evaluated_at'] or ''): winners[key]=row
     for row in winners.values():
         row['stale'] = True  # Preserve score/evidence, validate against new routing before reuse.
-        c.execute(text('INSERT INTO canonical_rankings_new ('+','.join(row)+') VALUES ('+','.join(':'+k for k in row)+')'),row)
+        enqueue('INSERT INTO canonical_rankings_new ('+','.join(row)+') VALUES ('+','.join(':'+k for k in row)+')',row)
+    flush()
     c.exec_driver_sql('ALTER TABLE canonical_rankings_new RENAME TO job_rankings')
     if postgres:
         # Explicit preserved IDs do not advance the new SERIAL sequence.
@@ -267,6 +316,7 @@ def _migrate_catalog(c, *, version=VERSION):
     report['jobs_after'] = len(groups)
     report['applications_preserved'] = len(applications)
     archive('__migration__',{'id':1,**report},0)
+    flush()
     # Store report directly for idempotence without reading all data on repeat.
     c.execute(text("UPDATE catalog_migration_archive SET snapshot_json=:r WHERE entity_table='__migration__' AND entity_id=1"),dict(r=json.dumps(report,ensure_ascii=False)))
     return report

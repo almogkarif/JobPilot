@@ -24,8 +24,7 @@ def dispatch_interactive_application_workflow(application_id: int) -> None:
 
 
 def _dispatch_workflow(workflow: str, inputs: dict[str, str]) -> None:
-    from .catalog_routing import unified_catalog_enabled
-    if unified_catalog_enabled():
+    if settings.unified_catalog_preview:
         raise RuntimeError("External workflows are disabled for the local canonical catalog preview")
     token = str(settings.github_actions_token or "").strip()
     repository = str(settings.github_repository or "").strip().strip("/")

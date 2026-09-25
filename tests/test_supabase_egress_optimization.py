@@ -186,6 +186,30 @@ def _isolated_session_factory():
     return engine, sessionmaker(bind=engine, expire_on_commit=False)
 
 
+def test_unified_scan_stops_budget_probes_after_first_denial(monkeypatch):
+    from app.config import settings
+    from app.collectors.base import JobCollection
+    from app.services import catalog_egress, unified_catalog
+    engine, Session = _isolated_session_factory()
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'database_url', 'sqlite://')
+    monkeypatch.setattr(settings, 'unified_catalog_preview', True)
+    class Collector:
+        async def collect(self, *_args): return JobCollection([])
+    monkeypatch.setitem(scanner.COLLECTORS, 'greenhouse', Collector)
+    reservations = []
+    monkeypatch.setattr(catalog_egress, 'reserve_catalog_egress',
+                        lambda amount: reservations.append(amount) or False)
+    with Session() as db:
+        set_user_scope(db, 'budget-user')
+        db.add_all([Source(name=f'Source {i}', kind='greenhouse', identifier=f'board{i}') for i in range(3)])
+        db.commit()
+        result = asyncio.run(unified_catalog.scan_unified_catalog(db, None, None, 'computer_science', True))
+    assert result['deferred_sources'] == 3 and result['failed_sources'] == 0
+    assert len(reservations) == 1
+    engine.dispose()
+
+
 @pytest.mark.parametrize("complete", [True, False])
 def test_catalog_rescan_does_not_select_persisted_job_descriptions(monkeypatch, complete):
     stable_published = datetime(2026, 8, 20, 10, 0, tzinfo=timezone.utc)
@@ -382,19 +406,22 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
 
 def test_new_source_expansion_does_not_enable_unbounded_official_pages():
     from collections import Counter
-
     from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
+    from app.collectors.expansion_ats import VERIFIED_ATS_IDENTIFIERS, MAX_FEED_ROWS, MAX_RESPONSE_BYTES
+    from app.collectors.workday import EXPANSION_WORKDAY_IDENTIFIERS
 
     active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
     counts = Counter(item["track"] for item in active)
-    # Only the active professional track is scanned. The expansion adds at most
-    # 35 bounded ATS calls per scan and performs no Supabase reads/downloads.
-    assert max(counts.values()) <= 35
-    assert all(
-        item["kind"] != "official_careers"
-        or item["identifier"] in {"cyera", "grip-security", "reco"}
-        for item in active
-    )
+    assert counts == {"cs": 52, "ee": 5, "iem": 3}
+    assert MAX_FEED_ROWS == 200
+    assert MAX_RESPONSE_BYTES == 4_000_000
+    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+    assert all(item["kind"] != "official_careers" or item["identifier"] in verified for item in active)
+    # Nineteen one-response ATS routes; Workday adds at most 43 employer calls
+    # per board (discovery + two 20-row pages + 40 details), no database reads.
+    from app.collectors import workday
+    body = Path(workday.__file__).read_text()
+    assert "max_results = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS" in body
 
 
 def test_dashboard_pending_ranking_uses_existing_aggregate_query():
@@ -769,7 +796,7 @@ def test_permalink_compatibility_lookup_is_bounded_and_id_only():
     import inspect
     from app.services.unified_catalog import scan_unified_catalog
     source = inspect.getsource(scan_unified_catalog)
-    lookup = source[source.index('if not job_id and canonical_posting_url'):source.index('job = db.scalar(select(Job).options')]
+    lookup = source[source.index('if not job_id and canonical_posting_url'):source.index('version_column =')]
     assert 'select(Job.id)' in lookup
     assert 'Job.source_id == source.id' in lookup
     assert 'Job.apply_url == item.apply_url' in lookup
@@ -824,3 +851,61 @@ def test_busy_startup_migration_has_bounded_boolean_only_reads(monkeypatch):
         database.ensure_compatibility_columns()
     assert len(statements) == database._SCHEMA_LOCK_ATTEMPTS == 31
     assert (database._SCHEMA_LOCK_ATTEMPTS - 1) * database._SCHEMA_LOCK_RETRY_SECONDS == 60
+
+
+def test_unified_worker_uses_one_schedule_probe_and_bounded_queue_read(monkeypatch):
+    from contextlib import contextmanager
+    from sqlalchemy.orm import Session
+    from app.services import scan_runtime
+    from scripts import run_cloud_scan as worker
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    queries = []
+    event.listen(engine, 'before_cursor_execute',
+                 lambda _c, _cu, statement, _p, _ctx, _many: queries.append(statement.lower()))
+    @contextmanager
+    def scoped_session(user_id):
+        with Session(engine) as db:
+            set_user_scope(db, user_id)
+            yield db
+    monkeypatch.setattr(worker, 'user_session', scoped_session)
+    monkeypatch.setattr(worker, 'unified_catalog_enabled', lambda: True)
+    monkeypatch.setattr(scan_runtime, 'unified_catalog_enabled', lambda: True)
+    calls = []
+    monkeypatch.setattr(worker, 'scheduled_scan_due',
+                        lambda db, track: calls.append(track) or (False, None, None))
+    assert worker.work_available('scheduled') is False
+    assert len(calls) == 1
+    assert worker.work_available('queued') is False
+    assert len(queries) == 1
+    assert 'audit_logs' in queries[0] and 'limit' in queries[0]
+    assert 'jobs' not in queries[0] and 'description' not in queries[0]
+
+
+def test_hourly_ranking_budget_checks_utf8_payloads_before_any_body_transfer(monkeypatch):
+    engine, Session = _isolated_session_factory()
+    @contextmanager
+    def user_session(user_id):
+        with Session() as db:
+            set_user_scope(db, user_id)
+            yield db
+    monkeypatch.setattr(catalog_ranking, 'user_session', user_session)
+    monkeypatch.setattr(scanner, 'auto_queue_jobs', lambda *args: pytest.fail('Deferred ranking cannot auto-queue'))
+    with user_session('budget-user') as db:
+        db.add(Profile(full_name='Budget User', active_career_track='computer_science'))
+        source = Source(name='Budget', kind='greenhouse', identifier='budget')
+        db.add(source); db.flush()
+        db.add(Job(source_id=source.id, external_id='oversized', title='Software Engineer',
+                   company='Budget', description='א' * (128 * 1024),
+                   apply_url='https://example.com/jobs/oversized'))
+        db.commit()
+    queries = []
+    event.listen(engine, 'before_cursor_execute',
+                 lambda _c, _cu, query, _p, _ctx, _many: queries.append(query.lower()))
+    result = catalog_ranking.rank_shared_catalog_for_user('budget-user', 'computer_science', stale_only=True)
+    assert result['status'] == 'deferred' and result['deferred'] == 1
+    aggregate = next(q for q in queries if 'count(jobs.id)' in q)
+    assert 'length(cast(jobs.description as blob))' in aggregate
+    assert 'length(cast(job_rankings.result_json as blob))' in aggregate
+    bodies = [q for q in queries if q.startswith('select jobs.id,')]
+    assert all('limit' in q and 'jobs.id >' in q and 'length(cast(jobs.description as blob))' in q for q in bodies)

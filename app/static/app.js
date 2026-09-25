@@ -3359,6 +3359,7 @@ async function markApplicationSubmitted(id) {
 }
 
 function sourceScanLabel(source) {
+  if (!source.enabled && source.validation_status === 'pending_adapter') return 'ממתין לאימות מנגנון האיסוף';
   return ({ complete: 'איסוף מלא', partial: 'איסוף חלקי', deferred: 'לא אומת', failed: 'נכשל' })[source.scan_status] || 'שלמות האיסוף טרם אומתה';
 }
 

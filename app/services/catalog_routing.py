@@ -1,7 +1,43 @@
-"""Opt-in local unified collection; legacy routing remains the default."""
+"""Unified routing activated by an explicit, completed catalog migration."""
 from functools import lru_cache
 
 from ..config import settings
+
+CLOUD_CATALOG_VERSION = 'canonical-cloud-v1'
+_cloud_catalog_database = None
+
+
+def _database_identity(url):
+    from sqlalchemy.engine import make_url
+    parsed = make_url(url)
+    return (parsed.get_backend_name(), parsed.host, parsed.port, parsed.database, parsed.username,
+            tuple(sorted(parsed.query.items())))
+
+
+def initialize_catalog_runtime(engine):
+    """Read only a version receipt once per process, never catalog/job payloads.
+
+    The receipt is committed atomically with consolidation. All web/scan processes
+    use the same authority, avoiding independently switched environment flags.
+    """
+    global _cloud_catalog_database
+    _cloud_catalog_database = None
+    if settings.auth_mode != 'supabase' or engine.dialect.name != 'postgresql':
+        return
+    from sqlalchemy import text
+    with engine.connect() as connection:
+        exists = connection.execute(text("SELECT to_regclass('public.catalog_migration_archive')")).scalar()
+        if not exists:
+            return
+        version = connection.execute(text(
+            "SELECT migration_version FROM catalog_migration_archive "
+            "WHERE entity_table='__migration__' AND entity_id=1 LIMIT 1"
+        )).scalar_one_or_none()
+    if version is None:
+        return
+    if version != CLOUD_CATALOG_VERSION:
+        raise RuntimeError('Unsupported cloud catalog migration receipt')
+    _cloud_catalog_database = _database_identity(engine.url)
 
 
 def local_postgres_preview_url(value) -> bool:
@@ -18,6 +54,9 @@ def local_postgres_preview_url(value) -> bool:
 
 
 def unified_catalog_enabled() -> bool:
+    if settings.auth_mode == 'supabase':
+        return (_cloud_catalog_database is not None
+                and _cloud_catalog_database == _database_identity(settings.database_url))
     return bool(settings.unified_catalog_preview and settings.auth_mode == 'local'
                 and (settings.database_url.startswith('sqlite:')
                      or local_postgres_preview_url(settings.database_url)))

@@ -6,13 +6,17 @@ import hashlib
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import JSON, LargeBinary, cast, delete, func, select, update
 from sqlalchemy.orm import load_only
 
 from ..models import Job, JobSourceIdentity, JobTrack, Source, JobRanking
 from ..utils import loads, dumps
 from .catalog_routing import unified_catalog_enabled
 from .source_catalog import _source_key
+
+MAX_SCAN_POSTINGS = 20000
+MAX_SOURCE_IDENTITIES = 10000
+MAX_CANONICAL_JOBS = 50000
 
 
 def source_identity(kind, identifier):
@@ -103,6 +107,20 @@ def install_unified_sources(db):
     added = 0
     for key, item in definitions.items():
         if key in existing:
+            source = existing[key]
+            metadata = loads(source.metadata_json, {})
+            # A newly verified adapter upgrades the old default, once. Explicit
+            # administrator choices and previously verified disabled sources win.
+            if (metadata.get('validation_status') == 'pending_adapter'
+                    and item.get('validation_status') == 'verified'):
+                metadata['validation_status'] = 'verified'
+                metadata['adapter_verified_release'] = '2026-09-25'
+                if 'enabled_override' not in metadata:
+                    source.enabled = True
+                    source.disabled_until = None
+                    source.consecutive_failures = 0
+                    source.last_error = ''
+                source.metadata_json = dumps(metadata)
             continue
         # Retired canonical rows must not be silently resurrected at startup.
         if db.scalar(select(Source.id).where(Source.identity_key == source_identity(*key)).limit(1)):
@@ -110,7 +128,8 @@ def install_unified_sources(db):
         db.add(Source(**{field: item[field] for field in ('name', 'kind', 'identifier', 'company_name')},
                       career_track='shared', enabled=item.get('enabled', True),
                       identity_key=source_identity(*key),
-                      metadata_json=dumps({'preset': 'recommended', 'logo_domain': item.get('logo_domain', '')})))
+                      metadata_json=dumps({'preset': 'recommended', 'logo_domain': item.get('logo_domain', ''),
+                                           'validation_status': item.get('validation_status', '')})))
         added += 1
     db.commit()
     return added
@@ -138,8 +157,9 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
     from .ranking.service import job_fingerprint_values
     from .degree_requirements import extract_degree_requirement_details
     from .matching import extract_experience, extract_skills
+    from .location_filter import is_israel_location
     if not unified_catalog_enabled():
-        raise RuntimeError('Canonical scan is local-only until rollout approval')
+        raise RuntimeError('Canonical scan requires a completed catalog migration')
     ensure_source_bindings(db)
     now = datetime.now(timezone.utc)
     sources = unified_sources(db)
@@ -171,12 +191,48 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
     totals = dict(sources=len(sources), collected=0, found=0, new=0, updated=0, removed=0,
                   filtered_foreign=0, filtered_mismatch=0, duplicates_merged=0, auto_queued=0,
                   successful_sources=0, deferred_sources=0, partial_sources=0, failed_sources=0)
+    from .catalog_egress import reserve_catalog_egress
+    byte_length = (func.octet_length if db.get_bind().dialect.name == 'postgresql'
+                   else lambda value: func.length(cast(value, LargeBinary)))
+    catalog_count, external_bytes, track_bytes = db.execute(select(
+        func.count(Job.id), func.coalesce(func.max(byte_length(Job.external_id)), 0),
+        func.coalesce(func.max(byte_length(Job.career_track)), 0),
+    ).where(Job.canonical_job_id.is_(None))).one()
+    if catalog_count > MAX_CANONICAL_JOBS:
+        return {**totals, 'status': 'deferred', 'unified_catalog': True,
+                'errors': [{'source': 'catalog', 'error': 'Catalog size exceeds the bounded scan budget'}],
+                'per_source': [], 'stale_deleted': 0}
     per_source, errors = [], []
+    processed_postings = 0
+    transfer_budget_exhausted = False
     tasks = [asyncio.create_task(collect(row)) for row in sources]
     try:
         for completed, task in enumerate(asyncio.as_completed(tasks), start=1):
             source, items, error = await task
             source.last_scanned_at = now
+            if error is None:
+                if transfer_budget_exhausted:
+                    error = PreserveExistingJobs('Daily catalog transfer budget reached; existing jobs preserved')
+                elif processed_postings + len(items) > MAX_SCAN_POSTINGS:
+                    error = PreserveExistingJobs('Scan reached its posting budget; existing jobs preserved')
+                else:
+                    processed_postings += len(items)
+                    identity_count = db.scalar(select(func.count()).select_from(JobSourceIdentity).where(
+                        JobSourceIdentity.source_id == source.id))
+                    if identity_count > MAX_SOURCE_IDENTITIES:
+                        error = PreserveExistingJobs('Source identity budget exceeded; existing jobs preserved')
+                    else:
+                        israel_items = [item for item in items if is_israel_location(item.location)]
+                        external_bytes = max(external_bytes, max(
+                            (len(item.external_id.encode('utf-8')) for item in israel_items), default=0))
+                        # Only compact identities/fingerprints/version cross the DB
+                        # connection. Include both identity and job projections,
+                        # absent IDs and a 2x framing/concurrency allowance.
+                        reserved = 2 * (len(israel_items) * (768 + 2 * external_bytes + max(track_bytes, 160))
+                                        + identity_count * 24 + 4096)
+                        if not reserve_catalog_egress(reserved):
+                            transfer_budget_exhausted = True
+                            error = PreserveExistingJobs('Daily catalog transfer budget reached; existing jobs preserved')
             if error:
                 deferred = isinstance(error, PreserveExistingJobs)
                 totals['deferred_sources' if deferred else 'failed_sources'] += 1
@@ -200,6 +256,9 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     if item.external_id in seen:
                         continue
                     seen.add(item.external_id)
+                    if not is_israel_location(item.location):
+                        totals['filtered_foreign'] += 1
+                        continue
                     identity = db.get(JobSourceIdentity, (source.id, item.external_id))
                     key = canonical_job_key(source.kind, source.identifier, item.external_id, item.apply_url)
                     job_id = identity.job_id if identity else db.scalar(select(Job.id).where(
@@ -210,9 +269,14 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                         job_id = db.scalar(select(Job.id).where(Job.source_id == source.id,
                             Job.apply_url == item.apply_url, Job.canonical_job_id.is_(None))
                             .order_by(Job.id).limit(1))
-                    job = db.scalar(select(Job).options(load_only(Job.id, Job.source_id, Job.external_id,
-                        Job.career_track, Job.source_fingerprint, Job.classification_json, Job.is_active,
-                        Job.canonical_key)).where(Job.id == job_id)) if job_id else None
+                    version_column = func.substr((func.json_extract(Job.classification_json, '$.version')
+                        if db.get_bind().dialect.name == 'sqlite'
+                        else cast(Job.classification_json, JSON)['version'].as_string()), 1, 80)
+                    existing = db.execute(select(Job, version_column)
+                        .options(load_only(Job.id, Job.source_id, Job.external_id, Job.career_track,
+                            Job.source_fingerprint, Job.is_active, Job.canonical_key))
+                        .where(Job.id == job_id)).first() if job_id else None
+                    job, classification_version = existing if existing else (None, None)
                     incoming = job_fingerprint_values('shared', item.title, item.description, item.location, item.workplace, item.published_at)
                     if job is None:
                         job = Job(source_id=source.id, external_id=item.external_id, career_track='shared', canonical_key=key)
@@ -221,7 +285,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     else:
                         source_updated += 1
                         totals['duplicates_merged'] += not identity
-                    if job.id is None or job.source_fingerprint != incoming or loads(job.classification_json, {}).get('version') != VERSION:
+                    if job.id is None or job.source_fingerprint != incoming or classification_version != VERSION:
                         for field in ('title', 'company', 'location', 'workplace', 'description', 'apply_url', 'source_url', 'published_at'):
                             setattr(job, field, getattr(item, field))
                         job.source_fingerprint = incoming
@@ -243,7 +307,9 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 if complete:
                     absent = list(db.scalars(select(JobSourceIdentity.job_id).where(
                         JobSourceIdentity.source_id == source.id, JobSourceIdentity.is_active.is_(True),
-                        JobSourceIdentity.external_id.not_in(seen or ['']))))
+                        JobSourceIdentity.external_id.not_in(seen or [''])).limit(MAX_SOURCE_IDENTITIES + 1)))
+                    if len(absent) > MAX_SOURCE_IDENTITIES:
+                        raise RuntimeError('Concurrent source identity growth exceeded reconciliation budget')
                     db.execute(update(JobSourceIdentity).where(JobSourceIdentity.source_id == source.id,
                         JobSourceIdentity.external_id.not_in(seen or [''])).values(is_active=False))
                     for job_id in set(absent):

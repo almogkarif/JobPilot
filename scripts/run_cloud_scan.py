@@ -19,6 +19,7 @@ from app.database import (SHARED_CATALOG_USER_ID, SessionLocal, ensure_job_sourc
 from app.models import AppIdentity, Job, Source  # noqa: E402
 from app.services.career_tracks import CAREER_TRACKS, active_track, normalize_track  # noqa: E402
 from app.services.catalog_ranking import rank_shared_catalog_for_user  # noqa: E402
+from app.services.catalog_routing import unified_catalog_enabled  # noqa: E402
 from app.services.application_queue_recovery import recover_stuck_auto_applications  # noqa: E402
 from app.services.source_catalog import install_recommended_sources  # noqa: E402
 from app.services.source_repair import repair_error_sources  # noqa: E402
@@ -220,17 +221,21 @@ def print_source_summary(result: dict) -> None:
 
 
 def rank_users_for_track(career_track: str) -> None:
-    track = normalize_track(career_track)
+    requested_track = normalize_track(career_track)
     for user_id in known_user_ids():
-        with user_session(user_id) as db:
-            profile = get_user_profile(db)
-            if not profile or active_track(profile) != track:
-                continue
         try:
+            with user_session(user_id) as db:
+                profile = get_user_profile(db)
+                if not profile:
+                    continue
+                track = active_track(profile)
+                if not unified_catalog_enabled() and track != requested_track:
+                    continue
             result = rank_shared_catalog_for_user(user_id, track, stale_only=True)
             print(
                 f"[ranking] account={account_label(user_id)} track={track} "
                 f"status={result.get('status', 'unknown')} failed={result.get('failed', 0)} "
+                f"deferred={result.get('deferred', 0)} reason={result.get('reason', '')} "
                 f"ranked={result.get('ranked', 0)} auto_queued={result.get('auto_queued', 0)} "
                 f"workers_recovered={result.get('workers_recovered', 0)} "
                 f"worker_dispatch_errors={result.get('worker_dispatch_errors', 0)}",
@@ -239,7 +244,7 @@ def rank_users_for_track(career_track: str) -> None:
         except Exception as exc:  # noqa: BLE001
             # One user's malformed profile must never prevent the shared hourly
             # catalog from reaching everyone else.
-            print(f"[ranking] account={account_label(user_id)} track={track} error={exc}", flush=True)
+            print(f"[ranking] account={account_label(user_id)} error={exc}", flush=True)
 
 
 async def execute_run(run_id: str, career_track: str) -> dict:
@@ -268,7 +273,7 @@ async def execute_run(run_id: str, career_track: str) -> dict:
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
             update_scan_run(
                 status_db, run_id, career_track,
-                status=str(result.get("status") or "ok"),
+                status="running",
                 progress={"phase": "ranking", "current_source": None, "active_sources": []},
                 result=result, error="",
             )
@@ -313,10 +318,9 @@ async def run_queued() -> int:
 
 async def run_scheduled(*, force: bool = False) -> int:
     ran = 0
-    for definition in CAREER_TRACKS:
+    for definition in scan_track_definitions():
         track = definition.key
         with user_session(SHARED_CATALOG_USER_ID) as db:
-            install_recommended_sources(db, track)
             due, scheduled, latest = scheduled_scan_due(db, track)
             if not force and not due:
                 print(
@@ -341,6 +345,11 @@ async def run_scheduled(*, force: bool = False) -> int:
     return ran
 
 
+def scan_track_definitions():
+    """A unified catalog has one schedule; its collector covers every track."""
+    return CAREER_TRACKS[:1] if unified_catalog_enabled() else CAREER_TRACKS
+
+
 async def diagnose_official_sources() -> int:
     from app.collectors.official import OfficialCareersCollector
 
@@ -358,6 +367,8 @@ async def diagnose_official_sources() -> int:
 
 async def audit_catalog_tracks() -> int:
     """Report active catalogue roles that fail their track's current classifier."""
+    if unified_catalog_enabled():
+        raise RuntimeError("Legacy track audit cannot inspect canonical catalog memberships")
     from app.services.matching import track_job_relevance
 
     audited = 0
@@ -401,6 +412,8 @@ async def audit_catalog_tracks() -> int:
 
 async def reconcile_catalog_tracks() -> int:
     """Remove catalogue entries admitted by obsolete, over-broad track rules."""
+    if unified_catalog_enabled():
+        raise RuntimeError("Legacy track reconciliation cannot modify the canonical catalog")
     from app.services.matching import track_job_relevance
     from app.services.scanner import delete_job_tree
 
@@ -438,7 +451,7 @@ def work_available(mode: str) -> bool:
     with user_session(SHARED_CATALOG_USER_ID) as db:
         if mode == "queued":
             return bool(queued_scan_runs(db))
-        for definition in CAREER_TRACKS:
+        for definition in scan_track_definitions():
             due, _scheduled, _latest = scheduled_scan_due(db, definition.key)
             if due:
                 return True
@@ -451,6 +464,9 @@ async def main() -> int:
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
     if args.check_only:
+        from app.database import engine
+        from app.services.catalog_routing import initialize_catalog_runtime
+        initialize_catalog_runtime(engine)
         available = work_available(args.mode)
         print(f"[scan] work_available={str(available).lower()} mode={args.mode}", flush=True)
         return 0 if available else 3

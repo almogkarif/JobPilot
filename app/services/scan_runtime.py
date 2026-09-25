@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import AuditLog, Source, utcnow
 from ..utils import dumps, loads
-from .career_tracks import normalize_track
+from .career_tracks import CAREER_TRACKS, normalize_track
 from .catalog_routing import unified_catalog_enabled
 
 SCAN_EVENT = "scan_run"
@@ -19,7 +19,6 @@ STALE_AFTER = timedelta(hours=2)
 
 
 def _scan_entity(career_track: str) -> str:
-    from .catalog_routing import unified_catalog_enabled
     return "scan:shared" if unified_catalog_enabled() else f"scan:{normalize_track(career_track)}"
 
 
@@ -63,7 +62,7 @@ def _is_fresh_active(details: dict, now: datetime | None = None) -> bool:
 
 
 def create_scan_run(db: Session, career_track: str, *, trigger: str) -> tuple[AuditLog, bool]:
-    """Create one durable queued scan per tenant/track.
+    """Create one durable queued scan per catalog (or legacy tenant/track).
 
     PostgreSQL requests are serialized with a transaction-scoped advisory lock so a
     desktop and phone clicking Scan at nearly the same time cannot enqueue duplicate
@@ -75,7 +74,7 @@ def create_scan_run(db: Session, career_track: str, *, trigger: str) -> tuple[Au
         user_id = str(db.info.get("user_id") or "local-owner")
         db.execute(
             text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
-            {"key": f"jobpilot-scan-queue:{user_id}:{career_track}"},
+            {"key": f"jobpilot-scan-queue:{user_id}:{_scan_entity(career_track)}"},
         )
 
     latest = latest_scan_log(db, career_track)
@@ -168,7 +167,10 @@ def queued_scan_runs(db: Session) -> list[AuditLog]:
     """Return fresh queued runs oldest-first without scanning unbounded audit history."""
     rows = db.scalars(
         select(AuditLog)
-        .where(AuditLog.event_type == SCAN_EVENT)
+        .where(
+            AuditLog.event_type == SCAN_EVENT,
+            AuditLog.entity_type.in_([_scan_entity(track.key) for track in CAREER_TRACKS]),
+        )
         .order_by(desc(AuditLog.id))
         .limit(100)
     ).all()
