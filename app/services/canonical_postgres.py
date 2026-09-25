@@ -71,15 +71,34 @@ def _input_budget(c):
 
 def _preflight(c):
     budget = _input_budget(c)
-    _validate_input(c)
+    budget['retained_legacy_catalog'] = _validate_input(c)
     return budget
 
 
 def _validate_input(c):
-    for table in ('sources', 'jobs'):
-        if c.execute(text(f'SELECT 1 FROM {table} WHERE user_id IS DISTINCT FROM :owner LIMIT 1'),
-                     {'owner': SHARED_CATALOG_USER_ID}).first():
-            raise RuntimeError('Copy must already use the shared catalog owner')
+    params = {'owner': SHARED_CATALOG_USER_ID}
+    exact_source = 'ss.kind=s.kind AND ss.identifier=s.identifier AND ss.career_track=s.career_track'
+    sources = c.execute(text(f"""SELECT count(*) AS retained,
+        count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM sources ss
+            WHERE ss.user_id=:owner AND {exact_source})) AS unmatched
+        FROM sources s WHERE s.user_id IS DISTINCT FROM :owner"""), params).mappings().one()
+    if sources['unmatched']:
+        raise RuntimeError('Nonshared catalog owner source lacks an exact shared counterpart')
+    jobs = c.execute(text(f"""SELECT
+        count(*) FILTER (WHERE j.user_id IS DISTINCT FROM :owner) AS retained,
+        count(*) FILTER (WHERE s.id IS NULL OR j.user_id IS DISTINCT FROM s.user_id) AS cross_owner,
+        count(*) FILTER (WHERE j.user_id IS DISTINCT FROM :owner AND NOT EXISTS (
+            SELECT 1 FROM jobs jj JOIN sources ss ON ss.id=jj.source_id
+            WHERE jj.user_id=:owner AND ss.user_id=:owner AND {exact_source}
+                AND j.external_id<>'' AND jj.external_id=j.external_id)) AS unmatched
+        FROM jobs j LEFT JOIN sources s ON s.id=j.source_id"""), params).mappings().one()
+    if jobs['cross_owner'] or jobs['unmatched']:
+        raise RuntimeError('Nonshared catalog owner job lacks an exact counterpart or has a cross-owner source')
+    for table in ('applications', 'job_rankings', 'user_job_states', 'open_answer_drafts'):
+        if c.execute(text(f'SELECT 1 FROM {table} r WHERE NOT EXISTS '
+                          '(SELECT 1 FROM jobs j WHERE j.id=r.job_id AND j.user_id=:owner) LIMIT 1'),
+                     params).first():
+            raise RuntimeError('Private history references a nonshared catalog owner or missing job')
     for table in ('application_attempts', 'application_events', 'blockers'):
         if c.execute(text(f'SELECT 1 FROM {table} child JOIN applications parent ON parent.id=child.application_id '
                           'WHERE child.user_id IS DISTINCT FROM parent.user_id LIMIT 1')).first():
@@ -88,6 +107,7 @@ def _validate_input(c):
         raise RuntimeError('Rehearsal requires idle workers')
     if c.execute(text("SELECT 1 FROM application_attempts WHERE status='running' LIMIT 1")).first():
         raise RuntimeError('Rehearsal requires idle attempts')
+    return {'sources': int(sources['retained']), 'jobs': int(jobs['retained'])}
 
 
 def catalog_owner_diagnostics(c):
@@ -133,12 +153,23 @@ def catalog_owner_diagnostics(c):
     return {'sources': sources, 'jobs': jobs, 'private_references': references}
 
 
-def inspect_catalog_preflight(c):
+def inspect_catalog_preflight(c, *, expected_version=None):
     """Read-only diagnostics can explain a blocker without relaxing migration."""
+    if expected_version is None:
+        from .catalog_routing import CLOUD_CATALOG_VERSION
+        expected_version = CLOUD_CATALOG_VERSION
+    if c.execute(text("SELECT to_regclass('public.catalog_migration_archive') IS NOT NULL")).scalar_one():
+        receipt = c.execute(text("SELECT migration_version,octet_length(snapshot_json) FROM catalog_migration_archive "
+                                 "WHERE entity_table='__migration__' AND entity_id=1")).first()
+        if receipt:
+            if receipt[0] != expected_version or receipt[1] > MAX_REPORT_BYTES:
+                raise RuntimeError('Incompatible or oversized migration receipt')
+            return {'version': expected_version, 'already_migrated': True,
+                    'ready_for_migration': True, 'blockers': []}
     report = _input_budget(c)
     report['ownership_diagnostics'] = catalog_owner_diagnostics(c)
     try:
-        _validate_input(c)
+        report['retained_legacy_catalog'] = _validate_input(c)
     except RuntimeError as exc:
         report['ready_for_migration'] = False
         report['blockers'] = [str(exc)]
@@ -218,7 +249,7 @@ def _migrate_postgres(engine, *, version, rehearsal, dry_run=False):
             if c.execute(text(f'SELECT 1 FROM {model.__tablename__} LIMIT 1')).first():
                 raise RuntimeError('Copy already contains canonical data without a receipt')
         _lockdown(c, ['job_tracks', 'job_source_identities', 'catalog_migration_archive'])
-        report = _migrate_catalog(c, version=version)
+        report = _migrate_catalog(c, version=version, catalog_owner=SHARED_CATALOG_USER_ID)
         _lockdown(c, ['job_rankings', 'legacy_job_rankings_canonical_v1'])
         # Startup expects the model's index names on the operational table.
         # Renaming a PostgreSQL table does not release its old index names.
@@ -230,6 +261,7 @@ def _migrate_postgres(engine, *, version, rehearsal, dry_run=False):
                 c.execute(text(f'ALTER INDEX {quote(index.name)} RENAME TO {quote(archived_name)}'))
             index.create(c)
         report['preflight'] = budget
+        report['retained_legacy_catalog'] = budget['retained_legacy_catalog']
         report['mode'] = 'local_postgres_rehearsal_only' if rehearsal else 'cloud_catalog'
         payload = json.dumps(report, ensure_ascii=False)
         if len(payload.encode()) > MAX_REPORT_BYTES:

@@ -952,3 +952,42 @@ def test_catalog_owner_diagnostics_use_nine_fixed_size_aggregate_queries():
         assert "then 'shared' else 'nonshared' end" in sql
         assert 'group by 1,2' in sql
     assert all('group by' not in sql for sql in statements[2:])
+
+
+def test_canonical_migration_reads_only_shared_catalog_payloads_in_bounded_pages():
+    from app.services.canonical_migration import _migrate_catalog, BATCH_SIZE
+
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    with engine.begin() as c:
+        for owner in (SHARED_CATALOG_USER_ID, 'retained-private-owner'):
+            source = c.execute(Source.__table__.insert().values(
+                user_id=owner, name='Scope test', kind='greenhouse', identifier='scope-test'
+            ).returning(Source.id)).scalar_one()
+            c.execute(Job.__table__.insert().values(
+                user_id=owner, source_id=source, external_id='same-job', title='Software Engineer',
+                company='Scope test', location='Israel', apply_url='https://example.com/scope-test',
+                description='Shared software engineering.' if owner == SHARED_CATALOG_USER_ID
+                else 'Private legacy payload. ' * 10000))
+    queries = []
+    def record(conn, cursor, sql, parameters, context, many):
+        compiled = getattr(context, 'compiled_parameters', None)
+        queries.append((sql.lower(), compiled[0] if compiled else {}))
+    event.listen(engine, 'before_cursor_execute', record)
+    try:
+        with engine.begin() as c:
+            report = _migrate_catalog(c, catalog_owner=SHARED_CATALOG_USER_ID)
+    finally:
+        event.remove(engine, 'before_cursor_execute', record)
+    assert report['sources_before'] == report['jobs_before'] == 1
+    catalog_reads = [(sql, params) for sql, params in queries if sql.startswith('select ')
+                     and ('from sources' in sql or 'from jobs' in sql)]
+    assert catalog_reads
+    for sql, params in catalog_reads:
+        assert 'user_id=' in sql and params['catalog_owner'] == SHARED_CATALOG_USER_ID
+        assert 'limit' in sql
+        if sql.startswith('select * from jobs'):
+            assert params['limit'] == BATCH_SIZE == 100
+    with engine.connect() as c:
+        assert c.execute(select(Job.description).where(Job.user_id == 'retained-private-owner')).scalar_one() == 'Private legacy payload. ' * 10000
+    engine.dispose()

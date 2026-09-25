@@ -26,17 +26,17 @@ def migrate_local_copy(engine, *, confirmed_copy=False):
         return _migrate_catalog(c)
 
 
-def _migrate_catalog(c, *, version=VERSION):
+def _migrate_catalog(c, *, version=VERSION, catalog_owner=None):
     """Shared consolidation; callers own copy validation, bounds and transaction."""
     postgres = c.dialect.name == 'postgresql'
     def rows(sql, params=None):
         return [dict(r) for r in c.execute(text(sql), params or {}).mappings()]
-    def pages(table, columns='*', where='1=1'):
+    def pages(table, columns='*', where='1=1', params=None):
         last_id = None
         while True:
             page = rows(f'SELECT {columns} FROM {table} WHERE ({where}) '
                         + ('AND id>:last_id ' if last_id is not None else '')
-                        + 'ORDER BY id LIMIT :limit', dict(last_id=last_id, limit=BATCH_SIZE))
+                        + 'ORDER BY id LIMIT :limit', dict(params or {}, last_id=last_id, limit=BATCH_SIZE))
             if not page:
                 return
             yield from page
@@ -63,8 +63,11 @@ def _migrate_catalog(c, *, version=VERSION):
     done = rows("SELECT snapshot_json FROM catalog_migration_archive WHERE entity_table='__migration__' AND entity_id=1")
     if done:
         return {**json.loads(done[0]['snapshot_json']), 'already_migrated': True}
-    sources = rows('SELECT * FROM sources ORDER BY id LIMIT 2001')
-    jobs = rows('SELECT id,source_id,external_id,career_track,apply_url,is_active FROM jobs ORDER BY id LIMIT 50001')
+    catalog_where = 'user_id=:catalog_owner' if catalog_owner is not None else '1=1'
+    catalog_params = {'catalog_owner': catalog_owner} if catalog_owner is not None else {}
+    sources = rows(f'SELECT * FROM sources WHERE {catalog_where} ORDER BY id LIMIT 2001', catalog_params)
+    jobs = rows('SELECT id,source_id,external_id,career_track,apply_url,is_active FROM jobs '
+                f'WHERE {catalog_where} ORDER BY id LIMIT 50001', catalog_params)
     if len(sources) > 2000 or len(jobs) > 50000:
         raise RuntimeError('Local migration bound exceeded; no partial consolidation is allowed')
     report = {'version': version, 'sources_before': len(sources), 'jobs_before': len(jobs),
@@ -185,7 +188,7 @@ def _migrate_catalog(c, *, version=VERSION):
     # Active classification is compared on unique physical vacancies per track.
     # The projected index above enforces the 50,000-row ceiling; full payloads
     # are fetched once in bounded pages, including aliases spanning page edges.
-    full_jobs = {job['id']: job for job in pages('jobs')}
+    full_jobs = {job['id']: job for job in pages('jobs', where=catalog_where, params=catalog_params)}
     for job in full_jobs.values():
         if job_map[job['id']] != job['id']:
             enqueue('UPDATE jobs SET canonical_job_id=:jid,is_active=FALSE,canonical_key=NULL WHERE id=:id',

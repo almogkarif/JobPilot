@@ -39,7 +39,7 @@ def main():
                   'jobs_before', 'jobs_after', 'source_aliases', 'job_aliases', 'applications_preserved',
                   'application_conflicts', 'state_migrations', 'rankings_preserved', 'unclassified',
                   'per_track', 'preflight', 'tables', 'input_bytes',
-                  'ownership_diagnostics', 'ready_for_migration', 'blockers')
+                  'ownership_diagnostics', 'ready_for_migration', 'blockers', 'retained_legacy_catalog')
         print(json.dumps({key: report[key] for key in fields if key in report}, ensure_ascii=False, indent=2))
     except Exception as exc:
         # SQL driver exceptions can contain private bind parameters; do not print them.

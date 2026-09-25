@@ -23,7 +23,7 @@ def test_owner_diagnostics_explain_legacy_shadows_without_relaxing_migration(pg_
         c.execute(text("UPDATE applications SET job_id=:id WHERE user_id='two'"), {'id': hidden_job})
     calls = []
     def record(conn, cursor, statement, parameters, context, executemany):
-        calls.append(statement.lower())
+        calls.append(' '.join(statement.lower().split()))
     event.listen(engine, 'before_cursor_execute', record)
     try:
         with engine.begin() as c:
@@ -32,7 +32,7 @@ def test_owner_diagnostics_explain_legacy_shadows_without_relaxing_migration(pg_
     finally:
         event.remove(engine, 'before_cursor_execute', record)
     assert report['ready_for_migration'] is False
-    assert report['blockers'] == ['Copy must already use the shared catalog owner']
+    assert report['blockers'] == ['Private history references a nonshared catalog owner or missing job']
     diagnostics = report['ownership_diagnostics']
     sources = [row for row in diagnostics['sources'] if row['owner_scope'] == 'nonshared']
     jobs = [row for row in diagnostics['jobs'] if row['owner_scope'] == 'nonshared']
@@ -47,7 +47,7 @@ def test_owner_diagnostics_explain_legacy_shadows_without_relaxing_migration(pg_
     assert 'Firmware' not in json.dumps(report)
     assert all(sql.startswith(('select ', 'set ')) for sql in calls)
     assert all('select *' not in sql for sql in calls)
-    with pytest.raises(RuntimeError, match='shared catalog owner'):
+    with pytest.raises(RuntimeError, match='nonshared catalog owner'):
         migration.migrate_postgres_copy(engine, confirmed_copy=True)
     assert 'catalog_migration_archive' not in inspect(engine).get_table_names()
     with engine.connect() as c:
