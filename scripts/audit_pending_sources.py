@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT))
 from app.collectors.official import OfficialCareersCollector, PRESETS
 from app.collectors.expansion_ats import VERIFIED_ATS_IDENTIFIERS, endpoint_for
 from app.collectors.workday import EXPANSION_WORKDAY_IDENTIFIERS, WORKDAY_PRESETS
+from app.collectors.eightfold import EIGHTFOLD_ROUTES
 from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
 from app.services.job_text import job_text_quality
 from app.services.location_filter import is_israel_location
@@ -66,6 +67,9 @@ async def page_evidence(url):
 
 
 def verified_route(identifier):
+    if identifier in EIGHTFOLD_ROUTES:
+        base, domain, _ = EIGHTFOLD_ROUTES[identifier]
+        return f"{base}/api/pcsx/search?domain={domain}&location=Israel&hl=en"
     if identifier in VERIFIED_ATS_IDENTIFIERS:
         return endpoint_for(identifier)
     if identifier in EXPANSION_WORKDAY_IDENTIFIERS:
@@ -110,22 +114,28 @@ async def audit_one(source):
         row.update(collector_error=f"{type(exc).__name__}: {exc}"[:500], total_rows=None, israel_rows=None)
         verified = False
     row["state"] = "verified" if verified else "unresolved"
+    if (identifier in EIGHTFOLD_ROUTES and source["enabled"]
+            and row.get("total_rows") == 0 and not row.get("collector_error")):
+        row["state"] = "verified_adapter_no_israel_rows"
+        row["note"] = "Valid bounded Israel search returned no eligible rows. The adapter is operational; this partial snapshot is not closure evidence."
     row["blocker"] = "" if verified else unresolved_reason(row)
+    if row["state"] == "verified_adapter_no_israel_rows":
+        row["blocker"] = ""
     return row
 
 
-async def audit_sources():
+async def audit_sources(sources=None):
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_BOARDS)
     async def one(source):
         async with semaphore:
             row = await audit_one(source)
             print(row["identifier"], row["state"], row["total_rows"], row["israel_rows"], flush=True)
             return row
-    return await asyncio.gather(*(one(source) for source in audit_cohort()))
+    return await asyncio.gather(*(one(source) for source in (audit_cohort() if sources is None else sources)))
 
 
 def write_report(path, rows):
-    result = {"checked_at": datetime.now(timezone.utc).isoformat(), "scope": "original_67_pending_adapter_sources",
+    result = {"checked_at": datetime.now(timezone.utc).isoformat(), "scope": "original_67_pending_adapter_sources" if len(rows) == 67 else "selected_original_pending_sources",
               "counts": dict(Counter(row["state"] for row in rows)), "source_count": len(rows),
               "constraints": {"database_requests": 0, "applications_sent": 0, "concurrent_boards": MAX_CONCURRENT_BOARDS,
                               "collector_deadline_seconds": COLLECTOR_TIMEOUT, "official_page_max_bytes": MAX_PAGE_BYTES},
@@ -137,7 +147,7 @@ def write_report(path, rows):
              f"Audited {len(rows)} original pending sources: {result['counts']}. No database access or job applications.", "",
              "| Employer | Status | Rows | Israel | Evidence / blocker |", "|---|---|---:|---:|---|"]
     for row in rows:
-        details = f"[Collector]({row['collector_url']})" if row["state"] == "verified" else row["blocker"]
+        details = f"[Collector]({row['collector_url']}) {row.get('note', '')}" if row["state"] != "unresolved" else row["blocker"]
         details = details.replace("|", "/").replace("\n", " ")
         lines.append(f"| {row['company']} (`{row['identifier']}`) | {row['state']} | {row['total_rows'] if row['total_rows'] is not None else '—'} | {row['israel_rows'] if row['israel_rows'] is not None else '—'} | {details} |")
     path.with_suffix(".md").write_text("\n".join(lines) + "\n")
@@ -147,12 +157,15 @@ def write_report(path, rows):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--identifiers", nargs="+", choices=sorted(s["identifier"] for s in audit_cohort()),
+                        help="Audit only these members of the original pending cohort; earlier reports remain unchanged.")
     args = parser.parse_args()
     if args.report.exists() or args.report.with_suffix(".md").exists():
         raise SystemExit("Refusing to overwrite an earlier audit; choose a new report path")
     if len(audit_cohort()) != 67:
         raise SystemExit("Original cohort changed; review its explicit scope before auditing")
-    result = write_report(args.report, asyncio.run(audit_sources()))
+    sources = [s for s in audit_cohort() if not args.identifiers or s["identifier"] in args.identifiers]
+    result = write_report(args.report, asyncio.run(audit_sources(sources)))
     print(json.dumps(result["counts"]))
 
 

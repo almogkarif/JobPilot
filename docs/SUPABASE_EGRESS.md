@@ -619,3 +619,33 @@ Verification: `test_cloud_catalog_rollout.py`, `test_canonical_migration_batchin
 `test_supabase_egress_optimization.py`. Supabase Usage before rollout showed
 3.17 GB / 5 GB on 25 September. Record actual production preflight and post-rollout
 usage before another bulk scan; do not infer usage from the local snapshot.
+
+#### Read-only production preflight and retained legacy copies
+
+The explicit 25 September preflight (GitHub run 36131947765) returned
+71,961,753 input bytes across the ten bounded tables. It found 941 nonshared
+source rows and 2,694 nonshared job rows, all with exact shared board
+counterparts. No application, ranking, state, draft, attempt, event or blocker
+referenced those old job copies. They are retained legacy snapshots, not input
+for activation or classification; never use their stale enabled/active flags
+to reactivate current catalog entries. This observation is revalidated under
+locks before maintenance; it is not permission to bypass the ownership guard.
+
+Ownership diagnostics add exactly nine aggregate SELECTs per explicit preflight:
+up to twenty source buckets, twenty job buckets and seven reference summaries
+(<16 KiB conservative output). No owner IDs, custom source strings or job bodies
+are returned. There are no scheduled diagnostic calls.
+
+#### Second verified-source batch
+
+Seven additional adapters use existing identities: Priority Software, Stratasys,
+Mekorot, Electra, HP, Amdocs and Boston Scientific. The latter two had operational
+public feeds with no Israel rows at audit time; absence never closes stored jobs.
+Four HTML readers each fetch at most one listing plus forty details; three
+Eightfold readers each fetch at most two listings plus forty details. Responses
+are capped at 4 MB; normalized descriptions at approximately 24,000 characters.
+The additional ceiling is 290 employer requests and 280 normalized jobs per
+scan, bringing both batches to 607 requests and 4,560 rows (14,568 requests/day
+at an hourly cadence), excluding bounded redirect hops. These external employer
+requests do not use Supabase egress; catalog persistence/ranking still uses the
+shared daily reservation guard.

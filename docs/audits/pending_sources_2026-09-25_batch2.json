@@ -1,0 +1,288 @@
+{
+  "checked_at": "2026-09-25T11:39:24.015226+00:00",
+  "scope": "selected_original_pending_sources",
+  "counts": {
+    "verified": 5,
+    "unresolved": 1,
+    "verified_adapter_no_israel_rows": 1
+  },
+  "source_count": 7,
+  "constraints": {
+    "database_requests": 0,
+    "applications_sent": 0,
+    "concurrent_boards": 3,
+    "collector_deadline_seconds": 90,
+    "official_page_max_bytes": 4000000
+  },
+  "note": "Live bounded snapshots, not historical validation. Partial feeds preserve existing jobs; absent jobs are not closure evidence.",
+  "sources": [
+    {
+      "identifier": "priority-software",
+      "company": "Priority Software",
+      "track": "cs",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:01.503549+00:00",
+      "collector_url": "https://www.priority-software.com/careers/",
+      "official_page": {
+        "requested_url": "https://www.priority-software.com/careers/",
+        "status": 200,
+        "final_url": "https://www.priority-software.com/careers/",
+        "response_bytes": 197294,
+        "sha256": "f192bd517bc3f22837345ea276a43d72329762acdb804a15ada938a07d3c677f",
+        "ats_links": []
+      },
+      "total_rows": 9,
+      "israel_rows": 9,
+      "complete_descriptions": 9,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [
+        {
+          "id": "level-2-technical-support-representative-hospitality",
+          "title": "Level 2 Technical Support Representative (Hospitality)",
+          "location": "Haifa, Israel",
+          "url": "https://www.priority-software.com/careers/level-2-technical-support-representative-hospitality/"
+        },
+        {
+          "id": "customer-migration-project-manager",
+          "title": "Customer Migration Project Manager",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/customer-migration-project-manager/"
+        },
+        {
+          "id": "priority-implementer-project-manager",
+          "title": "Priority Implementer / Project Manager",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/priority-implementer-project-manager/"
+        }
+      ],
+      "state": "verified",
+      "blocker": ""
+    },
+    {
+      "identifier": "amdocs",
+      "company": "Amdocs",
+      "track": "cs",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:01.533869+00:00",
+      "collector_url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&location=Israel&hl=en",
+      "official_page": {
+        "requested_url": "https://jobs.amdocs.com/",
+        "status": 200,
+        "final_url": "https://jobs.amdocs.com/careers",
+        "response_bytes": 312525,
+        "sha256": "8b3d71f066facaf41810cb758b4268f8ca592aa95b531319fc7413aeb5cbe2c1",
+        "ats_links": [
+          "https://77e708048c4747e1a801fa2ef5557ca6@vs-errors.eightfold.ai/10",
+          "https://eightfold.ai/privacy-policy/&#34;}},"
+        ]
+      },
+      "collector_error": "PreserveExistingJobs: Eightfold public search is temporarily unavailable",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Public ATS links discovered, but current adapter does not return verified complete Israel vacancies; listed ATS needs a dedicated mapping."
+    },
+    {
+      "identifier": "hp",
+      "company": "HP",
+      "track": "ee",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:01.537838+00:00",
+      "collector_url": "https://apply.hp.com/api/pcsx/search?domain=hp.com&location=Israel&hl=en",
+      "official_page": {
+        "requested_url": "https://jobs.hp.com/",
+        "status": 200,
+        "final_url": "https://jobs.hp.com/",
+        "response_bytes": 237837,
+        "sha256": "015dabdb2d6c03f96848cdb254b471176abbc0ad0505686d03e8bbfae37e0348",
+        "ats_links": [
+          "https://hp-sandbox.eightfold.ai/careers",
+          "https://hp-sandbox.eightfold.ai/careers/join?domain=hp-sandbox.com"
+        ]
+      },
+      "total_rows": 9,
+      "israel_rows": 9,
+      "complete_descriptions": 9,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [
+        {
+          "id": "44545431",
+          "title": "Integrator – Industrial Digital Printing Production Line",
+          "location": "Kiryat-Gat, South District, Israel",
+          "url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite/job/Kiryat-Gat-South-District-Israel/Integrator---Industrial-Digital-Printing-Production-Line_3167955-1/apply?source=HPCompanyWebsite&src=Eightfold"
+        },
+        {
+          "id": "30041774",
+          "title": "Global Customer Service Engineer",
+          "location": "Ness Ziona, Center District, Israel",
+          "url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite/job/Ness-Ziona-Center-District-Israel/Global-Customer-Service-Engineer_UNI2621-1/apply?source=HPCompanyWebsite&src=Eightfold"
+        },
+        {
+          "id": "41890823",
+          "title": "Sales Application Lead",
+          "location": "Ness Ziona, Center District, Israel",
+          "url": "https://hp.wd5.myworkdayjobs.com/ExternalCareerSite/job/Ness-Ziona-Center-District-Israel/Technical-Lead---CPQ-Platform_3162826-1/apply?source=HPCompanyWebsite&src=Eightfold"
+        }
+      ],
+      "state": "verified",
+      "blocker": ""
+    },
+    {
+      "identifier": "stratasys",
+      "company": "Stratasys",
+      "track": "ee",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:02.497165+00:00",
+      "collector_url": "https://careers.stratasys.com/search/?q=&locationsearch=Israel",
+      "official_page": {
+        "requested_url": "https://careers.stratasys.com/",
+        "status": 200,
+        "final_url": "https://careers.stratasys.com/",
+        "response_bytes": 82451,
+        "sha256": "c3467a0721a6781309a862a5ff0b11286785c5881d07004b74f55125386059be",
+        "ats_links": []
+      },
+      "total_rows": 13,
+      "israel_rows": 13,
+      "complete_descriptions": 13,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [
+        {
+          "id": "1408565000",
+          "title": "NPI Engineer (Mechanical)",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-NPI-Engineer-%28Mechanical%29-IL/1408565000/"
+        },
+        {
+          "id": "1425896000",
+          "title": "Help Desk & Field Service Technician",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-Help-Desk-&-Field-Service-Technician-IL/1425896000/"
+        },
+        {
+          "id": "1417340400",
+          "title": "Team Leader NPI",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-Team-Leader-NPI-IL/1417340400/"
+        }
+      ],
+      "state": "verified",
+      "blocker": ""
+    },
+    {
+      "identifier": "boston-scientific",
+      "company": "Boston Scientific",
+      "track": "ee",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:02.591942+00:00",
+      "collector_url": "https://bostonscientific.eightfold.ai/api/pcsx/search?domain=bostonscientific.com&location=Israel&hl=en",
+      "official_page": {
+        "requested_url": "https://www.bostonscientific.com/en-US/careers.html",
+        "status": 200,
+        "final_url": "https://www.bostonscientific.com/en-US/careers.html",
+        "response_bytes": 154645,
+        "sha256": "2e7f42a6897ea8dc5d9d088044e358c5bc13e51a0dd2168829d75c90bc36a2ef",
+        "ats_links": [
+          "https://bostonscientific.eightfold.ai/careers",
+          "https://bostonscientific.eightfold.ai/careers&#34;}}",
+          "https://bostonscientific.eightfold.ai/careers/join?domain=bostonscientific.com",
+          "https://bostonscientific.eightfold.ai/careers/join?domain=bostonscientific.com&#34;}}"
+        ]
+      },
+      "total_rows": 0,
+      "israel_rows": 0,
+      "complete_descriptions": 0,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [],
+      "state": "verified_adapter_no_israel_rows",
+      "note": "Valid bounded Israel search returned no eligible rows. The adapter is operational; this partial snapshot is not closure evidence.",
+      "blocker": ""
+    },
+    {
+      "identifier": "electra-group",
+      "company": "Electra Group",
+      "track": "ee",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:03.079553+00:00",
+      "collector_url": "https://www.electra.co.il/career/משרות",
+      "official_page": {
+        "requested_url": "https://www.electra.co.il/career/משרות",
+        "status": 200,
+        "final_url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+        "response_bytes": 1223846,
+        "sha256": "e62ec35021d47c4772b18a7f0b18b4f6d89681c41ef91ddf495dbc3434db36d5",
+        "ats_links": []
+      },
+      "total_rows": 39,
+      "israel_rows": 39,
+      "complete_descriptions": 39,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [
+        {
+          "id": "17992",
+          "title": "טכנאי/ת מיזוג אוויר",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=17992"
+        },
+        {
+          "id": "18309",
+          "title": "מנהל/ת פרויקטים אינסטלציה מנוסה",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18309"
+        },
+        {
+          "id": "18607",
+          "title": "מכשירן/ית אנליטי לאתר קבוע בצפון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18607"
+        }
+      ],
+      "state": "verified",
+      "blocker": ""
+    },
+    {
+      "identifier": "mekorot",
+      "company": "Mekorot",
+      "track": "ee",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:03.998952+00:00",
+      "collector_url": "https://careers.mekorot.co.il/open-jobs/",
+      "official_page": {
+        "requested_url": "https://www.mekorot.co.il/careers/",
+        "error": "RemoteProtocolError: Server disconnected without sending a response."
+      },
+      "total_rows": 33,
+      "israel_rows": 32,
+      "complete_descriptions": 33,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [
+        {
+          "id": "%d7%9e%d7%a4%d7%a2%d7%99%d7%9c-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%90%d7%a0%d7%99%d7%95%d7%aa",
+          "title": "מפעיל/ת מכונות אלקטרומכאניות",
+          "location": "Rishon Lezion, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%a4%d7%a2%d7%99%d7%9c-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%90%d7%a0%d7%99%d7%95%d7%aa"
+        },
+        {
+          "id": "%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%a1%d7%99%d7%a1%d7%98%d7%9d",
+          "title": "ראש צוות סיסטם",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%a1%d7%99%d7%a1%d7%98%d7%9d"
+        },
+        {
+          "id": "%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%90%d7%99%d7%a0%d7%98%d7%92%d7%a8%d7%a6%d7%99%d7%94-%d7%95%d7%a0%d7%99%d7%94%d7%95%d7%9c-sap",
+          "title": "ראש צוות אינטגרציה וניהול SAP",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%90%d7%99%d7%a0%d7%98%d7%92%d7%a8%d7%a6%d7%99%d7%94-%d7%95%d7%a0%d7%99%d7%94%d7%95%d7%9c-sap"
+        }
+      ],
+      "state": "verified",
+      "blocker": ""
+    }
+  ]
+}

@@ -1,0 +1,885 @@
+{
+  "checked_at": "2026-09-25T12:11:16.323415+00:00",
+  "scope": "batch2_addendum_preserving_first_attempts",
+  "previous_audit": "pending_sources_2026-09-25.json",
+  "batch2_first_attempt": "pending_sources_2026-09-25_batch2.json",
+  "amdocs_retry": "pending_sources_amdocs_2026-09-25_batch2_retry.json",
+  "second_detail_snapshots": [
+    {
+      "identifier": "priority-software",
+      "checked_at": "2026-09-25T11:39:53.235684+00:00",
+      "url": "https://www.priority-software.com/careers/",
+      "total_rows": 9,
+      "israel_rows": 9,
+      "complete_descriptions": 9,
+      "snapshot_complete": false,
+      "rows": [
+        {
+          "id": "level-2-technical-support-representative-hospitality",
+          "title": "Level 2 Technical Support Representative (Hospitality)",
+          "location": "Haifa, Israel",
+          "url": "https://www.priority-software.com/careers/level-2-technical-support-representative-hospitality/",
+          "description_characters": 2165,
+          "has_requirements": true
+        },
+        {
+          "id": "customer-migration-project-manager",
+          "title": "Customer Migration Project Manager",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/customer-migration-project-manager/",
+          "description_characters": 1858,
+          "has_requirements": true
+        },
+        {
+          "id": "priority-implementer-project-manager",
+          "title": "Priority Implementer / Project Manager",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/priority-implementer-project-manager/",
+          "description_characters": 1045,
+          "has_requirements": true
+        },
+        {
+          "id": "technical-sales-specialist-exponet",
+          "title": "Technical Sales Specialist (Exponet)",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/technical-sales-specialist-exponet/",
+          "description_characters": 2425,
+          "has_requirements": true
+        },
+        {
+          "id": "delivery-implementation-specialist",
+          "title": "Technical Project Manager (Hospitalit)",
+          "location": "Haifa, Israel",
+          "url": "https://www.priority-software.com/careers/delivery-implementation-specialist/",
+          "description_characters": 3083,
+          "has_requirements": true
+        },
+        {
+          "id": "rd-team-leader-cloud-on-prem-infrastructure-development-hospitality",
+          "title": "R&D Team Leader – Cloud & On-Prem Infrastructure Development (Hospitality)",
+          "location": "Haifa, Israel",
+          "url": "https://www.priority-software.com/careers/rd-team-leader-cloud-on-prem-infrastructure-development-hospitality/",
+          "description_characters": 3322,
+          "has_requirements": true
+        },
+        {
+          "id": "rd-team-leader-classic-pms-platform-hospitality",
+          "title": "R&D Team Leader – Classic PMS Platform (Hospitality)",
+          "location": "Haifa, Israel",
+          "url": "https://www.priority-software.com/careers/rd-team-leader-classic-pms-platform-hospitality/",
+          "description_characters": 4375,
+          "has_requirements": true
+        },
+        {
+          "id": "customer-relation-representative",
+          "title": "Customer Relation Representative",
+          "location": "Israel",
+          "url": "https://www.priority-software.com/careers/customer-relation-representative/",
+          "description_characters": 1130,
+          "has_requirements": true
+        },
+        {
+          "id": "erp-support-finance",
+          "title": "ERP Support – Finance",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.priority-software.com/careers/erp-support-finance/",
+          "description_characters": 2025,
+          "has_requirements": true
+        }
+      ]
+    },
+    {
+      "identifier": "stratasys",
+      "checked_at": "2026-09-25T11:39:53.235707+00:00",
+      "url": "https://careers.stratasys.com/search/?q=&locationsearch=Israel",
+      "total_rows": 13,
+      "israel_rows": 13,
+      "complete_descriptions": 13,
+      "snapshot_complete": false,
+      "rows": [
+        {
+          "id": "1408565000",
+          "title": "NPI Engineer (Mechanical)",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-NPI-Engineer-%28Mechanical%29-IL/1408565000/",
+          "description_characters": 3244,
+          "has_requirements": true
+        },
+        {
+          "id": "1425896000",
+          "title": "Help Desk & Field Service Technician",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-Help-Desk-&-Field-Service-Technician-IL/1425896000/",
+          "description_characters": 2505,
+          "has_requirements": true
+        },
+        {
+          "id": "1417340400",
+          "title": "Team Leader NPI",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-Team-Leader-NPI-IL/1417340400/",
+          "description_characters": 2467,
+          "has_requirements": true
+        },
+        {
+          "id": "1420463900",
+          "title": "GRC Specialist",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-GRC-Specialist-IL/1420463900/",
+          "description_characters": 2558,
+          "has_requirements": true
+        },
+        {
+          "id": "1390554100",
+          "title": "Sr. System Engineer",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-Sr_-System-Engineer-IL/1390554100/",
+          "description_characters": 2666,
+          "has_requirements": true
+        },
+        {
+          "id": "1406193500",
+          "title": "Controller",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-%28Hybrid%29-Controller-IL/1406193500/",
+          "description_characters": 2076,
+          "has_requirements": true
+        },
+        {
+          "id": "1411388000",
+          "title": "Director, Global Compensation & Benefits",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/%28Hybrid%29-Rehovot-Director%2C-Global-Compensation-&-Benefits-IL/1411388000/",
+          "description_characters": 3454,
+          "has_requirements": true
+        },
+        {
+          "id": "1411791700",
+          "title": "Maintenance Electrician",
+          "location": "Kiryat Gat, Israel",
+          "url": "https://careers.stratasys.com/job/Kiryat-Gat-Maintenance-Electrician-IL/1411791700/",
+          "description_characters": 987,
+          "has_requirements": true
+        },
+        {
+          "id": "1421394300",
+          "title": "IL Tactical Buyer",
+          "location": "Kiryat Gat, Israel",
+          "url": "https://careers.stratasys.com/job/Kiryat-Gat-IL-Tactical-Buyer-IL/1421394300/",
+          "description_characters": 1403,
+          "has_requirements": true
+        },
+        {
+          "id": "1382487300",
+          "title": "Project Manager - Regulatory Operations",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-%28Hybrid%29-Project-Manager-Regulatory-Operations-IL/1382487300/",
+          "description_characters": 3894,
+          "has_requirements": true
+        },
+        {
+          "id": "1392084800",
+          "title": "Assistant Controller",
+          "location": "Rehovot, Israel",
+          "url": "https://careers.stratasys.com/job/Rehovot-%28Hybrid%29-Assistant-Controller-IL/1392084800/",
+          "description_characters": 2094,
+          "has_requirements": true
+        },
+        {
+          "id": "1425894500",
+          "title": "Quality Team Leader",
+          "location": "Kiryat Gat, Israel",
+          "url": "https://careers.stratasys.com/job/Kiryat-Gat-Quality-Team-Leader-IL/1425894500/",
+          "description_characters": 3025,
+          "has_requirements": true
+        },
+        {
+          "id": "1412936300",
+          "title": "Process Engineer",
+          "location": "Kiryat Gat, Israel",
+          "url": "https://careers.stratasys.com/job/%28On-Site%29-Kiryat-Gat-Process-Engineer-IL/1412936300/",
+          "description_characters": 3272,
+          "has_requirements": true
+        }
+      ]
+    },
+    {
+      "identifier": "mekorot",
+      "checked_at": "2026-09-25T11:39:54.064115+00:00",
+      "url": "https://careers.mekorot.co.il/open-jobs/",
+      "total_rows": 28,
+      "israel_rows": 28,
+      "complete_descriptions": 28,
+      "snapshot_complete": false,
+      "rows": [
+        {
+          "id": "%d7%9e%d7%a4%d7%a2%d7%99%d7%9c-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%90%d7%a0%d7%99%d7%95%d7%aa",
+          "title": "מפעיל/ת מכונות אלקטרומכאניות",
+          "location": "Rishon Lezion, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%a4%d7%a2%d7%99%d7%9c-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%90%d7%a0%d7%99%d7%95%d7%aa",
+          "description_characters": 468,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%a1%d7%99%d7%a1%d7%98%d7%9d",
+          "title": "ראש צוות סיסטם",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%a1%d7%99%d7%a1%d7%98%d7%9d",
+          "description_characters": 1462,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%90%d7%99%d7%a0%d7%98%d7%92%d7%a8%d7%a6%d7%99%d7%94-%d7%95%d7%a0%d7%99%d7%94%d7%95%d7%9c-sap",
+          "title": "ראש צוות אינטגרציה וניהול SAP",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%90%d7%a9-%d7%a6%d7%95%d7%95%d7%aa-%d7%90%d7%99%d7%a0%d7%98%d7%92%d7%a8%d7%a6%d7%99%d7%94-%d7%95%d7%a0%d7%99%d7%94%d7%95%d7%9c-sap",
+          "description_characters": 900,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%91%d7%a7%d7%a8-%d7%99%d7%aa-%d7%91%d7%97%d7%93%d7%a8-%d7%91%d7%a7%d7%a8%d7%94-%d7%90%d7%a8%d7%a6%d7%99",
+          "title": "בקר/ית בחדר בקרה ארצי",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%91%d7%a7%d7%a8-%d7%99%d7%aa-%d7%91%d7%97%d7%93%d7%a8-%d7%91%d7%a7%d7%a8%d7%94-%d7%90%d7%a8%d7%a6%d7%99",
+          "description_characters": 1131,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%a2%d7%99%d7%9f-%d7%a9%d7%9e%d7%a8",
+          "title": "רתך/ית- עין שמר",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%a2%d7%99%d7%9f-%d7%a9%d7%9e%d7%a8",
+          "description_characters": 275,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a2%d7%95%d7%91%d7%93-%d7%aa-%d7%90%d7%97%d7%96%d7%a7%d7%94-%d7%a9%d7%a4%d7%93%d7%9f",
+          "title": "עובד/ת אחזקה- שפד\"ן",
+          "location": "Rishon Lezion, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a2%d7%95%d7%91%d7%93-%d7%aa-%d7%90%d7%97%d7%96%d7%a7%d7%94-%d7%a9%d7%a4%d7%93%d7%9f",
+          "description_characters": 270,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%94%d7%a0%d7%93%d7%a1%d7%90%d7%99-%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%99%d7%a7%d7%94-%d7%97%d7%99%d7%a4%d7%94",
+          "title": "הנדסאי/ת אלקטרוניקה- חיפה",
+          "location": "Haifa, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%94%d7%a0%d7%93%d7%a1%d7%90%d7%99-%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%99%d7%a7%d7%94-%d7%97%d7%99%d7%a4%d7%94",
+          "description_characters": 690,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%96%d7%a8%d7%97%d7%99-%d7%aa-%d7%a8%d7%9e%d7%9c%d7%94-2",
+          "title": "מהנדס/ת אזרחי/ת- רמלה",
+          "location": "Ramla, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%96%d7%a8%d7%97%d7%99-%d7%aa-%d7%a8%d7%9e%d7%9c%d7%94-2",
+          "description_characters": 900,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%99%d7%a7%d7%94-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "title": "מהנדס/ת אלקטרוניקה- אשקלון",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%99%d7%a7%d7%94-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "description_characters": 735,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%97%d7%99%d7%a1%d7%9e%d7%9a",
+          "title": "רתך/ית- אחיסמך",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%97%d7%99%d7%a1%d7%9e%d7%9a",
+          "description_characters": 274,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%96%d7%9b%d7%99%d7%a8-%d7%94-%d7%9c%d7%9c%d7%90%d7%a8%d7%92%d7%95%d7%9f-%d7%94%d7%a2%d7%95%d7%91%d7%93%d7%99%d7%9d",
+          "title": "מזכיר/ה לארגון העובדים",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%96%d7%9b%d7%99%d7%a8-%d7%94-%d7%9c%d7%9c%d7%90%d7%a8%d7%92%d7%95%d7%9f-%d7%94%d7%a2%d7%95%d7%91%d7%93%d7%99%d7%9d",
+          "description_characters": 602,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%96%d7%9b%d7%99%d7%a8-%d7%94-%d7%94%d7%97%d7%9c%d7%a4%d7%94-%d7%9c%d7%97%d7%9c%d7%93",
+          "title": "מזכיר/ה- החלפה לחל\"ד",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%96%d7%9b%d7%99%d7%a8-%d7%94-%d7%94%d7%97%d7%9c%d7%a4%d7%94-%d7%9c%d7%97%d7%9c%d7%93",
+          "description_characters": 613,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%aa%d7%a4%d7%a2%d7%9c-%d7%aa-%d7%95%d7%9e%d7%aa%d7%97%d7%96%d7%a7-%d7%aa-%d7%9e%d7%a2%d7%a8%d7%9b%d7%95%d7%aa-%d7%90%d7%99%d7%9b%d7%95%d7%aa-%d7%9e%d7%99%d7%9d-%d7%91%d7%90%d7%a8-%d7%a9-3",
+          "title": "מתפעל/ת ומתחזק/ת מערכות איכות מים- באר שבע",
+          "location": "Be'er Sheva, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%aa%d7%a4%d7%a2%d7%9c-%d7%aa-%d7%95%d7%9e%d7%aa%d7%97%d7%96%d7%a7-%d7%aa-%d7%9e%d7%a2%d7%a8%d7%9b%d7%95%d7%aa-%d7%90%d7%99%d7%9b%d7%95%d7%aa-%d7%9e%d7%99%d7%9d-%d7%91%d7%90%d7%a8-%d7%a9-3",
+          "description_characters": 553,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a2%d7%95%d7%91%d7%93-%d7%aa-%d7%90%d7%99%d7%9b%d7%95%d7%aa-%d7%9e%d7%99%d7%9d-%d7%a8%d7%9e%d7%9c%d7%94-3",
+          "title": "עובד/ת איכות מים- רמלה",
+          "location": "Ramla, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a2%d7%95%d7%91%d7%93-%d7%aa-%d7%90%d7%99%d7%9b%d7%95%d7%aa-%d7%9e%d7%99%d7%9d-%d7%a8%d7%9e%d7%9c%d7%94-3",
+          "description_characters": 435,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "title": "מהנדס/ת מכונות- אשקלון",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%9e%d7%9b%d7%95%d7%a0%d7%95%d7%aa-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "description_characters": 1023,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%99%d7%9c%d7%aa-2",
+          "title": "רתך/ית- אילת",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%99%d7%9c%d7%aa-2",
+          "description_characters": 404,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%9b%d7%96-%d7%aa-%d7%94%d7%93%d7%a8%d7%9b%d7%94",
+          "title": "רכז/ת הדרכה",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%9b%d7%96-%d7%aa-%d7%94%d7%93%d7%a8%d7%9b%d7%94",
+          "description_characters": 1471,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%9b%d7%96-%d7%aa-%d7%aa%d7%99%d7%a7%d7%99-%d7%aa%d7%9b%d7%a0%d7%95%d7%9f-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "title": "רכז/ת תיקי תכנון- אשקלון",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%9b%d7%96-%d7%aa-%d7%aa%d7%99%d7%a7%d7%99-%d7%aa%d7%9b%d7%a0%d7%95%d7%9f-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f",
+          "description_characters": 446,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%aa%d7%a8-%d7%90%d7%a9%d7%9b%d7%95%d7%9c",
+          "title": "רתך/ית- אתר אשכול",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%90%d7%aa%d7%a8-%d7%90%d7%a9%d7%9b%d7%95%d7%9c",
+          "description_characters": 252,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%9b%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%a9%d7%93%d7%a8%d7%95%d7%aa-3",
+          "title": "מכונאי/ת- שדרות",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%9b%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%a9%d7%93%d7%a8%d7%95%d7%aa-3",
+          "description_characters": 573,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%91%d7%90%d7%a8-%d7%a9%d7%91%d7%a2",
+          "title": "רתך/ית- באר שבע",
+          "location": "Be'er Sheva, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%a8%d7%aa%d7%9a-%d7%99%d7%aa-%d7%91%d7%90%d7%a8-%d7%a9%d7%91%d7%a2",
+          "description_characters": 405,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%a1%d7%a4%d7%a7%d7%aa-%d7%9e%d7%99%d7%9d-2",
+          "title": "מהנדס/ת אספקת מים- תל אביב",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%90%d7%a1%d7%a4%d7%a7%d7%aa-%d7%9e%d7%99%d7%9d-2",
+          "description_characters": 1240,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%a6%d7%99%d7%95%d7%93-%d7%a9%d7%90%d7%99%d7%91%d7%94-%d7%90%d7%a8%d7%a6%d7%99-%d7%99%d7%aa",
+          "title": "מהנדס/ת ציוד שאיבה ארצי/ת",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%94%d7%a0%d7%93%d7%a1-%d7%aa-%d7%a6%d7%99%d7%95%d7%93-%d7%a9%d7%90%d7%99%d7%91%d7%94-%d7%90%d7%a8%d7%a6%d7%99-%d7%99%d7%aa",
+          "description_characters": 1382,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%98%d7%9b%d7%a0%d7%90%d7%99-%d7%aa-%d7%9e%d7%a2%d7%91%d7%93%d7%94-2",
+          "title": "טכנאי/ת מעבדה",
+          "location": "Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%98%d7%9b%d7%a0%d7%90%d7%99-%d7%aa-%d7%9e%d7%a2%d7%91%d7%93%d7%94-2",
+          "description_characters": 1531,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%aa%d7%a4%d7%a2%d7%9c-%d7%aa-%d7%95%d7%9e%d7%aa%d7%97%d7%96%d7%a7-%d7%aa-%d7%9e%d7%a2%d7%a8%d7%9b%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%a0%d7%99%d7%95%d7%aa-%d7%a9",
+          "title": "מתפעל/ת ומתחזק/ת מערכות אלקטרומכניות- שפד\"ן",
+          "location": "Rishon Lezion, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%aa%d7%a4%d7%a2%d7%9c-%d7%aa-%d7%95%d7%9e%d7%aa%d7%97%d7%96%d7%a7-%d7%aa-%d7%9e%d7%a2%d7%a8%d7%9b%d7%95%d7%aa-%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%9e%d7%9b%d7%a0%d7%99%d7%95%d7%aa-%d7%a9",
+          "description_characters": 359,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%9e%d7%9b%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%91%d7%90%d7%a8-%d7%a9%d7%91%d7%a2",
+          "title": "מכונאי/ת- באר שבע",
+          "location": "Be'er Sheva, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%9e%d7%9b%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%91%d7%90%d7%a8-%d7%a9%d7%91%d7%a2",
+          "description_characters": 575,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%91%d7%a7%d7%a8-%d7%99%d7%aa-%d7%9c%d7%97%d7%93%d7%a8-%d7%91%d7%a7%d7%a8%d7%94-%d7%a9%d7%a4%d7%93%d7%9f-2",
+          "title": "בקר/ית לחדר בקרה- שפד\"ן",
+          "location": "Rishon Lezion, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%91%d7%a7%d7%a8-%d7%99%d7%aa-%d7%9c%d7%97%d7%93%d7%a8-%d7%91%d7%a7%d7%a8%d7%94-%d7%a9%d7%a4%d7%93%d7%9f-2",
+          "description_characters": 337,
+          "has_requirements": true
+        },
+        {
+          "id": "%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%a8%d7%9e%d7%9c%d7%94",
+          "title": "אלקטרונאי/ת- רמלה",
+          "location": "Ramla, Israel",
+          "url": "https://careers.mekorot.co.il/?job=%d7%90%d7%9c%d7%a7%d7%98%d7%a8%d7%95%d7%a0%d7%90%d7%99-%d7%aa-%d7%a8%d7%9e%d7%9c%d7%94",
+          "description_characters": 587,
+          "has_requirements": true
+        }
+      ]
+    },
+    {
+      "identifier": "electra-group",
+      "checked_at": "2026-09-25T11:39:55.915807+00:00",
+      "url": "https://www.electra.co.il/career/משרות",
+      "total_rows": 39,
+      "israel_rows": 39,
+      "complete_descriptions": 39,
+      "snapshot_complete": false,
+      "rows": [
+        {
+          "id": "17992",
+          "title": "טכנאי/ת מיזוג אוויר",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=17992",
+          "description_characters": 816,
+          "has_requirements": true
+        },
+        {
+          "id": "18309",
+          "title": "מנהל/ת פרויקטים אינסטלציה מנוסה",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18309",
+          "description_characters": 1021,
+          "has_requirements": true
+        },
+        {
+          "id": "18607",
+          "title": "מכשירן/ית אנליטי לאתר קבוע בצפון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18607",
+          "description_characters": 921,
+          "has_requirements": true
+        },
+        {
+          "id": "18905",
+          "title": "איש/אשת צוות מכאני למעליות באזור המרכז/שפלה",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=18905",
+          "description_characters": 832,
+          "has_requirements": true
+        },
+        {
+          "id": "19284",
+          "title": "מסגר/ית לאתר קבוע באזור השפלה",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19284",
+          "description_characters": 752,
+          "has_requirements": true
+        },
+        {
+          "id": "19291",
+          "title": "חשמלאי/ת מוסמך/ת לאתר באזור השרון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19291",
+          "description_characters": 842,
+          "has_requirements": true
+        },
+        {
+          "id": "19294",
+          "title": "איש/אשת צוות טיפולים למערכות מיזוג אוויר באזור המרכז",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19294",
+          "description_characters": 667,
+          "has_requirements": true
+        },
+        {
+          "id": "19298",
+          "title": "שרברב/ית לת\"א (קו רכבת)",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19298",
+          "description_characters": 932,
+          "has_requirements": true
+        },
+        {
+          "id": "19472",
+          "title": "שרברב/ית לבנק לאומי בלוד",
+          "location": "Lod, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19472",
+          "description_characters": 1385,
+          "has_requirements": true
+        },
+        {
+          "id": "19486",
+          "title": "בודק.ת איכות- תעמ\"ל",
+          "location": "Haifa, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19486",
+          "description_characters": 696,
+          "has_requirements": true
+        },
+        {
+          "id": "19564",
+          "title": "מפעיל/ת טלסקופי/ת לפרויקט מנרה",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19564",
+          "description_characters": 800,
+          "has_requirements": true
+        },
+        {
+          "id": "19579",
+          "title": "טכנאי/ת מיזוג אוויר תעשייתי לאתר בגבעתיים",
+          "location": "Givatayim, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19579",
+          "description_characters": 980,
+          "has_requirements": true
+        },
+        {
+          "id": "19589",
+          "title": "טכנאי/ת מיזוג אוויר תעשייתי לאתר ברמת השרון",
+          "location": "Ramat Hasharon, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19589",
+          "description_characters": 995,
+          "has_requirements": true
+        },
+        {
+          "id": "19666",
+          "title": "מוקדן מבצעי\\טכני למוקד איזוק",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19666",
+          "description_characters": 1004,
+          "has_requirements": true
+        },
+        {
+          "id": "19669",
+          "title": "חשמלאי/ת ראשי/ת לחברת הייטק ברעננה!",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19669",
+          "description_characters": 1297,
+          "has_requirements": true
+        },
+        {
+          "id": "19748",
+          "title": "מנהל/ת ביצוע מנוסה בתחום החשמל",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19748",
+          "description_characters": 1067,
+          "has_requirements": true
+        },
+        {
+          "id": "19781",
+          "title": "מנהל/ת פרויקטים- תכנון חדרי גנרטורים לקבוצת אלקטרה",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19781",
+          "description_characters": 1460,
+          "has_requirements": true
+        },
+        {
+          "id": "19808",
+          "title": "יוצאי/יות יחידות קרביות לסיירת האופנועים - אזור שרון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19808",
+          "description_characters": 1144,
+          "has_requirements": false
+        },
+        {
+          "id": "19809",
+          "title": "יוצאי/יות יחידות קרביות לסיירת האופנועים - אזור צפון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19809",
+          "description_characters": 1144,
+          "has_requirements": false
+        },
+        {
+          "id": "19811",
+          "title": "יוצאי/ות יחידות קרביות לסיירת האופנועים",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19811",
+          "description_characters": 1113,
+          "has_requirements": false
+        },
+        {
+          "id": "19814",
+          "title": "טכנאים/יות על אופנועים למשימות מבצעיות",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19814",
+          "description_characters": 973,
+          "has_requirements": false
+        },
+        {
+          "id": "19818",
+          "title": "אלקטרה M&E מכשירים את הדור הבא של טכנאי/ות מיזוג אוויר!",
+          "location": "Nes Ziona, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19818",
+          "description_characters": 854,
+          "has_requirements": true
+        },
+        {
+          "id": "19838",
+          "title": "עובדי/ות ניקיון לאתרים ברחבי הארץ",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19838",
+          "description_characters": 722,
+          "has_requirements": false
+        },
+        {
+          "id": "19840",
+          "title": "חברת טווס מקבוצת אלקטרה מגייסת עובד /ת ניקיון  לעבודות מקצועיות!",
+          "location": "Petah Tikva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19840",
+          "description_characters": 753,
+          "has_requirements": false
+        },
+        {
+          "id": "19841",
+          "title": "דרוש /ה עובד /ת ניקיון למגדל משרדים מידטאון",
+          "location": "Petah Tikva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19841",
+          "description_characters": 640,
+          "has_requirements": false
+        },
+        {
+          "id": "19842",
+          "title": "חברת טווס מקבוצת אלקטרה מגייסת עובד /ת ניקיון לטרקלין אל על!",
+          "location": "Lod, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19842",
+          "description_characters": 669,
+          "has_requirements": false
+        },
+        {
+          "id": "19843",
+          "title": "​​​​​​​דרוש /ה עובד /ת ניקיון לבניין משרדים בפתח תקווה",
+          "location": "Petah Tikva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19843",
+          "description_characters": 641,
+          "has_requirements": false
+        },
+        {
+          "id": "19844",
+          "title": "עובדי/ות ניקיון לאתרים באזור הדרום",
+          "location": "Be'er Sheva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19844",
+          "description_characters": 724,
+          "has_requirements": false
+        },
+        {
+          "id": "19845",
+          "title": "עובדי/ות ניקיון לאתרים באזור השפלה",
+          "location": "Nes Ziona, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19845",
+          "description_characters": 725,
+          "has_requirements": false
+        },
+        {
+          "id": "19846",
+          "title": "עובדי/ות ניקיון לאתרים באזור ת\"א",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19846",
+          "description_characters": 720,
+          "has_requirements": false
+        },
+        {
+          "id": "19847",
+          "title": "עובדי/ות ניקיון לאתרים באזור פ\"ת והשרון",
+          "location": "Petah Tikva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19847",
+          "description_characters": 736,
+          "has_requirements": false
+        },
+        {
+          "id": "19848",
+          "title": "עובדי/ות ניקיון לאתרים באזור הצפון",
+          "location": "Haifa, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19848",
+          "description_characters": 721,
+          "has_requirements": false
+        },
+        {
+          "id": "19850",
+          "title": "משרות בתחום האבטחה שומרי\\ות קבלה24/7 באלקטרה SECURITY",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19850",
+          "description_characters": 1009,
+          "has_requirements": false
+        },
+        {
+          "id": "19853",
+          "title": "מאבטח\\ת למרכזית ארזים בירושלים",
+          "location": "Jerusalem, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19853",
+          "description_characters": 962,
+          "has_requirements": false
+        },
+        {
+          "id": "19854",
+          "title": "עובד/ת אחזקה כללי/ת להפעלות באזור המרכז",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19854",
+          "description_characters": 833,
+          "has_requirements": true
+        },
+        {
+          "id": "19862",
+          "title": "יוצאי/ות יחידות קרביות לסיירת האופנועים- אזור מרכז",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19862",
+          "description_characters": 1137,
+          "has_requirements": false
+        },
+        {
+          "id": "19863",
+          "title": "מפקח/ת תחבורה ציבורית לאזור המרכז/עוטף ירושלים/אשדוד",
+          "location": "Petah Tikva, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19863",
+          "description_characters": 833,
+          "has_requirements": true
+        },
+        {
+          "id": "19912",
+          "title": "טכנאי/ת שטח מיזוג אוויר (צ'ילרים) באזור הצפון",
+          "location": "Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19912",
+          "description_characters": 1039,
+          "has_requirements": true
+        },
+        {
+          "id": "19919",
+          "title": "מנהל/ת מכירות מיזוג אוויר",
+          "location": "Nes Ziona, Israel",
+          "url": "https://www.electra.co.il/career/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA?job_id=19919",
+          "description_characters": 1051,
+          "has_requirements": true
+        }
+      ]
+    }
+  ],
+  "public_eightfold_job_url_checks": [
+    {
+      "url": "https://apply.hp.com/careers/job/44545431",
+      "status": 200,
+      "redirect": null,
+      "bytes": 400849,
+      "title": "Integrator – Industrial Digital Printing Production Line | HP",
+      "canonical": [
+        "https://apply.hp.com/careers/job/44545431"
+      ],
+      "og_title": [
+        "Integrator – Industrial Digital Printing Production Line | HP"
+      ]
+    },
+    {
+      "url": "https://jobs.amdocs.com/careers/job/563431014894227",
+      "status": 200,
+      "redirect": null,
+      "bytes": 321599,
+      "title": "Technical & Business Operations Specialist | Amdocs",
+      "canonical": [
+        "https://jobs.amdocs.com/careers/job/563431014894227"
+      ],
+      "og_title": [
+        "Technical & Business Operations Specialist | Amdocs"
+      ]
+    },
+    {
+      "url": "https://bostonscientific.eightfold.ai/careers/job/563602813603273",
+      "status": 200,
+      "redirect": null,
+      "bytes": 156988,
+      "title": "Strategic Sourcing Specialist III Electronics | Boston Scientific",
+      "canonical": [
+        "https://bostonscientific.eightfold.ai/careers/job/563602813603273"
+      ],
+      "og_title": [
+        "Strategic Sourcing Specialist III Electronics | Boston Scientific"
+      ]
+    }
+  ],
+  "global_protocol_checks": [
+    {
+      "identifier": "amdocs",
+      "url": "https://jobs.amdocs.com/api/pcsx/position_details?position_id=563431014894227&domain=amdocs.com&hl=en",
+      "status": 200,
+      "description_characters": 5923,
+      "location": "Mexico",
+      "note": "Global detail only; current Israel search returned zero."
+    },
+    {
+      "identifier": "boston-scientific",
+      "url": "https://bostonscientific.eightfold.ai/api/pcsx/position_details?position_id=563602813603273&domain=bostonscientific.com&hl=en",
+      "status": 200,
+      "description_characters": 7173,
+      "location": "United States",
+      "note": "Global detail only; current Israel search returned zero."
+    }
+  ],
+  "combined_outcome": {
+    "original_pending": 67,
+    "first_batch_verified_adapters": 27,
+    "second_batch_verified_adapters": 7,
+    "remaining_pending_adapters": 33,
+    "all_expansion_enabled": 67,
+    "remaining_identifiers": [
+      "snyk",
+      "xm-cyber",
+      "astrix-security",
+      "starkware",
+      "sapiens",
+      "verint",
+      "oracle",
+      "sap-israel",
+      "dell",
+      "analog-devices",
+      "ericsson",
+      "nokia",
+      "elspec",
+      "jabil-israel",
+      "orcam",
+      "deep-instinct",
+      "zim",
+      "ormat",
+      "ide-technologies",
+      "sodastream",
+      "delta-galil",
+      "tnuva",
+      "unilever-israel",
+      "loreal-israel",
+      "rambam",
+      "hadassah",
+      "meuhedet",
+      "assuta",
+      "bezeq",
+      "cellcom",
+      "partner",
+      "hot",
+      "iec"
+    ]
+  },
+  "incremental_budget": {
+    "max_collector_requests_per_scan_excluding_redirect_hops": 290,
+    "max_normalized_rows_per_scan": 280,
+    "max_description_characters_per_row": 24000,
+    "max_response_bytes": 4000000,
+    "new_domestic_boards_max_details_each": 40,
+    "eightfold_max_listing_pages_each": 2,
+    "eightfold_max_details_each": 40,
+    "database_requests_in_audit": 0,
+    "applications_sent": 0
+  },
+  "notes": [
+    "The first Amdocs request failed transiently; its failure is retained in the batch2 report. The separately saved retry returned a valid empty Israel feed.",
+    "Four employer readers require dedicated vacancy sections, explicit location metadata and real URL identities; Electra additionally matches the printed vacancy number.",
+    "All seven adapters return incomplete snapshots. Mekorot yielded 33 full rows (32 classified Israel) in the main audit and 28/28 in the second pass due to bounded detail availability. These are separate observations, not closure evidence.",
+    "Electra listing advertises a shared canonical URL; the reader retains the verified final job_id URL after checking the printed job number.",
+    "Amdocs and Boston are operational adapters with no current eligible Israel rows, not verified Israel inventory.",
+    "Historical source identities remain official_careers with the same identifier. The installer owns verified-default promotion and manual disable preservation."
+  ]
+}

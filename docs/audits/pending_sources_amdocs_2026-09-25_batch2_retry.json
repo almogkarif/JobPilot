@@ -1,0 +1,45 @@
+{
+  "checked_at": "2026-09-25T11:39:48.719436+00:00",
+  "scope": "selected_original_pending_sources",
+  "counts": {
+    "verified_adapter_no_israel_rows": 1
+  },
+  "source_count": 1,
+  "constraints": {
+    "database_requests": 0,
+    "applications_sent": 0,
+    "concurrent_boards": 3,
+    "collector_deadline_seconds": 90,
+    "official_page_max_bytes": 4000000
+  },
+  "note": "Live bounded snapshots, not historical validation. Partial feeds preserve existing jobs; absent jobs are not closure evidence.",
+  "sources": [
+    {
+      "identifier": "amdocs",
+      "company": "Amdocs",
+      "track": "cs",
+      "enabled_default": true,
+      "checked_at": "2026-09-25T11:39:47.674730+00:00",
+      "collector_url": "https://jobs.amdocs.com/api/pcsx/search?domain=amdocs.com&location=Israel&hl=en",
+      "official_page": {
+        "requested_url": "https://jobs.amdocs.com/",
+        "status": 200,
+        "final_url": "https://jobs.amdocs.com/careers",
+        "response_bytes": 311011,
+        "sha256": "e7b357e88688b923b297fb19d1e8d11e3614193e77330075b64535dac3830b9b",
+        "ats_links": [
+          "https://eightfold.ai/privacy-policy/&#34;}},"
+        ]
+      },
+      "total_rows": 0,
+      "israel_rows": 0,
+      "complete_descriptions": 0,
+      "snapshot_complete": false,
+      "suspicious_external_ids": [],
+      "samples": [],
+      "state": "verified_adapter_no_israel_rows",
+      "note": "Valid bounded Israel search returned no eligible rows. The adapter is operational; this partial snapshot is not closure evidence.",
+      "blocker": ""
+    }
+  ]
+}

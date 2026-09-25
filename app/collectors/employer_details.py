@@ -1,9 +1,22 @@
 """Small, employer-specific detail readers. Never combine neighboring vacancies."""
 from __future__ import annotations
 
+import re
 from urllib.parse import urljoin, urlsplit, unquote
 from bs4 import BeautifulSoup
 from ..services.job_text import clean_job_text
+
+
+def _domestic_board_location(company: str, location: str) -> str:
+    # These are explicit location-field labels observed on the domestic boards;
+    # never infer a vacancy's country from footer text or the employer's address.
+    labels = {
+        'Mekorot': {'מרכז, עין שמר', 'דרום, אשקלון', 'שפלה, אחיסמך', 'דרום, אילת',
+                    'צפון, אתר אשכול (חנתון)', 'דרום, שדרות', 'מרכז, מתקן השפד"ן'},
+        'Electra Group': {'קרית אתא', 'מרכז', 'כפר יונה', 'קיבוץ נען', 'קיבוץ מנרה',
+                          'איירפורט סיטי', 'רעננה', 'כל הארץ', 'טירת הכרמל'},
+    }
+    return location + ', Israel' if location in labels.get(company, set()) else location
 
 
 def employer_job_closed(soup: BeautifulSoup) -> bool:
@@ -12,7 +25,7 @@ def employer_job_closed(soup: BeautifulSoup) -> bool:
     return 'the job you are trying to apply for has been filled' in headings.casefold()
 
 
-def employer_job_detail(soup: BeautifulSoup, company: str):
+def employer_job_detail(soup: BeautifulSoup, company: str, *, external_id: str = ''):
     location = ''
     if company == 'Speedata':
         body = soup.select_one('main')
@@ -22,6 +35,42 @@ def employer_job_detail(soup: BeautifulSoup, company: str):
         heading = soup.select_one('h1.h2')
         location_node = heading.parent.select_one('p.body-2-bold') if heading else None
         location = location_node.get_text(' ', strip=True) if location_node else ''
+    elif company == 'Priority Software':
+        body = soup.select_one('.single-careers__content-wrapper')
+        heading = body.select_one('h1.single-careers__title') if body else None
+        location_node = body.select_one('.single-careers__tag') if body else None
+        if not body or not body.select_one('.page-content__careers') or not location_node:
+            return None
+        location = location_node.get_text(' ', strip=True)
+    elif company == 'Stratasys':
+        body = soup.select_one('.jobDisplay .jobdescription')
+        heading = soup.select_one('.jobDisplay h1')
+        location_node = soup.select_one('.jobDisplay #job-location')
+        if not location_node:
+            return None
+        location = location_node.get_text(' ', strip=True)
+    elif company == 'Electra Group':
+        body = soup.select_one('.job_form')
+        heading = body.select_one('.job_title') if body else None
+        location_node = body.select_one('.job_city') if body else None
+        identity_node = body.select_one('.job_number') if body else None
+        identity = re.search(r'\d+', identity_node.get_text()) if identity_node else None
+        if (not identity or (external_id and identity.group() != external_id)
+                or not location_node or not body.select_one('.notes .job-list')):
+            return None
+        location = location_node.get_text(' ', strip=True)
+    elif company == 'Mekorot':
+        heading = soup.select_one('.job_banner h2.single_page_heading')
+        location_node = soup.select_one('.job_banner .single_job_banner_subheading')
+        blocks = soup.select('.long_div')
+        if not heading or not location_node or len(blocks) < 2:
+            return None
+        title = heading.get_text(' ', strip=True)
+        location = location_node.get_text(' ', strip=True)
+        text = clean_job_text('\n'.join(str(block) for block in blocks))
+        if not title or not location or len(text) < 200 or len(text) > 24000:
+            return None
+        return title, '\n'.join([title, text]), _domestic_board_location(company, location)
     else:
         return None
     if not body or not heading:
@@ -30,7 +79,9 @@ def employer_job_detail(soup: BeautifulSoup, company: str):
     text = clean_job_text(str(body))
     if len(text) < 200 or not title:
         return None
-    return title, '\n'.join([title, text])[:24000], location
+    if company in {'Priority Software', 'Stratasys', 'Electra Group'} and (not location or len(text) > 24000):
+        return None
+    return title, '\n'.join([title, text])[:24000], _domestic_board_location(company, location)
 
 
 def matrix_job_rows(soup: BeautifulSoup, base_url: str, limit: int = 100):

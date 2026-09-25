@@ -75,3 +75,5 @@ Audited 67 original pending sources: {'unresolved': 40, 'verified': 27}. No data
 | Electra Group (`electra-group`) | unresolved | — | — | Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter. |
 | Mekorot (`mekorot`) | unresolved | — | — | Official endpoint returned HTTP 404; no verified replacement collector. |
 | Israel Electric Corporation (`iec`) | unresolved | — | — | Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter. |
+
+Later official redirects, public API checks, and specific unfinished adapter work for the remaining40 are documented in [the follow-up](pending_sources_followup_2026-09-25.md). A failed original URL does not establish that the employer cannot be integrated.

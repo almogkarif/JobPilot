@@ -2047,5 +2047,6 @@
       "state": "unresolved",
       "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter."
     }
-  ]
+  ],
+  "follow_up_report": "pending_sources_followup_2026-09-25.json"
 }

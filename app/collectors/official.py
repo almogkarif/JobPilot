@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import xml.etree.ElementTree as ET
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -20,6 +20,7 @@ from .mobileye_detail import mobileye_job_detail, mobileye_job_closed
 from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from .expansion_ats import VERIFIED_ATS_IDENTIFIERS, collect_expansion_feed
+from .eightfold import EIGHTFOLD_ROUTES, collect_eightfold
 from .workday import EXPANSION_WORKDAY_IDENTIFIERS
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
@@ -268,11 +269,29 @@ PRESETS['netafim'].update(
     id_pattern=r'/jobs/(\d+)-', detail_response_bytes=4_000_000,
 )
 
+# These employer templates expose full vacancy sections without JobPosting JSON.
+# Exact URL identities and bounded detail readers replace generic link guessing.
+for _identifier, _overrides in {
+    'priority-software': {'selector': 'a[href*="/careers/"]', 'id_pattern': r'/careers/([^/?#]+)/?$'},
+    'stratasys': {'url': 'https://careers.stratasys.com/search/?q=&locationsearch=Israel',
+                  'selector': 'a[href*="/job/"]', 'id_pattern': r'/job/[^/]+/(\d+)/?'},
+    'mekorot': {'url': 'https://careers.mekorot.co.il/open-jobs/',
+                'selector': 'a[href*="?job="]', 'id_pattern': r'[?&]job=([^&#]{1,240})(?:&|#|$)'},
+    'electra-group': {'selector': 'a[href*="job_id="]', 'id_pattern': r'[?&]job_id=(\d+)',
+                     'listing_canonical_on_detail': True},
+}.items():
+    PRESETS[_identifier].update(
+        **_overrides, require_complete_detail=True, max_detail_jobs=40,
+        detail_response_bytes=4_000_000, listing_response_bytes=4_000_000,
+    )
+
 
 class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        if identifier in EIGHTFOLD_ROUTES:
+            return await collect_eightfold(identifier, company_name)
         if identifier in VERIFIED_ATS_IDENTIFIERS:
             return await collect_expansion_feed(identifier, company_name or PRESETS[identifier]["company"])
         if identifier in {"marvell", "broadcom-israel"} | EXPANSION_WORKDAY_IDENTIFIERS:
@@ -969,7 +988,7 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
         "Accept-Language": "en-US,en;q=0.9,he;q=0.8",
     }
     async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
-        response = await client.get(str(preset["url"]))
+        response = await _bounded_detail_get(client, str(preset["url"]), preset.get("listing_response_bytes"))
         response.raise_for_status()
     # Comeet embeds complete job objects in the public HTML. Parse JSON data,
     # never execute the page's JavaScript or reduce it to Angular summary cards.
@@ -1181,7 +1200,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
                 body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
-                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company"))) or _job_posting_detail(soup)
+                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1)) or _job_posting_detail(soup)
                 if preset.get("require_complete_detail") and not structured_detail:
                     return row
                 if structured_detail:
@@ -1192,6 +1211,15 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                     text = _apple_embedded_detail_text(response.text) or text
                 canonical = soup.select_one('link[rel="canonical"]')
                 canonical_href = str(canonical.get("href") or "") if canonical else ""
+                if preset.get("listing_canonical_on_detail") and canonical_href:
+                    advertised, listing = urlparse(canonical_href), urlparse(str(preset['url']))
+                    if (advertised.hostname == listing.hostname
+                            and unquote(advertised.path).rstrip('/') == unquote(listing.path).rstrip('/')
+                            and not advertised.query):
+                        # Electra advertises the list URL as canonical on every
+                        # detail. The final URL and printed vacancy ID were both
+                        # checked above; retain that exact vacancy URL.
+                        canonical_href = ""
                 # Branded Comeet pages sometimes return an unresolved client-side
                 # shell.  Its canonical URL no longer matches the stable job route
                 # and its heading still contains template placeholders.  Keep the
