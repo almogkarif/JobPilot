@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
 
 import pytest
@@ -467,20 +468,32 @@ def test_swipe_hint_repeats_until_a_real_swipe_and_respects_reduced_motion(brows
     assert not errors
 
 
-def test_submitted_and_deleted_jobs_animate_after_success(browser_page):
+@pytest.mark.parametrize("action_response_delay", [0, 0.5])
+def test_submitted_and_deleted_jobs_animate_after_success(browser_page, action_response_delay):
     page, _ = browser_page
     jobs = []
     for suffix in ("Submitted", "Deleted", "Failed"):
-        job = page.evaluate("""async suffix => await (await fetch('/api/jobs/import', {
+        job = page.evaluate("""async ({suffix, variant}) => await (await fetch('/api/jobs/import', {
           method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
-            title:`Exit Animation ${suffix} Software Engineer`, company:'Swipe Test', location:'Israel',
-            apply_url:`https://boards.greenhouse.io/example/jobs/exit-${suffix.toLowerCase()}`
+            title:`Exit Animation ${variant} ${suffix} Software Engineer`, company:'Swipe Test', location:'Israel',
+            apply_url:`https://boards.greenhouse.io/example/jobs/exit-${variant}-${suffix.toLowerCase()}`
           })
-        })).json()""", suffix)
+        })).json()""", {"suffix": suffix, "variant": str(action_response_delay)})
         jobs.append(job)
-    page.locator('button[data-view="jobs"]').click()
-    page.locator("#job-search").fill("Exit Animation")
-    page.locator("#job-search").dispatch_event("input")
+    # A visible card may belong to the initial, unfiltered response. Finish that
+    # load and the debounced search before testing an action on the search results.
+    with page.expect_response(lambda response: urlparse(response.url).path == '/api/jobs') as initial:
+        page.locator('button[data-view="jobs"]').click()
+    assert initial.value.ok
+    initial.value.finished()
+    query = f"Exit Animation {action_response_delay}"
+    with page.expect_response(lambda response:
+        urlparse(response.url).path == '/api/jobs'
+        and parse_qs(urlparse(response.url).query).get('query') == [query]
+    ) as search:
+        page.locator("#job-search").fill(query)
+    assert search.value.ok
+    search.value.finished()
     page.locator(f'#jobs-list .job-swipe-card[data-job-id="{jobs[0]["id"]}"]').wait_for(state="visible")
     page.evaluate("""() => {
       window.__jobExitAnimations = [];
@@ -492,6 +505,13 @@ def test_submitted_and_deleted_jobs_animate_after_success(browser_page):
       };
     }""")
 
+    def submit_response(route):
+        response = route.fetch()
+        if action_response_delay:
+            time.sleep(action_response_delay)
+        route.fulfill(response=response)
+
+    page.route(f'**/api/jobs/{jobs[0]["id"]}/mark-submitted', submit_response)
     page.evaluate("async id => await markJobSubmitted(id)", jobs[0]["id"])
     assert page.evaluate("id => window.__jobExitAnimations.some(item => item.id === String(id) && item.leaving)", jobs[0]["id"])
     # Submitted jobs disappear by default and return only on explicit opt-in.
