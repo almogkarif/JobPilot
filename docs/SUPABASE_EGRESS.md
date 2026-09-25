@@ -649,3 +649,14 @@ scan, bringing both batches to 607 requests and 4,560 rows (14,568 requests/day
 at an hourly cadence), excluding bounded redirect hops. These external employer
 requests do not use Supabase egress; catalog persistence/ranking still uses the
 shared daily reservation guard.
+
+The follow-up production preflight (run 36133968046, commit 006eb93) passed
+with `ready_for_migration=true`, no blockers and the same 71,961,753-byte input.
+It proved all retained copies have exact shared counterparts, all job/source
+owners agree, and private references resolve to shared jobs. Only shared catalog
+payloads are read by consolidation; shadows remain byte-for-byte unchanged.
+Completed receipts make subsequent read-only preflights return after two small
+metadata queries, without repeating the pre-migration counterpart checks.
+
+This was readiness validation only. The committing migration has not been run;
+it still requires a quiesced web service, idle workers and a rollback rehearsal.
