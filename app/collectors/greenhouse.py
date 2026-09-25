@@ -12,6 +12,12 @@ class GreenhouseCollector:
         raw_identifier = identifier.strip()
         is_eu = raw_identifier.casefold().startswith("eu:")
         token = raw_identifier.split(":", 1)[1] if is_eu else raw_identifier
+        # Outbrain's official careers page now redirects to Teads, whose openings
+        # page embeds this board. Retain the configured source identity/history.
+        if token.casefold() == "outbraininc":
+            token = "teads1"
+            if company_name.strip().casefold() in {"", "outbrain"}:
+                company_name = "Teads"
         # Greenhouse EU boards use the same documented public Job Board API host.
         # ``eu:`` is accepted only for backward compatibility with v0.1.13 previews.
         url = self.BASE.format(token=token)

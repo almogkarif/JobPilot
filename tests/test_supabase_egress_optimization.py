@@ -412,10 +412,13 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
 
     active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
     counts = Counter(item["track"] for item in active)
-    assert counts == {"cs": 54, "ee": 10, "iem": 3}
+    assert counts == {"cs": 54, "ee": 10, "iem": 5}
     assert MAX_FEED_ROWS == 200
     assert MAX_RESPONSE_BYTES == 4_000_000
-    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+    from app.collectors.zim_ide import FEED_URLS, MAX_ZIM_ROWS, MAX_IDE_CARDS, MAX_DESCRIPTION_CHARS
+    assert len(FEED_URLS) == 2
+    assert (MAX_ZIM_ROWS, MAX_IDE_CARDS, MAX_DESCRIPTION_CHARS) == (200, 40, 24_000)
+    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
     assert all(item["kind"] != "official_careers" or item["identifier"] in verified for item in active)
     # Nineteen one-response ATS routes; Workday adds at most 43 employer calls
     # per board (discovery + two 20-row pages + 40 details), no database reads.
@@ -991,3 +994,58 @@ def test_canonical_migration_reads_only_shared_catalog_payloads_in_bounded_pages
     with engine.connect() as c:
         assert c.execute(select(Job.description).where(Job.user_id == 'retained-private-owner')).scalar_one() == 'Private legacy payload. ' * 10000
     engine.dispose()
+
+
+def test_unified_metadata_comparison_reserves_flags_without_downloading_urls(monkeypatch, tmp_path):
+    from sqlalchemy.orm import Session
+    from app.config import settings
+    from app.services import catalog_egress, unified_catalog
+    from test_unified_catalog_local import items
+    monkeypatch.setattr(settings, 'unified_catalog_preview', True)
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'database_url', 'sqlite://')
+    engine = create_engine('sqlite:///' + str(tmp_path / 'metadata-egress.db'))
+    Base.metadata.create_all(engine)
+    class Collector:
+        async def collect(self, *args): return items()
+    monkeypatch.setitem(scanner.COLLECTORS, 'greenhouse', Collector)
+    reservations, queries = [], []
+    monkeypatch.setattr(catalog_egress, 'reserve_catalog_egress', lambda amount: reservations.append(amount) or True)
+    with Session(engine, expire_on_commit=False) as db:
+        set_user_scope(db, 'metadata-test')
+        db.add(Source(name='Example', kind='greenhouse', identifier='example', company_name='Example'))
+        db.commit()
+        asyncio.run(scanner.scan_all_sources(db, catalog_only=True))
+        event.listen(engine, 'before_cursor_execute',
+                     lambda _c, _cu, statement, _p, _ctx, _many: queries.append(statement.lower()))
+        asyncio.run(scanner.scan_all_sources(db, catalog_only=True))
+        budget_with_flags = reservations[-1]
+        monkeypatch.setattr(unified_catalog, 'SCAN_COMPARISON_BYTES_PER_JOB', 0)
+        asyncio.run(scanner.scan_all_sources(db, catalog_only=True))
+        assert budget_with_flags - reservations[-1] == 2 * 3 * 128
+        projections = [q.split('\nfrom ')[0] for q in queries
+                       if q.startswith('select ') and 'join jobs' in q]
+        assert projections
+        assert all('jobs.description' not in q for q in queries)
+        assert any('jobs.company !=' in q and 'jobs.apply_url !=' in q and 'jobs.source_url !=' in q for q in queries)
+        assert all('jobs.company,' not in q and 'jobs.apply_url,' not in q and 'jobs.source_url,' not in q for q in projections)
+    engine.dispose()
+
+
+def test_catalog_expiry_uses_only_two_writes_without_payload_returns(monkeypatch):
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql
+    from app.services import catalog_freshness
+    monkeypatch.setattr(catalog_freshness, 'unified_catalog_enabled', lambda: True)
+    statements = []
+    class DB:
+        def execute(self, statement):
+            statements.append(statement)
+            return SimpleNamespace(rowcount=1)
+    assert catalog_freshness.expire_unverified_jobs(DB()) == 1
+    assert len(statements) == 2
+    for statement in statements:
+        sql = str(statement.compile(dialect=postgresql.dialect())).lower()
+        assert sql.startswith('update ')
+        assert 'returning' not in sql and 'description' not in sql and 'select *' not in sql
+        assert statement.get_execution_options()['synchronize_session'] is False

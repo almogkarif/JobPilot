@@ -1,0 +1,1755 @@
+{
+  "checked_at": "2026-09-25T15:06:20.364436+00:00",
+  "scope": "Read-only live checks of all enabled definition-based Greenhouse, Lever and Ashby feeds; no database access or browser. At most 3 concurrent feeds, 45s deadline each. Collection is not necessarily the cloud runtime inventory. Zero Israel rows is location-parser scoped, not proof of no employer openings.",
+  "sources": [
+    {
+      "kind": "lever",
+      "identifier": "eu:mobileye",
+      "name": "Mobileye — Hardware & Embedded",
+      "checked_at": "2026-09-25T15:05:29.461261+00:00",
+      "collected": 178,
+      "israel": 151,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "3D Algorithm Developer",
+          "location": "Ramat Gan, Israel",
+          "url": "https://jobs.eu.lever.co/mobileye/bb661a53-79b8-459d-a8df-5dd419d62596/apply"
+        },
+        {
+          "title": "AI Algorithm Engineer - Vision Localization Group",
+          "location": "Ramat Gan, Israel",
+          "url": "https://jobs.eu.lever.co/mobileye/d85072cf-3d47-4c42-a760-2c691af6093b/apply"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "taboola",
+      "name": "Taboola — Business Operations",
+      "checked_at": "2026-09-25T15:05:29.461295+00:00",
+      "collected": 84,
+      "israel": 22,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Ad Operation Specialist",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.taboola.com/careers/job/8025594?gh_jid=8025594"
+        },
+        {
+          "title": "Algorithm Engineer (RTB)",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.taboola.com/careers/job/8081260?gh_jid=8081260"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "appsflyer",
+      "name": "AppsFlyer — Operations & Analytics",
+      "checked_at": "2026-09-25T15:05:29.461305+00:00",
+      "collected": 43,
+      "israel": 12,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Application Security Engineer",
+          "location": "Herzliya",
+          "url": "https://careers.appsflyer.com/jobs/position/8394076002?gh_jid=8394076002"
+        },
+        {
+          "title": "Bookkeeper - temporary position (Herzliya) ",
+          "location": "Herzliya",
+          "url": "https://careers.appsflyer.com/jobs/position/8813084002?gh_jid=8813084002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "similarweb",
+      "name": "Similarweb — Business & Data",
+      "checked_at": "2026-09-25T15:05:29.990494+00:00",
+      "collected": 65,
+      "israel": 24,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Engineer",
+          "location": "Tel Aviv-Yafo",
+          "url": "https://job-boards.greenhouse.io/similarweb/jobs/7556263"
+        },
+        {
+          "title": "Big Data Analyst",
+          "location": "Tel Aviv-Yafo",
+          "url": "https://job-boards.greenhouse.io/similarweb/jobs/6897277"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "outbraininc",
+      "name": "Outbrain Careers Israel",
+      "checked_at": "2026-09-25T15:05:30.604208+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": true,
+      "error": "",
+      "samples": []
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "catonetworks",
+      "name": "Cato Networks Careers",
+      "checked_at": "2026-09-25T15:05:30.918776+00:00",
+      "collected": 98,
+      "israel": 38,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Agentic AI Engineer ",
+          "location": "Tel Aviv District, Israel",
+          "url": "https://www.catonetworks.com/careers/careers-post/4863034101?gh_jid=4863034101"
+        },
+        {
+          "title": " Agentic AI Engineer - Product Support",
+          "location": "Tel Aviv District, Israel",
+          "url": "https://www.catonetworks.com/careers/careers-post/4951235101?gh_jid=4951235101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "wizinc",
+      "name": "Wiz Careers Israel",
+      "checked_at": "2026-09-25T15:05:31.091635+00:00",
+      "collected": 133,
+      "israel": 22,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Security Researcher   ",
+          "location": "Tel Aviv",
+          "url": "https://www.wiz.io/careers/job/4681239006/:title?gh_jid=4681239006"
+        },
+        {
+          "title": "Applied Security Researcher",
+          "location": "Tel Aviv",
+          "url": "https://www.wiz.io/careers/job/4692874006/:title?gh_jid=4692874006"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "orcasecurity",
+      "name": "Orca Security Careers",
+      "checked_at": "2026-09-25T15:05:31.279838+00:00",
+      "collected": 9,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Software Engineer ",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://orca.security/about/careers/5263129004?gh_jid=5263129004"
+        },
+        {
+          "title": "Software Engineering Team Manager",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://orca.security/about/careers/6161068004?gh_jid=6161068004"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "sentinellabs",
+      "name": "SentinelOne Careers Israel",
+      "checked_at": "2026-09-25T15:05:31.514729+00:00",
+      "collected": 243,
+      "israel": 11,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "DFIR Analyst",
+          "location": "Israel",
+          "url": "https://www.sentinelone.com/jobs/?gh_jid=7990052003"
+        },
+        {
+          "title": "Key Solutions Architect, Prompt",
+          "location": "Israel",
+          "url": "https://www.sentinelone.com/jobs/?gh_jid=7994122003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "figma",
+      "name": "Figma Careers",
+      "checked_at": "2026-09-25T15:05:32.224351+00:00",
+      "collected": 161,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Software Engineer - Figma Weave (Tel Aviv, Israel) ",
+          "location": "Tel Aviv, Israel",
+          "url": "https://boards.greenhouse.io/figma/jobs/6073106004?gh_jid=6073106004"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "speechify",
+      "name": "Speechify Careers",
+      "checked_at": "2026-09-25T15:05:32.885906+00:00",
+      "collected": 254,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Software Engineer, Platform - Haifa, Israel",
+          "location": "Haifa, Israel",
+          "url": "https://job-boards.greenhouse.io/speechify/jobs/5974346004"
+        },
+        {
+          "title": "Software Engineer, Platform - Jerusalem, Israel",
+          "location": "Jerusalem, Israel",
+          "url": "https://job-boards.greenhouse.io/speechify/jobs/5974348004"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "pagayais",
+      "name": "Pagaya — Operations & Analytics",
+      "checked_at": "2026-09-25T15:05:34.139460+00:00",
+      "collected": 8,
+      "israel": 8,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "BI Team Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.greenhouse.io/pagayais/jobs/7785835003"
+        },
+        {
+          "title": "Data Science Group Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.greenhouse.io/pagayais/jobs/7667230003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "tenableinc",
+      "name": "Tenable Careers",
+      "checked_at": "2026-09-25T15:05:34.376910+00:00",
+      "collected": 42,
+      "israel": 6,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "IT Support Engineer",
+          "location": "Israel - Office - Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/tenableinc/jobs/5423058008"
+        },
+        {
+          "title": "Product Engineering - Future Opportunities",
+          "location": "Maryland HQ + Boston Office + California - Remote - Bay Area + Ireland - Office - Dublin + Israel - Office - Tel-Aviv ",
+          "url": "https://job-boards.greenhouse.io/tenableinc/jobs/4019356008"
+        }
+      ]
+    },
+    {
+      "kind": "ashby",
+      "identifier": "redis",
+      "name": "Redis Careers",
+      "checked_at": "2026-09-25T15:05:35.183282+00:00",
+      "collected": 29,
+      "israel": 0,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Partner Sales manager ",
+          "location": "France",
+          "url": "https://jobs.ashbyhq.com/redis/e305fc8c-a434-4d46-8ede-5e8c430f232d/application"
+        },
+        {
+          "title": "Regional Account Executive",
+          "location": "India",
+          "url": "https://jobs.ashbyhq.com/redis/80ff1298-ad88-4d77-95ca-b597f0d18e2b/application"
+        }
+      ]
+    },
+    {
+      "kind": "ashby",
+      "identifier": "tavily",
+      "name": "Tavily Careers",
+      "checked_at": "2026-09-25T15:05:36.266491+00:00",
+      "collected": 18,
+      "israel": 9,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Data Engineer",
+          "location": "Israel",
+          "url": "https://jobs.ashbyhq.com/tavily/70bcbe09-fc44-4512-922b-92031be7df8a/application"
+        },
+        {
+          "title": "Accounts Receivable Manager",
+          "location": "Israel",
+          "url": "https://jobs.ashbyhq.com/tavily/0253a9ab-9079-4581-a964-4120eeb244d1/application"
+        }
+      ]
+    },
+    {
+      "kind": "ashby",
+      "identifier": "nexxen",
+      "name": "Nexxen Careers",
+      "checked_at": "2026-09-25T15:05:36.667782+00:00",
+      "collected": 28,
+      "israel": 7,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Junior Business Development Manager",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.ashbyhq.com/nexxen/640c2ba0-d8c6-401b-bf62-5162b60443d0/application"
+        },
+        {
+          "title": "Sales Manager Team Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.ashbyhq.com/nexxen/f2bd0324-d3e2-42fc-9963-7d5d8a023006/application"
+        }
+      ]
+    },
+    {
+      "kind": "ashby",
+      "identifier": "chainalysis-careers",
+      "name": "Chainalysis Careers",
+      "checked_at": "2026-09-25T15:05:36.751392+00:00",
+      "collected": 50,
+      "israel": 7,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Software Engineer, Alterya",
+          "location": "Tel Aviv Office",
+          "url": "https://jobs.ashbyhq.com/chainalysis-careers/37f72d88-62fd-451b-919e-e50da5e3a4a3/application"
+        },
+        {
+          "title": "Senior Security Researcher, Hexagate",
+          "location": "Tel Aviv Office",
+          "url": "https://jobs.ashbyhq.com/chainalysis-careers/9449b59c-868f-48c4-81a3-d4c41e6cbf82/application"
+        }
+      ]
+    },
+    {
+      "kind": "ashby",
+      "identifier": "reindeer-ai",
+      "name": "Reindeer AI Careers",
+      "checked_at": "2026-09-25T15:05:36.751417+00:00",
+      "collected": 14,
+      "israel": 6,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Software Engineer (Backend)",
+          "location": "Tel Aviv",
+          "url": "https://jobs.ashbyhq.com/reindeer-ai/af78d676-d617-4c91-b729-f5de3ceb3bf7/application"
+        },
+        {
+          "title": "AI Engineer",
+          "location": "Tel Aviv",
+          "url": "https://jobs.ashbyhq.com/reindeer-ai/091d4a1b-9d84-4038-a7b1-f376af854023/application"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "traildsoftware",
+      "name": "TRAILD Careers",
+      "checked_at": "2026-09-25T15:05:37.048482+00:00",
+      "collected": 11,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Full Stack Engineer - Data & AI",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/traildsoftware/7e4f89de-7c38-4613-8281-2c85bbda618c/apply"
+        },
+        {
+          "title": "Senior Software Engineer - Payments Infrastructure",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/traildsoftware/20a30637-93a2-4273-8e41-018df633176c/apply"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "nice",
+      "name": "NICE — Analytics & Operations Israel",
+      "checked_at": "2026-09-25T15:05:37.177179+00:00",
+      "collected": 178,
+      "israel": 17,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI QA Automation Lead",
+          "location": "Israel - Raanana",
+          "url": "https://boards.eu.greenhouse.io/nice/jobs/4904281101?gh_jid=4904281101"
+        },
+        {
+          "title": "Cloud FinOps Business Partner",
+          "location": "Israel - Raanana",
+          "url": "https://boards.eu.greenhouse.io/nice/jobs/4938801101?gh_jid=4938801101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "riskified",
+      "name": "Riskified — Data & Operations Israel",
+      "checked_at": "2026-09-25T15:05:37.189976+00:00",
+      "collected": 28,
+      "israel": 8,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Account Executive",
+          "location": "Tel Aviv",
+          "url": "https://www.riskified.com/careers/job-description/?gh_jid=8768908002"
+        },
+        {
+          "title": "Enterprise Account Manager",
+          "location": "Tel Aviv",
+          "url": "https://www.riskified.com/careers/job-description/?gh_jid=8805197002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "connecteam",
+      "name": "Connecteam — Product & Operations Israel",
+      "checked_at": "2026-09-25T15:05:37.540072+00:00",
+      "collected": 57,
+      "israel": 19,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Developer",
+          "location": "Tel Aviv District, Israel",
+          "url": "https://connecteam.com/careers/5549978004?gh_jid=5549978004"
+        },
+        {
+          "title": "Assistant Controller",
+          "location": "Tel Aviv District, Israel",
+          "url": "https://connecteam.com/careers/6142780004?gh_jid=6142780004"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "via",
+      "name": "Via Careers Israel",
+      "checked_at": "2026-09-25T15:05:38.511651+00:00",
+      "collected": 166,
+      "israel": 12,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "DevSecOps Engineer",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/via/jobs/8574774002"
+        },
+        {
+          "title": "Front-End Engineer",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/via/jobs/8627735002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "apiiro",
+      "name": "Apiiro Careers Israel",
+      "checked_at": "2026-09-25T15:05:38.977162+00:00",
+      "collected": 6,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Engineer",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/apiiro/jobs/7683988003"
+        },
+        {
+          "title": "AI Research Engineer, Security",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/apiiro/jobs/7809871003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "safebreach",
+      "name": "SafeBreach Careers Israel",
+      "checked_at": "2026-09-25T15:05:39.942494+00:00",
+      "collected": 7,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Lab Manager",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/safebreach/jobs/4291547009"
+        },
+        {
+          "title": "Product Manager - Connectors and AI Infrastructure",
+          "location": "Tel Aviv-Yafo, Israel",
+          "url": "https://job-boards.greenhouse.io/safebreach/jobs/4355685009"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "guidde",
+      "name": "Guidde Careers Israel",
+      "checked_at": "2026-09-25T15:05:40.139815+00:00",
+      "collected": 8,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Builder Product Manager",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/guidde/jobs/4821256101"
+        },
+        {
+          "title": "Customer Experience Specialist",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/guidde/jobs/4919389101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "scaleops",
+      "name": "ScaleOps Careers Israel",
+      "checked_at": "2026-09-25T15:05:40.188052+00:00",
+      "collected": 58,
+      "israel": 32,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Account Executive",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.eu.greenhouse.io/scaleops/jobs/4919302101"
+        },
+        {
+          "title": "Account Manager",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.eu.greenhouse.io/scaleops/jobs/4919307101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "sweetsecurity",
+      "name": "Sweet Security Careers Israel",
+      "checked_at": "2026-09-25T15:05:40.412184+00:00",
+      "collected": null,
+      "israel": null,
+      "error": "ReadTimeout: "
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "accessibe",
+      "name": "accessiBe Careers Israel",
+      "checked_at": "2026-09-25T15:05:40.538714+00:00",
+      "collected": 4,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director, Corporate Marketing",
+          "location": " Tel Aviv-Yafo or New-York",
+          "url": "https://job-boards.eu.greenhouse.io/accessibe/jobs/4968036101"
+        },
+        {
+          "title": "Founding Sales Lead",
+          "location": "HaMelacha St 3, Tel Aviv-Yafo",
+          "url": "https://job-boards.eu.greenhouse.io/accessibe/jobs/4976781101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "unframe",
+      "name": "Unframe Careers Israel",
+      "checked_at": "2026-09-25T15:05:40.755623+00:00",
+      "collected": 34,
+      "israel": 11,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI-First QA Automation Engineer ",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/unframe/jobs/4982648101"
+        },
+        {
+          "title": "DevSecOps Engineer",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/unframe/jobs/4973654101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "descope",
+      "name": "Descope Careers Israel",
+      "checked_at": "2026-09-25T15:05:41.058433+00:00",
+      "collected": 5,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Product Designer (Parental Leave Replacement)",
+          "location": "Tel Aviv ",
+          "url": "https://job-boards.greenhouse.io/descope/jobs/4381673009"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "guardz",
+      "name": "Guardz Careers Israel",
+      "checked_at": "2026-09-25T15:05:41.275822+00:00",
+      "collected": 2,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Engineering Manager",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/guardz/jobs/4691904101"
+        },
+        {
+          "title": "Technical Support Engineer",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/guardz/jobs/4517973101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "bluevineisrael",
+      "name": "Bluevine Israel Careers",
+      "checked_at": "2026-09-25T15:05:41.489066+00:00",
+      "collected": 3,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Lead Software Engineer (Potential to Grow into Team Leadership)",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/bluevineisrael/jobs/7743128003"
+        },
+        {
+          "title": "Senior Machine Learning Engineer",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/bluevineisrael/jobs/7738175003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "pendo",
+      "name": "Pendo Careers Israel",
+      "checked_at": "2026-09-25T15:05:41.693323+00:00",
+      "collected": 22,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "CONTRACTOR: Forward Deployed Engineer, Pendo Predict",
+          "location": "Herzliya, Israel",
+          "url": "https://job-boards.greenhouse.io/pendo/jobs/8839291002"
+        },
+        {
+          "title": "Sr. AI Backend & Data Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://job-boards.greenhouse.io/pendo/jobs/8446575002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "beamup",
+      "name": "BeamUP Careers Israel",
+      "checked_at": "2026-09-25T15:05:42.001783+00:00",
+      "collected": 4,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI & IT Manager",
+          "location": "Tel- Aviv, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/beamup/jobs/4836478101"
+        },
+        {
+          "title": "Applied AI/ML Scientist",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.eu.greenhouse.io/beamup/jobs/4888237101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "daylightsecurity",
+      "name": "Daylight Security Careers Israel",
+      "checked_at": "2026-09-25T15:05:42.216392+00:00",
+      "collected": 10,
+      "israel": 6,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Cloud FinOps Engineer ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/daylightsecurity/jobs/4409284009"
+        },
+        {
+          "title": "Senior Backend Engineer",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/daylightsecurity/jobs/4303374009"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "aidocmedical",
+      "name": "Aidoc — Operations & Product Analytics",
+      "checked_at": "2026-09-25T15:05:42.443250+00:00",
+      "collected": 33,
+      "israel": 21,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Algorithm Tech Lead",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/aidocmedical/jobs/4876551101"
+        },
+        {
+          "title": "AI Senior Software Engineer, ML Platform",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/aidocmedical/jobs/4874306101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "armissecurity",
+      "name": "Armis — Data & Program Operations",
+      "checked_at": "2026-09-25T15:05:42.837185+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": true,
+      "error": "",
+      "samples": []
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "forter",
+      "name": "Forter — Business & Finance Operations",
+      "checked_at": "2026-09-25T15:05:43.049118+00:00",
+      "collected": 26,
+      "israel": 6,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "General Application (Israel) ",
+          "location": "Israel - Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/forter/jobs/6349983002"
+        },
+        {
+          "title": "Senior Engineering Manager, Decision Engineering",
+          "location": "Israel - Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/forter/jobs/8651195002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "gongio",
+      "name": "Gong — Operational Excellence & Analytics",
+      "checked_at": "2026-09-25T15:05:43.470648+00:00",
+      "collected": 94,
+      "israel": 12,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Developer Experience (DevEx) Team Lead",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/gongio/jobs/4693375006"
+        },
+        {
+          "title": "Director of Quality",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/gongio/jobs/4695788006"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "torq",
+      "name": "Torq — Business Analysis & Operations",
+      "checked_at": "2026-09-25T15:05:44.262045+00:00",
+      "collected": 27,
+      "israel": 7,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Product Analyst ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/torq/jobs/6177745004"
+        },
+        {
+          "title": "Product Analyst Team Lead",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/torq/jobs/6177808004"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "datarails",
+      "name": "Datarails — Finance & Operations Israel",
+      "checked_at": "2026-09-25T15:05:44.631046+00:00",
+      "collected": 13,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "FP&A Implementation Manager",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/datarails/jobs/4272331009"
+        },
+        {
+          "title": "Senior Product Manager",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://job-boards.greenhouse.io/datarails/jobs/4321157009"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "cymulate",
+      "name": "Cymulate — Operations Israel",
+      "checked_at": "2026-09-25T15:05:44.881800+00:00",
+      "collected": 15,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Full-Stack Engineer",
+          "location": "Israel",
+          "url": "https://job-boards.eu.greenhouse.io/cymulate/jobs/4919463101"
+        },
+        {
+          "title": "Marketing Operations Specialist",
+          "location": "Israel",
+          "url": "https://job-boards.eu.greenhouse.io/cymulate/jobs/4952218101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "quanthealth",
+      "name": "QuantHealth — Operations Israel",
+      "checked_at": "2026-09-25T15:05:45.136520+00:00",
+      "collected": 5,
+      "israel": 5,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Bookkeeper ",
+          "location": "Israel",
+          "url": "https://job-boards.eu.greenhouse.io/quanthealth/jobs/4956767101"
+        },
+        {
+          "title": "Director of Algorithms Development",
+          "location": "Israel ",
+          "url": "https://job-boards.eu.greenhouse.io/quanthealth/jobs/4943005101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "eleoshealth",
+      "name": "Eleos Health — Operations & Process Improvement",
+      "checked_at": "2026-09-25T15:05:45.360469+00:00",
+      "collected": 15,
+      "israel": 8,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Transformation Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.eu.greenhouse.io/eleoshealth/jobs/4953574101"
+        },
+        {
+          "title": "Engineering Team Leader",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.eu.greenhouse.io/eleoshealth/jobs/4979116101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "melio",
+      "name": "Melio — Data Analytics Israel",
+      "checked_at": "2026-09-25T15:05:45.657309+00:00",
+      "collected": 24,
+      "israel": 8,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Backend Engineer ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/melio/jobs/7806719003"
+        },
+        {
+          "title": "Data Scientist ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/melio/jobs/7748138003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "neosecurityinc",
+      "name": "Neo Security Engineering Israel",
+      "checked_at": "2026-09-25T15:05:45.959622+00:00",
+      "collected": 24,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Low Level Engineer (AI Native)",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/neosecurityinc/jobs/4379925009"
+        },
+        {
+          "title": "Senior Low Level Engineer - Infrastructure",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/neosecurityinc/jobs/4404938009"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "atbayjobs",
+      "name": "At-Bay Careers Israel",
+      "checked_at": "2026-09-25T15:05:46.246662+00:00",
+      "collected": 35,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Backend Engineer ",
+          "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+          "url": "https://job-boards.greenhouse.io/atbayjobs/jobs/6621630003"
+        },
+        {
+          "title": "Software Engineer",
+          "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+          "url": "https://job-boards.greenhouse.io/atbayjobs/jobs/7988640003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "doitintl",
+      "name": "DoiT Careers Israel",
+      "checked_at": "2026-09-25T15:05:46.606912+00:00",
+      "collected": 122,
+      "israel": 13,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Backend Engineer(Data) -  Attribute™",
+          "location": "On-Site Israel. Attribute Office: Carlibach St 29, Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/doitintl/jobs/7987957003"
+        },
+        {
+          "title": "Data Engineer -  Attribute™",
+          "location": "On-Site Israel. Attribute Office: Carlibach St 29, Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/doitintl/jobs/7832959003"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "walkme",
+      "name": "WalkMe Careers Israel",
+      "checked_at": "2026-09-25T15:05:47.844487+00:00",
+      "collected": 21,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Product Designer",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/walkme/74aa0b46-d56c-44fe-9946-9b14b8a27bcc/apply"
+        },
+        {
+          "title": "QA Engineer – Manual & Automation Testing",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/walkme/2594252b-3e93-4b2e-918a-8a00ae684fe1/apply"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "lendbuzz",
+      "name": "Lendbuzz Careers Israel",
+      "checked_at": "2026-09-25T15:05:49.636974+00:00",
+      "collected": 61,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Backend Engineer",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/lendbuzz/e229a10a-a64c-4e87-a331-227c1b994053/apply"
+        },
+        {
+          "title": "Senior Cloud Engineer",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/lendbuzz/80ca3378-de0c-4007-badf-5f040a713300/apply"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "tonkean",
+      "name": "Tonkean Careers Israel",
+      "checked_at": "2026-09-25T15:05:50.108823+00:00",
+      "collected": 3,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior DevOps Engineer",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/tonkean/5629660a-6c84-4b3f-b820-cc25a1516a39/apply"
+        },
+        {
+          "title": "Senior Product Manager",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/tonkean/2fc80472-de52-49ff-8351-ee12979a1d51/apply"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "logz",
+      "name": "Logz.io Careers Israel",
+      "checked_at": "2026-09-25T15:05:51.207393+00:00",
+      "collected": 0,
+      "israel": 0,
+      "complete": true,
+      "error": "",
+      "samples": []
+    },
+    {
+      "kind": "lever",
+      "identifier": "Zadara",
+      "name": "Zadara Careers Israel",
+      "checked_at": "2026-09-25T15:05:51.911219+00:00",
+      "collected": 8,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "DevOps Team Leader",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/Zadara/fc2f0136-54f0-4562-954d-1d13cdc04268/apply"
+        },
+        {
+          "title": "Sr. Software Engineer - Compute Virtualization",
+          "location": "Tel Aviv",
+          "url": "https://jobs.lever.co/Zadara/c3910649-6a07-4314-9df6-f684f47fd11c/apply"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "palantir",
+      "name": "Palantir Careers Israel",
+      "checked_at": "2026-09-25T15:05:52.146560+00:00",
+      "collected": 324,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Deployment Strategist",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.lever.co/palantir/4cb2bf51-da98-4874-82eb-07d8ae834e0b/apply"
+        },
+        {
+          "title": "Forward Deployed Software Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.lever.co/palantir/c4442730-2926-41ad-8c0e-5e5a6b4d14ae/apply"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "augury",
+      "name": "Augury Careers Israel",
+      "checked_at": "2026-09-25T15:05:53.417825+00:00",
+      "collected": 14,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "R&D Mechanical Engineer",
+          "location": "Haifa",
+          "url": "https://www.augury.com/careers/8745214002?gh_jid=8745214002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "transmitsecurity",
+      "name": "Transmit Security Careers Israel",
+      "checked_at": "2026-09-25T15:05:53.677730+00:00",
+      "collected": 15,
+      "israel": 13,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Engineering Team Lead",
+          "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+          "url": "https://www.transmitsecurity.com/about/careers/job?gh_jid=7974762002"
+        },
+        {
+          "title": "Engineering Team Lead - Data Science Team",
+          "location": "Tel Aviv-Yafo, Gush Dan, Israel",
+          "url": "https://www.transmitsecurity.com/about/careers/job?gh_jid=8539030002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "axonius",
+      "name": "Axonius Careers Israel",
+      "checked_at": "2026-09-25T15:05:53.944275+00:00",
+      "collected": 22,
+      "israel": 8,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director, Product Design",
+          "location": "Tel Aviv, Israel ",
+          "url": "https://www.axonius.com/company/careers/open-jobs?gh_jid=7995556003"
+        },
+        {
+          "title": "Manager, Cyber Research",
+          "location": "Tel Aviv, Israel ",
+          "url": "https://www.axonius.com/company/careers/open-jobs?gh_jid=7832402003"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "controlup",
+      "name": "ControlUp Careers Israel",
+      "checked_at": "2026-09-25T15:05:54.243530+00:00",
+      "collected": 11,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Devops Engineer",
+          "location": "Rishon Lezion",
+          "url": "https://jobs.lever.co/controlup/eb1b2fb8-38b2-4ad9-b486-2c6af5ee363a/apply"
+        },
+        {
+          "title": "HR Business Partner",
+          "location": "Rishon Lezion",
+          "url": "https://jobs.lever.co/controlup/a1075daa-fd72-46b4-974d-8c4139e20bdf/apply"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "okta",
+      "name": "Okta Careers Israel",
+      "checked_at": "2026-09-25T15:05:56.133616+00:00",
+      "collected": 332,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Staff Software Engineer ",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.okta.com/company/careers/opportunity/8041857?gh_jid=8041857"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "gitlab",
+      "name": "GitLab Careers Israel",
+      "checked_at": "2026-09-25T15:05:58.374641+00:00",
+      "collected": 201,
+      "israel": 10,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Associate Renewals Manager",
+          "location": "Remote Ireland; Remote, Israel",
+          "url": "https://job-boards.greenhouse.io/gitlab/jobs/8785825002"
+        },
+        {
+          "title": "Director of Engineering, Security Factory",
+          "location": "Remote, Israel; Remote, United Kingdom",
+          "url": "https://job-boards.greenhouse.io/gitlab/jobs/8607104002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "elastic",
+      "name": "Elastic Careers Israel",
+      "checked_at": "2026-09-25T15:05:59.984472+00:00",
+      "collected": 387,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Principal Product Manager (Strategic Account Interactions) - Security Solutions",
+          "location": "Israel",
+          "url": "https://jobs.elastic.co/jobs?gh_jid=8155426&gh_jid=8155426"
+        },
+        {
+          "title": "Principal Product Manager (XDR & Exposure Management) - Security Solutions",
+          "location": "Israel",
+          "url": "https://jobs.elastic.co/jobs?gh_jid=8155328&gh_jid=8155328"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "datadog",
+      "name": "Datadog Careers Israel",
+      "checked_at": "2026-09-25T15:06:01.346398+00:00",
+      "collected": 449,
+      "israel": 2,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director, Engineering",
+          "location": "Tel Aviv, Israel",
+          "url": "https://careers.datadoghq.com/detail/8098863/?gh_jid=8098863"
+        },
+        {
+          "title": "Senior Software Engineer - Distributed Systems",
+          "location": "Bordeaux, France; Grenoble, France; Lyon, France; Madrid, Spain; Montpellier, France; Nantes, France; Paris, France; Sophia Antipolis, France; Tel Aviv, Israel",
+          "url": "https://careers.datadoghq.com/detail/4599111/?gh_jid=4599111"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "mongodb",
+      "name": "MongoDB Careers Israel",
+      "checked_at": "2026-09-25T15:06:04.192283+00:00",
+      "collected": 401,
+      "israel": 7,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Account Development Representative, Hebrew Speaking",
+          "location": "Tel Aviv",
+          "url": "https://www.mongodb.com/careers/job/?gh_jid=7334938"
+        },
+        {
+          "title": "Commercial Growth Account Executive - Acquisition",
+          "location": "Tel Aviv",
+          "url": "https://www.mongodb.com/careers/job/?gh_jid=8143761"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "stripe",
+      "name": "Stripe Careers Israel",
+      "checked_at": "2026-09-25T15:06:06.085182+00:00",
+      "collected": 692,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Account Executive, Enterprise Grower (Israel)",
+          "location": "Israel ",
+          "url": "https://stripe.com/jobs/search?gh_jid=8114458"
+        },
+        {
+          "title": "Account Executive, Enterprise Grower, Platforms (Israel)",
+          "location": "Israel",
+          "url": "https://stripe.com/jobs/search?gh_jid=8129956"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "rubrik",
+      "name": "Rubrik Careers Israel",
+      "checked_at": "2026-09-25T15:06:08.165729+00:00",
+      "collected": 141,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Senior Backend Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.rubrik.com/company/careers/departments/job.8073775?gh_jid=8073775"
+        },
+        {
+          "title": "Senior Product Designer   ",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.rubrik.com/company/careers/departments/job.7619215?gh_jid=7619215"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "zscaler",
+      "name": "Zscaler Careers Israel",
+      "checked_at": "2026-09-25T15:06:09.165931+00:00",
+      "collected": 377,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director of Data Engineering",
+          "location": "Tel Aviv-Yafo Municipality, ISR",
+          "url": "https://job-boards.greenhouse.io/zscaler/jobs/5217166007"
+        },
+        {
+          "title": "People Services Specialist (12 months fixed term contract)",
+          "location": "Tel Aviv-Yafo Municipality, ISR",
+          "url": "https://job-boards.greenhouse.io/zscaler/jobs/5222462007"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "jfrog",
+      "name": "JFrog Careers Israel",
+      "checked_at": "2026-09-25T15:06:11.179364+00:00",
+      "collected": 56,
+      "israel": 16,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Application Security Engineer",
+          "location": "Tel Aviv/ Netanya, Israel",
+          "url": "https://join.jfrog.com/job/?job=8167054&gh_jid=8167054"
+        },
+        {
+          "title": "Business Development Representative ",
+          "location": "Tel Aviv/ Netanya, Israel",
+          "url": "https://join.jfrog.com/job/?job=7694707&gh_jid=7694707"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "lightricks",
+      "name": "Lightricks Careers Israel",
+      "checked_at": "2026-09-25T15:06:11.185511+00:00",
+      "collected": 1,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "B2B Demand Generation Manager",
+          "location": "Jerusalem",
+          "url": "https://careers.lightricks.com/position?gh_jid=8764275002&gh_jid=8764275002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "yotpo",
+      "name": "Yotpo Careers Israel",
+      "checked_at": "2026-09-25T15:06:11.391245+00:00",
+      "collected": 15,
+      "israel": 5,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Director of Data",
+          "location": "Tel Aviv",
+          "url": "https://www.yotpo.com/careers/gid-8143530?gh_jid=8143530"
+        },
+        {
+          "title": "Senior Product Manager ",
+          "location": "Tel Aviv",
+          "url": "https://www.yotpo.com/careers/gid-7633905?gh_jid=7633905"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "fireblocks",
+      "name": "Fireblocks Careers Israel",
+      "checked_at": "2026-09-25T15:06:13.373226+00:00",
+      "collected": 70,
+      "israel": 11,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Security Engineer",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://www.fireblocks.com/careers/position?gh_jid=4713012006"
+        },
+        {
+          "title": "DevOps Team Leader",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://www.fireblocks.com/careers/position?gh_jid=4706203006"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "bigid",
+      "name": "BigID Careers Israel",
+      "checked_at": "2026-09-25T15:06:13.564893+00:00",
+      "collected": 7,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Team Lead, Technical Writing",
+          "location": "Tel Aviv",
+          "url": "https://bigid.com/company/careers/job-details/8687006002?gh_jid=8687006002"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "saltsecurity",
+      "name": "Salt Security Careers Israel",
+      "checked_at": "2026-09-25T15:06:13.564921+00:00",
+      "collected": 11,
+      "israel": 5,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Controller - Part-Time (50%)",
+          "location": "Tel Aviv",
+          "url": "https://salt.security/job-board?gh_jid=5226104007"
+        },
+        {
+          "title": "Platform Engineer- Edge Team",
+          "location": "Tel Aviv",
+          "url": "https://salt.security/job-board?gh_jid=5208152007"
+        }
+      ]
+    },
+    {
+      "kind": "lever",
+      "identifier": "cloudinary",
+      "name": "Cloudinary Careers Israel",
+      "checked_at": "2026-09-25T15:06:13.826943+00:00",
+      "collected": 8,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Product Operations Lead",
+          "location": "Israel",
+          "url": "https://jobs.lever.co/cloudinary/7f3812ca-d4c6-4d7f-acb0-9206c2984a64/apply"
+        },
+        {
+          "title": "Staff Backend Engineer - Moderation",
+          "location": "Israel",
+          "url": "https://jobs.lever.co/cloudinary/7d5a3660-5cba-4b63-876a-77096b072e8c/apply"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "payoneer",
+      "name": "Payoneer Careers Israel",
+      "checked_at": "2026-09-25T15:06:13.894523+00:00",
+      "collected": 110,
+      "israel": 21,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "AI Native Engineer (Node. js)",
+          "location": "Herzliya, Tel Aviv District, Israel",
+          "url": "https://www.payoneer.com/careers/position/8007296/?gh_jid=8007296"
+        },
+        {
+          "title": "Business Operations Manager - Temporary Position",
+          "location": "Herzliya, Tel Aviv District, Israel",
+          "url": "https://www.payoneer.com/careers/position/8067187/?gh_jid=8067187"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "optimove",
+      "name": "Optimove Careers Israel",
+      "checked_at": "2026-09-25T15:06:14.081369+00:00",
+      "collected": 16,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Customer Success Manager",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.eu.greenhouse.io/optimove/jobs/4927316101"
+        },
+        {
+          "title": "Customer Success Manager",
+          "location": "Tel Aviv ",
+          "url": "https://job-boards.eu.greenhouse.io/optimove/jobs/4950724101"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "autods",
+      "name": "AutoDS — Data Analytics Israel",
+      "checked_at": "2026-09-25T15:06:14.363559+00:00",
+      "collected": 5,
+      "israel": 5,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Head of Scaled Customer Success & Retention",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/autods/jobs/5424753008"
+        },
+        {
+          "title": "HRBP - Maternity Leave Cover",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/autods/jobs/5415046008"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "nift",
+      "name": "Nift — Data Analytics Israel",
+      "checked_at": "2026-09-25T15:06:15.080725+00:00",
+      "collected": 12,
+      "israel": 3,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Applied Data Scientist",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.greenhouse.io/nift/jobs/5176532007"
+        },
+        {
+          "title": "Data Analyst",
+          "location": " Israel",
+          "url": "https://job-boards.greenhouse.io/nift/jobs/5179925007"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "axon",
+      "name": "Axon — Program & R&D Operations Israel",
+      "checked_at": "2026-09-25T15:06:15.289630+00:00",
+      "collected": 515,
+      "israel": 1,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "R&D Ops Program Manager ",
+          "location": "Israel-Tel-Aviv Yafo Office",
+          "url": "https://job-boards.greenhouse.io/axon/jobs/7806994003"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "wolt",
+      "name": "Wolt — Supply Chain & Operations Israel",
+      "checked_at": "2026-09-25T15:06:15.334395+00:00",
+      "collected": 210,
+      "israel": 11,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Ads & Promotions Operations Specialist",
+          "location": "Ramat Gan, Israel",
+          "url": "https://job-boards.greenhouse.io/wolt/jobs/8078746"
+        },
+        {
+          "title": "Brand Media Manager",
+          "location": "Tel Aviv, Israel",
+          "url": "https://job-boards.greenhouse.io/wolt/jobs/8208032"
+        }
+      ]
+    },
+    {
+      "kind": "greenhouse",
+      "identifier": "residenthome",
+      "name": "Ashley Digital — BI & Data Solutions Israel",
+      "checked_at": "2026-09-25T15:06:16.676307+00:00",
+      "collected": 11,
+      "israel": 4,
+      "complete": true,
+      "error": "",
+      "samples": [
+        {
+          "title": "Data Engineer ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/residenthome/jobs/6112307004"
+        },
+        {
+          "title": "Fullstack Engineer ",
+          "location": "Tel Aviv",
+          "url": "https://job-boards.greenhouse.io/residenthome/jobs/6184840004"
+        }
+      ]
+    }
+  ],
+  "followups": {
+    "checked_at": "2026-09-25T15:10:23.484202+00:00",
+    "sweetsecurity": {
+      "result": "retry_succeeded",
+      "collected": 3,
+      "israel": 2
+    },
+    "outbraininc": {
+      "result": "moved_to_teads",
+      "official_redirect": "https://www.teads.com/teads-careers/",
+      "official_feed_link_page": "https://www.teads.com/teads-careers/job-openings/",
+      "replacement_feed": "https://boards-api.greenhouse.io/v1/boards/teads1/jobs?content=true",
+      "collected": 61,
+      "israel": 3
+    },
+    "armissecurity": {
+      "result": "official_page_links_existing_servicenow_source",
+      "official_page": "https://www.armis.com/armis-careers/",
+      "existing_feed": "https://api.smartrecruiters.com/v1/companies/ServiceNow/postings?country=il&limit=100",
+      "servicenow_israel_total": 11,
+      "armis_named_israel_postings": 4
+    },
+    "logz": {
+      "result": "official_page_still_links_empty_lever_board",
+      "official_page": "https://logz.io/careers/",
+      "linked_board": "https://jobs.lever.co/logz",
+      "collected": 0
+    },
+    "redis": {
+      "result": "no_israel_primary_or_secondary_locations_in_29_rows",
+      "locations": [
+        "Austin, TX",
+        "Australia",
+        "Canada",
+        "Costa Rica",
+        "France",
+        "Germany",
+        "HQ (San Francisco)",
+        "India",
+        "Italy",
+        "London, England",
+        "Mexico",
+        "United Arab Emirates",
+        "United States"
+      ],
+      "secondary_locations": []
+    }
+  }
+}

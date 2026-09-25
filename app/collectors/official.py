@@ -21,6 +21,7 @@ from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from .expansion_ats import VERIFIED_ATS_IDENTIFIERS, collect_expansion_feed
 from .eightfold import EIGHTFOLD_ROUTES, collect_eightfold
+from .zim_ide import FEED_URLS as ZIM_IDE_FEEDS, collect_zim_ide
 from .workday import EXPANSION_WORKDAY_IDENTIFIERS
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
@@ -290,6 +291,8 @@ class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        if identifier in ZIM_IDE_FEEDS:
+            return await collect_zim_ide(identifier, company_name)
         if identifier in EIGHTFOLD_ROUTES:
             return await collect_eightfold(identifier, company_name)
         if identifier in VERIFIED_ATS_IDENTIFIERS:

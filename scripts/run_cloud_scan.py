@@ -200,6 +200,14 @@ def progress_writer(run_id: str, career_track: str):
     def write(progress: dict) -> None:
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
             update_scan_run(status_db, run_id, career_track, status="running", progress=progress, started=True)
+        # Keep diagnostics available even if a later source/ranking step fails.
+        # Only bounded public source labels and counters enter the Actions log.
+        print('[scan-progress] ' + json.dumps({
+            'phase': str(progress.get('phase') or '')[:40],
+            'completed': int(progress.get('completed') or 0),
+            'total': int(progress.get('total') or 0),
+            'source': str(progress.get('current_source') or '')[:160],
+        }, ensure_ascii=False), flush=True)
     return write
 
 
@@ -214,6 +222,7 @@ def print_source_summary(result: dict) -> None:
             f"matching={int(item.get('found') or 0)} "
             f"new={int(item.get('new') or 0)} "
             f"updated={int(item.get('updated') or 0)} "
+            f"unchanged={int(item.get('unchanged') or 0)} "
             f"deferred={bool(item.get('deferred'))} "
             f"error={str(item.get('error') or '')[:240]}",
             flush=True,
@@ -270,6 +279,7 @@ async def execute_run(run_id: str, career_track: str) -> dict:
                 progress_callback=progress_writer(run_id, career_track),
             )
         result["career_track"] = career_track
+        print_source_summary(result)
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
             update_scan_run(
                 status_db, run_id, career_track,
@@ -308,7 +318,6 @@ async def run_queued() -> int:
         print(f"[scan] queued shared track={track} run={run_id[:8]}", flush=True)
         try:
             result = await execute_run(run_id, track)
-            print_source_summary(result)
             print(f"[scan] finished shared track={track} status={result.get('status')}", flush=True)
         except Exception as exc:  # noqa: BLE001
             print(f"[scan] failed shared track={track} error={exc}", flush=True)
@@ -337,7 +346,6 @@ async def run_scheduled(*, force: bool = False) -> int:
         print(f"[scan] starting shared track={track} run={run_id[:8]}", flush=True)
         try:
             result = await execute_run(run_id, track)
-            print_source_summary(result)
             print(f"[scan] finished shared track={track} status={result.get('status')}", flush=True)
         except Exception as exc:  # noqa: BLE001
             print(f"[scan] failed shared track={track} error={exc}", flush=True)

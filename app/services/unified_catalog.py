@@ -6,8 +6,8 @@ import hashlib
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from sqlalchemy import JSON, LargeBinary, cast, delete, func, select, update
-from sqlalchemy.orm import load_only
+from sqlalchemy import JSON, LargeBinary, case, cast, delete, func, or_, select, update
+from sqlalchemy.orm import aliased, load_only
 
 from ..models import Job, JobSourceIdentity, JobTrack, Source, JobRanking
 from ..utils import loads, dumps
@@ -17,6 +17,8 @@ from .source_catalog import _source_key
 MAX_SCAN_POSTINGS = 20000
 MAX_SOURCE_IDENTITIES = 10000
 MAX_CANONICAL_JOBS = 50000
+# Two SQL-computed flags; URLs and company names never cross the DB connection.
+SCAN_COMPARISON_BYTES_PER_JOB = 128
 
 
 def source_identity(kind, identifier):
@@ -146,6 +148,47 @@ def replace_job_tracks(db, job, classification):
     job.classification_json = dumps(classification.to_dict())
 
 
+def _refresh_unchanged_postings(db, source, items, now, version):
+    """Refresh known, unambiguous identities in pages without downloading job text."""
+    from .location_filter import is_israel_location
+    from .ranking.service import job_fingerprint_values
+    first_by_id = {}
+    for item in items:
+        first_by_id.setdefault(item.external_id, item)
+    candidates = [item for item in first_by_id.values() if is_israel_location(item.location)]
+    unchanged = {}
+    version_column = func.substr((func.json_extract(Job.classification_json, '$.version')
+        if db.get_bind().dialect.name == 'sqlite'
+        else cast(Job.classification_json, JSON)['version'].as_string()), 1, 80)
+    sibling = aliased(JobSourceIdentity)
+    ambiguous = select(sibling.job_id).where(
+        sibling.source_id == source.id, sibling.job_id == Job.id,
+        sibling.external_id != JobSourceIdentity.external_id).correlate(Job, JobSourceIdentity).exists()
+    matched_track = select(JobTrack.job_id).where(JobTrack.job_id == Job.id).correlate(Job).exists()
+    for offset in range(0, len(candidates), 100):
+        page = candidates[offset:offset + 100]
+        fingerprints = case(*[(JobSourceIdentity.external_id == item.external_id,
+            job_fingerprint_values('shared', item.title, item.description, item.location,
+                                   item.workplace, item.published_at)) for item in page], else_='')
+        metadata_changed = case(*[(JobSourceIdentity.external_id == item.external_id,
+            or_(Job.company != item.company, Job.apply_url != item.apply_url,
+                Job.source_url != item.source_url)) for item in page], else_=True)
+        rows = db.execute(select(JobSourceIdentity.external_id, matched_track)
+            .join(Job, Job.id == JobSourceIdentity.job_id)
+            .where(JobSourceIdentity.source_id == source.id,
+                JobSourceIdentity.external_id.in_([item.external_id for item in page]),
+                Job.canonical_job_id.is_(None), Job.is_active.is_(True),
+                Job.source_fingerprint == fingerprints, version_column == version,
+                metadata_changed.is_(False), ~ambiguous).limit(100)).all()
+        if rows:
+            unchanged.update({external_id: bool(has_track) for external_id, has_track in rows})
+            db.execute(update(JobSourceIdentity).where(
+                JobSourceIdentity.source_id == source.id,
+                JobSourceIdentity.external_id.in_([external_id for external_id, _ in rows]))
+                .values(is_active=True, last_seen_at=now).execution_options(synchronize_session=False))
+    return unchanged
+
+
 async def scan_unified_catalog(db, source_ids, progress_callback, career_track, catalog_only):
     from ..collectors import COLLECTORS
     from ..collectors.base import PreserveExistingJobs
@@ -188,7 +231,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
             except Exception as exc:
                 return source, None, exc
 
-    totals = dict(sources=len(sources), collected=0, found=0, new=0, updated=0, removed=0,
+    totals = dict(sources=len(sources), collected=0, found=0, new=0, updated=0, unchanged=0, israel_found=0, removed=0,
                   filtered_foreign=0, filtered_mismatch=0, duplicates_merged=0, auto_queued=0,
                   successful_sources=0, deferred_sources=0, partial_sources=0, failed_sources=0)
     from .catalog_egress import reserve_catalog_egress
@@ -228,7 +271,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                         # Only compact identities/fingerprints/version cross the DB
                         # connection. Include both identity and job projections,
                         # absent IDs and a 2x framing/concurrency allowance.
-                        reserved = 2 * (len(israel_items) * (768 + 2 * external_bytes + max(track_bytes, 160))
+                        reserved = 2 * (len(israel_items) * (768 + SCAN_COMPARISON_BYTES_PER_JOB + 2 * external_bytes + max(track_bytes, 160))
                                         + identity_count * 24 + 4096)
                         if not reserve_catalog_egress(reserved):
                             transfer_budget_exhausted = True
@@ -236,7 +279,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
             if error:
                 deferred = isinstance(error, PreserveExistingJobs)
                 totals['deferred_sources' if deferred else 'failed_sources'] += 1
-                source.last_error = str(error)[:1000]
+                source.last_error = (str(error) or type(error).__name__)[:1000]
                 source.consecutive_failures += not deferred
                 source.health_score = min(source.health_score, 50)
                 _record_source_scan_state(source, 'deferred' if deferred else 'failed')
@@ -247,17 +290,25 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 per_source.append({'source': source.name, 'error': source.last_error, 'deferred': deferred})
             else:
                 changed = set()
-                source_new = source_updated = 0
+                source_new = source_updated = source_unchanged = source_israel = source_found = 0
                 record_observations(db, source.kind, source.identifier, (item.external_id for item in items),
                                     getattr(items, 'blocked_external_ids', ()))
+                unchanged = _refresh_unchanged_postings(db, source, items, now, VERSION)
                 complete = bool(getattr(items, 'complete', True)) and not getattr(items, 'blocked_external_ids', ())
                 seen = set()
+                israel_seen = set()
                 for item in items:
                     if item.external_id in seen:
                         continue
                     seen.add(item.external_id)
                     if not is_israel_location(item.location):
                         totals['filtered_foreign'] += 1
+                        continue
+                    israel_seen.add(item.external_id)
+                    source_israel += 1
+                    if item.external_id in unchanged:
+                        source_unchanged += 1
+                        source_found += unchanged[item.external_id]
                         continue
                     identity = db.get(JobSourceIdentity, (source.id, item.external_id))
                     key = canonical_job_key(source.kind, source.identifier, item.external_id, item.apply_url)
@@ -272,20 +323,32 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     version_column = func.substr((func.json_extract(Job.classification_json, '$.version')
                         if db.get_bind().dialect.name == 'sqlite'
                         else cast(Job.classification_json, JSON)['version'].as_string()), 1, 80)
-                    existing = db.execute(select(Job, version_column)
+                    metadata_changed = or_(Job.company != item.company, Job.apply_url != item.apply_url,
+                                           Job.source_url != item.source_url)
+                    matched_track = select(JobTrack.job_id).where(JobTrack.job_id == Job.id).exists()
+                    existing = db.execute(select(Job, version_column, metadata_changed, matched_track)
                         .options(load_only(Job.id, Job.source_id, Job.external_id, Job.career_track,
                             Job.source_fingerprint, Job.is_active, Job.canonical_key))
                         .where(Job.id == job_id)).first() if job_id else None
-                    job, classification_version = existing if existing else (None, None)
+                    job, classification_version, refresh_metadata, has_track = existing if existing else (None, None, False, False)
+                    is_new = job is None
                     incoming = job_fingerprint_values('shared', item.title, item.description, item.location, item.workplace, item.published_at)
                     if job is None:
                         job = Job(source_id=source.id, external_id=item.external_id, career_track='shared', canonical_key=key)
                         db.add(job)
                         source_new += 1
                     else:
-                        source_updated += 1
                         totals['duplicates_merged'] += not identity
-                    if job.id is None or job.source_fingerprint != incoming or classification_version != VERSION:
+                    refresh_ranking = job.id is None or job.source_fingerprint != incoming or classification_version != VERSION
+                    if not is_new:
+                        if refresh_ranking or refresh_metadata or not job.is_active:
+                            source_updated += 1
+                        else:
+                            source_unchanged += 1
+                    if refresh_metadata and not refresh_ranking:
+                        for field in ('company', 'apply_url', 'source_url'):
+                            setattr(job, field, getattr(item, field))
+                    if refresh_ranking:
                         for field in ('title', 'company', 'location', 'workplace', 'description', 'apply_url', 'source_url', 'published_at'):
                             setattr(job, field, getattr(item, field))
                         job.source_fingerprint = incoming
@@ -296,9 +359,13 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                         job.degree_requirement, job.degree_required = degree.level, degree.required
                         job.degree_experience_alternative = degree.experience_alternative
                         db.flush()
-                        replace_job_tracks(db, job, classify_job(item))
+                        classification = classify_job(item)
+                        replace_job_tracks(db, job, classification)
+                        has_track = any(decision.status == 'match' for decision in classification.decisions)
                         changed.add(job.id)
-                    job.is_active, job.removed_at = True, None
+                    source_found += bool(has_track)
+                    if is_new or not job.is_active:
+                        job.is_active, job.removed_at = True, None
                     if identity is None:
                         identity = JobSourceIdentity(source_id=source.id, external_id=item.external_id, job_id=job.id)
                         db.add(identity)
@@ -307,11 +374,11 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 if complete:
                     absent = list(db.scalars(select(JobSourceIdentity.job_id).where(
                         JobSourceIdentity.source_id == source.id, JobSourceIdentity.is_active.is_(True),
-                        JobSourceIdentity.external_id.not_in(seen or [''])).limit(MAX_SOURCE_IDENTITIES + 1)))
+                        JobSourceIdentity.external_id.not_in(israel_seen or [''])).limit(MAX_SOURCE_IDENTITIES + 1)))
                     if len(absent) > MAX_SOURCE_IDENTITIES:
                         raise RuntimeError('Concurrent source identity growth exceeded reconciliation budget')
                     db.execute(update(JobSourceIdentity).where(JobSourceIdentity.source_id == source.id,
-                        JobSourceIdentity.external_id.not_in(seen or [''])).values(is_active=False))
+                        JobSourceIdentity.external_id.not_in(israel_seen or [''])).values(is_active=False))
                     for job_id in set(absent):
                         if not db.scalar(select(JobSourceIdentity.job_id).where(JobSourceIdentity.job_id == job_id,
                             JobSourceIdentity.is_active.is_(True)).limit(1)):
@@ -324,12 +391,15 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 _record_source_scan_state(source, 'complete' if complete else 'partial')
                 totals['successful_sources' if complete else 'partial_sources'] += 1
                 totals['collected'] += len(seen)
-                totals['found'] += len(seen)
+                totals['found'] += source_found
+                totals['israel_found'] += source_israel
+                totals['filtered_mismatch'] += source_israel - source_found
                 totals['new'] += source_new
                 totals['updated'] += source_updated
+                totals['unchanged'] += source_unchanged
                 db.commit()
-                per_source.append({'source': source.name, 'collected': len(seen), 'found': len(seen),
-                                   'new': source_new, 'updated': source_updated, 'partial': not complete, 'error': ''})
+                per_source.append({'source': source.name, 'collected': len(seen), 'israel_found': source_israel, 'found': source_found,
+                                   'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete, 'error': ''})
             if progress_callback:
                 progress_callback({'phase': 'scanning', 'current': completed, 'completed': completed,
                                    'total': len(sources), 'current_source': source.name})
@@ -337,5 +407,10 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
         for task in tasks:
             if not task.done(): task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+    from .catalog_freshness import expire_unverified_jobs
+    expired = expire_unverified_jobs(db, now=datetime.now(timezone.utc))
+    db.commit()
+    totals['expired'] = expired
+    totals['removed'] += expired
     status = 'no_sources' if not sources else 'partial' if errors or totals['partial_sources'] else 'ok'
     return {**totals, 'status': status, 'unified_catalog': True, 'errors': errors, 'per_source': per_source, 'stale_deleted': 0}

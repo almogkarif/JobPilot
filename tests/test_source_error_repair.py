@@ -1,4 +1,6 @@
 import asyncio
+
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import create_engine
@@ -156,8 +158,8 @@ def test_greenhouse_eu_prefix_uses_documented_job_board_api_host(monkeypatch):
 
     _FakeGreenhouseClient.urls = []
     monkeypatch.setattr(module.httpx, "AsyncClient", _FakeGreenhouseClient)
-    asyncio.run(GreenhouseCollector().collect("eu:outbraininc", "Outbrain"))
-    assert _FakeGreenhouseClient.urls == ["https://boards-api.greenhouse.io/v1/boards/outbraininc/jobs"]
+    asyncio.run(GreenhouseCollector().collect("eu:example", "Example"))
+    assert _FakeGreenhouseClient.urls == ["https://boards-api.greenhouse.io/v1/boards/example/jobs"]
 
 
 def test_applied_materials_has_verified_workday_preset_and_location_normalizer():
@@ -206,3 +208,28 @@ def test_greenhouse_prefers_first_published_over_updated_at(monkeypatch):
     monkeypatch.setattr(module.httpx, "AsyncClient", Client)
     jobs = asyncio.run(GreenhouseCollector().collect("taboola", "Taboola"))
     assert jobs[0].published_at.isoformat().startswith("2026-08-01T10:00:00")
+
+
+@pytest.mark.parametrize("identifier", ["outbraininc", "eu:outbraininc", "EU:OUTBRAININC"])
+@pytest.mark.parametrize("company,expected", [("Outbrain", "Teads"), ("", "Teads"),
+                                             ("Custom company label", "Custom company label")])
+def test_outbrain_retained_identifier_uses_verified_teads_board(monkeypatch, identifier, company, expected):
+    from app.collectors import greenhouse as module
+    calls = []
+    class Client(_FakeGreenhouseClient):
+        async def get(self, url, params=None):
+            calls.append((url, params))
+            return _FakeResponse({"jobs": [{
+                "id": 123, "title": "Software Engineer", "location": {"name": "Netanya, Israel"},
+                "content": "<p>Build advertising systems.</p>",
+                "absolute_url": "https://job-boards.greenhouse.io/teads1/jobs/123",
+            }]})
+    monkeypatch.setattr(module.httpx, "AsyncClient", Client)
+    jobs = asyncio.run(GreenhouseCollector().collect(identifier, company))
+    assert calls == [("https://boards-api.greenhouse.io/v1/boards/teads1/jobs", {"content": "true"})]
+    assert len(jobs) == 1
+    assert jobs[0].external_id == "123"
+    assert jobs[0].company == expected
+    assert jobs[0].location == "Netanya, Israel"
+    assert jobs[0].apply_url == "https://job-boards.greenhouse.io/teads1/jobs/123"
+    assert jobs[0].description == "Build advertising systems."

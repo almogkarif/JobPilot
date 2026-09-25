@@ -38,10 +38,10 @@ def test_workday_location_facets_use_israel_and_not_illinois():
     assert workday._israel_location_facets([{'facetParameter':'Country','values':[{'id':'country-il','descriptor':'Israel'}]}]) == {'Country':['country-il']}
 
 
-@pytest.mark.parametrize('provider', ['workday','smartrecruiters','greenhouse','lever'])
+@pytest.mark.parametrize('provider', ['workday','smartrecruiters','greenhouse','lever','ashby'])
 @pytest.mark.parametrize('payload', [{}, {'message':'temporarily unavailable'}])
 def test_success_http_with_missing_job_list_is_not_verified_empty(monkeypatch, provider, payload):
-    from app.collectors import smartrecruiters, greenhouse, lever
+    from app.collectors import smartrecruiters, greenhouse, lever, ashby
     from app.collectors.base import PreserveExistingJobs
     class Client:
         def __init__(self, **kwargs): pass
@@ -52,14 +52,15 @@ def test_success_http_with_missing_job_list_is_not_verified_empty(monkeypatch, p
         get = post
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
     collector = {'workday':workday.WorkdayCollector, 'smartrecruiters':smartrecruiters.SmartRecruitersCollector,
-                 'greenhouse':greenhouse.GreenhouseCollector, 'lever':lever.LeverCollector}[provider]()
+                 'greenhouse':greenhouse.GreenhouseCollector, 'lever':lever.LeverCollector,
+                 'ashby':ashby.AshbyCollector}[provider]()
     with pytest.raises(PreserveExistingJobs):
         asyncio.run(collector.collect('intel' if provider == 'workday' else 'example'))
 
 
-@pytest.mark.parametrize('provider,payload', [('greenhouse', {'jobs':[]}), ('lever', [])])
+@pytest.mark.parametrize('provider,payload', [('greenhouse', {'jobs':[]}), ('lever', []), ('ashby', {'jobs':[]})])
 def test_verified_empty_public_feed_remains_valid(monkeypatch, provider, payload):
-    from app.collectors import greenhouse, lever
+    from app.collectors import greenhouse, lever, ashby
     class Client:
         def __init__(self, **kwargs): pass
         async def __aenter__(self): return self
@@ -67,7 +68,8 @@ def test_verified_empty_public_feed_remains_valid(monkeypatch, provider, payload
         async def get(self, *args, **kwargs):
             return SimpleNamespace(raise_for_status=lambda:None, json=lambda:payload)
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
-    collector = greenhouse.GreenhouseCollector() if provider == 'greenhouse' else lever.LeverCollector()
+    collector = {'greenhouse':greenhouse.GreenhouseCollector, 'lever':lever.LeverCollector,
+                 'ashby':ashby.AshbyCollector}[provider]()
     assert asyncio.run(collector.collect('example')) == []
 
 

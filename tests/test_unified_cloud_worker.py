@@ -17,6 +17,24 @@ def dummy_session(_user_id):
     yield object()
 
 
+def test_progress_logs_only_bounded_source_metadata(monkeypatch, capsys):
+    import json
+    updates = []
+    monkeypatch.setattr(worker, 'user_session', dummy_session)
+    monkeypatch.setattr(worker, 'update_scan_run', lambda *args, **kwargs: updates.append(kwargs))
+    worker.progress_writer('run', 'computer_science')({
+        'phase': 'scanning', 'completed': 2, 'total': 260,
+        'current_source': 'Public employer' * 100,
+        'private_data': 'must-not-enter-actions-log',
+    })
+    output = capsys.readouterr().out
+    data = json.loads(output.removeprefix('[scan-progress] '))
+    assert data['completed'] == 2 and data['total'] == 260
+    assert len(data['source']) == 160
+    assert 'private_data' not in output and 'must-not-enter-actions-log' not in output
+    assert len(updates) == 1
+
+
 @pytest.mark.parametrize('unified,expected', [(True, 1), (False, 3)])
 @pytest.mark.parametrize('force', [True, False])
 def test_worker_schedules_one_collection_for_unified_catalog(monkeypatch, unified, expected, force):
@@ -52,7 +70,7 @@ def test_shared_scan_ranks_every_users_active_track_once(monkeypatch, unified, e
     assert all(accounts[user] == track and kwargs == {'stale_only': True} for user, track, kwargs in calls)
 
 
-def test_scan_remains_active_until_all_personal_rankings_finish(monkeypatch):
+def test_scan_remains_active_until_all_personal_rankings_finish(monkeypatch, capsys):
     from app.services import scanner
     states = []
     monkeypatch.setattr(worker, 'user_session', dummy_session)
@@ -61,15 +79,19 @@ def test_scan_remains_active_until_all_personal_rankings_finish(monkeypatch):
     monkeypatch.setattr(worker, 'update_scan_run', lambda *args, **kwargs: states.append(kwargs))
     async def collect(*args, **kwargs):
         assert kwargs['catalog_only'] is True
-        return {'status': 'ok'}
+        return {'status': 'ok', 'per_source': [{'source': 'Example board', 'unchanged': 12}]}
     monkeypatch.setattr(scanner, 'scan_all_sources', collect)
     def rank(_track):
         assert states[-1]['status'] == 'running'
         assert not states[-1].get('finished')
+        # Collection diagnostics must survive a slow or interrupted ranking phase.
+        output = capsys.readouterr().out
+        assert '[source] name=Example board' in output and 'unchanged=12' in output
     monkeypatch.setattr(worker, 'rank_users_for_track', rank)
     asyncio.run(worker.execute_run('run', 'computer_science'))
     assert states[-1]['status'] == 'ok'
     assert states[-1]['finished'] is True
+    assert '[source]' not in capsys.readouterr().out
 
 
 def test_unified_queue_deduplicates_tracks_and_ignores_legacy_runs(monkeypatch):

@@ -93,7 +93,7 @@ def test_original_audit_cohort_remains_67_after_activating_verified_defaults():
     cohort = audit_cohort()
     assert len(cohort) == 67
     assert len({source["identifier"] for source in cohort}) == 67
-    assert sum(bool(source["enabled"]) for source in cohort) == 34
+    assert sum(bool(source["enabled"]) for source in cohort) == 36
     assert unresolved_reason({"official_page": {"status": 403}}).startswith("Official endpoint returned HTTP 403")
 
 

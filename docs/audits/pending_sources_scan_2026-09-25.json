@@ -1,0 +1,1558 @@
+{
+  "checked_at": "2026-09-25T14:44:10.622229+00:00",
+  "scope": "All33 currently disabled pending_adapter defaults after batch2; no active-source/cloud-run conclusions included.",
+  "source_count": 33,
+  "coverage": {
+    "expected": 33,
+    "attempted": 33,
+    "missing": 0,
+    "duplicate_identifiers": 0
+  },
+  "counts": {
+    "wrong_url": 7,
+    "unknown": 2,
+    "blocked": 8,
+    "parser_missing": 13,
+    "verified_no_israel": 3
+  },
+  "current_adapter_outcomes": {
+    "failed_preserved_existing_jobs": 33,
+    "successful_zero_job_collections": 0,
+    "successful_nonempty_collections": 0
+  },
+  "category_definitions": {
+    "blocked": "Observed HTTP403 or explicit access challenge on tested route; not a permanent or site-wide claim.",
+    "parser_missing": "Readable employer surface or alternative payload exists, but a reliable vacancy parser/protocol mapping is absent.",
+    "wrong_url": "Configured or formerly identified job route is404, redirects to a non-vacancy surface, or points to employer information; replacement may also need a parser.",
+    "verified_no_israel": "A valid official API returned no Israel results for the exact recorded query. This does NOT assert that the employer has no Israel vacancies.",
+    "unknown": "Evidence does not distinguish missing/moved feed from current vacancy availability."
+  },
+  "constraints": {
+    "browser_control": false,
+    "browser_rendering": false,
+    "database_requests": 0,
+    "applications_sent": 0,
+    "code_or_configuration_changes": 0,
+    "concurrent_boards": 3,
+    "collector_deadline_seconds": 90,
+    "official_probe_timeout_seconds": 25,
+    "response_max_bytes": 4000000,
+    "max_detail_requests_per_source": 40,
+    "max_redirect_transport_attempts_per_collector_request": 4,
+    "official_probe_max_redirects": 4,
+    "additional_public_requests": 15,
+    "additional_workday_requests": 6,
+    "additional_workday_rows_per_response": 1,
+    "audit_only_guards": "PRESETS copies in the audit process received listing_response_bytes=detail_response_bytes=4000000; static_only asserted, external_fallback_before_browser absent. Repository presets unchanged."
+  },
+  "limitations": [
+    "HTTP page probes and partial collector attempts do not establish a complete employer inventory.",
+    "All33 configured collector attempts failed; null counts represent unavailable results, never zero jobs.",
+    "Fresh alternate API evidence proves recoverable false negatives for ZIM and IDE. Neither source was enabled or fixed.",
+    "Prior evidence retains its original timestamp and is explicitly labeled reused; it is not silently promoted to current verification.",
+    "Category is the primary actionable diagnosis; source evidence may show both URL and parser problems.",
+    "No production data or cloud scan logs were queried by this audit."
+  ],
+  "audit_runner_source": "import asyncio,json,sys\nfrom pathlib import Path\nfrom datetime import datetime,timezone\nsys.path.insert(0,'/Users/AlmogKarif/Downloads/jobpilot')\nfrom scripts.audit_pending_sources import audit_one,PRESETS\nfrom app.source_expansion import EXPANDED_EMPLOYER_SOURCES\nasync def main():\n sources=[s for s in EXPANDED_EMPLOYER_SOURCES if not s['enabled']]\n assert len(sources)==33\n sem=asyncio.Semaphore(3)\n out=[]\n async def one(source):\n  identifier=source['identifier']\n  preset=PRESETS[identifier]\n  assert preset.get('static_only') is True\n  assert not preset.get('external_fallback_before_browser')\n  # Audit-only transport bounds; leave repository adapter code and defaults unchanged.\n  preset['listing_response_bytes']=4_000_000\n  preset['detail_response_bytes']=4_000_000\n  async with sem:\n   row=await audit_one(source)\n   out.append(row)\n   Path('/tmp/current_pending_33_raw.json').write_text(json.dumps({'checked_at':datetime.now(timezone.utc).isoformat(),'sources':out},ensure_ascii=False,indent=2))\n   print(identifier,row.get('official_page',{}).get('status'),row.get('total_rows'),row.get('collector_error','')[:160],flush=True)\n await asyncio.gather(*(one(s) for s in sources))\nasyncio.run(main())\n",
+  "sources": [
+    {
+      "identifier": "snyk",
+      "company": "Snyk",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:35.869830+00:00",
+      "collector_url": "https://snyk.io/careers/all-jobs/",
+      "official_page": {
+        "requested_url": "https://snyk.io/careers/all-jobs/",
+        "status": 200,
+        "final_url": "https://snyk.io/careers/all-jobs/",
+        "response_bytes": 69326,
+        "sha256": "822d7bb32e51a1c991dedd4f1458b6b8cf373ee3f2b44ee7a09dbffa7b8fee34",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Snyk did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [
+        {
+          "identifier": "snyk",
+          "requested_url": "https://boards-api.greenhouse.io/v1/boards/snyk/jobs",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:39.269426+00:00",
+          "status": 404,
+          "final_url": "https://boards-api.greenhouse.io/v1/boards/snyk/jobs",
+          "response_bytes": 38,
+          "sha256": "76fe0d64c21edde1aa258ae01c07a04323d95ab31b21822348d9e3f1f400dffe"
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "adapter_discovery",
+        "finding": "Official page still names Greenhouse, but both public boards-api.greenhouse.io/v1/boards/snyk/jobs and job-boards.greenhouse.io/snyk returned404. Find the replacement tenant from current employer client data; do not reuse the stale token.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page is HTTP200 but the previously identified Greenhouse feed still returns404. The correct current ATS tenant/feed remains unverified; no job-count conclusion."
+    },
+    {
+      "identifier": "xm-cyber",
+      "company": "XM Cyber",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:35.918920+00:00",
+      "collector_url": "https://xmcyber.com/careers/",
+      "official_page": {
+        "requested_url": "https://xmcyber.com/careers/",
+        "status": 403,
+        "final_url": "https://xmcyber.com/careers/",
+        "response_bytes": 146,
+        "sha256": "32f2fa940d4b4fe19aca1e53a24e5aac29c57b7c5ee78588325b87f1b649c864",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: XM Cyber did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "unknown",
+      "alternate_evidence": [
+        {
+          "identifier": "xm-cyber",
+          "requested_url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:36.696227+00:00",
+          "status": 200,
+          "final_url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "response_bytes": 117062,
+          "sha256": "d5818af685d1c6b5a6aa81cf2d55bde9142855e1357758bf446c2e7cd7a6e9ac",
+          "embedded_positions_count": 0
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "empty_alternative_feed",
+        "finding": "Marketing endpoint403; public Comeet board https://www.comeet.com/jobs/xmcyber/15.005 returned200 with zero embedded positions. Verify whether the employer moved ATS or currently has no published openings before activation.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured careers page returns403. The alternate Comeet board returns200 with an empty embedded positions array. This may be an inactive/moved feed; it does not verify absence of current employer vacancies."
+    },
+    {
+      "identifier": "astrix-security",
+      "company": "Astrix Security",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:35.924646+00:00",
+      "collector_url": "https://astrix.security/careers/",
+      "official_page": {
+        "requested_url": "https://astrix.security/careers/",
+        "status": 403,
+        "final_url": "https://astrix.security/careers/",
+        "response_bytes": 146,
+        "sha256": "32f2fa940d4b4fe19aca1e53a24e5aac29c57b7c5ee78588325b87f1b649c864",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Astrix Security did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Direct official careers request403. Search-index copy of the official page says No jobs found; this is not live vacancy evidence. A reachable employer ATS has not yet been established.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "starkware",
+      "company": "StarkWare",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:37.143146+00:00",
+      "collector_url": "https://starkware.co/careers/",
+      "official_page": {
+        "requested_url": "https://starkware.co/careers/",
+        "status": 200,
+        "final_url": "https://starkware.co/careers/",
+        "response_bytes": 95010,
+        "sha256": "ead6156bbf836a1d296c186c6d13735da7587c04867dee1466eb09423f15ccc3",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: StarkWare did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Exact /position/<slug>/ links and full HTML descriptions are readable, but the current JSON-LD-only validator rejects them. Sample Blockchain Security Researcher has no explicit location in its vacancy body; verify location and add a precise employer detail reader.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page is readable. Earlier exact vacancy pages contain role text without JobPosting schema; current generic collector rejects them. Explicit vacancy location still needs verification."
+    },
+    {
+      "identifier": "sapiens",
+      "company": "Sapiens",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:37.312991+00:00",
+      "collector_url": "https://sapiens.com/careers/",
+      "official_page": {
+        "requested_url": "https://sapiens.com/careers/",
+        "status": 403,
+        "final_url": "https://sapiens.com/careers/",
+        "response_bytes": 1084,
+        "sha256": "872ae164d46f295d5771ba6254af7e878705dcffd907a7d1d7f2b0ef5b09cc84",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Sapiens did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [
+        {
+          "identifier": "sapiens",
+          "requested_url": "https://careers.sapiens.com/",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:36.743435+00:00",
+          "status": 200,
+          "final_url": "https://careers.sapiens.com/",
+          "response_bytes": 356206,
+          "sha256": "9b90f761e5f6542891dc1e543a25966cf12b41cfd3c2b43664a4bfdeb77e7f20",
+          "successfactors_links": [
+            "https://career5.successfactors.eu/careers?site=&company=SapiensQA&clientId=jobs2web&lang=en_US&navBarLevel=MY_PROFILE",
+            "https://performancemanager5.successfactors.eu/doc/custom/SapiensPRD/Privacy06SapiensCandidatePrivacyNotice%202025.pdf"
+          ]
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Replacement https://careers.sapiens.com/ is reachable and links SuccessFactors (company=SapiensQA). Its Israel search still yields no validated payload with the existing collector. Verify that this is the current production board before implementing a dedicated search/detail parser.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured marketing careers URL returns403, while careers.sapiens.com returns200 and links SuccessFactors company=SapiensQA. Replacement entry point is reachable; production tenant and detail mapping still need verification."
+    },
+    {
+      "identifier": "verint",
+      "company": "Verint",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:37.814371+00:00",
+      "collector_url": "https://www.verint.com/careers/",
+      "official_page": {
+        "requested_url": "https://www.verint.com/careers/",
+        "status": 200,
+        "final_url": "https://www.verint.com/careers/",
+        "response_bytes": 137582,
+        "sha256": "448ad8f602d75b5d602bd70796289ac1c5e39586ae4f738b92977411f2994b21",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Verint did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "unknown",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "adapter_discovery",
+        "finding": "Official careers page200, no structured vacancies exposed to current bounded collector. Follow the public job-search entry point and determine its ATS; no alternate verified feed yet.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200 but the current collector exposes no reliable vacancy payload. A current employer-linked ATS endpoint has not been verified; root cause remains discovery/adapter uncertainty."
+    },
+    {
+      "identifier": "oracle",
+      "company": "Oracle",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:40.003150+00:00",
+      "collector_url": "https://careers.oracle.com/jobs/",
+      "official_page": {
+        "requested_url": "https://careers.oracle.com/jobs/",
+        "status": 200,
+        "final_url": "https://careers.oracle.com/en/sites/jobsearch",
+        "response_bytes": 41871,
+        "sha256": "1136d55f5eeeffecacadd361ce9b0528a979bb8044e9d32c5d40529493b6c7f9",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Oracle did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "protocol_gap",
+        "finding": "Official URL now redirects to https://careers.oracle.com/en/sites/jobsearch. Oracle Cloud candidate UI is client-rendered; determine its public recruitingCE siteNumber and Israel filter, then add bounded list/detail requests.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official URL redirects to the Oracle client-rendered candidate site. The generic collector cannot enumerate valid jobs; public recruitingCE site/filter/detail mapping is missing."
+    },
+    {
+      "identifier": "sap-israel",
+      "company": "SAP",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:40.707489+00:00",
+      "collector_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+      "official_page": {
+        "requested_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+        "status": 403,
+        "final_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+        "response_bytes": 5511,
+        "sha256": "f49398f35a7222008479820ed9d6a4b6948c2721cecf48e370f327392f651fd6",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: SAP did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [
+        {
+          "identifier": "sap-israel",
+          "requested_url": "https://jobs.sap.com/search/?q=&locationsearch=Israel",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:38.471784+00:00",
+          "status": 403,
+          "final_url": "https://jobs.sap.com/search/?q=&locationsearch=Israel",
+          "response_bytes": 5572,
+          "sha256": "838cd56ed40315b8c3bfc3cf2afb4d6294ff0a9177bfb9066a53310018261dc1"
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Both configured Israel landing page and https://jobs.sap.com/search/?q=&locationsearch=Israel returned403. A usable employer-owned alternate has not been verified.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "dell",
+      "company": "Dell Technologies",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:40.975189+00:00",
+      "collector_url": "https://jobs.dell.com/",
+      "official_page": {
+        "requested_url": "https://jobs.dell.com/",
+        "status": 200,
+        "final_url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers",
+        "response_bytes": 220614,
+        "sha256": "406e480c8c32e7beddec382dcc0e1efc9aa6e62370f7e5ccccd79435fea62f65",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Dell Technologies did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "protocol_gap",
+        "finding": "Official careers URL redirects to https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers (Oracle candidate experience). The stale generic homepage route cannot enumerate vacancies; inspect its public Oracle recruitingCE site configuration.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official URL redirects to Dell Oracle CandidateExperience. The current generic adapter does not speak its recruiting protocol; this HTTP200 landing page is not a zero-job result."
+    },
+    {
+      "identifier": "analog-devices",
+      "company": "Analog Devices",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:43.529775+00:00",
+      "collector_url": "https://careers.analog.com/",
+      "official_page": {
+        "requested_url": "https://careers.analog.com/",
+        "error": "ReadTimeout: "
+      },
+      "collector_error": "PreserveExistingJobs: Analog Devices did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint failed: ReadTimeout: ",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "verified_no_israel",
+      "alternate_evidence": [
+        {
+          "identifier": "analog-devices",
+          "requested_url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:39.489772+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": "Israel"
+          },
+          "status": 200,
+          "final_url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "response_bytes": 515,
+          "sha256": "95af3fc8a3ab1d5c401e0079b9716ff554aa57faa108cfeda94f19c75c8853ba",
+          "total": 0,
+          "returned_rows": 0,
+          "facet_israel_present": false
+        },
+        {
+          "identifier": "analog-devices",
+          "requested_url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:39.543454+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": ""
+          },
+          "status": 200,
+          "final_url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "response_bytes": 13458,
+          "sha256": "53039d5b31b950a1a39d6ccdf11f9da968efd97b43fce56b839d26ab23e41cad",
+          "total": 850,
+          "returned_rows": 1,
+          "facet_israel_present": false
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "no_current_israel_evidence",
+        "finding": "Workday https://analogdevices.wd1.myworkdayjobs.com/External is reachable. Public Israel text search returned200 total0 and discovery exposed no Israel facet. Official analog.com request timed out; current Israel vacancies remain unverified, not an API-access failure.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "no Israel results observed for the exact audited Workday text query; employer-wide availability remains unknown",
+      "finding": "Public Workday transport works: the exact Israel text query returned total0; a one-row global discovery query reported total850 and no Israel facet. Verified only for this endpoint/query, not every employer recruitment channel. Current configured collector still fails.",
+      "zero_result_scope": {
+        "exhaustive_employer_inventory": false,
+        "verified_query_response": true,
+        "query": {
+          "appliedFacets": {},
+          "limit": 1,
+          "offset": 0,
+          "searchText": "Israel"
+        },
+        "endpoint": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs"
+      }
+    },
+    {
+      "identifier": "ericsson",
+      "company": "Ericsson",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:48.973873+00:00",
+      "collector_url": "https://www.ericsson.com/en/careers",
+      "official_page": {
+        "requested_url": "https://www.ericsson.com/en/careers",
+        "status": 403,
+        "final_url": "https://www.ericsson.com/en/careers",
+        "response_bytes": 5437,
+        "sha256": "c537c8e487f66643f49d6813713fa63493ee300310b710f72de40b4d8fe8f692",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Ericsson did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Configured official page403; no readable employer-linked structured board has been established in this pass. Needs additional official ATS discovery, not a claim of permanent blocking.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "nokia",
+      "company": "Nokia",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:39:49.184885+00:00",
+      "collector_url": "https://www.nokia.com/about-us/careers/",
+      "official_page": {
+        "requested_url": "https://www.nokia.com/about-us/careers/",
+        "status": 403,
+        "final_url": "https://www.nokia.com/about-us/careers/",
+        "response_bytes": 396,
+        "sha256": "d0de35f7243662495f99341762d2890f715d79bdffaa9abf55c4d84eb779e0ea",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Nokia did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Configured official page403; no readable employer-linked structured board has been established in this pass. Needs additional official ATS discovery, not a claim of permanent blocking.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "elspec",
+      "company": "Elspec",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:00.284028+00:00",
+      "collector_url": "https://www.elspec-ltd.com/careers/",
+      "official_page": {
+        "requested_url": "https://www.elspec-ltd.com/careers/",
+        "status": 403,
+        "final_url": "https://www.elspec-ltd.com/careers/",
+        "response_bytes": 52,
+        "sha256": "889403e5cfbb7981f7a26aced0d7492524e5397d6996f7fccd67562d2a4a71a3",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Elspec did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Configured official page403. A current employer-owned alternate or job feed has not been verified; do not infer that there are no vacancies.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "jabil-israel",
+      "company": "Jabil",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:03.891224+00:00",
+      "collector_url": "https://careers.jabil.com/",
+      "official_page": {
+        "requested_url": "https://careers.jabil.com/",
+        "status": 200,
+        "final_url": "https://careers.jabil.com/",
+        "response_bytes": 158406,
+        "sha256": "f2db2d6d4b24541ae67ee1baf7c122c2ebacfba77d96633e6aaa65a94792c040",
+        "ats_links": [
+          "https://jabil.wd5.myworkdayjobs.com/en-US/Jabil_Careers/introduceYourself"
+        ]
+      },
+      "collector_error": "PreserveExistingJobs: Jabil did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Public ATS links discovered, but current adapter does not return verified complete Israel vacancies; listed ATS needs a dedicated mapping.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "verified_no_israel",
+      "alternate_evidence": [
+        {
+          "identifier": "jabil-israel",
+          "requested_url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:40.017278+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": "Israel"
+          },
+          "status": 200,
+          "final_url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "response_bytes": 66,
+          "sha256": "a4301abdd83e7b05afb7f4b9a18ef53ebda836854a71d21e0112f677ac9e65eb",
+          "total": 0,
+          "returned_rows": 0,
+          "facet_israel_present": false
+        },
+        {
+          "identifier": "jabil-israel",
+          "requested_url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:40.590613+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": ""
+          },
+          "status": 200,
+          "final_url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "response_bytes": 19905,
+          "sha256": "fdbb6ca3f055f66011164d71658eee870ce2a0ea76b1ff3bf79121191c1482a8",
+          "total": 2000,
+          "returned_rows": 1,
+          "facet_israel_present": false
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "no_current_israel_evidence",
+        "finding": "Official page links jabil.wd5.myworkdayjobs.com/Jabil_Careers. Its public Israel search returned200 total0. Board transport is working, but no current Israel payload exists to verify the proposed normalization.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "no Israel results observed for the exact audited Workday text query; employer-wide availability remains unknown",
+      "finding": "Public Workday transport works: the exact Israel text query returned total0; a one-row global discovery query reported total2000 and no Israel facet. Verified only for this endpoint/query, not every employer recruitment channel. Current configured collector still fails.",
+      "zero_result_scope": {
+        "exhaustive_employer_inventory": false,
+        "verified_query_response": true,
+        "query": {
+          "appliedFacets": {},
+          "limit": 1,
+          "offset": 0,
+          "searchText": "Israel"
+        },
+        "endpoint": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs"
+      }
+    },
+    {
+      "identifier": "orcam",
+      "company": "OrCam",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:06.264119+00:00",
+      "collector_url": "https://www.orcam.com/en-us/careers/",
+      "official_page": {
+        "requested_url": "https://www.orcam.com/en-us/careers/",
+        "status": 200,
+        "final_url": "https://www.orcam.com/en-us/home",
+        "response_bytes": 288131,
+        "sha256": "ff171fc4529902ca0d4b7e22507fee3018973a360a7e177e81f5e54ba97c09c3",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: OrCam did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [
+        {
+          "identifier": "orcam",
+          "requested_url": "https://orcam.zohorecruit.com/careers",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:37.680169+00:00",
+          "status": 200,
+          "final_url": "https://orcam.zohorecruit.com/careers",
+          "response_bytes": 23108,
+          "sha256": "b751c3a13a6673de352e976d03ccadeb4482547b33af88c7706138308afbb0ab",
+          "jobid_link_count": 23
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official URL redirects to homepage, but public https://orcam.zohorecruit.com/careers returns many numeric jobid links. Exact jobid override was tried; existing JobPosting-only detail parser still returned no verified jobs. Implement Zoho public detail extraction with UUID/numeric identity and location checks.",
+        "reused_not_newly_reverified": true
+      },
+      "prior_detailed_evidence": {
+        "checked_at": "2026-09-25T12:17:45.389091+00:00",
+        "state": "payload_parse_verified_current_board_freshness_unresolved",
+        "reused_not_newly_reverified": true,
+        "samples": [
+          {
+            "id": "495289000003198070",
+            "description_characters": 467,
+            "posted_on": "06/01/2020"
+          },
+          {
+            "id": "495289000003088509",
+            "description_characters": 1174,
+            "posted_on": "05/13/2020"
+          }
+        ],
+        "identity_rule": "jobid query must equal embedded data.jobId; companyName must be OrCam.",
+        "description_rule": "Extract data={...} from inline script, convert JS hexadecimal escapes to JSON unicode and the observed escaped hyphen, json.JSONDecoder.raw_decode only, never execute JavaScript. Read jobDescriptionDetails[].richText.value.",
+        "warning": "Both sampled jobs date to2020 and original official career URL redirects to homepage. Confirm current employer ownership/linkage and active vacancy status before enabling."
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured careers URL redirects to the general homepage. Alternate Zoho board is live with23 jobid links; earlier full details verified IDs/country but sampled posting dates were2020. Current board linkage/freshness remains unresolved."
+    },
+    {
+      "identifier": "deep-instinct",
+      "company": "Deep Instinct",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:07.683966+00:00",
+      "collector_url": "https://www.deepinstinct.com/careers",
+      "official_page": {
+        "requested_url": "https://www.deepinstinct.com/careers",
+        "status": 200,
+        "final_url": "https://www.deepinstinct.com/careers",
+        "response_bytes": 132089,
+        "sha256": "0293188c67bb89c5fbfe553a03963482928763942e7fed7a197cdfab06cd286f",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Deep Instinct did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official page has inline open-role sections; search-indexed official content currently lists five overseas roles. Existing generic collector cannot extract them. Inspect bounded inline role detail blocks and explicit locations; do not treat a marketing biography mentioning Tel Aviv as job location.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200 but the generic collector cannot parse complete identity-bound inline vacancies. Earlier indexed foreign listings do not prove no Israel openings."
+    },
+    {
+      "identifier": "zim",
+      "company": "ZIM",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:09.794784+00:00",
+      "collector_url": "https://www.zim.com/careers/job-opportunities",
+      "official_page": {
+        "requested_url": "https://www.zim.com/careers/job-opportunities",
+        "status": 200,
+        "final_url": "https://www.zim.com/careers/job-opportunities",
+        "response_bytes": 120941,
+        "sha256": "16194123bcf48d913466b2e65079b126c401ed52ed2a94d020de89216749ed0e",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: ZIM did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [
+        {
+          "identifier": "zim",
+          "requested_url": "https://www.zim.com/api/v2/careers",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:37.876074+00:00",
+          "status": 200,
+          "final_url": "https://www.zim.com/api/v2/careers",
+          "response_bytes": 225645,
+          "sha256": "22781031c406f9ba39840e265e650e2b5e39e3b136209354523db90f07318aa6",
+          "payload_rows": 77,
+          "explicit_israel_rows": 10,
+          "israel_role_rows": 9,
+          "israel_full_description_rows": 9,
+          "sample_ids": [
+            "81.D6A",
+            "4C.C61",
+            "FB.272"
+          ]
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official page200 has /careers/job-opportunities/<id> links (e.g.6E909). Existing generic pattern does not validate a structured detail payload. Needs precise employer vacancy detail parser, not a new homepage scraper.",
+        "reused_not_newly_reverified": true
+      },
+      "prior_detailed_evidence": {
+        "checked_at": "2026-09-25T12:17:45.389091+00:00",
+        "state": "implementation_ready",
+        "reused_not_newly_reverified": true,
+        "identity_rule": "data[].uid is stable Comeet identity; bind only official ZIM/verified Comeet role URL. General application6E.909 has no location and is excluded. Also exclude Israel talent-pool row80.824 (General Application - Job Fairs Israel).",
+        "description_rule": "data[].details contain full Description and Requirements; preserve separate named sections. Explicit location.country=IL."
+      },
+      "inventory_conclusion": "9 current complete Israel role payloads verified in alternate official feed; talent-pool excluded",
+      "finding": "Configured collector fails, but the official public /api/v2/careers feed currently contains77 rows,10 explicit Israel rows including1 talent-pool row:9 real Israel roles have complete descriptions. The missing feed mapping is a demonstrated false negative."
+    },
+    {
+      "identifier": "ormat",
+      "company": "Ormat Technologies",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:09.991238+00:00",
+      "collector_url": "https://www.ormat.com/en/company/careers/",
+      "official_page": {
+        "requested_url": "https://www.ormat.com/en/company/careers/",
+        "status": 403,
+        "final_url": "https://www.ormat.com/en/company/careers/",
+        "response_bytes": 1367,
+        "sha256": "cb7ed63b280d8d254897cb55020daa9d0c3cf3383a786d99de19a174e4fe84d8",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Ormat Technologies did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Configured employer page403; no verified alternate ATS route was found during this pass. Additional employer-owned careers discovery remains open.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "ide-technologies",
+      "company": "IDE Technologies",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:10.794168+00:00",
+      "collector_url": "https://ide-tech.com/en/career/",
+      "official_page": {
+        "requested_url": "https://ide-tech.com/en/career/",
+        "status": 404,
+        "final_url": "https://ide-tech.com/en/career/",
+        "response_bytes": 60719,
+        "sha256": "4d67924d01ad8661c37b74d0d00b5f13de391134e33866c5cde7f06095f7b8e8",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: IDE Technologies did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 404; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [
+        {
+          "identifier": "ide-technologies",
+          "requested_url": "https://ide-tech.com/en/join-us/",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:36.748011+00:00",
+          "status": 200,
+          "final_url": "https://ide-tech.com/en/join-us/",
+          "response_bytes": 178718,
+          "sha256": "41a781c6b5ac34796903c2ab3f9954adfc136cb65eac260d00386a6d18ce03b7",
+          "identity_bound_cards": [
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2898",
+              "description_characters": 2177,
+              "locations": [
+                "Location: Kadima, Israel"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2952",
+              "description_characters": 2393,
+              "locations": [
+                "Location: Kadima, Israel (with global travel as required)"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2910",
+              "description_characters": 1234,
+              "locations": [
+                "Location: Kadima"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2882",
+              "description_characters": 2235,
+              "locations": [
+                "Location: Kadima"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2835",
+              "description_characters": 1482,
+              "locations": [
+                "Location: Kadima (on site)"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2877",
+              "description_characters": 1459,
+              "locations": [
+                "Location : Kadima (On site)"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2971",
+              "description_characters": 932,
+              "locations": [
+                "Location: Kadima"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2828",
+              "description_characters": 2995,
+              "locations": [
+                "Location: Kadima (on-site)"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2973",
+              "description_characters": 1370,
+              "locations": [
+                "Location: Haifa"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2968",
+              "description_characters": 1103,
+              "locations": [
+                "Location: Haifa/Hadera"
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2937",
+              "description_characters": 1802,
+              "locations": [
+                "Location: Kadima."
+              ]
+            },
+            {
+              "url": "https://ide-tech.com/en/join-us/?job=2944",
+              "description_characters": 1955,
+              "locations": [
+                "Location : Kadima (Willingness to travel abroad if necessary)"
+              ]
+            }
+          ]
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Replacement https://ide-tech.com/en/join-us/ returns200 with inline role sections and share links carrying numeric ?job= identifiers. Exact-ID hydration trial returned no JobPosting payload. Parse individual employer accordion/card sections with complete requirements and explicit location; mailto applications remain separate from collection.",
+        "reused_not_newly_reverified": true
+      },
+      "prior_detailed_evidence": {
+        "checked_at": "2026-09-25T12:17:45.389091+00:00",
+        "state": "implementation_ready",
+        "reused_not_newly_reverified": true,
+        "identity_rule": "Decode the employer URL in the card LinkedIn share href query.url; require ide-tech.com/en/join-us/?job=<digits>; never fetch the external sharing URL.",
+        "location_rule": "Use only paragraph or list item beginning Location:. All12 identity-bearing cards specify Kadima or Haifa/Hadera. Ignore India cards without a verified job ID.",
+        "selector": ".tab_job_list",
+        "title_selector": ".jobtitle",
+        "description_selector": ".jobtext"
+      },
+      "inventory_conclusion": "12 complete identity-bound role cards with explicit Israeli municipal locations verified on alternate official page",
+      "finding": "Configured /en/career/ returns404. Replacement /en/join-us/ currently exposes12 distinct employer job IDs with full role text and explicit Kadima/Haifa/Hadera location fields. URL replacement plus scoped inline parser is needed."
+    },
+    {
+      "identifier": "sodastream",
+      "company": "SodaStream",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:11.054137+00:00",
+      "collector_url": "https://sodastream.com/pages/careers",
+      "official_page": {
+        "requested_url": "https://sodastream.com/pages/careers",
+        "status": 404,
+        "final_url": "https://sodastream.com/pages/careers",
+        "response_bytes": 618518,
+        "sha256": "52886dde69d3d6b8ece3e2194b7e944066d80806f5bc85852c36c2172f2b047f",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: SodaStream did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 404; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "adapter_discovery",
+        "finding": "Configured /pages/careers returns404; careers.sodastream.com DNS lookup fails. Locate the current employer careers page/PepsiCo recruitment route and verify ownership before configuring it.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured careers URL returns404. Prior careers subdomain DNS failure is historical evidence only; a current employer-owned replacement recruitment route remains unverified."
+    },
+    {
+      "identifier": "delta-galil",
+      "company": "Delta Galil",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:12.073941+00:00",
+      "collector_url": "https://www.deltagalil.com/careers/",
+      "official_page": {
+        "requested_url": "https://www.deltagalil.com/careers/",
+        "status": 403,
+        "final_url": "https://www.deltagalil.com/careers/",
+        "response_bytes": 5433,
+        "sha256": "4a9b6aafb9aa9e2c2101cd9ecd33670973f8fa23d9e5f0b83be38a481387844e",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Delta Galil did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 403; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Configured employer page403; a readable current employer-owned job feed has not yet been verified. Additional alternate ATS discovery is needed.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured official endpoint returned HTTP403 during this audit. This is an access failure for the tested route, not proof of a permanent site-wide block or zero vacancies. No reachable alternate is verified in the retained evidence."
+    },
+    {
+      "identifier": "tnuva",
+      "company": "Tnuva",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:12.317591+00:00",
+      "collector_url": "https://www.tnuva.co.il/jobs/",
+      "official_page": {
+        "requested_url": "https://www.tnuva.co.il/jobs/",
+        "status": 200,
+        "final_url": "https://www.tnuva.co.il/jobs/",
+        "response_bytes": 212,
+        "sha256": "d02032286070b4dd9d8fbd985a7bdca8af8edf52b89ff177db3bfcb2c8a9c43d",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Tnuva did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official page200 does not expose job URLs/payloads to the static collector. Inspect the employer client-side recruitment widget/API and its job identity fields.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official jobs page returns200 but no reliable vacancy payload is produced. The employer recruitment widget/API and stable role identity mapping are missing."
+    },
+    {
+      "identifier": "unilever-israel",
+      "company": "Unilever Israel",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:12.870213+00:00",
+      "collector_url": "https://careers.unilever.com/en/israel",
+      "official_page": {
+        "requested_url": "https://careers.unilever.com/en/israel",
+        "status": 200,
+        "final_url": "https://careers.unilever.com/en/israel",
+        "response_bytes": 285279,
+        "sha256": "3f48153abccf674f9078b89506586b6cc3b1eb5e1e172822bb7181f21188b99b",
+        "ats_links": [
+          "https://unilever.wd3.myworkdayjobs.com/Unilever_Experienced_Professionals/userHome"
+        ]
+      },
+      "collector_error": "PreserveExistingJobs: Unilever Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Public ATS links discovered, but current adapter does not return verified complete Israel vacancies; listed ATS needs a dedicated mapping.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "verified_no_israel",
+      "alternate_evidence": [
+        {
+          "identifier": "unilever-israel",
+          "requested_url": "https://unilever.wd3.myworkdayjobs.com/wday/cxs/unilever/Unilever_Experienced_Professionals/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:40.756077+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": "Israel"
+          },
+          "status": 200,
+          "final_url": "https://unilever.wd3.myworkdayjobs.com/wday/cxs/unilever/Unilever_Experienced_Professionals/jobs",
+          "response_bytes": 515,
+          "sha256": "95af3fc8a3ab1d5c401e0079b9716ff554aa57faa108cfeda94f19c75c8853ba",
+          "total": 0,
+          "returned_rows": 0,
+          "facet_israel_present": false
+        },
+        {
+          "identifier": "unilever-israel",
+          "requested_url": "https://unilever.wd3.myworkdayjobs.com/wday/cxs/unilever/Unilever_Experienced_Professionals/jobs",
+          "method": "POST",
+          "checked_at": "2026-09-25T14:41:41.199398+00:00",
+          "query": {
+            "appliedFacets": {},
+            "limit": 1,
+            "offset": 0,
+            "searchText": ""
+          },
+          "status": 200,
+          "final_url": "https://unilever.wd3.myworkdayjobs.com/wday/cxs/unilever/Unilever_Experienced_Professionals/jobs",
+          "response_bytes": 14393,
+          "sha256": "483646e3683b8381b68dd4d2829df2e2bc4b41eea7df77165c6bbcc95246ba34",
+          "total": 248,
+          "returned_rows": 1,
+          "facet_israel_present": false
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "no_current_israel_evidence",
+        "finding": "Official page links unilever.wd3.myworkdayjobs.com/Unilever_Experienced_Professionals. Workday Israel text search returned200 total0 and no Israel facet. Do not label the working endpoint blocked; no current Israel vacancy was independently verified.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "no Israel results observed for the exact audited Workday text query; employer-wide availability remains unknown",
+      "finding": "Public Workday transport works: the exact Israel text query returned total0; a one-row global discovery query reported total248 and no Israel facet. Verified only for this endpoint/query, not every employer recruitment channel. Current configured collector still fails.",
+      "zero_result_scope": {
+        "exhaustive_employer_inventory": false,
+        "verified_query_response": true,
+        "query": {
+          "appliedFacets": {},
+          "limit": 1,
+          "offset": 0,
+          "searchText": "Israel"
+        },
+        "endpoint": "https://unilever.wd3.myworkdayjobs.com/wday/cxs/unilever/Unilever_Experienced_Professionals/jobs"
+      }
+    },
+    {
+      "identifier": "loreal-israel",
+      "company": "L'Oréal Israel",
+      "track": "iem",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:15.279106+00:00",
+      "collector_url": "https://careers.loreal.com/",
+      "official_page": {
+        "requested_url": "https://careers.loreal.com/",
+        "status": 200,
+        "final_url": "https://careers.loreal.com/en_US/content",
+        "response_bytes": 222065,
+        "sha256": "430cb6872e73468aa23c61f1f03daa107902400ab380bb189196f17a5aa28d97",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: L'Oréal Israel did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "protocol_gap",
+        "finding": "Official careers URL redirects to /en_US/content, a global landing page rather than job results. Follow its public job-search route and implement a bounded Israel filter/details mapping.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured route resolves to a global content landing page. A bounded public search/detail mapping with an explicit Israel filter is missing."
+    },
+    {
+      "identifier": "rambam",
+      "company": "Rambam",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:17.315481+00:00",
+      "collector_url": "https://www.rambam.org.il/about-rambam/careers/",
+      "official_page": {
+        "requested_url": "https://www.rambam.org.il/about-rambam/careers/",
+        "status": 200,
+        "final_url": "https://www.rambam.org.il/about-rambam/careers/",
+        "response_bytes": 381024,
+        "sha256": "85830750346ba4635237953e2f7c30083cbbb49f619c94c17783c09dd5918f12",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Rambam did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official careers page lists categories. IT category /about-rambam/careers/digital-it-jobs/ also failed structured collection. Inspect individual vacancy/attachment content; category pages must never become jobs.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200 and prior evidence shows category pages. The reader needs individual vacancy or attachment details; categories must not be emitted as jobs."
+    },
+    {
+      "identifier": "hadassah",
+      "company": "Hadassah",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:18.514649+00:00",
+      "collector_url": "https://he.hadassah.org.il/wanted/careers/",
+      "official_page": {
+        "requested_url": "https://he.hadassah.org.il/wanted/careers/",
+        "status": 200,
+        "final_url": "https://he.hadassah.org.il/wanted/careers/",
+        "response_bytes": 365466,
+        "sha256": "0add9d4b7da3a6cc9cedc0bbe38a4e752c12e36ef47af39af00d93ef860fc93d",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Hadassah did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Exact /wanted/position-<number>/ pages are readable and contain vacancy text, but only BreadcrumbList schema. The exact-ID trial returns no jobs as designed. Add a narrow heading/body parser that excludes footer/navigation and records explicit role requirements.",
+        "reused_not_newly_reverified": true
+      },
+      "prior_detailed_evidence": {
+        "checked_at": "2026-09-25T12:17:45.389091+00:00",
+        "state": "reader_available_requires_expiry_handling",
+        "reused_not_newly_reverified": true,
+        "positive_sample": {
+          "id": "1680",
+          "url": "https://he.hadassah.org.il/wanted/position-1680/",
+          "description_characters": 1366,
+          "location_evidence": "Role paragraph explicitly says Hadassah Ein Kerem",
+          "start_date_evidence": "January2027"
+        },
+        "expired_sample": {
+          "id": "1524",
+          "url": "https://he.hadassah.org.il/wanted/position-1524/",
+          "deadline": "2026-08-17",
+          "warning": "Still listed but explicit deadline elapsed; do not treat accessibility as open-job proof."
+        },
+        "identity_rule": "/wanted/position-<digits>/",
+        "title_selector": "h1[class*=\"category-hero-banner_title\"]",
+        "description_selector": "[class*=\"view-renderer_wrapper\"] > [class*=\"quill-viewer_container\"]"
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200; precise position IDs and full detail text were verified earlier. Current generic parser misses them. Earlier sample1680 names Ein Kerem and a Jan2027 start; sample1524 had an expired Aug17 deadline, so a new reader needs expiry safeguards."
+    },
+    {
+      "identifier": "meuhedet",
+      "company": "Meuhedet",
+      "track": "cs",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:18.527164+00:00",
+      "collector_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+      "official_page": {
+        "requested_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+        "status": 200,
+        "final_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+        "response_bytes": 18182,
+        "sha256": "76861b04037225ca916b950bef1c4a9333971089961525a6ab917a41492f3673",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Meuhedet did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "adapter_discovery",
+        "finding": "Configured English careers page lists employer-information sections, not vacancies. Locate its current Hebrew job-search application and verify its public feed before activation.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured English careers page is employer information, not a verified vacancy search. The current Hebrew recruitment entry point/feed is unverified."
+    },
+    {
+      "identifier": "assuta",
+      "company": "Assuta Medical Centers",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:19.129990+00:00",
+      "collector_url": "https://www.assuta.co.il/about/jobs/",
+      "official_page": {
+        "requested_url": "https://www.assuta.co.il/about/jobs/",
+        "status": 404,
+        "final_url": "https://www.assuta.co.il/about/jobs/",
+        "response_bytes": 38473,
+        "sha256": "c179e7db3cb9b4b9ab19215ce5b1936756a50cd3a74eccb764337da0a89d0d5e",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Assuta Medical Centers did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 404; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "blocked",
+      "alternate_evidence": [
+        {
+          "identifier": "assuta",
+          "requested_url": "https://www.assuta.co.il/jobs/",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:38.530188+00:00",
+          "status": 200,
+          "final_url": "https://validate.perfdrive.com/",
+          "response_bytes": 15044,
+          "sha256": "de1b3e52a1e83c0a9a7187bf9b4bc16d18c69ddab644adc3cf1b785eb3537540",
+          "access_challenge_detected": true,
+          "redaction_note": "Ephemeral validation query parameters omitted; no challenge bypass."
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "access_observed",
+        "finding": "Old URLs404; https://www.assuta.co.il/jobs/ was found on the employer page but redirects to a Radware/PerfDrive bot challenge. No challenge bypass attempted. A public alternate ATS or accessible route is needed.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured old URL returns404. Employer-linked /jobs/ responds via a PerfDrive/Radware validation challenge (HTTP200 challenge, not vacancy content). No bypass attempted."
+    },
+    {
+      "identifier": "bezeq",
+      "company": "Bezeq",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:19.820490+00:00",
+      "collector_url": "https://www.bezeq.co.il/career/",
+      "official_page": {
+        "requested_url": "https://www.bezeq.co.il/career/",
+        "status": 200,
+        "final_url": "https://www.bezeq.co.il/career_new/",
+        "response_bytes": 206802,
+        "sha256": "6d66271a5699b46bef11955ea31e6fe9dbf2dd918b109601a42de338e385ab38",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Bezeq did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Configured route redirects to /career_new/ and returns200 but no static job payload. Inspect the current public client-side recruitment API; old generic route has no reliable job identities.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured route redirects to /career_new/ withHTTP200. Its public recruitment API and stable vacancy identities are not implemented in the generic adapter."
+    },
+    {
+      "identifier": "cellcom",
+      "company": "Cellcom",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:19.939856+00:00",
+      "collector_url": "https://www.cellcom.co.il/career/",
+      "official_page": {
+        "requested_url": "https://www.cellcom.co.il/career/",
+        "status": 200,
+        "final_url": "https://cellcom.co.il/career/",
+        "response_bytes": 3815,
+        "sha256": "5ce34cb711606c1c989fd77d4de31ca5c9296e2b14835aae235879fa27e1547d",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Cellcom did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official careers page200, no static vacancy links recognized. Discover the employer recruitment widget/API rather than enabling the navigation-only response.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200 but current static parsing produces no valid vacancies. Recruitment widget/API discovery and mapping remain missing."
+    },
+    {
+      "identifier": "partner",
+      "company": "Partner",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:20.507035+00:00",
+      "collector_url": "https://www.partner.co.il/n/career",
+      "official_page": {
+        "requested_url": "https://www.partner.co.il/n/career",
+        "status": 404,
+        "final_url": "https://www.partner.co.il/n/career",
+        "response_bytes": 2032,
+        "sha256": "809dfb2043571e3dee3b3f9f2cf3258ca4f7a84f7bf715a2663a34d37aa233e4",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Partner did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official endpoint returned HTTP 404; no verified replacement collector.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "wrong_url",
+      "alternate_evidence": [
+        {
+          "identifier": "partner",
+          "requested_url": "https://www.partner.co.il/career/",
+          "method": "GET",
+          "checked_at": "2026-09-25T14:41:39.181747+00:00",
+          "status": 404,
+          "final_url": "https://www.partner.co.il/career/",
+          "response_bytes": 2032,
+          "sha256": "809dfb2043571e3dee3b3f9f2cf3258ca4f7a84f7bf715a2663a34d37aa233e4"
+        }
+      ],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "adapter_discovery",
+        "finding": "Both /n/career and /career/ return404. Locate a current official recruitment entry point before implementing its adapter.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured /n/career and checked alternate /career/ both return404. A current official recruitment entry point has not been verified."
+    },
+    {
+      "identifier": "hot",
+      "company": "HOT",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:20.529125+00:00",
+      "collector_url": "https://www.hot.net.il/heb/career/",
+      "official_page": {
+        "requested_url": "https://www.hot.net.il/heb/career/",
+        "status": 200,
+        "final_url": "https://www.hot.net.il/heb/careersearch/",
+        "response_bytes": 97634,
+        "sha256": "0808d1fe4257ffc2efe4302d07bc596295f70693901d710befa10751c0ef6ce5",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: HOT did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official route redirects to /heb/careersearch/ with200. Current static parser exposes no reliable job payload; inspect the public search form/endpoint and individual job details.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Configured route resolves to /heb/careersearch/ withHTTP200. Its search endpoint/detail payload is not handled by the current collector."
+    },
+    {
+      "identifier": "iec",
+      "company": "Israel Electric Corporation",
+      "track": "ee",
+      "enabled_default": false,
+      "checked_at": "2026-09-25T14:40:20.655975+00:00",
+      "collector_url": "https://www.iec.co.il/careers",
+      "official_page": {
+        "requested_url": "https://www.iec.co.il/careers",
+        "status": 200,
+        "final_url": "https://www.iec.co.il/careers",
+        "response_bytes": 36492,
+        "sha256": "5fc7b74e46c341aba5cc53b3d633c7426fd3ae46aff41544a230466498bd18e4",
+        "ats_links": []
+      },
+      "collector_error": "PreserveExistingJobs: Israel Electric Corporation did not expose a reliable job payload; preserving the last successful snapshot",
+      "total_rows": null,
+      "israel_rows": null,
+      "state": "unresolved",
+      "blocker": "Official page reachable, but existing adapter cannot extract a reliable structured vacancy payload; custom/client-rendered job data needs a dedicated adapter.",
+      "current_adapter_outcome": "failed_preserved_existing_jobs",
+      "category": "parser_missing",
+      "alternate_evidence": [],
+      "prior_evidence": {
+        "checked_at": "2026-09-25T11:25:09.223668+00:00",
+        "report": "pending_sources_followup_2026-09-25.json",
+        "category": "parser_gap",
+        "finding": "Official careers page200 is a client-side shell without recognized vacancy payload. Inspect its public listing API and fixed job identifiers before activation.",
+        "reused_not_newly_reverified": true
+      },
+      "inventory_conclusion": "unknown; collector failure is not evidence of zero vacancies",
+      "finding": "Official careers page returns200 as a client-rendered shell; no validated listing API and detail mapping is currently configured."
+    }
+  ]
+}

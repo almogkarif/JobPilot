@@ -8,7 +8,7 @@ from app.collectors.workday import EXPANSION_WORKDAY_IDENTIFIERS
 
 from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
 
-VERIFIED_OFFICIAL = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+VERIFIED_OFFICIAL = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
 
 
 def test_expansion_contains_exactly_100_distinct_employers_across_all_tracks():
@@ -19,7 +19,7 @@ def test_expansion_contains_exactly_100_distinct_employers_across_all_tracks():
 
 def test_only_verified_structured_sources_are_enabled():
     enabled = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
-    assert len(enabled) == 67
+    assert len(enabled) == 69
     assert all(item["validation_status"] == "verified" for item in enabled)
     assert all(
         item["kind"] in {"greenhouse", "lever", "smartrecruiters"}
@@ -37,7 +37,7 @@ def test_only_verified_structured_sources_are_enabled():
 def test_expansion_keeps_scheduled_scan_growth_bounded_by_track():
     active_counts = Counter(item["track"] for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"])
     assert active_counts["cs"] <= 54
-    assert active_counts["iem"] <= 3
+    assert active_counts["iem"] <= 5
     assert active_counts["ee"] <= 10
 
 

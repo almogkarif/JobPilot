@@ -1,0 +1,269 @@
+{
+  "checked_at": "2026-09-25T15:07:38.044463+00:00",
+  "scope": "Verified ZIM and IDE repair following historical33-source audit; original audit is unchanged.",
+  "previous_audit": "pending_sources_scan_2026-09-25.json",
+  "sources": [
+    {
+      "identifier": "zim",
+      "checked_at": "2026-09-25T15:06:30.005448+00:00",
+      "collector_url": "https://www.zim.com/api/v2/careers",
+      "total_rows": 73,
+      "israel_rows": 9,
+      "full_descriptions": 73,
+      "snapshot_complete": false,
+      "sample_public_url": "https://www.zim.com/careers/job-opportunities/81D6A",
+      "sample_public_response_bytes": 109812,
+      "jobs": [
+        {
+          "id": "81.D6A",
+          "title": "Assistant Controller CPA",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/81D6A",
+          "description_characters": 1416,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T14:36:01+00:00"
+          }
+        },
+        {
+          "id": "4C.C61",
+          "title": "B2B Marketing Specialist",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/4CC61",
+          "description_characters": 2211,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T07:26:00+00:00"
+          }
+        },
+        {
+          "id": "FB.272",
+          "title": "Booking Coordinator",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/FB272",
+          "description_characters": 659,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-24T18:01:48+00:00"
+          }
+        },
+        {
+          "id": "21.F64",
+          "title": "Customer Service Coordinator (20001596)",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/21F64",
+          "description_characters": 1390,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T13:27:06+00:00"
+          }
+        },
+        {
+          "id": "D6.07C",
+          "title": "FP&A Analyst",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/D607C",
+          "description_characters": 1646,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-24T20:15:06+00:00"
+          }
+        },
+        {
+          "id": "D9.E6B",
+          "title": "HRIS Specialist",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/D9E6B",
+          "description_characters": 2589,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-24T18:11:37+00:00"
+          }
+        },
+        {
+          "id": "C6.07E",
+          "title": "Logistics Coordinator",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/C607E",
+          "description_characters": 1872,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T06:15:16+00:00"
+          }
+        },
+        {
+          "id": "51.F6F",
+          "title": "Projects Oriented Manager -Finance",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/51F6F",
+          "description_characters": 3659,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T01:01:02+00:00"
+          }
+        },
+        {
+          "id": "07.072",
+          "title": "Treasury analyst",
+          "location": "Haifa, Israel",
+          "url": "https://www.zim.com/careers/job-opportunities/07072",
+          "description_characters": 2680,
+          "published_at": null,
+          "metadata": {
+            "source_updated_at": "2026-09-25T13:12:12+00:00"
+          }
+        }
+      ],
+      "sample_detail_api_identity_match": true
+    },
+    {
+      "identifier": "ide-technologies",
+      "checked_at": "2026-09-25T15:06:37.459554+00:00",
+      "collector_url": "https://ide-tech.com/en/join-us/",
+      "total_rows": 12,
+      "israel_rows": 12,
+      "full_descriptions": 12,
+      "snapshot_complete": false,
+      "sample_public_url": "https://ide-tech.com/en/join-us/?job=2898",
+      "sample_public_response_bytes": 178437,
+      "jobs": [
+        {
+          "id": "2898",
+          "title": "Piping Design Team Leader",
+          "location": "Kadima, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2898",
+          "description_characters": 2159,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2952",
+          "title": "Electrical, Instrumentation & Control Department Manager",
+          "location": "Kadima, Israel (with global travel as required)",
+          "url": "https://ide-tech.com/en/join-us/?job=2952",
+          "description_characters": 2375,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2910",
+          "title": "SW Process Engineer",
+          "location": "Kadima, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2910",
+          "description_characters": 1216,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2882",
+          "title": "Product Manager – Water Treatment",
+          "location": "Kadima, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2882",
+          "description_characters": 2217,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2835",
+          "title": "Instrumentation Engineer",
+          "location": "Kadima (on site), Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2835",
+          "description_characters": 1464,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2877",
+          "title": "Project Engineer",
+          "location": "Kadima (On site), Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2877",
+          "description_characters": 1451,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2971",
+          "title": "Piping Designer",
+          "location": "Kadima, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2971",
+          "description_characters": 914,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2828",
+          "title": "Process Engineering – Team Leader",
+          "location": "Kadima (on-site), Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2828",
+          "description_characters": 2977,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2973",
+          "title": "R&D Pilots Engineer",
+          "location": "Haifa, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2973",
+          "description_characters": 1352,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2968",
+          "title": "R&D – Student Position",
+          "location": "Haifa/Hadera, Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2968",
+          "description_characters": 1084,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2937",
+          "title": "Process Engineer – Water Treatment",
+          "location": "Kadima., Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2937",
+          "description_characters": 1784,
+          "published_at": null,
+          "metadata": {}
+        },
+        {
+          "id": "2944",
+          "title": "Experienced Procurement Buyer",
+          "location": "Kadima (Willingness to travel abroad if necessary), Israel",
+          "url": "https://ide-tech.com/en/join-us/?job=2944",
+          "description_characters": 1937,
+          "published_at": null,
+          "metadata": {}
+        }
+      ]
+    }
+  ],
+  "constraints": {
+    "public_requests_per_scan": 2,
+    "max_response_bytes": 4000000,
+    "max_zim_rows": 200,
+    "max_ide_cards": 40,
+    "max_description_characters": 24000,
+    "browser_control": false,
+    "database_requests": 0,
+    "applications_sent": 0
+  },
+  "outcome": {
+    "enabled_expansion_sources": 69,
+    "remaining_pending": 31,
+    "identity_migration": false,
+    "snapshots_complete": false,
+    "notes": [
+      "ZIM excludes general application and job-fair talent pools; composite Comeet IDs are preserved.",
+      "IDE IDs and role URLs come from the employer copy-link data-job-url field; descriptions exclude application/share controls.",
+      "ZIM time_updated is update metadata, never published_at. IDE has no published date and retains None.",
+      "Both source kind and identifier remain unchanged. Existing user overrides are handled by the existing installer, not rewritten here."
+    ]
+  },
+  "tests": {
+    "command": ".venv/bin/pytest -q tests/test_zim_ide_collectors.py tests/test_pending_source_audit.py tests/test_pending_source_batch2.py tests/test_source_expansion_v053.py tests/test_official_collector_titles.py tests/test_supabase_egress_optimization.py",
+    "passed": 131,
+    "failed": 0,
+    "skipped": 0
+  }
+}

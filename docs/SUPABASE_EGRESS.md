@@ -658,5 +658,88 @@ payloads are read by consolidation; shadows remain byte-for-byte unchanged.
 Completed receipts make subsequent read-only preflights return after two small
 metadata queries, without repeating the pre-migration counterpart checks.
 
-This was readiness validation only. The committing migration has not been run;
-it still requires a quiesced web service, idle workers and a rollback rehearsal.
+The committing migration subsequently passed in run 36144987985, attempt 2,
+on 25 September at 14:19 UTC (`dry_run=false`), after the rollback rehearsal.
+It consolidated 413 source rows to 269 identities (including hidden/retired
+entries), and 2,723 job rows to 2,363 canonical jobs. It preserved 143
+applications and 12,049 ranking rows. The user verified 260 visible sources
+after resuming the web service. Before the next explicit scan, the user read
+3.276 GB Egress in Supabase Usage; scan run 36148654767 was started once.
+
+### Scan lifecycle and metadata audit — 25 September 2026
+
+The retained Outbrain board identifier now resolves to the employer-confirmed
+Teads board inside the existing Greenhouse request. This adds zero requests,
+source identities or database reads; the returned postings remain subject to the
+same 2,000/source, 20,000/scan and daily transfer guards. Source history is retained.
+
+Unchanged-job reads now return two additional SQL-computed booleans: whether the
+company/application/source URLs changed, and whether a canonical job belongs to
+any track. The text columns themselves are not downloaded. These reuse the
+existing one-row lookup, add zero database round trips, and avoid reclassification
+or ranking invalidation when only navigation metadata changes. Counts distinguish
+worldwide rows, Israel rows, track matches, actual updates and unchanged jobs.
+
+The reservation includes an extra 128 bytes per posting before the existing 2x
+allowance. At the 20,000-posting scan cap the incremental reservation is at most
+5.12 MB/scan (122.88 MB/day if 24 full scans could fit); the existing shared
+64 MiB/day ledger still limits total catalog transfer, so full hourly scans can be
+deferred. The metadata regression in `test_supabase_egress_optimization.py`
+checks the exact reservation increment and that descriptions/URLs/company text
+are not selected as result columns.
+
+End-of-scan freshness expiry uses two SQL bulk updates with no returned job bodies
+or per-job loop. At hourly scheduling this is at most 48 statements/day; allowing
+2 KB protocol overhead per scan is about 48 KB/day, 1.44 MB/30 days. It runs only
+at scan completion, never startup or UI polling. Historical job/application rows
+are preserved; stale source identities and their unsupported jobs become inactive.
+
+Unchanged postings additionally use a bounded 100-ID fast path: SQL compares the
+incoming fingerprints, classifier version and navigation metadata, returning only
+external ID and a track-match boolean for unchanged active jobs. One bulk UPDATE
+refreshes the returned identities' timestamps. Changed/new/inactive or ambiguous
+aliases retain the existing fallback. No descriptions, URLs, company names or
+classification bodies are returned. Returned rows remain inside the existing
+per-source reservation and 20,000-posting global cap; this reduces the normal
+projection rather than adding a second successful job projection.
+
+For S processed sources and N postings, fast-path SELECT calls are at most
+`ceil(N/100) + S`; timestamp updates have the same bound, with zero per-job calls
+for unchanged unambiguous postings. Empty/changed pages return no matching rows.
+At the current 260-source ceiling and 20,000 postings this is conservatively at
+most 460 SELECTs and 460 timestamp statements per scan (22,080/day at 24 scans),
+subject to the existing daily transfer cap. New/changed fallback costs are
+unchanged plus the bounded empty-match probes. The regression compares 1 against
+101 unchanged jobs and permits only one extra page's three statements, including
+the existing cumulative-observation insert. Missing jobs and TTL still preserve
+personal submission history.
+
+### ZIM and IDE verified reader repair — 25 September 2026
+
+The two existing `official_careers` identities now use one bounded public request
+each: ZIM's official JSON feed (at most 200 rows) and IDE's inline vacancy cards
+(at most 40 cards). Both responses are capped at 4 MB and each complete normalized
+description at 24,000 characters. Empty, invalid or identity-conflicting payloads
+preserve existing jobs; all successful snapshots remain partial. Publication dates
+are never inferred from a feed update timestamp or collection time.
+
+Incremental public-employer ceiling: 2 requests and 240 rows/scan, 48 requests/day
+and 1,440/30 days at hourly scheduling; at the response cap this is 8 MB/scan,
+192 MB/day and 5.76 GB/30 days of employer traffic, not Supabase egress. Across the
+three verified repair batches the ceiling is 609 requests and 4,800 normalized
+rows/scan, excluding earlier adapters' bounded redirect hops. Live verification
+returned ZIM 73 complete roles / 9 Israel roles and IDE 12 / 12; talent pools are
+excluded. Expansion defaults are now 69 enabled (CS54, EE10, IEM5), 31 pending.
+
+No new Supabase query shape, returned column, startup read or polling is added.
+Persistence uses the existing compact comparison and daily reservation guard,
+with at most two additional source reservations/scan (48/day). Using the database
+field limits (255 UTF-8 ID characters, 40 track characters), 240 Israel rows, and
+the existing 10,000-identity bound per source, the existing reservation formula
+bounds these two sources at 2,462,464 bytes/scan, about 59.1 MB/day or 1.773 GB/30
+days before the shared 64 MiB/day guard limits all sources together. This is a
+conservative reservation, not a measured transfer; unchanged-row comparisons
+usually return much less. Job descriptions are not selected for unchanged scans.
+Regression coverage: `test_new_source_expansion_does_not_enable_unbounded_official_pages`
+and `tests/test_zim_ide_collectors.py` enforce the request path, row/response/content
+bounds, identity/location rules, missing dates and partial snapshot behavior.

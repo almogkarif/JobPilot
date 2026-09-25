@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import httpx
-from .base import NormalizedJob
+from .base import NormalizedJob, PreserveExistingJobs
 from ..utils import html_to_text, parse_datetime
 
 
@@ -15,6 +15,8 @@ class AshbyCollector:
             response.raise_for_status()
             payload = response.json()
 
+        if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
+            raise PreserveExistingJobs("Ashby returned an unrecognized job-list payload")
         jobs: list[NormalizedJob] = []
         for item in payload.get("jobs", []):
             location = item.get("location") or ""
