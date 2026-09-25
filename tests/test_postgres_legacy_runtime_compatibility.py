@@ -129,3 +129,44 @@ def test_legacy_postgres_orm_works_without_canonical_migration(pg_catalog, monke
             except ProgrammingError:
                 pass  # Revoked grants and default-deny RLS both keep the rows private.
             connection.execute(text("RESET ROLE"))
+
+
+def test_web_waits_for_overlapping_old_instance_then_upgrades_before_orm(pg_catalog, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    engine, _, _ = pg_catalog
+    monkeypatch.setattr(database, "engine", engine)
+    waiting, released = Event(), Event()
+
+    def wait(_seconds):
+        waiting.set()
+        assert released.wait(10), "Test migration owner never released its lock"
+
+    monkeypatch.setattr(database, "sleep", wait)
+
+    def start_web():
+        database.ensure_compatibility_columns()
+        with Session(engine) as db:
+            # Startup's first Source ORM read previously crashed on missing columns.
+            return len(db.scalars(select(Source)).all())
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        try:
+            with engine.begin() as owner:
+                owner.execute(text(
+                    "SELECT pg_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
+                ))
+                future = pool.submit(start_web)
+                assert waiting.wait(10), "Web startup did not retry the busy migration lock"
+                assert not future.done()
+                assert "canonical_source_id" not in {
+                    column["name"] for column in inspect(owner).get_columns("sources")
+                }
+                # An older instance may release its lock without adding new columns.
+        finally:
+            released.set()
+        assert future.result(timeout=30) == 2
+    assert "canonical_source_id" in {
+        column["name"] for column in inspect(engine).get_columns("sources")
+    }

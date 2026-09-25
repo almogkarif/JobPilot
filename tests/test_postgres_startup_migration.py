@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import app.database as database_module
 from app.config import settings
 
@@ -161,35 +163,52 @@ def test_postgres_startup_skips_migration_when_another_instance_holds_lock(monke
     assert "pg_advisory_xact_lock(" not in connection.statements[0]
 
 
-def test_ensure_compatibility_skips_followups_when_postgres_lock_is_busy(monkeypatch):
-    class _Dialect:
-        name = "postgresql"
+@pytest.mark.parametrize("lock_released", [False, True])
+def test_ensure_compatibility_waits_outside_transaction_or_stops_startup(monkeypatch, lock_released):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
 
-    class _Begin:
-        def __enter__(self):
-            return object()
+    active = False
+    attempts = []
+    sleeps = []
+    followups = []
 
-        def __exit__(self, exc_type, exc, tb):
-            return False
+    @contextmanager
+    def begin():
+        nonlocal active
+        assert not active
+        active = True
+        try:
+            yield object()
+        finally:
+            active = False
 
-    class _Engine:
-        dialect = _Dialect()
+    def migrate(connection):
+        assert active
+        attempts.append(connection)
+        return lock_released and len(attempts) == 3
 
-        def begin(self):
-            return _Begin()
+    def wait(seconds):
+        assert not active, "Never hold a database transaction/connection while waiting"
+        sleeps.append(seconds)
+        assert followups == []
 
-    followups: list[object] = []
-    monkeypatch.setattr(database_module, "engine", _Engine())
-    monkeypatch.setattr(database_module, "_postgres_multiuser_migration", lambda _connection: False)
-    monkeypatch.setattr(
-        database_module,
-        "_migrate_plaintext_application_passwords",
-        lambda connection: followups.append(connection),
-    )
-
-    database_module.ensure_compatibility_columns()
-
-    assert followups == []
+    monkeypatch.setattr(database_module, "engine", SimpleNamespace(
+        dialect=SimpleNamespace(name="postgresql"), begin=begin))
+    monkeypatch.setattr(database_module, "_SCHEMA_LOCK_ATTEMPTS", 3)
+    monkeypatch.setattr(database_module, "sleep", wait)
+    monkeypatch.setattr(database_module, "_postgres_multiuser_migration", migrate)
+    monkeypatch.setattr(database_module, "_migrate_plaintext_application_passwords", followups.append)
+    if lock_released:
+        database_module.ensure_compatibility_columns()
+        assert followups == [attempts[-1]]
+    else:
+        with pytest.raises(RuntimeError, match="startup stopped before ORM access"):
+            database_module.ensure_compatibility_columns()
+        assert followups == []
+    assert len(attempts) == 3
+    assert sleeps == [database_module._SCHEMA_LOCK_RETRY_SECONDS] * 2
+    assert not active
 
 
 def test_scan_worker_guard_skips_existing_source_fingerprint_index(monkeypatch):

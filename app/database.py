@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from time import sleep
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -20,6 +21,8 @@ connect_args = {"check_same_thread": False} if database_url.startswith("sqlite")
 engine = create_engine(database_url, connect_args=connect_args, future=True, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 logger = logging.getLogger(__name__)
+_SCHEMA_LOCK_ATTEMPTS = 31
+_SCHEMA_LOCK_RETRY_SECONDS = 2
 
 
 class Base(DeclarativeBase):
@@ -510,17 +513,12 @@ def _postgres_multiuser_migration(connection) -> bool:
     # Serialize JobPilot schema migrations with each other without ever blocking on
     # the advisory lock. Render may briefly overlap old/new instances during a deploy;
     # a blocking pg_advisory_xact_lock can then wait until Supabase statement_timeout
-    # cancels the transaction and aborts application startup. If another instance owns
-    # the lock, it is already responsible for this additive compatibility pass, so this
-    # instance can safely continue startup and retry on a later restart/deploy.
+    # cancels the transaction and aborts application startup. The caller retries in a
+    # fresh transaction on contention; it must not start ORM work before this succeeds.
     migration_lock_acquired = bool(connection.execute(text(
         "SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
     )).scalar())
     if not migration_lock_acquired:
-        logger.warning(
-            "PostgreSQL compatibility migration is already running in another instance; "
-            "skipping this startup migration pass"
-        )
         return False
 
     inspector = inspect(connection)
@@ -740,14 +738,26 @@ def _migrate_plaintext_application_passwords(connection) -> None:
 
 def ensure_compatibility_columns() -> None:
     """Apply additive compatibility migrations for local and cloud installations."""
-    with engine.begin() as connection:
-        run_followup_migrations = True
-        if engine.dialect.name == "sqlite":
-            _sqlite_additive_migrations(connection)
-        elif engine.dialect.name == "postgresql":
-            run_followup_migrations = _postgres_multiuser_migration(connection)
-        if run_followup_migrations:
-            _migrate_plaintext_application_passwords(connection)
+    for attempt in range(_SCHEMA_LOCK_ATTEMPTS):
+        with engine.begin() as connection:
+            run_followup_migrations = True
+            if engine.dialect.name == "sqlite":
+                _sqlite_additive_migrations(connection)
+            elif engine.dialect.name == "postgresql":
+                run_followup_migrations = _postgres_multiuser_migration(connection)
+            if run_followup_migrations:
+                _migrate_plaintext_application_passwords(connection)
+                return
+        # Release the transaction and pooled connection while waiting. Always run our
+        # own compatibility pass: the lock owner may be an older application version.
+        if attempt == 0:
+            logger.warning("Waiting for another instance to finish the PostgreSQL schema migration")
+        if attempt + 1 < _SCHEMA_LOCK_ATTEMPTS:
+            sleep(_SCHEMA_LOCK_RETRY_SECONDS)
+    raise RuntimeError(
+        "PostgreSQL schema migration lock remained busy; startup stopped before ORM access. "
+        "Retry after the other instance finishes its migration."
+    )
 
 
 def ensure_worker_runtime_schema() -> None:

@@ -547,3 +547,20 @@ Regressions: `test_runtime_schema_compatibility_adds_only_inert_columns_without_
 and `test_postgres_legacy_runtime_compatibility.py` verify idempotence, the worker
 query bound, pre-migration reads/inserts, tenant isolation, and retained legacy
 uniqueness. No production database was contacted for this compatibility fix.
+
+### Concurrent web startup migration — 25 September 2026
+
+A web instance now retries a busy migration advisory lock before allowing ORM
+access. Each unsuccessful attempt returns one boolean; it does not inspect tables
+or fetch any application data. There are at most 31 attempts with 30 two-second
+pauses, all outside transactions. After acquiring the lock the existing migration
+runs once; exhaustion stops startup explicitly instead of accessing missing columns.
+
+Additional traffic is at most 30 one-row lock responses per startup. Budgeting
+1 KiB per response including overhead gives 30 KiB/startup. At two deployments
+per hour this is 60 KiB/hour, 1.41 MiB/day, 42.2 MiB/30 days per service; multiply
+by actual instance starts/restarts. Normal uncontended startup adds no queries.
+No catalog rows, descriptions, profiles or Storage files are added to reads.
+`test_busy_startup_migration_has_bounded_boolean_only_reads` enforces the bound.
+The concurrent PostgreSQL regression verifies that even an older lock owner that
+does not add the new columns cannot let the new web instance access them early.

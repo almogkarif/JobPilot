@@ -798,3 +798,29 @@ def test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_re
     for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
         _add_runtime_compatibility_columns(connection, table, set(columns))
     assert connection.statements == []
+
+
+def test_busy_startup_migration_has_bounded_boolean_only_reads(monkeypatch):
+    from types import SimpleNamespace
+    import app.database as database
+
+    statements = []
+
+    class BusyConnection:
+        def execute(self, statement):
+            sql = str(statement)
+            assert sql == "SELECT pg_try_advisory_xact_lock(hashtext('jobpilot-schema-migration-v1'))"
+            statements.append(sql)
+            return SimpleNamespace(scalar=lambda: False)
+
+    @contextmanager
+    def begin():
+        yield BusyConnection()
+
+    monkeypatch.setattr(database, 'engine', SimpleNamespace(
+        dialect=SimpleNamespace(name='postgresql'), begin=begin))
+    monkeypatch.setattr(database, 'sleep', lambda _seconds: None)
+    with pytest.raises(RuntimeError, match='startup stopped before ORM access'):
+        database.ensure_compatibility_columns()
+    assert len(statements) == database._SCHEMA_LOCK_ATTEMPTS == 31
+    assert (database._SCHEMA_LOCK_ATTEMPTS - 1) * database._SCHEMA_LOCK_RETRY_SECONDS == 60
