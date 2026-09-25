@@ -412,16 +412,23 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
 
     active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
     counts = Counter(item["track"] for item in active)
-    assert counts == {"cs": 52, "ee": 5, "iem": 3}
+    assert counts == {"cs": 54, "ee": 10, "iem": 3}
     assert MAX_FEED_ROWS == 200
     assert MAX_RESPONSE_BYTES == 4_000_000
-    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
     assert all(item["kind"] != "official_careers" or item["identifier"] in verified for item in active)
     # Nineteen one-response ATS routes; Workday adds at most 43 employer calls
     # per board (discovery + two 20-row pages + 40 details), no database reads.
     from app.collectors import workday
     body = Path(workday.__file__).read_text()
     assert "max_results = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS" in body
+    from app.collectors.official import PRESETS
+    from app.collectors.eightfold import MAX_LIST_PAGES, MAX_DETAILS
+    assert (MAX_LIST_PAGES, MAX_DETAILS) == (2, 40)
+    for identifier in {"priority-software", "stratasys", "mekorot", "electra-group"}:
+        preset = PRESETS[identifier]
+        assert preset["max_detail_jobs"] == 40
+        assert preset["listing_response_bytes"] == preset["detail_response_bytes"] == 4_000_000
 
 
 def test_dashboard_pending_ranking_uses_existing_aggregate_query():
@@ -909,3 +916,39 @@ def test_hourly_ranking_budget_checks_utf8_payloads_before_any_body_transfer(mon
     assert 'length(cast(job_rankings.result_json as blob))' in aggregate
     bodies = [q for q in queries if q.startswith('select jobs.id,')]
     assert all('limit' in q and 'jobs.id >' in q and 'length(cast(jobs.description as blob))' in q for q in bodies)
+
+
+def test_catalog_owner_diagnostics_use_nine_fixed_size_aggregate_queries():
+    from app.services.canonical_postgres import catalog_owner_diagnostics
+
+    statements = []
+
+    class Aggregates:
+        def mappings(self):
+            return self
+
+        def __iter__(self):
+            return iter(())
+
+        def one(self):
+            return {'rows': 0, 'nonshared_job_rows': 0, 'nonshared_jobs': 0}
+
+    class AggregateOnly:
+        def execute(self, statement, params):
+            sql = str(statement).lower()
+            assert sql.startswith('select ') and 'count(' in sql
+            assert 'select *' not in sql and 'description' not in sql
+            assert 'snapshot_json' not in sql and 'notes' not in sql
+            statements.append(sql)
+            return Aggregates()
+
+    report = catalog_owner_diagnostics(AggregateOnly())
+    assert len(statements) == 9
+    assert len(report['private_references']) == 7
+    # Only two ownership buckets and ten fixed kind buckets may be projected;
+    # arbitrary source kinds, identifiers and owner IDs never enter the result.
+    for sql in statements[:2]:
+        assert "else 'other' end" in sql
+        assert "then 'shared' else 'nonshared' end" in sql
+        assert 'group by 1,2' in sql
+    assert all('group by' not in sql for sql in statements[2:])

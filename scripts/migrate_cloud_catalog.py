@@ -19,7 +19,7 @@ def main():
     if args.action != 'preflight' and not args.confirm_web_quiesced:
         parser.error('Stop the web service and drain workers before rehearsal or apply')
     from app.database import engine
-    from app.services.canonical_postgres import migrate_cloud_catalog, _preflight, validate_cloud_target
+    from app.services.canonical_postgres import migrate_cloud_catalog, inspect_catalog_preflight, validate_cloud_target
     validate_cloud_target(engine, expected_project=args.project, confirmed=args.confirm_production)
     try:
         if args.action == 'preflight':
@@ -27,7 +27,7 @@ def main():
                 from sqlalchemy import text
                 connection.execute(text('SET TRANSACTION READ ONLY'))
                 connection.execute(text("SET LOCAL statement_timeout='30s'"))
-                report = _preflight(connection)
+                report = inspect_catalog_preflight(connection)
         else:
             # The apply action rehearses and rolls back first on this same server.
             # Any failed invariant prevents the committing transaction from starting.
@@ -38,7 +38,8 @@ def main():
         fields = ('mode', 'version', 'dry_run', 'already_migrated', 'sources_before', 'sources_after',
                   'jobs_before', 'jobs_after', 'source_aliases', 'job_aliases', 'applications_preserved',
                   'application_conflicts', 'state_migrations', 'rankings_preserved', 'unclassified',
-                  'per_track', 'preflight', 'tables', 'input_bytes')
+                  'per_track', 'preflight', 'tables', 'input_bytes',
+                  'ownership_diagnostics', 'ready_for_migration', 'blockers')
         print(json.dumps({key: report[key] for key in fields if key in report}, ensure_ascii=False, indent=2))
     except Exception as exc:
         # SQL driver exceptions can contain private bind parameters; do not print them.

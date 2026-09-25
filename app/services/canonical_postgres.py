@@ -50,7 +50,7 @@ def _lockdown(c, tables):
             c.execute(text(f'REVOKE ALL PRIVILEGES ON TABLE "{table}" FROM "{role}"'))
 
 
-def _preflight(c):
+def _input_budget(c):
     """One aggregate row per table; no private payloads leave PG before bounds pass."""
     sizes = {}
     total_bytes = 0
@@ -66,6 +66,16 @@ def _preflight(c):
         total_bytes += size['bytes']
     if total_bytes > MAX_INPUT_BYTES:
         raise RuntimeError('Rehearsal input byte budget exceeded')
+    return {'tables': sizes, 'input_bytes': total_bytes}
+
+
+def _preflight(c):
+    budget = _input_budget(c)
+    _validate_input(c)
+    return budget
+
+
+def _validate_input(c):
     for table in ('sources', 'jobs'):
         if c.execute(text(f'SELECT 1 FROM {table} WHERE user_id IS DISTINCT FROM :owner LIMIT 1'),
                      {'owner': SHARED_CATALOG_USER_ID}).first():
@@ -78,7 +88,64 @@ def _preflight(c):
         raise RuntimeError('Rehearsal requires idle workers')
     if c.execute(text("SELECT 1 FROM application_attempts WHERE status='running' LIMIT 1")).first():
         raise RuntimeError('Rehearsal requires idle attempts')
-    return {'tables': sizes, 'input_bytes': total_bytes}
+
+
+def catalog_owner_diagnostics(c):
+    """Fixed-size aggregate output; never return owner IDs or catalog payloads."""
+    params = {'owner': SHARED_CATALOG_USER_ID}
+    # Unknown/custom kinds share one bucket, so neither arbitrary strings nor
+    # an unbounded number of groups can enter a workflow log.
+    kind = """CASE WHEN lower(trim(s.kind)) IN
+        ('greenhouse','lever','ashby','workday','official_careers','rss','manual','comeet','smartrecruiters')
+        THEN lower(trim(s.kind)) ELSE 'other' END"""
+    scope = "CASE WHEN {alias}.user_id=:owner THEN 'shared' ELSE 'nonshared' END"
+    exact_source = "ss.kind=s.kind AND ss.identifier=s.identifier AND ss.career_track=s.career_track"
+    source_sql = f"""SELECT {kind} AS source_kind, {scope.format(alias='s')} AS owner_scope,
+        count(*) AS rows, count(*) FILTER (WHERE s.enabled) AS enabled_rows,
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM sources ss WHERE ss.user_id=:owner
+            AND ss.id<>s.id AND {exact_source})) AS exact_shared_counterpart_rows
+        FROM sources s GROUP BY 1,2 ORDER BY 1,2"""
+    job_sql = f"""SELECT {kind} AS source_kind, {scope.format(alias='j')} AS owner_scope,
+        count(*) AS rows, count(*) FILTER (WHERE j.is_active) AS active_rows,
+        count(*) FILTER (WHERE NOT j.is_active) AS inactive_rows,
+        count(*) FILTER (WHERE s.user_id=:owner) AS shared_source_rows,
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM jobs jj JOIN sources ss ON ss.id=jj.source_id
+            WHERE jj.user_id=:owner AND jj.id<>j.id AND ss.user_id=:owner
+            AND {exact_source} AND j.external_id<>'' AND jj.external_id=j.external_id))
+            AS exact_shared_counterpart_rows,
+        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM jobs jj WHERE jj.user_id=:owner
+            AND jj.id<>j.id AND j.apply_url<>'' AND jj.apply_url=j.apply_url))
+            AS exact_url_shared_counterpart_rows
+        FROM jobs j JOIN sources s ON s.id=j.source_id GROUP BY 1,2 ORDER BY 1,2"""
+    sources = [dict(row) for row in c.execute(text(source_sql), params).mappings()]
+    jobs = [dict(row) for row in c.execute(text(job_sql), params).mappings()]
+    references = {}
+    for table in ('applications', 'job_rankings', 'user_job_states', 'open_answer_drafts',
+                  'application_attempts', 'application_events', 'blockers'):
+        child = table in {'application_attempts', 'application_events', 'blockers'}
+        join = ('JOIN applications a ON a.id=r.application_id JOIN jobs j ON j.id=a.job_id'
+                if child else 'JOIN jobs j ON j.id=r.job_id')
+        sql = f"""SELECT count(*) AS rows,
+            count(*) FILTER (WHERE j.user_id IS DISTINCT FROM :owner) AS nonshared_job_rows,
+            count(DISTINCT j.id) FILTER (WHERE j.user_id IS DISTINCT FROM :owner) AS nonshared_jobs
+            FROM {table} r {join}"""
+        references[table] = dict(c.execute(text(sql), params).mappings().one())
+    return {'sources': sources, 'jobs': jobs, 'private_references': references}
+
+
+def inspect_catalog_preflight(c):
+    """Read-only diagnostics can explain a blocker without relaxing migration."""
+    report = _input_budget(c)
+    report['ownership_diagnostics'] = catalog_owner_diagnostics(c)
+    try:
+        _validate_input(c)
+    except RuntimeError as exc:
+        report['ready_for_migration'] = False
+        report['blockers'] = [str(exc)]
+    else:
+        report['ready_for_migration'] = True
+        report['blockers'] = []
+    return report
 
 
 def migrate_postgres_copy(engine, *, confirmed_copy=False):
