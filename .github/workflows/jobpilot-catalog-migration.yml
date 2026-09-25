@@ -23,9 +23,9 @@ permissions:
   contents: read
   actions: read
 
-# Serializes with ordinary scans, including hourly scheduled dispatches.
+# Mutating maintenance serializes with scans; aggregate-only checks need not wait.
 concurrency:
-  group: jobpilot-scan-worker
+  group: ${{ inputs.action == 'preflight' && 'jobpilot-catalog-preflight' || 'jobpilot-scan-worker' }}
   cancel-in-progress: false
 
 jobs:

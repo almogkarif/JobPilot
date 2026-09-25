@@ -81,7 +81,8 @@ def test_cloud_rejects_local_rehearsal_receipt(pg_catalog, monkeypatch):
 def test_migration_workflow_serializes_scans_and_checks_application_workers():
     from pathlib import Path
     source = Path('.github/workflows/jobpilot-catalog-migration.yml').read_text()
-    assert 'group: jobpilot-scan-worker' in source and 'cancel-in-progress: false' in source
+    assert "inputs.action == 'preflight' && 'jobpilot-catalog-preflight' || 'jobpilot-scan-worker'" in source
+    assert 'cancel-in-progress: false' in source
     assert 'jobpilot-application.yml' in source and '"$active" == 0' in source
     assert '--confirm-web-quiesced' in source
     assert 'schedule:' not in source
