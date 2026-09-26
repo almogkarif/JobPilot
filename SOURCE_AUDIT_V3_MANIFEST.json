@@ -1,0 +1,31 @@
+{
+  "revision": "source-audit-v3-20260926",
+  "baseline_zip": {
+    "name": "jobpilot-source-audit-followup-fixed-20260926.zip",
+    "sha256": "9a030d1af2990c5cd47c7c8918910ffd77530e35063fab0d718be15fecd168cd"
+  },
+  "old_hashes": {
+    "app/collectors/expansion_ats.py": "dc308f73e8ac0ca9827a315012b8e34fa082b9b815bd43a19edd2067d2235784",
+    "app/collectors/official.py": "3c78c0409f9ad7f70197d429cd8a23bed56bb2f7d3760e69b84c025b20b6e55e",
+    "app/collectors/workday.py": "36a96a70544669afda29839daf4cb0e5c8ff824f9aeceed72383083e55f7ad50",
+    "app/services/source_quality.py": "a19a7fc0c96402f0db24a8676cd0ac0f42e543d6d2487b42eb9e0f5310794125",
+    "scripts/audit_source_health.py": "8e08885985971d03c05e0c84c9b06c1854a887eb6f87a1040f5b469844fe0be1",
+    "tests/test_retym_speedata_recovery.py": "e497dd3f70c91ff6b9ef8b306519ee967238cda86a6c405e325571689d9ca135"
+  },
+  "new_hashes": {
+    "app/collectors/expansion_ats.py": "7c983c3b31601e598bc04ad512901129bead87ed2cf650c0c67c51ddc38a3d4b",
+    "app/collectors/official.py": "73cb2a936c0f0c58ecd046713a290df50ecdda7ba683016a4087628404d77b8e",
+    "app/collectors/workday.py": "cb8f80e22882ab22104ed7edafba6a891b91889b2fb29bdd40a96bcdceba065b",
+    "app/services/source_quality.py": "5627d4a007bdb5862f13785d8303ed1cd5115a2b2580275220db67674ec88ec4",
+    "scripts/audit_source_health.py": "7891e40875398b5a156d9281c0d3286b28440541eadb8d170d90a10597a1ee06",
+    "tests/test_retym_speedata_recovery.py": "9856d9a12f66b60a015b3f46dd857940d5ee1db1492b543835d9722a2e734f0f",
+    "app/collectors/elad.py": "e6f1db36c9f8683838e4719e0ef0ee6909de7c412188f0eb3c62e5a6f09d0917",
+    "tests/test_source_audit_v3_20260926.py": "774151cea661181a3745570ccb71ccf1bb8fa62e6ee3abc677db018a814888f9",
+    "APPLY_SOURCE_AUDIT_V3.md": "28499f629560f18ee1537f88dd34f3d48c14b8ed95951faed20f53a8ac0bf039",
+    "docs/audits/source_audit_v3_2026-09-26.md": "378e6437a18e7f81f6a32a923088e1b2efd970312dc7ee57399063b6a8181991",
+    "docs/audits/source_audit_v3_2026-09-26.json": "52ce2400f5179aa4abdca016098622284e1d329306932ef31b56c78577072cc9",
+    "docs/audits/verification/v3/command.json": "c28faf2b2b75985a930402270701bc1c0636b762576d9ba11a17e98c08e1ed79",
+    "docs/audits/verification_v3_2026-09-26.json": "a65bd3857119490ae6706f228f2eb7d1b79394a2e7255b7b36cfdfa0288f58c5"
+  },
+  "note": "Manifest excludes itself. Other original files unchanged. Historical manifests in this export describe their own earlier releases."
+}

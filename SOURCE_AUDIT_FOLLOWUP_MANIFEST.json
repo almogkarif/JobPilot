@@ -1,0 +1,83 @@
+{
+  "release": "source-audit-followup-2026-09-26",
+  "base_zip": "jobpilot-source-audit-fixed-20260926.zip",
+  "base_zip_sha256": "94e2f71e3f1e3988c05ced53b7b70d2ac7c455ff1e05740b36432f0e0f33c9e1",
+  "apply_on_top_of": "source-audit-2026-09-26; do not apply directly to the older original source export",
+  "supersedes_current_code_state_of": "SOURCE_AUDIT_MANIFEST.json (retained as historical prior-release evidence)",
+  "changed_or_added_files": [
+    "APPLY_SOURCE_AUDIT_FOLLOWUP.md",
+    "SOURCE_AUDIT_FOLLOWUP_MANIFEST.json",
+    "app/collectors/employer_details.py",
+    "app/collectors/expansion_ats.py",
+    "app/collectors/official.py",
+    "app/collectors/workday.py",
+    "app/services/source_quality.py",
+    "docs/audits/source_followup_2026-09-26.json",
+    "docs/audits/source_followup_2026-09-26.md",
+    "docs/audits/verification/pytest-followup-focused.txt",
+    "docs/audits/verification/pytest-followup-offline.txt",
+    "docs/audits/verification_followup_2026-09-26.json",
+    "scripts/audit_source_health.py",
+    "tests/test_official_collector_titles.py",
+    "tests/test_source_audit_followup_20260926.py"
+  ],
+  "files": {
+    "APPLY_SOURCE_AUDIT_FOLLOWUP.md": {
+      "sha256_before": null,
+      "sha256_after": "9d731d431819f314c483a5996ca72de5d635cd449be795b894aec13851690670"
+    },
+    "app/collectors/employer_details.py": {
+      "sha256_before": "c8430e3c1c8398e95d98aa296d9acf9544e0f0acb9b5a1bc2ccd4393319a5729",
+      "sha256_after": "2ecaca33c5d287f893e86ac0d1eb30f5db5b83e9d1cae9a977ffcc50a37cc810"
+    },
+    "app/collectors/expansion_ats.py": {
+      "sha256_before": "2a922bc2bd69933aeefa3fa5babd85b25c409907b4307bcb03d0de80c1ec3ba1",
+      "sha256_after": "dc308f73e8ac0ca9827a315012b8e34fa082b9b815bd43a19edd2067d2235784"
+    },
+    "app/collectors/official.py": {
+      "sha256_before": "0329343dd560f950e47e1b0d9a5055c0e35be193d726bdaf24740d22ba78fcd1",
+      "sha256_after": "3c78c0409f9ad7f70197d429cd8a23bed56bb2f7d3760e69b84c025b20b6e55e"
+    },
+    "app/collectors/workday.py": {
+      "sha256_before": "a9803ba2e2622b8092d45b0154faa66dc582dc5c8993194ffe9cec33c0755143",
+      "sha256_after": "36a96a70544669afda29839daf4cb0e5c8ff824f9aeceed72383083e55f7ad50"
+    },
+    "app/services/source_quality.py": {
+      "sha256_before": "3d5cf4f56d008479bec0746069f0460733acd0d6f8ea77d26d39b5b88e38ac2a",
+      "sha256_after": "a19a7fc0c96402f0db24a8676cd0ac0f42e543d6d2487b42eb9e0f5310794125"
+    },
+    "docs/audits/source_followup_2026-09-26.json": {
+      "sha256_before": null,
+      "sha256_after": "b093461ea2efc5bbcf296df5a8fea1c3591f0847f848fcdb083808665608c81d"
+    },
+    "docs/audits/source_followup_2026-09-26.md": {
+      "sha256_before": null,
+      "sha256_after": "f2ef391a9fb8211368179e1826d531977e37339bf6e93537fd775cc8b526349a"
+    },
+    "docs/audits/verification/pytest-followup-focused.txt": {
+      "sha256_before": null,
+      "sha256_after": "92b7d655a4e53d7e0479d4ea3d9803d42b8dbbfb89fdab657634bf7d26116a87"
+    },
+    "docs/audits/verification/pytest-followup-offline.txt": {
+      "sha256_before": null,
+      "sha256_after": "b2ad1d177efab1b14421c7fa23fbce477e7273c7053f0ca2133ca19c1a024da9"
+    },
+    "docs/audits/verification_followup_2026-09-26.json": {
+      "sha256_before": null,
+      "sha256_after": "d6a4b1312353feca87f4a42b11b932635cdda6391edcc2ae853dc1f07ad5169c"
+    },
+    "scripts/audit_source_health.py": {
+      "sha256_before": "70b42464340a05adbacb8fc2b967dc3a7e96b268ac7fbd56d16150ef8e5ce7b5",
+      "sha256_after": "8e08885985971d03c05e0c84c9b06c1854a887eb6f87a1040f5b469844fe0be1"
+    },
+    "tests/test_official_collector_titles.py": {
+      "sha256_before": "43600fb18c5447d12d8ba2f2f866475d32f67ce56c0ced1fe0900a401d12f8d0",
+      "sha256_after": "e6705bfa373d08c4a56df3c7df64a6d1990b4f70ea6ab5197be3d7633c380971"
+    },
+    "tests/test_source_audit_followup_20260926.py": {
+      "sha256_before": null,
+      "sha256_after": "30fcca7315137052b833926fb5c9eae7e06c9df11693ef32322431174ae747db"
+    }
+  },
+  "self_hash_omitted": true
+}

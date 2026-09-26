@@ -1,0 +1,78 @@
+{
+  "checked_at": "2026-09-27",
+  "scope": "Public primary HTTP only; no database or user browser; no catalog/default changes",
+  "repaired": [
+    {
+      "identifier": "samsung",
+      "count": 1,
+      "complete": false,
+      "blocked": [],
+      "jobs": [
+        {
+          "id": "R119315",
+          "title": "Senior Engineer, Deep-Learning & 3D Computer-Vision",
+          "location": "Azrieli Building G, Herzliya, Israel",
+          "description_chars": 2889,
+          "url": "https://sec.wd3.myworkdayjobs.com/en-US/Samsung_Careers/job/Azrieli-Building-GHerzliya-Israel/Senior-Engineer--Deep-Learning---3D-Computer-Vision_R119315"
+        }
+      ]
+    },
+    {
+      "identifier": "chain-reaction",
+      "state": "verified_empty_partial",
+      "company_uid": "A6.00D",
+      "slug": "chainreaction",
+      "count": 0,
+      "complete": false,
+      "evidence": [
+        "https://chain-reaction.io/careers/",
+        "https://www.comeet.com/jobs/chainreaction/A6.00D"
+      ],
+      "finding": "Employer publishes Comeet UID. Public company metadata matches name, domain and slug; positions endpoint returns literal []. Existing typed Comeet parser used for future nonempty payloads; partial empty cannot retire jobs."
+    }
+  ],
+  "unresolved": [
+    {
+      "identifier": "rafael",
+      "url": "https://career.rafael.co.il/search/",
+      "http_status": 247,
+      "finding": "Known access challenge. Existing fallback Drushim company profile now404. Previous31candidate URLs were not verified full mirror jobs; no hydration bypass is safe."
+    },
+    {
+      "identifier": "tower-semiconductor",
+      "urls": [
+        "https://towersemi.com/careers/",
+        "https://jp.towersemi.com/careers/",
+        "https://careers.towersemi.com/"
+      ],
+      "http_status": 403,
+      "finding": "Official Japanese page (search index) links careers.towersemi.com; direct HTTP to all three endpoints403. No verified live feed recovered."
+    },
+    {
+      "identifier": "pliops",
+      "urls": [
+        "https://pliops.com/careers/",
+        "https://www.pliops.com/careers/"
+      ],
+      "http_status": 403,
+      "finding": "Both employer domains403. No verified alternative ATS found; preserve history."
+    }
+  ],
+  "bounds": {
+    "samsung": {
+      "discovery_requests": 1,
+      "listing_pages": 2,
+      "rows_per_page": 20,
+      "details": 40,
+      "detail_concurrency": 4,
+      "response_bytes": 4000000,
+      "description_chars": 24000
+    },
+    "chain-reaction": {
+      "requests": 1,
+      "response_bytes": 4000000,
+      "max_rows": 200
+    }
+  },
+  "tests": "170 passed: Samsung/Chain, pending source audit, Webv3/v4, tech board recovery."
+}

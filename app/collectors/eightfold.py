@@ -16,6 +16,7 @@ from ..services.location_filter import is_israel_location
 from ..services.source_quality import is_navigation_title
 
 EIGHTFOLD_ROUTES = {
+    'qualcomm': ('https://careers.qualcomm.com', 'qualcomm.com', 'Qualcomm'),
     'amdocs': ('https://jobs.amdocs.com', 'amdocs.com', 'Amdocs'),
     'hp': ('https://apply.hp.com', 'hp.com', 'HP'),
     'boston-scientific': ('https://bostonscientific.eightfold.ai', 'bostonscientific.com', 'Boston Scientific'),

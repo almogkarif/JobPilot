@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, func, select, text
+from sqlalchemy import Text, cast, desc, func, literal, select, text, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -127,6 +127,61 @@ def get_scan_run(db: Session, run_id: str, career_track: str) -> AuditLog | None
     )
 
 
+def _detail_field(db: Session, key: str):
+    if db.get_bind().dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import JSONB
+        return cast(AuditLog.details_json, JSONB)[key].astext
+    return func.json_extract(AuditLog.details_json, f"$.{key}")
+
+
+def _patch_scan_details(db: Session, conditions, patch: dict, message: str) -> int:
+    """Patch control fields on the server, without returning old result payloads."""
+    if db.get_bind().dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import JSONB, array
+        original = cast(AuditLog.details_json, JSONB)
+        value = original.op("||")(cast(literal(dumps(patch)), JSONB))
+        for key in ("progress", "result"):
+            if key in patch:
+                previous = func.coalesce(func.nullif(original[key], cast(literal("null"), JSONB)),
+                                         cast(literal("{}"), JSONB))
+                merged = previous.op("||")(cast(literal(dumps(patch[key])), JSONB))
+                value = func.jsonb_set(value, array([key]), merged, True)
+        value = cast(value, Text)
+    else:
+        value = func.json_patch(AuditLog.details_json, dumps(patch))
+    result = db.execute(update(AuditLog).where(
+        AuditLog.event_type == SCAN_EVENT, *conditions,
+    ).values(details_json=value, message=message).execution_options(synchronize_session=False))
+    db.commit()
+    return result.rowcount
+
+
+def claim_scan_run(db: Session, run_id: str, career_track: str, worker_owner: str) -> bool:
+    """Only one exact worker attempt can transition this queued request to running."""
+    if not worker_owner:
+        raise ValueError("A scan worker owner is required")
+    return bool(_patch_scan_details(db, [
+        AuditLog.entity_type == _scan_entity(career_track), AuditLog.entity_id == run_id,
+        _detail_field(db, "status") == "queued",
+    ], {"status": "running", "worker_owner": worker_owner, "started_at": utcnow().isoformat()}, "Scan running"))
+
+
+def finish_interrupted_worker_runs(db: Session, worker_owner: str, *, error: str, run_id: str | None = None) -> int:
+    """Finalize this attempt only; preserve previously stored source/ranking evidence."""
+    if not worker_owner:
+        raise ValueError("A scan worker owner is required")
+    conditions = [_detail_field(db, "worker_owner") == worker_owner,
+                  _detail_field(db, "status").in_(ACTIVE_STATUSES)]
+    if run_id is not None:
+        conditions.append(AuditLog.entity_id == run_id)
+    error = str(error)[:1000]
+    return _patch_scan_details(db, conditions, {
+        "status": "failed", "finished_at": utcnow().isoformat(), "error": error,
+        "progress": {"phase": "done", "current_source": None, "active_sources": []},
+        "result": {"status": "failed", "error": error},
+    }, "Scan failed")
+
+
 def update_scan_run(
     db: Session,
     run_id: str,
@@ -138,7 +193,21 @@ def update_scan_run(
     error: str | None = None,
     started: bool = False,
     finished: bool = False,
+    worker_owner: str | None = None,
 ) -> AuditLog | None:
+    if worker_owner is not None:
+        patch = {}
+        for key, value in (("status", status), ("progress", progress), ("result", result), ("error", error)):
+            if value is not None:
+                patch[key] = str(value)[:2000] if key == "error" else value
+        if finished:
+            patch["finished_at"] = utcnow().isoformat()
+        _patch_scan_details(db, [
+            AuditLog.entity_type == _scan_entity(career_track), AuditLog.entity_id == run_id,
+            _detail_field(db, "worker_owner") == worker_owner,
+            _detail_field(db, "status").in_(ACTIVE_STATUSES),
+        ], patch, f"Scan {status or 'running'}")
+        return None
     log = get_scan_run(db, run_id, career_track)
     if not log:
         return None
@@ -203,6 +272,11 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
 
     latest_run = latest_scan_log(db, career_track)
     run_details = _details(latest_run)
+    if _is_fresh_active(run_details, now_local.astimezone(timezone.utc)) and run_details.get("status") == "running":
+        started = _parse_dt(run_details.get("started_at"))
+        return False, scheduled, started.astimezone(tz) if started else None
+    if _is_fresh_active(run_details, now_local.astimezone(timezone.utc)) and run_details.get("status") == "queued":
+        return True, scheduled, None
     finished = _parse_dt(run_details.get("finished_at"))
     finished_local = finished.astimezone(tz) if finished else None
     successful_status = str(run_details.get("status") or "") in {"ok", "partial", "no_sources"}

@@ -20,7 +20,7 @@ def test_workday_cap_or_early_empty_page_is_not_a_complete_snapshot(monkeypatch,
                     for i in range(offset, min(offset + 20, stop_at))]
             return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {'total': total, 'jobPostings':rows})
         async def get(self, url):
-            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {'jobPostingInfo':{}})
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {'jobPostingInfo':{'jobDescription':'Build and test reliable software services.'}})
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
     rows = asyncio.run(workday.WorkdayCollector().collect('intel'))
     assert rows.complete is expected_complete

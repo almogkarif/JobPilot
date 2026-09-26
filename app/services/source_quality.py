@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 from ..collectors.base import NormalizedJob
 from .job_text import job_text_quality
@@ -46,6 +46,8 @@ def _url_key(value: str | None) -> str:
             ("ide-tech.com", "/en/join-us/"), ("careers.mekorot.co.il", "/"),
         }:
             identity_names.add("job")
+        if (parsed.hostname, parsed.path) == ("www.bezeq.co.il", "/career/jobs/form/"):
+            identity_names.add("jobs")
         identity_query = [
             (key.casefold(), val.casefold())
             for key, val in parse_qsl(parsed.query, keep_blank_values=False)
@@ -61,7 +63,50 @@ def _url_key(value: str | None) -> str:
 
 def is_navigation_title(title: str) -> bool:
     normalized = _norm(title)
-    return normalized in _GENERIC_TITLES or bool(re.search(r"<\s*/?\s*[a-z!]|(?:href|class|style|rel)=", normalized))
+    return (bool(re.fullmatch(r"[0-9]+", normalized))
+            or normalized in _GENERIC_TITLES
+            or normalized in {"arbe careers", "faqs & support", "frequently asked questions"}
+            or bool(re.match(r"^(?:how to apply|faqs & support)(?:\s|$)", normalized))
+            or bool(re.search(r"<\s*/?\s*[a-z!]|(?:href|class|style|rel)=", normalized)))
+
+
+def is_navigation_url(url: str) -> bool:
+    """Only confirmed directory/help URLs, never a guessed global slug rule."""
+    parsed = urlparse(url)
+    path = unquote(parsed.path).rstrip('/').casefold()
+    if parsed.hostname in {"scd-infrared.com", "www.scd-infrared.com"}:
+        # These are department filters, not vacancies. A future explicit
+        # job-identity query can be handled by a dedicated SCD adapter.
+        if any(key.casefold() in {"jobid", "job_id", "position_id"} and val
+               for key, val in parse_qsl(parsed.query)):
+            return False
+        categories = {"general", "human-resources", "it", "legal-finance",
+                      "operation", "operations", "qa", "quality", "rd", "r-d", "legal", "engineering", "marketing",
+                      "sales-marketing-bd", "student", "students"}
+        return (path == "/find-a-job" or bool(re.fullmatch(r"/find-a-job/page/\d+", path)) or
+                path in {f"/find-a-job/{category}" for category in categories})
+    if parsed.hostname in {"siemens.com", "www.siemens.com"}:
+        # The corporate careers section contains marketing/help pages, not the
+        # numeric JobDetail identities on the separate recruiting portal.
+        return bool(re.search(r"/company/jobs(?:/|$)", path))
+    if parsed.hostname == "jobs.siemens.com":
+        return bool(re.search(
+            r"/externaljobs/(?:searchjobs|recommendationmethods|login|register|jobcart)(?:/|$)", path))
+    return False
+
+
+def _verified_inline_identity(job: NormalizedJob) -> str | None:
+    # Migdal's official typed feed uses unique CMS record IDs but its UI opens
+    # applications inline on one real board URL. Keep that honest shared link;
+    # do not invent per-job URLs or deduplicate by its non-unique job numbers.
+    metadata = job.metadata if isinstance(job.metadata, dict) else {}
+    if (metadata.get('verified_inline_board') == 'my.migdal.co.il'
+            and job.apply_url == job.source_url == 'https://my.migdal.co.il/about/jobs'
+            and re.fullmatch(r'\d{1,12}', job.external_id)
+            and str(metadata.get('employer_record_id')) == job.external_id
+            and job_text_quality(job.description) == 'complete'):
+        return 'migdal-record:' + job.external_id
+    return None
 
 
 def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None:
@@ -76,10 +121,29 @@ def validate_source_payload(source_name: str, jobs: list[NormalizedJob]) -> None
     if not count:
         return
 
+    # Public career pages also link their JS/CSS/JSON assets. These are never
+    # application pages, even when a broad collector mistakes the filename for
+    # a vacancy title. Reject the snapshot so existing vacancies are preserved.
+    asset_links = sum(bool(re.search(r'\.(?:js|css|json|map|svg|png|jpe?g|gif|woff2?|ico)$',
+                                   unquote(urlparse(job.apply_url or '').path), re.I))
+                      for job in jobs)
+    if asset_links:
+        raise SourceDataQualityError(
+            f"Unreliable source data: {source_name} returned {asset_links}/{count} static assets as vacancies"
+        )
+
+    navigation_links = sum(is_navigation_url(job.apply_url or "") or is_navigation_url(job.source_url or "")
+                           for job in jobs)
+    if navigation_links:
+        raise SourceDataQualityError(
+            f"Unreliable source data: {source_name} returned {navigation_links}/{count} "
+            "department or help pages as vacancies"
+        )
+
     titles = [_norm(job.title) for job in jobs]
     locations = [_norm(job.location) for job in jobs]
     external_ids = [_norm(job.external_id) for job in jobs]
-    apply_urls = [_url_key(job.apply_url) for job in jobs]
+    apply_urls = [_verified_inline_identity(job) or _url_key(job.apply_url) for job in jobs]
 
     missing_core = sum(
         1 for job in jobs

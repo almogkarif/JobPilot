@@ -1,0 +1,294 @@
+{
+  "checked_at": "2026-09-26T20:58:24.965925+00:00",
+  "scope": "Six additional active employer-source repairs after user v4 patches; no production database or browser access",
+  "sources": [
+    {
+      "identifier": "maccabi-health",
+      "checked_at": "2026-09-26T20:56:31.540397+00:00",
+      "endpoint": "https://www.maccabi4u.co.il/api/maccabi/SearchJobsApi/FilterJobs",
+      "rows": 39,
+      "israel_rows": 39,
+      "full_descriptions": 39,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "5892",
+          "title": "לוקח/ת דם לבת ים",
+          "location": "השפלה, Israel",
+          "url": "https://www.maccabi4u.co.il/careers/all-positions/לוקחת-דם-ורידי-בשירות-מעבדה-סניפי-5892/",
+          "description_chars": 840
+        },
+        {
+          "id": "2133",
+          "title": "קלינאי/ת תקשורת התפתחות הילד - מחוז דרום",
+          "location": "דרום, השפלה, Israel",
+          "url": "https://www.maccabi4u.co.il/careers/all-positions/קלינאית-תקשורת-2133/",
+          "description_chars": 1570
+        },
+        {
+          "id": "5707",
+          "title": "מנהל/ת מרפאת אֲחָיוּת במרכז ירושלים",
+          "location": "ירושלים יו\"ש, Israel",
+          "url": "https://www.maccabi4u.co.il/careers/all-positions/מנהלת-אחיות-במרכז-רפואי-5707/",
+          "description_chars": 688
+        },
+        {
+          "id": "5755",
+          "title": "מתאמ/ת שירות רפואי למוקד מומחים במודיעין",
+          "location": "השפלה, ירושלים יו\"ש, Israel",
+          "url": "https://www.maccabi4u.co.il/careers/all-positions/מתאמת-שירות-רפואי-5755/",
+          "description_chars": 655
+        }
+      ],
+      "verification_limits": "First40 of API TotalResults428,39 accepted complete roles; unaccepted row remains unverified. Full Notes includes responsibilities and requirements. Explicit Areas are retained as regions; no city guessed. Employer JobUrl independently opened HTTP200 with matching job ID5892,title,and requirements. One public read-only search POST; no detail crawl in collector."
+    },
+    {
+      "identifier": "bank-hapoalim",
+      "checked_at": "2026-09-26T20:56:31.968005+00:00",
+      "endpoint": "https://www.bankhapoalim.co.il/forms/he/_load_more_jobs/0/40",
+      "rows": 6,
+      "israel_rows": 6,
+      "full_descriptions": 6,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "3096",
+          "title": "אנליסט/ית לאגף העסקי בחטיבה העסקית",
+          "location": "גוש דן, Israel",
+          "url": "https://www.bankhapoalim.co.il/forms/he/node/3096",
+          "description_chars": 1481
+        },
+        {
+          "id": "2908",
+          "title": "בנקאי.ת מכירות במוקד הטלפוני של בנק הפועלים",
+          "location": "גוש דן, Israel",
+          "url": "https://www.bankhapoalim.co.il/forms/he/node/2908",
+          "description_chars": 869
+        },
+        {
+          "id": "2907",
+          "title": "בנקאי.ת שירות במוקד הטלפוני של בנק הפועלים",
+          "location": "גוש דן, Israel",
+          "url": "https://www.bankhapoalim.co.il/forms/he/node/2907",
+          "description_chars": 732
+        },
+        {
+          "id": "3075",
+          "title": "רפרנט/ית למחלקת תפעול ניירות ערך",
+          "location": "גוש דן, Israel",
+          "url": "https://www.bankhapoalim.co.il/forms/he/node/3075",
+          "description_chars": 1172
+        }
+      ],
+      "verification_limits": "Official jobs.js explicitly fixes job routes by prepending /forms. API nids bind six links, detail canonical URL retains same node ID. Title, region, and full body are scoped to .job-page-single-content; forms excluded."
+    },
+    {
+      "identifier": "strauss",
+      "checked_at": "2026-09-26T20:56:35.967947+00:00",
+      "endpoint": "https://www.strauss-group.co.il/career/",
+      "rows": 12,
+      "israel_rows": 12,
+      "full_descriptions": 12,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "118089",
+          "title": "לבורנט.ית מחלבה אחיהוד",
+          "location": "צפון, Israel",
+          "url": "https://www.strauss-group.co.il/career/jobs/?jobid=118089",
+          "description_chars": 1010
+        },
+        {
+          "id": "118087",
+          "title": "מעצב.ת גרפי.ת תלת מימד - פתח תקווה",
+          "location": "מרכז, Israel",
+          "url": "https://www.strauss-group.co.il/career/jobs/?jobid=118087",
+          "description_chars": 1064
+        },
+        {
+          "id": "118086",
+          "title": "מנהל/ת מצוינות תפעולית",
+          "location": "צפון, Israel",
+          "url": "https://www.strauss-group.co.il/career/jobs/?jobid=118086",
+          "description_chars": 639
+        },
+        {
+          "id": "118084",
+          "title": "טכנולוג.ית פרוייקטים",
+          "location": "דרום, Israel",
+          "url": "https://www.strauss-group.co.il/career/jobs/?jobid=118084",
+          "description_chars": 657
+        }
+      ],
+      "verification_limits": "40 identity-bound detail candidates capped; 12 accepted full roles. Other candidates remain unverified (transport/parse failures); partial snapshot preserves historical jobs. Two observed DOM templates supported; visible ID and explicit region bound to same card."
+    },
+    {
+      "identifier": "bank-leumi",
+      "checked_at": "2026-09-26T20:56:48.572162+00:00",
+      "endpoint": "https://www.leumi.co.il/he/leumi_main/searchjobs",
+      "rows": 44,
+      "israel_rows": 44,
+      "full_descriptions": 44,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "793",
+          "title": "יועץ/ת השקעות במרכזי הייעוץ 1020",
+          "location": "המרכז והשפלה\nצפון\nהשרון, Israel",
+          "url": "https://www.leumi.co.il/he/node/793",
+          "description_chars": 672
+        },
+        {
+          "id": "809",
+          "title": "בנקאי/ת במרכז הטלפוני של בנק לאומי ראשל\"צ 1205",
+          "location": "המרכז והשפלה, Israel",
+          "url": "https://www.leumi.co.il/he/node/809",
+          "description_chars": 1017
+        },
+        {
+          "id": "812",
+          "title": "בנקאי/ית לקוחות עסקיים בחטיבה הבנקאית 1091",
+          "location": "המרכז והשפלה\nצפון\nדרום\nירושלים והסביבה\nהשרון",
+          "url": "https://www.leumi.co.il/he/node/812",
+          "description_chars": 854
+        },
+        {
+          "id": "1570",
+          "title": "בנקאי/ת במרכז הטלפוני של בנק לאומי ירושלים 1206",
+          "location": "ירושלים והסביבה",
+          "url": "https://www.leumi.co.il/he/node/1570",
+          "description_chars": 1013
+        }
+      ],
+      "verification_limits": "44 inline role blocks with CMS node IDs and actual employer share links. Hidden stale text removed before description extraction; adjacent detail title must match listing title. One role URL independently resolves HTTP200 to matching /he/about/career/Job/793."
+    },
+    {
+      "identifier": "migdal",
+      "checked_at": "2026-09-26T20:56:49.155326+00:00",
+      "endpoint": "https://my.migdal.co.il/data/api/ContentData/FrontContentData/?ListType=Jobs&Source=content",
+      "rows": 49,
+      "israel_rows": 49,
+      "full_descriptions": 49,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "36546",
+          "title": "מתאמ/ת פגישות- כרטיס כניסה לעולם המכירות",
+          "location": "היצירה 2, קרית אריה פתח-תקווה, Israel",
+          "url": "https://my.migdal.co.il/about/jobs",
+          "description_chars": 499
+        },
+        {
+          "id": "39955",
+          "title": "משווק/ת פנסיוני-דסק",
+          "location": "היצירה 2, קרית אריה פתח-תקווה, Israel",
+          "url": "https://my.migdal.co.il/about/jobs",
+          "description_chars": 929
+        },
+        {
+          "id": "42007",
+          "title": "מגדל מגייסת רכז/ת בק אופיס",
+          "location": "היצירה 2, קרית אריה פתח-תקווה, Israel",
+          "url": "https://my.migdal.co.il/about/jobs",
+          "description_chars": 804
+        },
+        {
+          "id": "42794",
+          "title": "נציג/ת שירות לקוחות! בואו לעבוד איתנו!",
+          "location": "היצירה 2, קרית אריה פתח-תקווה, Israel",
+          "url": "https://my.migdal.co.il/about/jobs",
+          "description_chars": 731
+        }
+      ],
+      "verification_limits": "49 accepted of53 feed records; withheld CMS IDs52859,52922,52926,52928 have missing location or incomplete content. Raw CMS _id is unique; numberJob repeats across different roles, so stored separately as employer_requisition. Only actual shared careers URL exists; users open board and locate title/number. No invented deep links or publication dates. Root implements narrow shared-board quality exception."
+    },
+    {
+      "identifier": "kpmg-israel",
+      "checked_at": "2026-09-26T20:42:21.719248+00:00",
+      "endpoint": "https://www.comeet.co/careers-api/2.0/company/F3.007/positions?details=true",
+      "public_embed_configuration": "Official https://kpmg.co.il/technologyconsulting/careers/jobs/data-engineer-2 publishes Comeet UID F3.007 and public token. Existing strict Comeet parser validates slug somekhchaikin and role UID.",
+      "rows": 40,
+      "israel_rows": 40,
+      "full_descriptions": 40,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "response_sha256": "e0c338a0476df3a9572197be70b6c97029c5f91a52299a43ca06bed7250e140f",
+      "samples": [
+        {
+          "id": "88.E69",
+          "title": "Assistant Controller",
+          "location": "תל אביב, Israel",
+          "url": "https://www.comeet.com/jobs/somekhchaikin/F3.007/assistant-controller/88.E69",
+          "description_chars": 1936
+        },
+        {
+          "id": "84.F61",
+          "title": "Business & Economic Consulting Manager",
+          "location": "תל אביב, Israel",
+          "url": "https://www.comeet.com/jobs/somekhchaikin/F3.007/business--economic-consulting-manager/84.F61",
+          "description_chars": 2055
+        },
+        {
+          "id": "2C.B65",
+          "title": "Capital Markets Compliance & Risk Lead",
+          "location": "תל אביב, Israel",
+          "url": "https://www.comeet.com/jobs/somekhchaikin/F3.007/capital-markets-compliance--risk-lead/2C.B65",
+          "description_chars": 2114
+        }
+      ],
+      "verification_limits": "40 full Israel roles accepted by existing Comeet parser and scanner quality gate. Feed mapping integrated by official collector owner; no default activation changes."
+    }
+  ],
+  "counts": {
+    "verified_partial_sources": 6,
+    "raw_rows": 190,
+    "israel_rows": 190
+  },
+  "bounds": {
+    "max_public_requests_per_scan": 86,
+    "max_normalized_rows_per_scan": 520,
+    "max_response_bytes": 4000000,
+    "max_description_characters": 24000,
+    "max_concurrent_details_per_board": 4,
+    "max_detail_jobs_per_board": 40,
+    "max_inline_rows_leumi_migdal": 100,
+    "max_kpmg_feed_rows": 200,
+    "public_requests_hourly": 86,
+    "public_requests_day": 2064,
+    "public_requests_30days": 61920,
+    "new_database_query_sites": 0,
+    "storage_downloads": 0
+  },
+  "validation": {
+    "focused_tests_passed": 89,
+    "focused_tests_skipped": 0,
+    "command": ".venv/bin/pytest -q tests/test_israeli_boards.py tests/test_source_quality.py tests/test_source_recovery.py",
+    "diff_check": "passed",
+    "full_suite": "not run by this agent; parent owns broader validation"
+  },
+  "unresolved_checked": [
+    {
+      "identifier": "cal",
+      "urls": [
+        "https://www.cal-online.co.il/about/jobs/",
+        "https://www.cal-online.co.il/"
+      ],
+      "finding": "Both fresh public GETs HTTP400 Request Rejected. No bypass attempted; no inventory absence claim."
+    },
+    {
+      "identifier": "ness-israel",
+      "url": "https://www.ness-tech.co.il/main-U7S4H6OE.js",
+      "finding": "Official careers shell exposed script but bounded public script read failed without usable body; no current API verified."
+    },
+    {
+      "identifier": "super-pharm",
+      "url": "https://jobs.super-pharm.co.il/careers/",
+      "finding": "HTTP200 inline numeric checkbox IDs and full branch role cards confirmed. Current public shared-page/fragment links and repeated branch descriptions require dedicated quality-contract handling; not implemented or declared repaired here."
+    }
+  ]
+}

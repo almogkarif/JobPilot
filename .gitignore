@@ -56,3 +56,6 @@ data/agent-cache/
 /playwright-report/
 /test-results/
 *.log
+
+# Local source-audit observations (may contain public DOM excerpts).
+/source-health-live*.json

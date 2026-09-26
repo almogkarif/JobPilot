@@ -1,0 +1,193 @@
+........................................................................ [  4%]
+.........................................................sssssssss...... [  9%]
+.s.sssssssssssssss.........................s.s.s.s......s..ss..ss.s.s.ss [ 14%]
+ss.......ss............................................................. [ 18%]
+.......s.............................ss................................. [ 23%]
+........................................................................ [ 28%]
+...........................................ssssssss..................... [ 32%]
+........................................................ss.............. [ 37%]
+........................................................................ [ 42%]
+............sss..................................F...................... [ 47%]
+.............ssss................ssssssss......s........................ [ 51%]
+........................................................................ [ 56%]
+..........................................................s............. [ 61%]
+...................................................................s..ss [ 65%]
+s...................................FF.................................. [ 70%]
+........................................................................ [ 75%]
+...............F..................F..................................... [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+.................................s.s.s.s.s.s.s.s.s.s.s.s.s.............. [ 98%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+___ test_original_audit_cohort_remains_67_after_activating_verified_defaults ___
+
+    def test_original_audit_cohort_remains_67_after_activating_verified_defaults():
+        cohort = audit_cohort()
+        assert len(cohort) == 67
+        assert len({source["identifier"] for source in cohort}) == 67
+>       assert sum(bool(source["enabled"]) for source in cohort) == 36
+E       assert 38 == 36
+E        +  where 38 = sum(<generator object test_original_audit_cohort_remains_67_after_activating_verified_defaults.<locals>.<genexpr> at 0x7fb8916bf4c0>)
+
+tests/test_pending_source_audit.py:96: AssertionError
+______________ test_only_verified_structured_sources_are_enabled _______________
+
+    def test_only_verified_structured_sources_are_enabled():
+        enabled = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
+>       assert len(enabled) == 69
+E       AssertionError: assert 71 == 69
+E        +  where 71 = len([{'company_name': 'At-Bay', 'enabled': True, 'identifier': 'atbayjobs', 'kind': 'greenhouse', ...}, {'company_name': '..., 'kind': 'lever', ...}, {'company_name': 'Logz.io', 'enabled': True, 'identifier': 'logz', 'kind': 'lever', ...}, ...])
+
+tests/test_source_expansion_v053.py:22: AssertionError
+_________ test_expansion_keeps_scheduled_scan_growth_bounded_by_track __________
+
+    def test_expansion_keeps_scheduled_scan_growth_bounded_by_track():
+        active_counts = Counter(item["track"] for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"])
+>       assert active_counts["cs"] <= 54
+E       assert 55 <= 54
+
+tests/test_source_expansion_v053.py:39: AssertionError
+______ test_new_source_expansion_does_not_enable_unbounded_official_pages ______
+
+    def test_new_source_expansion_does_not_enable_unbounded_official_pages():
+        from collections import Counter
+        from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
+        from app.collectors.expansion_ats import VERIFIED_ATS_IDENTIFIERS, MAX_FEED_ROWS, MAX_RESPONSE_BYTES
+        from app.collectors.workday import EXPANSION_WORKDAY_IDENTIFIERS
+
+        active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
+        counts = Counter(item["track"] for item in active)
+>       assert counts == {"cs": 54, "ee": 10, "iem": 5}
+E       AssertionError: assert Counter({'cs'...11, 'iem': 5}) == {'cs': 54, 'ee': 10, 'iem': 5}
+E
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'ee': 11} != {'ee': 10}
+E         {'cs': 55} != {'cs': 54}
+E
+E         Full diff:
+E         - {
+E         + Counter({
+E         -     'cs': 54,
+E         ?            ^
+E         +     'cs': 55,
+E         ?            ^
+E         -     'ee': 10,
+E         ?            ^
+E         +     'ee': 11,
+E         ?            ^
+E               'iem': 5,
+E         - }
+E         + })
+
+tests/test_supabase_egress_optimization.py:415: AssertionError
+__________ test_permalink_compatibility_lookup_is_bounded_and_id_only __________
+
+    def test_permalink_compatibility_lookup_is_bounded_and_id_only():
+        import inspect
+        from app.services.unified_catalog import scan_unified_catalog
+        source = inspect.getsource(scan_unified_catalog)
+        lookup = source[source.index('if not job_id and canonical_posting_url'):source.index('version_column =')]
+>       assert 'select(Job.id)' in lookup
+E       AssertionError: assert 'select(Job.id)' in 'if not job_id and canonical_posting_url(source.kind, source.identifier, item.external_id, item.apply_url):\n                        job_id = legacy_urls.get(item.apply_url)\n                    '
+
+tests/test_supabase_egress_optimization.py:810: AssertionError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_canonical_legacy_shadows.py:29: Local PostgreSQL binaries required for real migration integration
+SKIPPED [8] tests/test_canonical_legacy_shadows.py:94: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_migration_batching.py:24: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:101: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:136: Local PostgreSQL binaries required for real migration integration
+SKIPPED [7] tests/test_canonical_postgres.py:150: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:171: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:188: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:196: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:213: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:218: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:237: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:41: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:55: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:64: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:78: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:66: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_catalog_ranking_bounds.py:88: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_catalog_ranking_bounds.py:115: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:147: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:175: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:192: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_citizenship_reload_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_cloud_catalog_diagnostics.py:11: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_diagnostics.py:58: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_rollout.py:32: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_rollout.py:71: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_dashboard_scan_suggestions_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_dock_stacking_ui.py:4: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_dock_stacking_ui.py:26: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:25: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:34: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:42: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:49: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:57: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:70: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:79: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:86: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_job_description_scroll_ui.py:6: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_job_description_scroll_ui.py:31: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:42: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:53: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_postgres_legacy_runtime_compatibility.py:32: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_postgres_legacy_runtime_compatibility.py:44: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_postgres_legacy_runtime_compatibility.py:134: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_profile_alerts_browser.py:6: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_alerts_browser.py:28: The current execution sandbox blocks browser access to localhost
+SKIPPED [4] tests/test_profile_alerts_browser.py:47: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_alerts_browser.py:79: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_city_save_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_resume_autofill_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_seniority_filter.py:85: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_seniority_preferences_ui.py:18: The current execution sandbox blocks browser access to localhost
+SKIPPED [2] tests/test_seniority_preferences_ui.py:59: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_unified_rollout_sources.py:12: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:33: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:45: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:56: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:66: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:79: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:109: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:127: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:156: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:180: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:215: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:247: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:286: Local PostgreSQL binaries required for real migration integration
+FAILED tests/test_pending_source_audit.py::test_original_audit_cohort_remains_67_after_activating_verified_defaults - assert 38 == 36
+ +  where 38 = sum(<generator object test_original_audit_cohort_remains_67_after_activating_verified_defaults.<locals>.<genexpr> at 0x7fb8916bf4c0>)
+FAILED tests/test_source_expansion_v053.py::test_only_verified_structured_sources_are_enabled - AssertionError: assert 71 == 69
+ +  where 71 = len([{'company_name': 'At-Bay', 'enabled': True, 'identifier': 'atbayjobs', 'kind': 'greenhouse', ...}, {'company_name': '..., 'kind': 'lever', ...}, {'company_name': 'Logz.io', 'enabled': True, 'identifier': 'logz', 'kind': 'lever', ...}, ...])
+FAILED tests/test_source_expansion_v053.py::test_expansion_keeps_scheduled_scan_growth_bounded_by_track - assert 55 <= 54
+FAILED tests/test_supabase_egress_optimization.py::test_new_source_expansion_does_not_enable_unbounded_official_pages - AssertionError: assert Counter({'cs'...11, 'iem': 5}) == {'cs': 54, 'ee': 10, 'iem': 5}
+
+  Omitting 1 identical items, use -vv to show
+  Differing items:
+  {'ee': 11} != {'ee': 10}
+  {'cs': 55} != {'cs': 54}
+
+  Full diff:
+  - {
+  + Counter({
+  -     'cs': 54,
+  ?            ^
+  +     'cs': 55,
+  ?            ^
+  -     'ee': 10,
+  ?            ^
+  +     'ee': 11,
+  ?            ^
+        'iem': 5,
+  - }
+  + })
+FAILED tests/test_supabase_egress_optimization.py::test_permalink_compatibility_lookup_is_bounded_and_id_only - AssertionError: assert 'select(Job.id)' in 'if not job_id and canonical_posting_url(source.kind, source.identifier, item.external_id, item.apply_url):\n                        job_id = legacy_urls.get(item.apply_url)\n                    '
+5 failed, 1435 passed, 89 skipped, 5 deselected in 122.59s (0:02:02)

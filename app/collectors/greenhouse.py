@@ -28,6 +28,11 @@ class GreenhouseCollector:
 
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise PreserveExistingJobs("Greenhouse returned an unrecognized job-list payload")
+        if token.casefold() == "armissecurity" and not payload["jobs"]:
+            raise PreserveExistingJobs(
+                "Armis now lists roles through ServiceNow; this legacy Greenhouse board is empty. "
+                "Check the existing ServiceNow source; previous Armis jobs are preserved."
+            )
         jobs: list[NormalizedJob] = []
         for item in payload.get("jobs", []):
             location = (item.get("location") or {}).get("name", "")

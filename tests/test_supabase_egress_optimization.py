@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import pytest
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -412,13 +413,15 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
 
     active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
     counts = Counter(item["track"] for item in active)
-    assert counts == {"cs": 54, "ee": 10, "iem": 5}
+    assert counts == {"cs": 59, "ee": 12, "iem": 8}
+    assert {item["identifier"] for item in active} >= {"sapiens", "hadassah"}
     assert MAX_FEED_ROWS == 200
     assert MAX_RESPONSE_BYTES == 4_000_000
     from app.collectors.zim_ide import FEED_URLS, MAX_ZIM_ROWS, MAX_IDE_CARDS, MAX_DESCRIPTION_CHARS
     assert len(FEED_URLS) == 2
     assert (MAX_ZIM_ROWS, MAX_IDE_CARDS, MAX_DESCRIPTION_CHARS) == (200, 40, 24_000)
-    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+    verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies", "sapiens", "hadassah"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+    verified |= {"verint", "oracle", "bezeq", "ormat", "delta-galil", "loreal-israel", "snyk"}
     assert all(item["kind"] != "official_careers" or item["identifier"] in verified for item in active)
     # Nineteen one-response ATS routes; Workday adds at most 43 employer calls
     # per board (discovery + two 20-row pages + 40 details), no database reads.
@@ -804,14 +807,51 @@ def test_postgres_preflight_rejects_oversized_catalog_using_only_aggregates():
 
 def test_permalink_compatibility_lookup_is_bounded_and_id_only():
     import inspect
-    from app.services.unified_catalog import scan_unified_catalog
-    source = inspect.getsource(scan_unified_catalog)
-    lookup = source[source.index('if not job_id and canonical_posting_url'):source.index('version_column =')]
-    assert 'select(Job.id)' in lookup
-    assert 'Job.source_id == source.id' in lookup
-    assert 'Job.apply_url == item.apply_url' in lookup
-    assert '.limit(1)' in lookup
-    assert 'Job.description' not in lookup
+    from types import SimpleNamespace
+    from app.services.unified_catalog import _posting_identity_index, scan_unified_catalog
+
+    # The uploaded baseline already prefetches legacy URL identities in pages,
+    # rather than selecting one row per posting. Exercise the actual SQL bound.
+    class EmptyResult:
+        def all(self): return []
+
+    class ProjectedOnly:
+        def __init__(self): self.statements = []
+        def scalars(self, statement):
+            assert statement._limit_clause.value == 100
+            self.statements.append(statement)
+            return EmptyResult()
+        def execute(self, statement):
+            assert statement._limit_clause.value == 100
+            names = {column.name for column in statement.selected_columns}
+            assert 'description' not in names and 'metadata_json' not in names
+            self.statements.append(statement)
+            return EmptyResult()
+
+    db = ProjectedOnly()
+    source = SimpleNamespace(id=7, kind='official_careers', identifier='g-stat')
+    items = [SimpleNamespace(external_id=str(i), apply_url=f'https://g-stat.com/jobs/analyst-{i}/')
+             for i in range(205)]
+    assert _posting_identity_index(db, source, items) == ({}, {}, {})
+    legacy = [statement for statement in db.statements
+              if 'min(jobs.id)' in str(statement)]
+    assert len(legacy) == 3  # 100 / 100 / 5, not 205 per-posting queries.
+    for statement in legacy:
+        sql = str(statement)
+        assert 'jobs.source_id =' in sql and 'jobs.apply_url IN' in sql
+        assert 'GROUP BY CASE' in sql and 'jobs.canonical_job_id IS NULL' in sql
+        assert set(statement.selected_columns.keys()) == {'url_token', 'job_id'}
+        # URLs are compared inside SQL; only compact integer identities leave
+        # the database, even when a provider's application URL is very long.
+        assert all(isinstance(value, int) for key, value in statement.compile().params.items()
+                   if key.startswith('param_'))
+        list_values = [value for value in statement.compile().params.values() if isinstance(value, list)]
+        assert len(list_values) == 1 and len(list_values[0]) <= 100
+
+    function = inspect.getsource(scan_unified_catalog)
+    lookup = function[function.index('if not job_id and canonical_posting_url'):function.index('version_column =')]
+    assert 'legacy_urls.get(item.apply_url)' in lookup
+    assert 'select(' not in lookup and 'Job.description' not in lookup
 
 
 def test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_reads():
@@ -1049,3 +1089,113 @@ def test_catalog_expiry_uses_only_two_writes_without_payload_returns(monkeypatch
         assert sql.startswith('update ')
         assert 'returning' not in sql and 'description' not in sql and 'select *' not in sql
         assert statement.get_execution_options()['synchronize_session'] is False
+
+
+def test_owned_scan_control_writes_do_not_download_previous_results():
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql
+    from app.services import scan_runtime
+    statements = []
+    class DB:
+        def get_bind(self): return SimpleNamespace(dialect=SimpleNamespace(name='postgresql'))
+        def execute(self, statement):
+            statements.append(statement)
+            return SimpleNamespace(rowcount=1)
+        def commit(self): pass
+    db = DB()
+    assert scan_runtime.claim_scan_run(db, 'run', 'computer_science', 'github:repo:1:1')
+    scan_runtime.update_scan_run(db, 'run', 'computer_science', worker_owner='github:repo:1:1',
+                                 progress={'completed': 10})
+    assert scan_runtime.finish_interrupted_worker_runs(db, 'github:repo:1:1', error='Timed out') == 1
+    assert len(statements) == 3
+    for statement in statements:
+        sql = str(statement.compile(dialect=postgresql.dialect())).lower()
+        assert sql.startswith('update audit_logs ')
+        assert 'returning' not in sql and 'select ' not in sql
+        assert 'jobs.' not in sql and 'sources.' not in sql
+
+
+def test_bezeq_recovery_uses_one_bounded_feed_and_no_detail_downloads(monkeypatch):
+    from app.collectors import bezeq
+    calls = []
+    async def fetch(url):
+        calls.append(url)
+        return '{"isSuccessfull":true,"error":null,"data":[]}'
+    monkeypatch.setattr(bezeq, 'bounded_public_get', fetch)
+    assert not asyncio.run(bezeq.collect_bezeq()).complete
+    assert calls == [bezeq.FEED]
+    assert bezeq.MAX_JOBS == 200
+
+
+def test_recovered_oracle_country_feed_has_hard_paging_and_body_bounds(monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+    from app.collectors import oracle_employer, verint
+    calls = []
+    async def fetch(url):
+        calls.append(url)
+        if 'recruitingCEJobRequisitions?' in url:
+            finder = parse_qs(urlsplit(url).query)['finder'][0]
+            assert 'selectedLocationsFacet=300000000106941' in finder
+            offset = 25 if 'offset=25' in finder else 0
+            return json.dumps({'items': [{'TotalJobsCount': 100000, 'requisitionList': [
+                {'Id': str(i + 1), 'PrimaryLocationCountry': 'IL'} for i in range(offset, offset + 25)]}]})
+        return json.dumps({'Id': url.rsplit('/', 1)[-1], 'Title': 'Software Engineer',
+            'PrimaryLocationCountry': 'IL', 'PrimaryLocation': 'Israel',
+            'ExternalDescriptionStr': 'Develop and test software. Requirements include a computer science degree and Python experience. ' * 400})
+    monkeypatch.setattr(verint, 'bounded_public_get', fetch)
+    rows = asyncio.run(oracle_employer.collect_oracle_employer())
+    assert len(rows) == 40 and len(calls) == 42 and not rows.complete
+    assert all(len(job.description) <= 24000 for job in rows)
+
+
+def test_live_recovered_boards_reuse_bounded_public_transport():
+    from app.collectors import expansion_ats, bezeq, israeli_boards, consumer_employers, technical_recovery, tech_board_recovery, verint
+    assert expansion_ats.MAX_RESPONSE_BYTES == 4_000_000
+    for module in (bezeq, israeli_boards, consumer_employers, technical_recovery, tech_board_recovery, verint):
+        assert module.bounded_public_get is expansion_ats.bounded_public_get
+    assert (technical_recovery.MAX_LIST_PAGES, technical_recovery.MAX_DETAILS) == (3, 40)
+    assert (verint.MAX_LIST_PAGES, verint.PAGE_SIZE, verint.MAX_DETAILS) == (2, 25, 40)
+    assert (israeli_boards.MAX_DETAILS, israeli_boards.MAX_INLINE_ROWS) == (40, 100)
+    assert tech_board_recovery.MAX_BOARD_ROWS == 200
+    assert tech_board_recovery.MAX_SNYK_DETAILS == 40
+    assert consumer_employers.MAX_DETAILS == 40 and consumer_employers.MAX_DESCRIPTION_CHARS == 24000
+
+
+def test_source_health_audit_does_not_import_database_or_scan_catalog():
+    """Read-only network diagnostics must not touch Supabase, even transitively."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run([sys.executable, "-c",
+        "import sys; from scripts.audit_source_health import load_sources; "
+        "assert len(load_sources(all_flagged=True)) == 104; "
+        "assert 'app.database' not in sys.modules; assert 'app.main' not in sys.modules; "
+        "assert 'app.services.scanner' not in sys.modules"], cwd=root, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_explicit_rafael_repair_reads_projected_bounded_sources_not_jobs():
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import Session
+    from app.database import Base
+    from app.models import Source
+    from scripts.repair_source_audit import repair
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add_all([Source(name="Rafael", kind="official_careers", identifier="rafael", career_track="shared"),
+                    Source(name="bad", kind="ashby", identifier="https://career.rafael.co.il/search/", career_track="shared")])
+        db.commit()
+    statements = []
+    @event.listens_for(engine, "before_cursor_execute")
+    def record(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement.lower())
+    with Session(engine) as db:
+        repair(db)
+    selects = [statement for statement in statements if statement.startswith("select")]
+    assert len(selects) == 1
+    assert " limit " in " ".join(selects[0].split())
+    assert "substr(" in selects[0]
+    assert "jobs" not in selects[0] and "applications" not in selects[0]
+    assert "last_error" not in selects[0]

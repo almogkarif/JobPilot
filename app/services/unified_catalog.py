@@ -116,7 +116,7 @@ def install_unified_sources(db):
             if (metadata.get('validation_status') == 'pending_adapter'
                     and item.get('validation_status') == 'verified'):
                 metadata['validation_status'] = 'verified'
-                metadata['adapter_verified_release'] = '2026-09-25'
+                metadata['adapter_verified_release'] = '2026-09-27'
                 if 'enabled_override' not in metadata:
                     source.enabled = True
                     source.disabled_until = None
@@ -187,6 +187,36 @@ def _refresh_unchanged_postings(db, source, items, now, version):
                 JobSourceIdentity.external_id.in_([external_id for external_id, _ in rows]))
                 .values(is_active=True, last_seen_at=now).execution_options(synchronize_session=False))
     return unchanged
+
+
+def _posting_identity_index(db, source, items):
+    """Resolve changed/new candidates in bounded pages, without job descriptions."""
+    identities, canonical, urls = {}, {}, {}
+    for offset in range(0, len(items), 100):
+        page = items[offset:offset + 100]
+        rows = db.scalars(select(JobSourceIdentity).where(
+            JobSourceIdentity.source_id == source.id,
+            JobSourceIdentity.external_id.in_([item.external_id for item in page])).limit(100)).all()
+        identities.update({row.external_id: row for row in rows})
+        unknown = [item for item in page if item.external_id not in identities]
+        keys = {canonical_job_key(source.kind, source.identifier, item.external_id, item.apply_url)
+                for item in unknown}
+        if keys:
+            canonical.update(db.execute(select(Job.canonical_key, Job.id).where(
+                Job.canonical_key.in_(keys), Job.canonical_job_id.is_(None)).limit(100)).all())
+        legacy_urls = {item.apply_url for item in unknown
+            if canonical_job_key(source.kind, source.identifier, item.external_id, item.apply_url) not in canonical
+            and canonical_posting_url(source.kind, source.identifier, item.external_id, item.apply_url)}
+        if legacy_urls:
+            # Compare URLs on the server; return caller-supplied compact tokens,
+            # not potentially long URLs. A repeated URL maps to the same token.
+            url_list = sorted(legacy_urls)
+            token = case(*[(Job.apply_url == url, index) for index, url in enumerate(url_list)], else_=-1)
+            rows = db.execute(select(token.label('url_token'), func.min(Job.id).label('job_id')).where(
+                Job.source_id == source.id, Job.apply_url.in_(legacy_urls),
+                Job.canonical_job_id.is_(None)).group_by(token).limit(100)).all()
+            urls.update({url_list[index]: job_id for index, job_id in rows})
+    return identities, canonical, urls
 
 
 async def scan_unified_catalog(db, source_ids, progress_callback, career_track, catalog_only):
@@ -294,6 +324,9 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 record_observations(db, source.kind, source.identifier, (item.external_id for item in items),
                                     getattr(items, 'blocked_external_ids', ()))
                 unchanged = _refresh_unchanged_postings(db, source, items, now, VERSION)
+                candidates = {item.external_id: item for item in reversed(items)
+                    if item.external_id not in unchanged and is_israel_location(item.location)}
+                identities, canonical_ids, legacy_urls = _posting_identity_index(db, source, list(candidates.values()))
                 complete = bool(getattr(items, 'complete', True)) and not getattr(items, 'blocked_external_ids', ())
                 seen = set()
                 israel_seen = set()
@@ -310,16 +343,13 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                         source_unchanged += 1
                         source_found += unchanged[item.external_id]
                         continue
-                    identity = db.get(JobSourceIdentity, (source.id, item.external_id))
+                    identity = identities.get(item.external_id)
                     key = canonical_job_key(source.kind, source.identifier, item.external_id, item.apply_url)
-                    job_id = identity.job_id if identity else db.scalar(select(Job.id).where(
-                        Job.canonical_key == key, Job.canonical_job_id.is_(None)).limit(1))
+                    job_id = identity.job_id if identity else canonical_ids.get(key)
                     # Compatibility with rows keyed before slug permalink support.
                     # ID-only, one-row lookup; never fetch descriptions to deduplicate.
                     if not job_id and canonical_posting_url(source.kind, source.identifier, item.external_id, item.apply_url):
-                        job_id = db.scalar(select(Job.id).where(Job.source_id == source.id,
-                            Job.apply_url == item.apply_url, Job.canonical_job_id.is_(None))
-                            .order_by(Job.id).limit(1))
+                        job_id = legacy_urls.get(item.apply_url)
                     version_column = func.substr((func.json_extract(Job.classification_json, '$.version')
                         if db.get_bind().dialect.name == 'sqlite'
                         else cast(Job.classification_json, JSON)['version'].as_string()), 1, 80)
@@ -371,6 +401,11 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                         db.add(identity)
                     identity.is_active, identity.last_seen_at = True, now
                     db.flush()
+                    canonical_ids[key] = job.id
+                    legacy_urls[item.apply_url] = job.id
+                    # Synchronous persistence must not starve in-flight HTTP/browser
+                    # collectors or their timeout callbacks for an entire source.
+                    await asyncio.sleep(0)
                 if complete:
                     absent = list(db.scalars(select(JobSourceIdentity.job_id).where(
                         JobSourceIdentity.source_id == source.id, JobSourceIdentity.is_active.is_(True),
@@ -402,7 +437,8 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                                    'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete, 'error': ''})
             if progress_callback:
                 progress_callback({'phase': 'scanning', 'current': completed, 'completed': completed,
-                                   'total': len(sources), 'current_source': source.name})
+                                   'total': len(sources), 'current_source': source.name,
+                                   'source_result': per_source[-1]})
     finally:
         for task in tasks:
             if not task.done(): task.cancel()

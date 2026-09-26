@@ -763,3 +763,121 @@ reads. Footer addresses and neighboring cards are excluded. The collector egress
 regression now covers Retym's detail/byte bounds, and the recovery integration
 tests execute the production payload-quality validator before accepting results.
 No database migration, startup backfill or production scan is added by this fix.
+
+## Source audit corrections — September 26, 2026
+
+The source-health diagnostic (`scripts/audit_source_health.py`) makes **zero**
+database or Storage requests, does not start the scheduler/scanner, and does not
+submit applications. Importing the collectors' HTML/date helpers no longer loads
+ORM models/database configuration. It uses at most three concurrent sources and
+a per-source deadline; existing collector limits still apply. Legacy collectors
+do not all have streaming response-byte caps, so this is not a whole-network
+byte-budget claim.
+
+No new source is automatically enabled by this patch. Flex and Cadence already
+exist as enabled official sources: their replacement Workday readers have at
+most 43 employer requests each per scan (discovery + two listing pages + 40 job
+details); no extra Supabase lookup is introduced. Nova and Wiliot use one bounded
+Comeet response each (4 MB, at most 200 feed rows). Moon Active uses one public
+Ashby listing request. Osem-Nestle and the opt-in Elspec reader use one listing
+plus at most 40 detail requests (four details concurrently, 4 MB per response,
+24,000 characters per stored description). Elspec's disabled default is retained
+until its adapter is validated from a network-enabled runtime.
+
+`repair_source_audit.py` is an explicit, dry-run-by-default operation, never a
+startup task. It performs a single projected Source query capped at 51 records;
+metadata is truncated **in SQL** to 16,385 characters and oversized data aborts
+before any mutation. Worst returned data is approximately 3.5 MB at four UTF-8
+bytes per character, once per explicitly requested run; ordinary Rafael metadata
+is much smaller. It reads zero Job/description/application records. `--apply`
+only disables the invalid Rafael/Ashby duplicate when exactly one enabled official
+Rafael source exists in the same catalog. It does not delete or reparent data.
+Regression tests cover query projection, the cap, no transitive DB import in the
+read-only probe, dry-run, idempotence and preservation of jobs and sources.
+
+## Live source recovery and scan ownership — September 27, 2026
+
+The installed Web v1–v4 patch was checked before continuing; its historical audit
+artifacts are preserved. The new `--all-catalog` diagnostic examines all 260
+inventory rows with at most three concurrent collectors and a 90-second timeout
+per source. It makes **zero Supabase/Storage requests**, writes only local reports,
+and does not start application workers. This is public collection verification,
+not a production catalog scan. Some older collectors still lack streaming byte
+caps; no whole-network byte bound is claimed for the diagnostic.
+
+### Public employer recovery bounds
+
+Every new reader below uses the existing 4,000,000-byte decompressed response
+limit, retains at most 24,000 normalized description characters per job, and
+returns a partial snapshot. A partial/error/blocked snapshot never proves that
+unseen jobs closed. No adapter adds a database or Storage query.
+
+| Reader | Maximum public requests / scan | Maximum normalized rows |
+|---|---:|---:|
+| Bezeq official Adam API | 1 | 200 |
+| Oracle Israel country facet | 2 listing + 40 detail | 40 |
+| Verint Oracle CX | 2 listing + 40 detail | 40 |
+| Siemens EDA (exact subsidiary) | 3 listing + 40 detail | 40 |
+| Qualcomm Eightfold | 2 listing + 40 detail | 40 |
+| Elad identity-bound details (existing Web bound retained) | 1 listing + 40 detail | 40 |
+| DustPhotonics via Credo (exact team) | 1 | 200 |
+| Strauss, Leumi, Migdal, Hapoalim, Maccabi, KPMG together | 86 | 520 |
+| Samsung Research (exact organization) | 1 discovery + 2 listing + 40 detail | 40 |
+| Chain Reaction Comeet | 1 | 200 |
+| Ormat, Delta Galil, L'Oréal together | 3 × (1 listing + 40 detail) | 120 |
+| Snyk (explicit Israel cards, full Workday details) | 1 listing + 40 detail | 40 |
+| Astrix Security employer-confirmed Comeet | 1 | 200 |
+
+This table has an intentionally pessimistic ceiling of 507 public requests and
+1,720 rows per aggregate scan: 12,168 requests/day or 365,040/30 days at hourly
+scheduling. At the per-response cap, that is 2.028 GB/scan or 48.672 GB/day of
+**employer-to-worker traffic**, not Supabase egress. Actual observed responses are
+far smaller; source/global deadlines bound runtime as well. Detail readers use at
+most four simultaneous requests. Existing Workday employers' pagination repair
+restores their existing 100/120-result ceilings; it does not increase those limits.
+
+Database persistence remains constrained by 2,000 postings/source, 20,000/scan,
+10,000 stored identities/source and the existing shared 64 MiB/day reservation
+ledger (1.875 GiB/30 days for all catalog/ranking reads together). For the table's
+1,720 maximum Israel rows, the default ID/track field ceilings yield approximately
+10.16 MiB of row reservations plus per-source identity/metadata allowances, **inside**
+that daily ledger, not an additional allowance. The ledger can defer remaining
+sources/ranking; metadata/protocol traffic outside it still needs Usage monitoring.
+
+### Bounded identity lookups
+
+Changed/new posting identity resolution now uses up to three SELECTs per 100-row
+page: bounded source identities, canonical-key/ID pairs, and compact integer
+URL-token/ID pairs. Legacy application URLs are compared and grouped inside SQL;
+the URLs and descriptions are not returned. With N ≤ 20,000 postings and S ≤ 260
+sources, at most `3 × (ceil(N/100) + S)` = 1,380 such SELECTs/scan, or 33,120/day
+at 24 scans. The old fallback performed per-posting lookups. Returned payloads
+are charged to existing source reservations; there is no new full-catalog read.
+Unchanged jobs continue using the bounded fingerprint fast path, preserving scores.
+A yield between changed-job writes lets in-flight collection tasks advance; this
+does not introduce queries, threads, or parallel access to a database session.
+
+### Durable worker completion
+
+Each queued run is claimed atomically by `github:repository:run_id:attempt`.
+Progress/result patches merge server-side and do not SELECT old result JSON.
+A separate `always()` finalizer job updates only still-active rows owned by that
+exact attempt, including after the scanner's 45-minute GitHub timeout. It cannot
+finish a different retry or worker. Fatal scan exceptions now return a failing
+workflow exit instead of a misleading green zero-run success. Ordinary partial
+source results remain recoverable and retain their per-source diagnostics.
+
+Incremental control cost: one no-result claim UPDATE and one no-result finalizer
+UPDATE per workflow. Conservatively allowing 16 KiB for the separate finalizer
+connection and 1 KiB for the claim gives 408 KiB/day, approximately 12 MiB/30 days
+at 24 workflows/day. Existing progress writes lose their previous JSON reads.
+Older ownerless runs retain their existing two-hour fallback; no running process
+is guessed dead earlier merely because another hourly worker starts.
+
+Regression gates: `tests/test_scan_efficiency_20260926.py`,
+`tests/test_scan_worker_recovery.py`, `tests/test_workday_pagination_recovery.py`,
+new employer-adapter suites and `tests/test_supabase_egress_optimization.py`.
+Real disposable PostgreSQL and SQLite exercise identity and control operations.
+No production bulk scan was initiated during this audit. Last user-reported Usage
+was 3.276 GB; current usage has not been verified. Check the current daily slope
+before explicitly triggering another production bulk scan or repair pass.

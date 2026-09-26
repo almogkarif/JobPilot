@@ -1,0 +1,155 @@
+{
+  "release": "source-audit-2026-09-26",
+  "base_zip": "jobpilot-source-20260926-190035.zip",
+  "base_zip_sha256": "730ba9b3476a53146f37dd852e9756c4743b151ae9dd9bdbe652b93b5a8c056b",
+  "base_file_count": 401,
+  "added_file_count": 14,
+  "changed_or_added_files": [
+    "APPLY_SOURCE_AUDIT.md",
+    "SOURCE_AUDIT_MANIFEST.json",
+    "app/collectors/ashby.py",
+    "app/collectors/expansion_ats.py",
+    "app/collectors/greenhouse.py",
+    "app/collectors/official.py",
+    "app/collectors/smartrecruiters.py",
+    "app/collectors/source_recovery.py",
+    "app/collectors/workday.py",
+    "app/schemas.py",
+    "app/services/source_identifiers.py",
+    "app/utils.py",
+    "docs/SUPABASE_EGRESS.md",
+    "docs/audits/source_audit_2026-09-26.csv",
+    "docs/audits/source_audit_2026-09-26.html",
+    "docs/audits/source_audit_2026-09-26.json",
+    "docs/audits/source_audit_2026-09-26.md",
+    "docs/audits/source_inventory_2026-09-26.json",
+    "docs/audits/verification/pytest-offline-baseline.txt",
+    "docs/audits/verification/pytest-offline-final.txt",
+    "docs/audits/verification_2026-09-26.json",
+    "scripts/audit_source_health.py",
+    "scripts/repair_source_audit.py",
+    "tests/test_collector_completeness.py",
+    "tests/test_official_collector_titles.py",
+    "tests/test_pending_source_audit.py",
+    "tests/test_source_audit_20260926.py",
+    "tests/test_source_expansion_v053.py",
+    "tests/test_supabase_egress_optimization.py"
+  ],
+  "files": {
+    "APPLY_SOURCE_AUDIT.md": {
+      "sha256_before": null,
+      "sha256_after": "996253edaecb0a19a22f9c5077c2a95dc1df7a43df39b604ee15ceda4b214f63"
+    },
+    "app/collectors/ashby.py": {
+      "sha256_before": "da16c85b2083ee29e31d0e69e3ace7c6dc410eca3398cdbabe8ec6a27d06d49d",
+      "sha256_after": "0cc22f70f4eecaa03351ad5e47820d61a940130a287281893221404c3e666ab1"
+    },
+    "app/collectors/expansion_ats.py": {
+      "sha256_before": "a56b49f27e8280a5b4d11e937d63efeed4b495882e86b15ca78466b55a5f285f",
+      "sha256_after": "2a922bc2bd69933aeefa3fa5babd85b25c409907b4307bcb03d0de80c1ec3ba1"
+    },
+    "app/collectors/greenhouse.py": {
+      "sha256_before": "a671dcafa325e9947ce5ae4905a0f9f66830d9b3062e2d176ccbe72c51c129e8",
+      "sha256_after": "b38c6ec64464fd7cfa99445f15cb8abf0983246115d5b6114476a49dc7e03378"
+    },
+    "app/collectors/official.py": {
+      "sha256_before": "c39d4d63641ed8f02d92a4cf584710f1958bb484286055a2e453cd61aa169b3f",
+      "sha256_after": "0329343dd560f950e47e1b0d9a5055c0e35be193d726bdaf24740d22ba78fcd1"
+    },
+    "app/collectors/smartrecruiters.py": {
+      "sha256_before": "abbf1de59169ef7206a7deb96ba2c545186fda844c8d9b75818c13fade29b6c6",
+      "sha256_after": "b78bf78805cf914476345b86a5a96084e3dcc67919d6d7c5c849aaf6413e9b0b"
+    },
+    "app/collectors/source_recovery.py": {
+      "sha256_before": "85ccbd6fdfa15317f01c7982feb570e83c1e8bfe596c9c2de3ee24941753ae31",
+      "sha256_after": "3218a681c58ad61f5711597d73857c0c50d16a1646026e8fe318006eac4fa824"
+    },
+    "app/collectors/workday.py": {
+      "sha256_before": "721bd3b103d8da9ac0ddaaaa4839db10af47ca2097bc25f701b3de51478df23e",
+      "sha256_after": "a9803ba2e2622b8092d45b0154faa66dc582dc5c8993194ffe9cec33c0755143"
+    },
+    "app/schemas.py": {
+      "sha256_before": "135b6a06d61a2fc5156fa33e34b223a310e8ffe9b8a823a8a946a2044c5e67fe",
+      "sha256_after": "37ae7a608ca03df157ca7deefd1e51fc92246f9189b3928ce35a18c82b524bff"
+    },
+    "app/services/source_identifiers.py": {
+      "sha256_before": null,
+      "sha256_after": "acf1e99fe68ad8e86d2b7647a1bd8349ceb1a563b8772aea7022a9611396b744"
+    },
+    "app/utils.py": {
+      "sha256_before": "ef9f98900e27574cabc94a0675c2cd5fd9944eb41558b7328e6ac36f805a8c51",
+      "sha256_after": "8e453861df6e0a1e782f8c4bbf086a0581e47213b3f0e1a57c195900ca50f363"
+    },
+    "docs/SUPABASE_EGRESS.md": {
+      "sha256_before": "7432b3f699c566f81a619bd6559dcf108d53ab4a5a948fa6e8a65adece199321",
+      "sha256_after": "7f54893c2860d5210d9344d832809be655c949dd0c78f4174d20c09d05a2ade9"
+    },
+    "docs/audits/source_audit_2026-09-26.csv": {
+      "sha256_before": null,
+      "sha256_after": "2ddab133fa74530daf3699322e04deecfef4d2498a55fc02445dd6fa9b8739ce"
+    },
+    "docs/audits/source_audit_2026-09-26.html": {
+      "sha256_before": null,
+      "sha256_after": "9a482e953031b3e2a3fbc3560b4fb874b106efc382c9b244e5ac9e6a114fe50b"
+    },
+    "docs/audits/source_audit_2026-09-26.json": {
+      "sha256_before": null,
+      "sha256_after": "a5adfd2175e9e8fe1ce477b4c390fd1171bacdde03bc9a61b7fb3c2ac5f7bfdb"
+    },
+    "docs/audits/source_audit_2026-09-26.md": {
+      "sha256_before": null,
+      "sha256_after": "2b8ef909e0e1f6f85a379876ed3623e8045930dff5f2740514b1f97fd734b330"
+    },
+    "docs/audits/source_inventory_2026-09-26.json": {
+      "sha256_before": null,
+      "sha256_after": "ca7e30ec6731b0cac685f803b887854088e814d55031a841921932f90266d946"
+    },
+    "docs/audits/verification/pytest-offline-baseline.txt": {
+      "sha256_before": null,
+      "sha256_after": "3f61e956971fdc6063c64cbd8631ce360fc7960d148e8009e29eb8331c65e5d8"
+    },
+    "docs/audits/verification/pytest-offline-final.txt": {
+      "sha256_before": null,
+      "sha256_after": "3e222701ee6eb75de436720eb2842c035ac97c3a23a53419b9571e25fc7d63b6"
+    },
+    "docs/audits/verification_2026-09-26.json": {
+      "sha256_before": null,
+      "sha256_after": "8096fde008ccdb0234210ff2ee5c6a22fbbf84020583054b70319ab8b64c43f3"
+    },
+    "scripts/audit_source_health.py": {
+      "sha256_before": null,
+      "sha256_after": "70b42464340a05adbacb8fc2b967dc3a7e96b268ac7fbd56d16150ef8e5ce7b5"
+    },
+    "scripts/repair_source_audit.py": {
+      "sha256_before": null,
+      "sha256_after": "01210dd71a7fb6408450e30102ff7659a2250d4a607963c42ec9196278f88f57"
+    },
+    "tests/test_collector_completeness.py": {
+      "sha256_before": "9b8a9b34d8cfc6538949786476746fbe1b3fe22515deec145399c5fb208b2837",
+      "sha256_after": "b4817f78b609219680d0f5ac510adeaff8e4324d72551ffa32f82c1efb0e12f5"
+    },
+    "tests/test_official_collector_titles.py": {
+      "sha256_before": "dd4fe9d36cd9e571841bab9828da479d7c969a43ca4bc89ac4ef795f2d199498",
+      "sha256_after": "43600fb18c5447d12d8ba2f2f866475d32f67ce56c0ced1fe0900a401d12f8d0"
+    },
+    "tests/test_pending_source_audit.py": {
+      "sha256_before": "8141f916fbc224ee5a5f87dc7163714fbb89bcfe2c2fbb3dea1d0aa486958ef5",
+      "sha256_after": "7f544ff3e675ea48d67129cab4bdc90f1112548ad1a1bf5ad1c8848a65ef75e1"
+    },
+    "tests/test_source_audit_20260926.py": {
+      "sha256_before": null,
+      "sha256_after": "0bf509a3fd592661fd76ac812c089868e1b65da0ded800c4aa68239a61c8ff43"
+    },
+    "tests/test_source_expansion_v053.py": {
+      "sha256_before": "a0fb0610f9a8f6bc0a8d6173d7aa73a1d1709a230eecfad1deea19d58949c92f",
+      "sha256_after": "0366e95681490f95af45dec912499e4e65b76512ced700967808082796a1716a"
+    },
+    "tests/test_supabase_egress_optimization.py": {
+      "sha256_before": "1bfc262968d077f2f34faf8e7d8c1da6a94e168871e777f8739adf2a119d95c6",
+      "sha256_after": "0cff4e0162901939403c62fa2dad4cdb2cdc28727a680204cad421bc18354377"
+    }
+  },
+  "manifest_hash_note": "This manifest omits its own hash to avoid self-reference.",
+  "excluded_generated_test_artifacts": true,
+  "production_deployed": false
+}

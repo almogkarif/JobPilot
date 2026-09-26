@@ -1,0 +1,22 @@
+[
+  "/opt/pyvenv/bin/python",
+  "-m",
+  "pytest",
+  "-q",
+  "-k",
+  "not test_rehearsal_rejects_noncopy_target_without_connecting and not test_postgres_rehearsal_refuses_cloud_before_opening_a_connection",
+  "--ignore=tests/test_ranking_filter_first_ui.py",
+  "--ignore=tests/test_unified_catalog_local.py",
+  "--ignore=tests/test_ui_e2e.py",
+  "--ignore=tests/test_supported_ats_submission_e2e.py",
+  "--ignore=tests/test_cloud_ui_offline.py",
+  "--ignore=tests/test_ui_offline.py",
+  "--ignore=tests/test_agent_browser_flow.py",
+  "--ignore=tests/test_developer_collection_metrics_ui.py",
+  "--ignore=tests/test_track_comparison_report.py",
+  "--ignore=tests/test_career_track_browser_offline.py",
+  "--ignore=tests/test_scoped_save_browser_offline.py",
+  "--ignore=tests/test_grade_sheet_context_repair.py",
+  "--ignore=tests/test_ranking_refresh_failure_ui.py",
+  "--junitxml=/mnt/data/audit_v3/pytest-full.xml"
+]

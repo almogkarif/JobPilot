@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class ProfileUpdate(BaseModel):
@@ -157,6 +157,13 @@ class SourceCreate(BaseModel):
     identifier: str
     company_name: str = ""
     enabled: bool = True
+
+    @model_validator(mode="after")
+    def validate_board_identifier(self):
+        if self.kind == "ashby":
+            from .services.source_identifiers import normalize_ashby_identifier
+            self.identifier = normalize_ashby_identifier(self.identifier)
+        return self
 
 
 class SourceUpdate(BaseModel):

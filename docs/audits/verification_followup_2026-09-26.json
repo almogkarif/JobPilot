@@ -1,0 +1,81 @@
+{
+  "release": "source-audit-followup-2026-09-26",
+  "base_zip": "jobpilot-source-audit-fixed-20260926.zip",
+  "base_zip_sha256": "94e2f71e3f1e3988c05ced53b7b70d2ac7c455ff1e05740b36432f0e0f33c9e1",
+  "input_live_report": "source-health-live-all.json",
+  "input_live_report_sha256": "5c24adbbcf7f5998c44c7537f5ed486ff950fea90b30f4724c392aaab6aa9e1f",
+  "final_offline_suite": {
+    "tests": 1683,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 89,
+    "passed": 1594,
+    "deselected": 5,
+    "new_regression_cases": 70
+  },
+  "focused_suite": {
+    "passed": 351,
+    "failed": 0
+  },
+  "test_command_executed": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-k",
+    "not test_rehearsal_rejects_noncopy_target_without_connecting and not test_postgres_rehearsal_refuses_cloud_before_opening_a_connection",
+    "--ignore=tests/test_ranking_filter_first_ui.py",
+    "--ignore=tests/test_unified_catalog_local.py",
+    "--ignore=tests/test_ui_e2e.py",
+    "--ignore=tests/test_supported_ats_submission_e2e.py",
+    "--ignore=tests/test_cloud_ui_offline.py",
+    "--ignore=tests/test_ui_offline.py",
+    "--ignore=tests/test_agent_browser_flow.py",
+    "--ignore=tests/test_developer_collection_metrics_ui.py",
+    "--ignore=tests/test_track_comparison_report.py",
+    "--ignore=tests/test_career_track_browser_offline.py",
+    "--ignore=tests/test_scoped_save_browser_offline.py",
+    "--ignore=tests/test_grade_sheet_context_repair.py",
+    "--ignore=tests/test_ranking_refresh_failure_ui.py",
+    "--junitxml=/mnt/data/followup-full-tests.xml"
+  ],
+  "excluded_browser_files": [
+    "test_ranking_filter_first_ui.py",
+    "test_unified_catalog_local.py",
+    "test_ui_e2e.py",
+    "test_supported_ats_submission_e2e.py",
+    "test_cloud_ui_offline.py",
+    "test_ui_offline.py",
+    "test_agent_browser_flow.py",
+    "test_developer_collection_metrics_ui.py",
+    "test_track_comparison_report.py",
+    "test_career_track_browser_offline.py",
+    "test_scoped_save_browser_offline.py",
+    "test_grade_sheet_context_repair.py",
+    "test_ranking_refresh_failure_ui.py"
+  ],
+  "excluded_browser_file_count": 13,
+  "full_unfiltered_suite_completed": false,
+  "python_test_environment": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "post_fix_live_collector_successes_in_this_environment": 0,
+  "upstream_fixture_notice": "New provider fixtures are synthetic, not recordings of raw live upstream responses.",
+  "input_scope": "104 source results supplied by user; not all sources in the deployed database.",
+  "scope_limit": "Four targeted collection/normalization changes, two false-positive guards, and audit diagnostics. This does not repair all 82 failed sources.",
+  "production_database_touched": false,
+  "production_deployed": false,
+  "applications_sent": 0,
+  "disabled_sources_enabled": 0,
+  "unchanged_production_paths_sha256": {
+    "app/source_expansion.py": "b442bf07b69c8185688647912fd692083599efd7c3d3ffb1efff21c83632e7ed",
+    "app/services/source_catalog.py": "bf1be2f4a986c256c8c1a196afda28aa88bdfad384bac3696020107a3b99977b",
+    "app/services/unified_catalog.py": "3613e91bd8ecbe3d684824ff94bbe6a69c38951af141e98254bc462a76ef1a3f",
+    "app/services/catalog_ranking.py": "ad4465f8d5d7e27f79e8d8232392eab64ebcc10aa7af01bee9a856ad7298ae71"
+  },
+  "notes": [
+    "The uploaded live report is BEFORE this follow-up patch.",
+    "HTTP 403 for Elspec and Osem remains unresolved; no bypass was added.",
+    "SCD and Siemens vacancy recovery remains unresolved; directory/help records are rejected.",
+    "Source inventory is static; it does not reflect whether the Rafael duplicate was already retired in the database.",
+    "The previous SOURCE_AUDIT_MANIFEST.json and HTML are historical artifacts from the prior release."
+  ]
+}

@@ -1,0 +1,517 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JobPilot | ביקורת מקורות — 26.09.2026</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f3f5f8;color:#18283d;font:16px/1.8 Arial,"Noto Sans Hebrew",sans-serif}main{max-width:1160px;margin:auto;padding:40px 24px 80px}header{padding:36px;border-radius:18px;background:#13253e;color:#fff;margin-bottom:28px}header p{margin:8px 0;color:#d8e4f4}header h1{font-size:32px;line-height:1.3;margin:6px 0}.eyebrow{font:13px/1.5 Arial;letter-spacing:2px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 30px}.stat{background:#fff;border:1px solid #dce3ec;border-radius:12px;padding:18px}.stat b{display:block;font-size:29px;color:#174e84}.stat span{font-size:14px}.content{background:#fff;border-radius:16px;padding:30px;border:1px solid #dce3ec}.content>h1{display:none}h2{margin-top:38px;font-size:25px;border-bottom:2px solid #e9eef4;padding-bottom:9px}h3{font-size:19px}p{margin:12px 0}a{color:#1458a0;text-decoration:underline;text-underline-offset:3px}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.7;display:block;overflow-x:auto;margin:20px 0}td,th{padding:12px;border:1px solid #dce3ec;min-width:115px;vertical-align:top}th{background:#eaf0f7;text-align:right}pre{direction:ltr;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;background:#13253e;color:#edf5ff;padding:18px;border-radius:9px;font:14px/1.8 ui-monospace,Consolas,monospace}code{direction:ltr;unicode-bidi:isolate;font-family:ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.toolbar{display:flex;gap:9px;flex-wrap:wrap;background:#eef3f8;padding:15px;border-radius:10px;position:sticky;top:0;z-index:2}input,select,button{font:inherit;padding:9px 12px;border:1px solid #bccadc;border-radius:7px;background:#fff;color:#18283d}input{flex:1;min-width:190px}button{cursor:pointer}button:hover{background:#e1eaf5}.source{border:1px solid #dce3ec;border-radius:9px;background:#fff;margin:10px 0;break-inside:avoid}.source summary{padding:14px 18px;cursor:pointer;font-weight:600}.source[open] summary{background:#eef3f8;border-radius:9px 9px 0 0}.source-body{padding:7px 22px 19px}.num{font-size:13px;direction:ltr;display:inline-block;margin-inline-end:12px;color:#637b94}.badge{display:inline-block;border:1px solid #c5d5e7;border-radius:12px;font-size:12px;font-weight:400;padding:1px 9px;margin-inline-start:12px}.source-meta,.muted{color:#5a6e85;font-size:13px}footer{color:#566b83;font-size:13px;margin-top:28px;overflow-wrap:anywhere}.notice{border-right:4px solid #b47910;background:#fff8e9;padding:15px 18px;margin:20px 0;border-radius:5px}#count{font-size:14px;color:#536c86;margin:12px 0}@media(max-width:650px){main{padding:15px 10px}.content{padding:18px}header{padding:24px}header h1{font-size:27px}.stats{grid-template-columns:repeat(2,1fr)}h2{font-size:22px}td,th{padding:8px;min-width:160px}.toolbar{position:static}.source summary{padding:12px}}@media print{body{background:#fff}main{padding:0}.toolbar,button{display:none}.content{border:0;padding:0}.stats{grid-template-columns:repeat(4,1fr)}a{color:inherit}header{color:#000;background:#fff;border-bottom:2px solid #333}header p{color:#333}.source:not([open]) .source-body{display:block}pre{background:#f5f5f5;color:#000}table{display:table;font-size:11px}td,th{min-width:0}}</style></head><body><main><header><div class="eyebrow" dir="ltr">JOBPILOT / SOURCE AUDIT / 26.09.2026</div><h1>ביקורת מקורות ותיקוני איסוף</h1><p>קוד, ראיות מאתרי המעסיקים ובדיקות מקומיות — עם הפרדה בין תיקון לאימות חי.</p></header><div class="stats"><div class="stat"><b>260</b><span>רשומות מופו</span></div><div class="stat"><b>104</b><span>מועמדים לחקירה</span></div><div class="stat"><b>8</b><span>יעדי איסוף עם תיקון נתיב/קורא</span></div><div class="stat"><b>1,524</b><span>בדיקות עברו בחבילה המקומית</span></div></div><div class="notice"><strong>לא אישור לפריסה ללא אימות:</strong> אין כאן בדיקת collector חיה מהרשת של השרת. 89 בדיקות דולגו ובדיקות נוספות הוחרגו; מקורות שלא שוחזרו מסומנים בהמשך.</div><article class="content"><h1>JobPilot — ביקורת מקורות ותיקוני איסוף</h1>
+<p><strong>תאריך הבדיקה: 26 בספטמבר 2026</strong><br />
+בסיס: ה-ZIP והדוח שהועלו, בדיקת קוד, גלישה בעמודי מעסיקים ובדיקות רגרסיה מקומיות.</p>
+<h2>תוצאה והיקף</h2>
+<p>מופו 260 רשומות מהדוח. בקוד נמצאו 259 מקורות מומלצים ייחודיים לאחר איחוד שלושת המסלולים; הרשומה הנוספת היא כתובת רפאל שהוגדרה כ-Ashby. נבחרו לחקירה 104 רשומות: 57 במצב לא מאומת, 31 ממתינות לאימות, 15 עם אפס משרות בישראל ומקור כושל אחד. כל 29 המקורות הכבויים כברירת מחדל ב-ZIP כלולים בחקירה. 156 המקורות האחרים מופו, אך לא עברו כאן ביקורת אתר פרטנית.</p>
+<p><strong>זוהי חבילת תיקונים וביקורת, לא אישור שכל 104 המקורות שוחזרו.</strong> לכל מועמד יש תוצאת בדיקה או ניסיון גישה מתועד. ב-45 מהאתרים לא התקבלה קריאה אמינה בכלי הגלישה; כשל כזה אינו אומר שהאתר נפל או שאין בו משרות. סומן במפורש מה תוקן, מה נשאר פתוח ומה כבר היה ממומש בקוד המקורי.</p>
+<p><strong>אימות איסוף חי מתוך הקוד לא בוצע:</strong> סביבת הרצת Python לא מצליחה להתחבר לרשת. כלי הגלישה כן אפשר לבדוק אתרים, קישורים ומשרות, אך הוא אינו אותה סביבת HTTP שבה פועל JobPilot. הבדיקות החדשות הן fixtures סינתטיים, לא הקלטות של תגובות API מהאתרים. לא בוצעה פריסה, גישה ל-Supabase, הפעלה של מקורות או שליחת מועמדויות.</p>
+<h2>מה השתנה בקוד</h2>
+<table>
+<thead>
+<tr>
+  <th>מקור</th>
+  <th>הבעיה</th>
+  <th>השינוי</th>
+  <th>גבול האימות</th>
+</tr>
+</thead>
+<tbody>
+</tbody>
+</table>
+<p>| <a href="https://www.moonactive.com/careers/">Moon Active</a> | נתיבי המשרות הישנים אינם תואמים ללוח הגיוס הנוכחי. | ניתוב ל-Ashby moonactive, בלי לשנות את זהות Source. | מימוש ובדיקות מקומיות; נדרשת הרצה חיה. |</p>
+<p>| <a href="https://www.novami.com/location_filter/israel/">Nova + Wiliot</a> | נמצאו משרות בישראל וקישורים שלא תאמו לפרסור הישן. | ניתוב ל-Comeet nova/A5.007 ו-wiliot/F6.003 באמצעות הקורא המוגבל הקיים. | הלוחות אותרו; מבנה התשובה החי לא הורץ מתוך Python כאן. |</p>
+<p>| <a href="https://flex.com/careers/israel-en">Flex + Cadence</a> | לוחות Workday נוכחיים במקום קורא עמוד קריירה כללי. | נוספו presets מדויקים, גילוי מסנן ישראל, עד שני עמודים ו-40 פרטים. | בדיקות ניתוב, סינון ובטיחות עברו; אין ספירת משרות חיה. |</p>
+<p>| <a href="https://arberobotics.com/career/">Arbe</a> | career/co ביחיד, לעומת careers בביטוי הישן. | תוקנו selector וזיהוי UID של Comeet מתוך כתובת המשרה. | תיקון נתיב וזהות בלבד; השלמת תיאור חי עדיין דורשת אימות. |</p>
+<p>| <a href="https://www.osem-nestle.co.il/career/open-positions">אסם־נסטלה + Elspec</a> | נמצאו טבלת משרות ודפי תפקיד רשמיים; האיסוף הקודם לא זיהה אותם. | נוספו קוראים תחומים: אותו אתר, קישור משרה, תיאור ודרישות, מיקום ישראל וגבולות גודל/בקשות. | Elspec נשאר כבוי כברירת מחדל עד אימות חי. אסם נאסף חלקית, לא כל העימוד. |</p>
+<p>| <a href="https://www.scd-infrared.com/find-a-job/">SCD</a> | הכתובת בקוד הייתה של האתר האמריקאי. | הוחלפה בכתובת האתר הישראלי; אפס לא מוכח לא יסומן כ-empty תקין. | לא שוחזר: נדרש קורא inline וגישה יציבה; בקריאה חוזרת הופיעה בדיקת דפדפן. |</p>
+<p>| <a href="https://career.rafael.co.il/search/">רפאל — כפילות Ashby</a> | כתובת רפאל מלאה הוכנסה לשדה מזהה Ashby. | ולידציה לפני HTTP + כלי dry-run לפרישה מפורשת של הכפילות רק כשיש מקור רשמי תואם. | הכפילות לא שונתה בשרת. חסימת אתר רפאל הרשמי היא בעיה נפרדת, שלא נפתרה. |</p>
+<p>| <a href="https://www.armis.com/armis-careers/">Armis + CyberArk</a> | עמודי הקריירה מפנים ליעדים אחרים; לוח ישן ריק אינו הוכחת היעדר משרות. | תשובה ריקה מהלוח הישן תשמור snapshot ותדווח על חוסר אימות. | הגנת מידע בלבד. יש להצליב עם ServiceNow / Palo Alto הקיימים; לא מיזגתי היסטוריה. |</p>
+<h2>תיקוני רוחב במנגנוני האיסוף</h2>
+<p><strong>Ashby:</strong> מזהה לוח נבדק לפני בקשת HTTP. כתובת board תקינה יכולה להפוך למזהה; כתובת רפאל או כתובת מתחזה נדחות. נוספה קריאה של כתובת המדינה והמיקומים המשניים, כדי שמשרה הזמינה גם בישראל לא תיעלם בגלל מיקום ראשי בחו״ל. נשמרים מזהים וקישורים תקינים; רשומות פגומות אינן הופכות להוכחת היעדר משרות. מודעות המסומנות isListed=false לא נאספות.</p>
+<p><strong>Workday ו-SmartRecruiters:</strong> כשל בהורדת דף פרט, JSON פגום או תיאור ריק אינם חוזרים עוד כמשרה עם תיאור חסר. מזהים שנחסמו נשמרים באבחון והתוצאה מסומנת חלקית. נוספו בדיקות סכימה, מונה תוצאות, עמודים חוזרים וזהויות כפולות. ב-SmartRecruiters כתובת דף הפרט נבנית בנתיב ה-API הנתמך במקום לעקוב אחר row.ref שרירותי.</p>
+<p><strong>שמירת נתונים וזהויות:</strong> ה-wrapper של official_careers אינו מאבד blocked_external_ids של הקורא הפנימי. ניתובים ששונו מוחזרים כתשובה חלקית כדי שלא לסגור משרות ישנות רק משום שהכתובות/המזהים השתנו. אין מחיקת היסטוריה או שיוך אוטומטי לחברת אם. ייתכנו כפילויות זמניות או משרות ישנות בעקבות מעבר ATS; איחוד שלהן דורש reconciliation נפרד ומאומת. מדיניות ההתיישנות הקיימת במוצר לא שונתה.</p>
+<p><strong>תקציב משאבים:</strong> לא נוספו מקורות פעילים כברירת מחדל, ולא שונו איחוד המסלולים, הדירוג או הסריקה המתוזמנת. סקריפט האבחון אינו מייבא את מסד הנתונים ואינו קורא משרות מ-Supabase. ניתוב Flex/Cadence מוגבל לעד 43 בקשות למעסיק לכל מקור; אסם/Elspec לעד 41 בקשות, כל תגובה עד 4MB ועד 40 דפי פרט. מגבלות ישנות של קוראים אחרים לא נכתבו מחדש: לא לכל collector יש מגבלת בתים ב-streaming. ההרחבות ותקציב כלי התיקון מתועדים ב-docs/SUPABASE_EGRESS.md.</p>
+<h2>ממצאים שחשוב לא לבלבל</h2>
+<p>ב-Armis נמצאו משרות בתל אביב המקושרות ל-ServiceNow, ולכן אפס בלוח Greenhouse הישן אינו אפס גיוס. ב-Nova וב-Wiliot נראו משרות בישראל למרות האפס/השגיאה בדוח. בדף Nova קיימת גם אי-התאמה פנימית בין כותרת 35 לבין רשימה שכותרתה 34; לא הצגתי אף אחת כספירת API מאומתת.</p>
+<p><a href="https://www.armis.com/armis-careers/">Armis — אתר המעסיק</a> · <a href="https://www.novami.com/location_filter/israel/">Nova — ישראל</a> · <a href="https://www.wiliot.com/careers">Wiliot — קריירה</a></p>
+<p>באתר אסם־נסטלה הוצג מונה 62, אך בקריאת העמוד נחשפו 13 קישורי משרה. הקורא החדש אינו טוען שאסף את כל 62 המשרות. ב-Elspec נראו שש שורות משרה בישראל, כולל חומרה ותוכנה; ברירת המחדל נשארה כבויה עד probe חי של הפענוח.</p>
+<p><a href="https://www.osem-nestle.co.il/career/open-positions">אסם־נסטלה — משרות</a> · <a href="https://www.elspec-ltd.com/careers/">Elspec — משרות</a></p>
+<p>ב-Chain Reaction הופיעה הודעה מפורשת שאין כרגע משרות פתוחות. ב-Fundbox נראו ארבע משרות בארה״ב; זה מתיישב עם אפס בישראל ברשימה הגלויה, אך אינו אישור שכל ה-API העולמי נבדק. גם מסנן Tel Aviv או כתובת משרד בישראל אינם כשלעצמם הוכחת משרה.</p>
+<p><a href="https://chain-reaction.io/careers/">Chain Reaction — קריירה</a> · <a href="https://fundbox.com/careers/">Fundbox — קריירה</a></p>
+<p>הדסה ו-Sapiens כבר מופעלים וממומשים ב-ZIP שהועלה, למרות מצב ממתין בדוח. זו אינדיקציה לפער בין גרסת הקוד/מטא-דאטה של השרת לבין הדוח, לא שתי הפעלות חדשות שבוצעו בביקורת. גם קוראים קיימים עבור Playtika, ICL ומקורות אחרים לא נספרו כתיקונים חדשים.</p>
+<h2>בדיקות ואיכות</h2>
+<table>
+<thead>
+<tr>
+  <th>הרצה</th>
+  <th style="text-align:right">עברו</th>
+  <th style="text-align:right">נכשלו</th>
+  <th style="text-align:right">דולגו</th>
+  <th style="text-align:right">לא נבחרו</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>ה-ZIP המקורי — חבילת בדיקות ללא הדפדפנים המוחרגים</td>
+  <td style="text-align:right">1,435</td>
+  <td style="text-align:right">5</td>
+  <td style="text-align:right">89</td>
+  <td style="text-align:right">5</td>
+</tr>
+<tr>
+  <td>הקוד המתוקן — אותה חבילה עם הבדיקות החדשות</td>
+  <td style="text-align:right">1,524</td>
+  <td style="text-align:right">0</td>
+  <td style="text-align:right">89</td>
+  <td style="text-align:right">5</td>
+</tr>
+</tbody>
+</table>
+<p>נוספו 84 מקרי בדיקה: 82 בנושא מקורות ו-2 בנושא בטיחות egress/אבחון ללא מסד נתונים. חמש הבדיקות הכושלות המקוריות עסקו בציפיות ישנות למספר המקורות ובחיפוש זהויות שכבר הוחלף בקוד המקורי ב-prefetch תחום. הן עודכנו כדי להגן על ההתנהגות הנוכחית, כולל בדיקה התנהגותית של שאילתות 100/100/5 רשומות במקום שאילתה לכל משרה. עודכנה גם בדיקת Moon Active למסלול Ashby החדש, בלי לאפשר קריאת רשת לא מכוונת בבדיקת היחידה.</p>
+<p><strong>זו אינה הרצת כל הבדיקות ללא החרגות.</strong> 13 קובצי בדיקות דפדפן הוחרגו משום שהסביבה חוסמת ניווט בדפדפן. חמישה מקרים התלויים ב-psycopg לא נבחרו; 89 בדיקות דולגו בעיקר בגלל PostgreSQL/דפדפן שאינם זמינים. ניסיונות להריץ את החבילה הלא-מסוננת נעצרו לאחר כשלי סביבה שגם הקוד המקורי מציג. אין אישור E2E ל-Google login, לממשק בדפדפן או למיגרציית PostgreSQL.</p>
+<p>הפקודה המדויקת, רשימת ההחרגות, תוצאות המקור וחתימות הקלט מצורפות ב-verification_2026-09-26.json. לוגי שתי ההרצות נמצאים בתיקיית verification שלידו. בדיקת compileall עברה. קובצי הקטלוג, ברירות המחדל ומנגנון האיחוד נשארו זהים בבייטים למקור.</p>
+<h2>התקנה ואימות בסביבה שלך</h2>
+<p>העדכון אינו דורש מיגרציית נתונים או תלויות Python חדשות. ה-ZIP המלא הוא עותק קוד נקי, ללא .env, בסיס נתונים או קבצי משתמש. יש להחיל על עותק מגובה של הפרויקט, ולא להחליף או למחוק את תיקיות הנתונים המקומיות.</p>
+<p>חלופה נוחה היא ה-patch המצורף, מתוך שורש JobPilot. יש לשים את הקובץ בשורש הפרויקט או להתאים את הנתיב. git apply --check חייב לעבור לפני החלה; אין להשתמש ב-force או לדרוס עבודה מקומית במקרה של התנגשות.</p>
+<pre><code class="language-bash">git status --short
+git apply --check jobpilot-source-audit-20260926.patch
+git apply jobpilot-source-audit-20260926.patch
+</code></pre>
+<p>הרצת בדיקות המקורות, בסביבת ה-venv הקיימת:</p>
+<pre><code class="language-bash">python -m pytest -q tests/test_source_audit_20260926.py tests/test_source_recovery.py tests/test_collector_completeness.py
+</code></pre>
+<p>בדיקת שמונת היעדים ששונו/נוספו, ללא גישה ל-DB, ללא שמירת משרות וללא הפעלת מקורות:</p>
+<pre><code class="language-bash">python scripts/audit_source_health.py
+</code></pre>
+<p>הפקודה מייצרת source-health-live.json. היא בודקת Moon Active, Nova, Wiliot, Flex, Cadence, Arbe, אסם־נסטלה ו-Elspec. תוצאה partial אינה אישור שהלוח נסרק בשלמותו; verified_empty_payload מעיד רק על תשובה מובנית ריקה של ה-API, לא על כל ערוצי הגיוס של החברה. יש לבדוק מספר משרות בישראל, שלמות תיאור, זהויות וקישורי הגשה. הפעלת מקורות כבויים או שינוי production ייעשו רק לאחר אימות התוכן הזה.</p>
+<p>לבדיקת כל 104 המועמדים, עדיין ללא מסד נתונים וללא הגשות:</p>
+<pre><code class="language-bash">python scripts/audit_source_health.py --all-flagged --output source-health-live-all.json
+</code></pre>
+<p>תיקון הכפילות של רפאל הוא כלי נפרד, שיש להריץ רק מול מסד הנתונים המיועד. פקודת ברירת המחדל מציגה תכנית ללא שינוי:</p>
+<pre><code class="language-bash">python scripts/repair_source_audit.py
+</code></pre>
+<p>רק אחרי גיבוי ובדיקת התכנית, כשמופיעה הפעולה retire_invalid_ashby_duplicate עם מקור רשמי תואם:</p>
+<pre><code class="language-bash">python scripts/repair_source_audit.py --apply
+</code></pre>
+<p>הכלי קורא לכל היותר 51 רשומות Source עם הקרנת שדות ו-metadata תחום; הוא מסרב לשנות מעל 50 רשומות או כאשר metadata חורג מהגבול. לא נקראות טבלאות Job, לא נמחקת אף משרה ולא משתנים מזהים קנוניים. אם אין בדיוק מקור רפאל רשמי פעיל באותו קטלוג/משתמש, הפעולה נשארת needs_review והכפילות אינה משתנה. פרישת הכפילות אינה פותרת את חסימת אתר רפאל עצמו.</p>
+<p>לאחר אימות מקומי והפריסה הרגילה שלך, פקודות Git לשמירת התיקונים בלבד מפורטות בקובץ APPLY_SOURCE_AUDIT.md. לא בוצעו commit או push במסגרת הבדיקה.</p>
+<h2>מה עדיין פתוח</h2>
+<p>בין המקורות שלא שוחזרו: רפאל הרשמי, Meta, IBM, Salesforce, Qualcomm, Matrix ומספר בנקים, גופי בריאות ואתרים דינמיים. בחלקם נמצא יעד חלופי רשמי אך אין עדיין קורא מאומת; באחרים לא ניתן היה לקרוא את האתר. לא הופעל מקור כבוי רק כדי להקטין את מספר האזהרות ולא הומצא board token.</p>
+<p>מסלולי המשך מתועדים לכל מקור: לדוגמה Oracle Candidate Experience ב-Dell/Verint, עמודי המשרות המקומיים של בנק הפועלים ומכבי, והפרדה בין חברת האם למותג במעברי Armis/CyberArk/DustPhotonics. קיום אתר קריירה או מערכת ATS אינו אישור שה-API מתאים לקורא הקיים. בלי אימות חי לא ניתן לקבוע כמה משרות יתווספו ל-1,698 שבדוח שלך.</p>
+<h2 id="sources">פירוט כל 104 המועמדים</h2><p>מצב ההפעלה הוא ברירת המחדל בקוד בלבד, לא דגל enabled מהשרת. לכל מקור מופיעים הממצא, השינוי והשלב שעדיין נדרש. קישור אינו הבטחה שהאתר היה נגיש.</p><div class="toolbar"><input id="q" aria-label="חיפוש מקור או ממצא" placeholder="חפש חברה, מזהה או ממצא…"><select id="filter" aria-label="סינון"><option value="all">כל המקורות</option><option value="changed">שינוי חדש בקוד / כלי תיקון</option><option value="disabled">כבויים כברירת מחדל</option><option value="zero_israel">אפס בישראל בדוח</option><option value="pending">ממתינים בדוח</option><option value="unverified">לא מאומתים בדוח</option><option value="failed">כשל בדוח</option></select><button id="expand">פתח מוצגים</button><button id="collapse">סגור הכול</button></div><div id="count">104 מתוך 104 מקורות</div><details class="source" data-changed="1" data-reason="failed" data-disabled="0">
+<summary><span class="num">001</span><bdi>rafael</bdi><span class="badge">כשל</span></summary>
+<div class="source-body"><div class="source-meta"><code>ashby</code> · <code>https://career.rafael.co.il/search/</code> · רשומה נוספת</div>
+<p>כתובת אתר רפאל הוזנה כמזהה Ashby. זו שגיאת תצורה נפרדת מחסימת אתר רפאל.</p><p><strong>כלי תיקון כפילות</strong></p><p><strong>השלב הדרוש: </strong>להריץ תחילה dry-run של כלי תיקון הכפילות; אין מחיקת משרות.</p>
+<a href="https://career.rafael.co.il/search/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">002</span><bdi>Redis Careers</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>ashby</code> · <code>redis</code> · פעיל בקוד</div>
+<p>עמוד קריירה נגיש ולוח Ashby דינמי; לא אומת שאפס בישראל הוא אפס אמיתי.</p><p><strong>תיקון Ashby משותף</strong></p><p><strong>השלב הדרוש: </strong>לבדוק תוצאת Ashby חיה, כולל secondaryLocations שתוקן במנגנון המשותף.</p>
+<a href="https://redis.io/company/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">003</span><bdi>Armis — Data &amp; Program Operations</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>greenhouse</code> · <code>armissecurity</code> · פעיל בקוד</div>
+<p>משרות ישראליות מפנות ל-ServiceNow; לוח Greenhouse הישן מציג שאין משרות.</p><p><strong>הגנה מפני אפס מטעה</strong></p><p><strong>השלב הדרוש: </strong>להצליב עם המקור הקיים ServiceNow; לא לייבא את כל משרות חברת האם תחת Armis.</p>
+<a href="https://www.armis.com/armis-careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">004</span><bdi>Logz.io Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>lever</code> · <code>logz</code> · פעיל בקוד</div>
+<p>אתר החברה עדיין מפנה ל-Lever logz; התוכן שנקרא מהלוח לא מספיק לאימות אפס.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>להריץ את Lever החי ולבדוק מיקום ומשרות זמינות; לא להחליף מזהה ללא ראיה.</p>
+<a href="https://logz.io/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">005</span><bdi>Amdocs Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>amdocs</code> · פעיל בקוד</div>
+<p>מעטפת חיפוש דינמית; בקוד כבר קיים קורא Eightfold מוגבל.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>נדרש probe חי של Eightfold עם סינון ישראל; אין הוכחה להיעדר משרות.</p>
+<a href="https://jobs.amdocs.com/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">006</span><bdi>Analog Devices Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>analog-devices</code> · כבוי בקוד</div>
+<p>אתר הקריירה מפנה ל-Workday. הופעת ישראל כאתר חברה אינה הוכחת משרה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לבדוק board analogdevices.wd1 / External ו-facet ישראל לפני הפעלה.</p>
+<a href="https://www.analog.com/en/careers.html" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="unverified" data-disabled="0">
+<summary><span class="num">007</span><bdi>Arbe Robotics — Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>arbe</code> · פעיל בקוד</div>
+<p>נמצאו משרות בתל אביב בנתיב career/co יחיד; הקוד חיפש careers ברבים.</p><p><strong>נתיב ומזהה תוקנו</strong></p><p><strong>השלב הדרוש: </strong>תוקנו selector ומזהה Comeet מתוך הכתובת; אימות hydration חי עדיין נדרש.</p>
+<a href="https://arberobotics.com/career/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">008</span><bdi>Ashdod Port — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ashdod-port</code> · פעיל בקוד</div>
+<p>כלי הגלישה לא הצליח לקרוא את העמוד והציג 502; אין בכך הוכחה שהאתר ריק.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לאתר מחדש את לוח הדרושים מתוך האתר הרשמי בסביבה עם גישה ולבדוק פרטי מכרזים ותאריכים.</p>
+<a href="https://www.ashdodport.co.il/about/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">009</span><bdi>Assuta Medical Centers Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>assuta</code> · כבוי בקוד</div>
+<p>לא התקבל תוכן אמין מהכתובת המוגדרת.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי יעד הגיוס מהאתר הרשמי ו-payload תקין לפני הפעלה.</p>
+<a href="https://www.assuta.co.il/about/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">010</span><bdi>Astrix Security Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>astrix-security</code> · כבוי בקוד</div>
+<p>עמוד החברה מציג No jobs found והודעת מעבר ל-Cisco; לא אומת מקור משרות חלופי בפועל.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>להצליב עם Cisco ולא להכריז על אפס כלל-חברתי או להעביר אוטומטית את כל משרות Cisco.</p>
+<a href="https://astrix.security/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">011</span><bdi>Bank Hapoalim — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>bank-hapoalim</code> · פעיל בקוד</div>
+<p>בלוח חלופי רשמי הופיעו משרות, לרבות תפקידי אנליזה. חלק מקישורי node שנבדקו כשלו.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מיפוי עקבי של דפי הפרט וכתובות forms; החלפת דף נחיתה לבדה אינה תיקון מלא.</p>
+<a href="https://www.bankhapoalim.co.il/forms/he/jobs-site/lobby" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">012</span><bdi>Bank Leumi — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>bank-leumi</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה בבדיקה הנוכחית.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>בדוח הקודם שב-ZIP הופיע leumiservices.bankleumi.co.il/career/#/; זה lead היסטורי ולא יעד שאומת מחדש.</p>
+<a href="https://www.leumi.co.il/he/about-leumi/career" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">013</span><bdi>Bezeq Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>bezeq</code> · כבוי בקוד</div>
+<p>האתר מפנה ל-career_new; לא התקבל ממנו אוסף משרות מובנה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>למפות את מערכת החיפוש המוטמעת; אין להסיק מהפניית URL בלבד שהקורא תקין.</p>
+<a href="https://www.bezeq.co.il/career_new/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">014</span><bdi>Boston Scientific Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>boston-scientific</code> · פעיל בקוד</div>
+<p>עמוד קריירה תאגידי נגיש; קיים בקוד קורא Eightfold, שלא הורץ חי כאן.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>לבדוק endpoint ישראל של Eightfold ואת מגבלת הדפים לפני מסקנה על אפס.</p>
+<a href="https://www.bostonscientific.com/en-US/careers.html" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">015</span><bdi>Cadence Design Systems — Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>cadence</code> · פעיל בקוד</div>
+<p>מוגדר לוח Workday אך האיסוף הישן ניסה לקרוא ממנו קישורי HTML.</p><p><strong>נוסף ניתוב Workday</strong></p><p><strong>השלב הדרוש: </strong>הוסב לקורא Workday עם facet ישראל, תקרה של 40 פרטים ושמירת היסטוריה.</p>
+<a href="https://cadence.wd1.myworkdayjobs.com/External_Careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">016</span><bdi>Cal — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>cal</code> · פעיל בקוד</div>
+<p>לא התקבל תוכן אמין מהכתובת המוגדרת.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מעקב מקישור הקריירה באתר כאל אל לוח המשרות בפועל; לא להפעיל scraper כללי מניחוש.</p>
+<a href="https://www.cal-online.co.il/about/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">017</span><bdi>Cellcom Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>cellcom</code> · כבוי בקוד</div>
+<p>כלי הגלישה החזיר שגיאת קריאה ולא רשימת משרות.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לבדוק עמוד גיוס נוכחי ומערכת חיפוש מתוך האתר הרשמי.</p>
+<a href="https://www.cellcom.co.il/career/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">018</span><bdi>Chain Reaction — Hardware Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>chain-reaction</code> · פעיל בקוד</div>
+<p>העמוד הרשמי מצהיר במפורש שאין משרות פתוחות בזמן הבדיקה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>זה תומך באפס באתר כרגע; אין להפוך שגיאת collector כללית ל-empty תקין בלי אות מובנה.</p>
+<a href="https://chain-reaction.io/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">019</span><bdi>Cisco Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>cisco</code> · פעיל בקוד</div>
+<p>עמוד החיפוש המוגדר לא נגיש בבדיקה; היעדר משרות בישראל לא אומת.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי החיפוש הנוכחי באתר Cisco; גם Astrix מפנה לחברה זו.</p>
+<a href="https://careers.cisco.com/global/en/search-results?keywords=&amp;from=0&amp;s=1&amp;rk=l-israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">020</span><bdi>Clalit — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>clalit</code> · פעיל בקוד</div>
+<p>לוח כללית לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>בדוח הקודם צוין Redmatch; יש לאמת tenant ונתוני משרות, לא להניח שאין משרות.</p>
+<a href="https://jobs.clalitapps.co.il/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">021</span><bdi>החברה המרכזית למשקאות — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>cocacola-israel</code> · פעיל בקוד</div>
+<p>אתר הקריירה לא נקרא בהצלחה בכלי הגלישה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לבדוק מקור גיוס רשמי חלופי של החברה המרכזית; לא נמצא feed חלופי שאפשר לאמת כאן.</p>
+<a href="https://careers.cocacola.co.il/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">022</span><bdi>Deep Instinct Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>deep-instinct</code> · כבוי בקוד</div>
+<p>המשרות הגלויות שנקראו היו בארה״ב וביפן; אזכור ישראל בפרופיל עובד אינו מיקום משרה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא אומתה שלמות הרשימה או API; לשמור כבוי עד חיבור collector אמין.</p>
+<a href="https://www.deepinstinct.com/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">023</span><bdi>Dell Technologies Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>dell</code> · כבוי בקוד</div>
+<p>כתובת jobs.dell.com הופנתה ל-Oracle Candidate Experience, לא לדף משרות HTML ישן.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קורא Oracle ייעודי עם country facet ומזהי requisition מאומתים.</p>
+<a href="https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">024</span><bdi>Deloitte Israel — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>deloitte-israel</code> · פעיל בקוד</div>
+<p>בלוח הרשמי החלופי הופיעו תפקידי AI בתל אביב ובחיפה ורשימת משרות עם טעינה נוספת.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מיפוי מזהי משרות ופירוט/עימוד; דף הקריירה התאגידי המוגדר אינו feed.</p>
+<a href="https://careers.deloitte.co.il/positions/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">025</span><bdi>Delta Galil Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>delta-galil</code> · כבוי בקוד</div>
+<p>לא התקבל תוכן אמין מהעמוד המוגדר.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש איתור קישור הגיוס מתוך האתר הרשמי ואימות לוח ישראל לפני הפעלה.</p>
+<a href="https://www.deltagalil.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">026</span><bdi>DHL — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>dhl-israel</code> · פעיל בקוד</div>
+<p>עמוד גלובלי נגיש; לא נאספו ממנו משרות ישראל מאומתות.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש סינון מדינה מפורש וחיבור ל-search API; אין להסתפק בעמוד הגלובלי.</p>
+<a href="https://careers.dhl.com/global/en" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">027</span><bdi>Israel Discount Bank — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>discount-bank</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי לוח הגיוס העדכני מתוך אתר דיסקונט; אין כאן חלופה שאומתה כמחזירה משרות.</p>
+<a href="https://www.discountbank.co.il/private/general-information/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">028</span><bdi>DustPhotonics — Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>dustphotonics</code> · פעיל בקוד</div>
+<p>עמוד DustPhotonics מפנה ל-Credo, עם משרות במודיעין וקישורי HiBob של credo.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא בוצע ייבוא גורף תחת DustPhotonics: נדרש מיפוי זהות החברה ומקור Credo או סינון יחידה מאומת.</p>
+<a href="https://credosemi.com/about-credo/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">029</span><bdi>Elad Systems — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>elad-systems</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>יש לעקוב מקישור הקריירה באתר אלעד אחר לוח פעיל; לא אומת מקור חלופי בבדיקה זו.</p>
+<a href="https://www.eladsoft.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="pending" data-disabled="1">
+<summary><span class="num">030</span><bdi>Elspec Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>elspec</code> · כבוי בקוד</div>
+<p>נראו שש משרות בישראל בטבלה, ובהן תפקידי פיתוח וחומרה; נבדקו גם דפי פרט.</p><p><strong>נוסף קורא; נשאר כבוי</strong></p><p><strong>השלב הדרוש: </strong>נוסף קורא טבלה ופרטים תחומים. ברירת המחדל נשארה כבויה עד probe חי מוצלח.</p>
+<a href="https://www.elspec-ltd.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">031</span><bdi>Ericsson Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ericsson</code> · כבוי בקוד</div>
+<p>אתר תאגידי נגיש עם קישורים ל-jobs.ericsson.com.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לזהות tenant/API ולסנן ישראל במפורש; הקישור לבדו אינו אימות איסוף.</p>
+<a href="https://www.ericsson.com/en/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">032</span><bdi>EY Israel — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ey-israel</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לאמת את מנוע חיפוש המשרות הרשמי של EY ומיקום ישראל; לא להמציא API או board token.</p>
+<a href="https://www.ey.com/en_il/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">033</span><bdi>Fiverr — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>fiverr</code> · פעיל בקוד</div>
+<p>עמוד Jobs נגיש אך הרשימה אינה מופיעה במלואה בטקסט שנקרא.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש payload החיפוש או ATS מקושר; לא אומת אפס ולא נוסף collector מניחוש.</p>
+<a href="https://www.fiverr.com/jobs" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">034</span><bdi>Flex — Hardware Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>flex-israel</code> · פעיל בקוד</div>
+<p>קישור חיפוש רשמי מדף Flex ישראל מוביל ל-Workday של flextronics, אתר Careers.</p><p><strong>נוסף ניתוב Workday</strong></p><p><strong>השלב הדרוש: </strong>הוסב לקורא Workday עם גילוי facet ישראל, תקרה וסימון snapshot חלקי.</p>
+<a href="https://flextronics.wd1.myworkdayjobs.com/en-US/Careers?Location_Country=084562884af243748dad7c84c304d89a" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">035</span><bdi>Fox Group — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>fox-group</code> · פעיל בקוד</div>
+<p>הלוח החזיר שגיאת גישה בכלי הגלישה; בדוח הקודם צוין כשל TLS.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>אין לבטל בדיקת TLS. דרוש יעד מאובטח ומאומת מקישור HR רשמי.</p>
+<a href="https://www.foxhr.2.idus.co.il/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">036</span><bdi>Fridenson — IEM Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>friedenson</code> · פעיל בקוד</div>
+<p>החלופה careers-new לא נקראה כעת; קורא ייעודי עבורה כבר קיים ב-ZIP.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>נדרש probe של המימוש הקיים; לא נספר כתיקון חדש.</p>
+<a href="https://fridenson.co.il/careers-new/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">037</span><bdi>Fundbox Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>fundbox</code> · פעיל בקוד</div>
+<p>ארבע המשרות הגלויות שנקראו היו בארה״ב. Tel Aviv במסנן אינו הוכחת משרה.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>אפס ישראל תואם את הרשימה הגלויה, אך לא בוצעה סריקת HiBob חיה לאימות שלמות.</p>
+<a href="https://fundbox.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="0">
+<summary><span class="num">038</span><bdi>Hadassah Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>hadassah</code> · פעיל בקוד</div>
+<p>נמצאו משרות; הקורא כבר קיים ומופעל ב-ZIP, למרות מצב ממתין בדוח שהועלה.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>להשוות גרסת שרת ומטא-דאטה של המקור; אין לייחס את ההפעלה לעדכון הנוכחי.</p>
+<a href="https://he.hadassah.org.il/wanted/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">039</span><bdi>Haifa Port — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>haifa-port</code> · פעיל בקוד</div>
+<p>עמוד הדרושים לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לוח מכרזי כוח אדם נוכחי ובדיקת תאריכי סגירה; אין ראיה לאפס משרות.</p>
+<a href="https://www.haifaport.co.il/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">040</span><bdi>Harel — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>harel</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לגלות את מערכת הגיוס מתוך אתר הראל; לא נמצא feed חלופי שאומת כאן.</p>
+<a href="https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">041</span><bdi>HOT Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>hot</code> · כבוי בקוד</div>
+<p>גם הכתובת החלופית careersearch שנבדקה נתקלה בלולאת הפניות.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא להחליף אוטומטית לכתובת שאינה ניתנת לקריאה; נדרש בירור בסביבת רשת רגילה.</p>
+<a href="https://www.hot.net.il/heb/careersearch/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">042</span><bdi>IBM Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ibm</code> · פעיל בקוד</div>
+<p>עמוד החיפוש החזיר מעטפת ללא payload משרות אמין.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש חיבור למנגנון החיפוש הנוכחי; שמירת היסטוריה נכונה יותר מאפס שגוי.</p>
+<a href="https://www.ibm.com/careers/search?field_keyword_05[0]=Israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">043</span><bdi>Ichilov Medical Center — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ichilov</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי אתר הדרושים הנוכחי של איכילוב; אין חלופה מאומתת כאן.</p>
+<a href="https://www.tasmc.org.il/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">044</span><bdi>ICL — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>icl</code> · פעיל בקוד</div>
+<p>אתר קריירה נגיש; ב-ZIP כבר קיים קורא SuccessFactors עם חיפוש ישראל.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>נדרש probe חי לקורא הקיים, לרבות עימוד ותיאורי משרות.</p>
+<a href="https://careers.icl-group.com/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">045</span><bdi>Israel Electric Corporation Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>iec</code> · כבוי בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש חיבור לחיפוש המשרות ולא למעטפת כללית; לא אומתה חלופה כעת.</p>
+<a href="https://www.iec.co.il/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">046</span><bdi>Isracard — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>isracard</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה; באתר הראשי קיים קישור קריירה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>יש לעקוב אחר קישור הקריירה העדכני; אין להסיק מכשל בכתובת הישנה שאין משרות.</p>
+<a href="https://www.isracard.co.il/pages/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">047</span><bdi>Israel Post — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>israel-post</code> · פעיל בקוד</div>
+<p>עמוד הדרושים המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לבדוק קישור גיוס רשמי ותוקף מכרזים; לא בוצע חיבור אל מקור מנוחש.</p>
+<a href="https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">048</span><bdi>Israel Railways — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>israel-railways</code> · פעיל בקוד</div>
+<p>הכתובת החזירה מעטפת JavaScript ללא משרות קריאות.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מיפוי בקשת החיפוש ומזהי המשרות; אין הוכחה ללוח ריק.</p>
+<a href="https://www.rail.co.il/?page=career" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">049</span><bdi>Jabil Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>jabil-israel</code> · כבוי בקוד</div>
+<p>אתר החברה מפנה לסביבת Workday של Jabil.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>Jabil_Careers הוא lead מהבדיקה הקודמת; נדרש אימות חי של board ומסנן ישראל לפני הפעלה.</p>
+<a href="https://careers.jabil.com/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">050</span><bdi>KPMG Israel — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>kpmg-israel</code> · פעיל בקוד</div>
+<p>הכתובת הגלובלית הופנתה לאתר הישראלי; טופס חיפוש מופיע בלי payload משרות בטקסט שנקרא.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש API/מיפוי שדות של האתר המקומי; שינוי כתובת לבדו אינו מספיק.</p>
+<a href="https://kpmg.co.il/en/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">051</span><bdi>L&#x27;Oréal Israel Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>loreal-israel</code> · כבוי בקוד</div>
+<p>כלי הגלישה קיבל HTTP 406, לא תוצאת חיפוש ריקה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש יעד משרות נגיש ופרמטרי חיפוש נתמכים; אין לעקוף הגנות או להכריז על אפס.</p>
+<a href="https://careers.loreal.com/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">052</span><bdi>Maccabi Healthcare — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>maccabi-health</code> · פעיל בקוד</div>
+<p>נמצאו משרות עם דפי all-positions ומספר משרה; דף פרט נבדק.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קורא ייעודי המחבר מספר משרה, מיקום ודרישות; הוספת משרות רפואיות אינה התאמה אוטומטית למסלולים.</p>
+<a href="https://www.maccabi4u.co.il/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">053</span><bdi>Malam Team — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>malam-team</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מיפוי לוח משרות רשמי במקום חיפוש קישורים כללי.</p>
+<a href="https://www.malamteam.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">054</span><bdi>Matrix — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>matrix-israel</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת החזירה HTTP 403 בכלי הגלישה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לשמור נתונים קיימים; קורא Matrix כבר קיים, אך לא אומתה דרך גישה חלופית.</p>
+<a href="https://www.matrix.co.il/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">055</span><bdi>Max — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>max</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי יעד הגיוס מתוך האתר הרשמי; אין חלופה מאומתת בבדיקה זו.</p>
+<a href="https://www.max.co.il/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">056</span><bdi>Meta Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>meta</code> · פעיל בקוד</div>
+<p>לא התקבלה רשימת משרות אמינה מהחיפוש הרשמי.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>להמשיך לשמור snapshot, לא לפרש חסימה או תקלה כהיעדר משרות; נדרש probe מהשרת.</p>
+<a href="https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">057</span><bdi>Meuhedet Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>meuhedet</code> · כבוי בקוד</div>
+<p>עמוד שיווקי באנגלית עם דרישת JavaScript, ללא רשימת משרות אמינה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לוח גיוס מקומי/מוטמע עם מזהים ומיקום; להשאיר כבוי עד אימות.</p>
+<a href="https://www.meuhedet.co.il/en/career-at-meuhedet/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">058</span><bdi>Migdal — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>migdal</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי לוח המשרות מתוך האתר הרשמי; לא אומת יעד חלופי.</p>
+<a href="https://www.migdal.co.il/about/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">059</span><bdi>משרד הביטחון — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ministry-of-defense-il</code> · פעיל בקוד</div>
+<p>עמוד המשרות הישן לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש עמוד גיוס רשמי נוכחי ותוקף מכרזים; לא לאסוף מסמכי ניווט כמשרות.</p>
+<a href="https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="unverified" data-disabled="0">
+<summary><span class="num">060</span><bdi>Moon Active Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>moonactive</code> · פעיל בקוד</div>
+<p>האתר משתמש ב-Ashby ומציג משרות; הקורא הישן ציפה לנתיבי Comeet ישנים.</p><p><strong>נוסף ניתוב Ashby</strong></p><p><strong>השלב הדרוש: </strong>נותב ל-Ashby בלי לשנות את Source identity; שמירת היסטוריה חלקית עד reconciliation נפרד.</p>
+<a href="https://jobs.ashbyhq.com/moonactive" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">061</span><bdi>Ness — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ness-israel</code> · פעיל בקוד</div>
+<p>האתר החזיר מעטפת Angular ללא רשימת משרות נגישה לטקסט.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש API/נתוני חיפוש ולא פרסור של מעטפת האתר.</p>
+<a href="https://www.ness-tech.co.il/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">062</span><bdi>NeuroBlade — Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>neuroblade</code> · פעיל בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה. עמוד design-system שנמצא בחיפוש אינו לוח דרושים אמין.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>אין להשתמש בעמוד הדגמה כמקור; נדרש לוח רשמי נוכחי.</p>
+<a href="https://www.neuroblade.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">063</span><bdi>Niram Gitan — IEM Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>niram-gitan</code> · פעיל בקוד</div>
+<p>האתר המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קישור גיוס/משרות רשמי ולא דף בית כללי; אין חלופה מאומתת.</p>
+<a href="https://www.niramgitan.com/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">064</span><bdi>Nokia Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>nokia</code> · כבוי בקוד</div>
+<p>דף הקריירה הופנה לכתובת נוכחית; לא אומת אוסף משרות ישראל.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי ATS והפעלת country facet לפני הפעלה.</p>
+<a href="https://www.nokia.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">065</span><bdi>Nova — Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>nova</code> · פעיל בקוד</div>
+<p>בעמוד ישראל הופיעו משרות מזוהות; הכותרת הראשית מציינת 35 והרשימה 34, ולכן המספר אינו ספירת API מאומתת. קישורי comeetitem לא התאימו לביטוי הישן.</p><p><strong>נוסף ניתוב Comeet</strong></p><p><strong>השלב הדרוש: </strong>נוסף ניתוב ללוח Comeet nova/A5.007 עם מזהים ותיאורים מובנים ושמירת היסטוריה.</p>
+<a href="https://www.novami.com/location_filter/israel/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">066</span><bdi>Oracle Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>oracle</code> · כבוי בקוד</div>
+<p>הכתובת הופנתה למעטפת Oracle Candidate Experience.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קורא Oracle כולל schema, facet ישראל ועימוד; לא הומצא endpoint.</p>
+<a href="https://careers.oracle.com/en/sites/jobsearch" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">067</span><bdi>OrCam Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>orcam</code> · כבוי בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>orcam.zohorecruit.com/careers הוא lead היסטורי מה-ZIP בלבד; נדרש אימות חי לפני הפעלה.</p>
+<a href="https://www.orcam.com/en-us/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">068</span><bdi>Ormat Technologies Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ormat</code> · כבוי בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קישור גיוס נוכחי של Ormat ומשרות בישראל; אין feed חלופי מאומת כאן.</p>
+<a href="https://www.ormat.com/en/company/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="unverified" data-disabled="0">
+<summary><span class="num">069</span><bdi>Osem-Nestle — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>osem-nestle</code> · פעיל בקוד</div>
+<p>האתר הציג 62 משרות וכמה דפי פרט תקינים עם מזהה, מיקום IL וקישור Nestle להגשה.</p><p><strong>נוסף קורא תחום</strong></p><p><strong>השלב הדרוש: </strong>נוסף קורא מוגבל לפרטים, עד 40 קישורים בעמוד שנקרא; אינו מתיימר להשלים את כל העימוד.</p>
+<a href="https://www.osem-nestle.co.il/career/open-positions" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">070</span><bdi>Partner Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>partner</code> · כבוי בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מיפוי מערכת גיוס בפועל מתוך האתר הרשמי; לא נמצאה חלופה מאומתת.</p>
+<a href="https://www.partner.co.il/n/career" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">071</span><bdi>Philips Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>philips</code> · פעיל בקוד</div>
+<p>עמוד Phenom הציג טקסטי תבנית כולל משתנים; No results בתבנית אינו הוכחת אפס.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש payload חיפוש ולא פרסור טקסטי placeholders; שומרים snapshot.</p>
+<a href="https://www.careers.philips.com/il/en/search-results" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">072</span><bdi>The Phoenix — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>phoenix</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לגלות לוח גיוס נוכחי באתר הפניקס; לא אומת feed חלופי.</p>
+<a href="https://www.fnx.co.il/about-us/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">073</span><bdi>Playtika — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>playtika</code> · פעיל בקוד</div>
+<p>העמוד נגיש ודינמי. ב-ZIP כבר קיים ניתוב Greenhouse playtikaltd ייעודי.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>לא נספר כתיקון חדש; יש לבצע probe של הקורא הקיים מהשרת.</p>
+<a href="https://www.playtika.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">074</span><bdi>Pliops — Storage Silicon Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>pliops</code> · פעיל בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא נמצא לוח חלופי רשמי שניתן לאמת; אין להסיק שהחברה הפסיקה לגייס.</p>
+<a href="https://pliops.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">075</span><bdi>PwC Israel — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>pwc-israel</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת החזירה 404 בכלי הגלישה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש למצוא קישור גיוס ישראלי עדכני; אין להחליף ללוח גלובלי ללא סינון מדינה.</p>
+<a href="https://www.pwc.com/il/he/career.html" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">076</span><bdi>Qualcomm Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>qualcomm</code> · פעיל בקוד</div>
+<p>חיפוש ישראל לא נקרא בהצלחה; עמודי החברה מצביעים על Eightfold אך לא אומת feed ישראל.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש אימות domain=qualcomm.com ו-schema בפועל לפני הוספת route.</p>
+<a href="https://careers.qualcomm.com/careers?location=Israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">077</span><bdi>Rafael Careers</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>rafael</code> · פעיל בקוד</div>
+<p>האתר הרשמי החזיר HTTP 491 בכלי הגלישה. זו בעיה נפרדת משגיאת Ashby הכפולה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא נעקפה הגנה; נשמרות משרות קודמות. תיקון הכפילות לא פותר את גישת האתר עצמו.</p>
+<a href="https://career.rafael.co.il/search/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">078</span><bdi>Rambam Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>rambam</code> · כבוי בקוד</div>
+<p>עמוד עשיר בקטגוריות וקישורים; לא אומת אוסף משרות מלא ומזוהה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש reader תחום למשרות, שלא יאסוף ניווט וקטגוריות; לבדוק תוקף מכרזים.</p>
+<a href="https://www.rambam.org.il/about-rambam/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">079</span><bdi>Retym — Semiconductor Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>retym</code> · פעיל בקוד</div>
+<p>נמצאו משרות ברמת גן; ב-ZIP כבר קיים קורא פרטים ייעודי ל-Comeet המוטמע.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לברר מדוע reader הקיים נכשל בשרת: DOM/canonical URL/הרשאות; לא הוקל תנאי אימות בלי raw HTML.</p>
+<a href="https://retym.com/careers-2/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">080</span><bdi>Salesforce Careers Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>salesforce</code> · פעיל בקוד</div>
+<p>חיפוש ישראל לא החזיר תוכן אמין בכלי הגלישה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>להמשיך לשמור snapshot; נדרש נתיב רשמי/ATS מאומת ולא HTML כללי.</p>
+<a href="https://careers.salesforce.com/en/jobs/?search=&amp;country=Israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">081</span><bdi>Samsung Research Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>samsung</code> · פעיל בקוד</div>
+<p>כתובת הקריירה של Samsung Research Israel לא נקראה בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>יש לאמת ערוץ גיוס ישראלי נוכחי, בלי לשייך אוטומטית משרות גלובליות למרכז הישראלי.</p>
+<a href="https://research.samsung.com/sril/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">082</span><bdi>SAP Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>sap-israel</code> · כבוי בקוד</div>
+<p>קישור ישראל הישן הופנה לחיפוש חדש כללי.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש למפות את מסנן המדינה בחיפוש החדש; עמוד כללי אינו הוכחת אפס בישראל.</p>
+<a href="https://jobs.sap.com/en/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="0">
+<summary><span class="num">083</span><bdi>Sapiens Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>sapiens</code> · פעיל בקוד</div>
+<p>החיפוש לא נקרא כעת, אבל reader ייעודי והפעלה כבר קיימים ב-ZIP.</p><p><strong>מימוש כבר היה בקלט</strong></p><p><strong>השלב הדרוש: </strong>לבדוק פער גרסת שרת/מטא-דאטה; לא נספר כתיקון חדש.</p>
+<a href="https://careers.sapiens.com/search/?q=&amp;locationsearch=Israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">084</span><bdi>SCD — SemiConductor Devices</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>scd</code> · פעיל בקוד</div>
+<p>המקור הצביע לאתר האמריקאי. בקריאה מוקדמת של האתר הישראלי נצפו משרות inline; בקריאה חוזרת התקבל מסך One moment, please. נגישות האיסוף לא אומתה.</p><p><strong>כתובת בלבד; לא שוחזר</strong></p><p><strong>השלב הדרוש: </strong>תוקנה כתובת ונמנע empty שגוי. נדרש גם טיפול בגישה נתמכת וגם קורא inline עם מזהים יציבים; לא סומן כשוחזר.</p>
+<a href="https://www.scd-infrared.com/find-a-job/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">085</span><bdi>Sheba Medical Center — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>sheba</code> · פעיל בקוד</div>
+<p>העמוד המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לוח משרות רשמי עדכני וקישורי פרט; אין חלופה מאומתת בבדיקה זו.</p>
+<a href="https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">086</span><bdi>Shufersal — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>shufersal</code> · פעיל בקוד</div>
+<p>תת-דומיין הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש בירור יעד הגיוס הרשמי וסינון תפקידים לאחר איסוף, לא מחיקה בשל כשל גישה.</p>
+<a href="https://career.shufersal.co.il/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">087</span><bdi>Siemens EDA — Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>siemens-eda</code> · פעיל בקוד</div>
+<p>דף הקריירה הכללי לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש חיפוש רשמי ב-jobs.siemens.com עם מיקום ישראל ויחידה מתאימה; יעד זה הוא lead ולא feed מאומת.</p>
+<a href="https://www.siemens.com/en-us/company/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">088</span><bdi>Snyk Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>snyk</code> · כבוי בקוד</div>
+<p>דף הקריירה נגיש, אך לא נחשף ממנו payload משרות אמין.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לא להשתמש בטוקן Greenhouse ישן שהדוח הקודם סימן כשגוי; נדרש גילוי ATS עדכני.</p>
+<a href="https://snyk.io/careers/all-jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">089</span><bdi>SodaStream Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>sodastream</code> · כבוי בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש מקור גיוס רשמי בישראל; כתובת ישנה או כשל DNS אינם הוכחה שאין משרות.</p>
+<a href="https://sodastream.com/pages/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">090</span><bdi>StarkWare Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>starkware</code> · כבוי בקוד</div>
+<p>העמוד מציג הזדמנות Ecosystem Research; לא כל משרת אקוסיסטם היא העסקה ישירה ב-StarkWare.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>יש לוודא מעסיק, מיקום ופרטי תפקיד לפני חיבור והפעלה.</p>
+<a href="https://starkware.co/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">091</span><bdi>Strauss Group — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>strauss</code> · פעיל בקוד</div>
+<p>הכתובת הישנה com לא נקראה; כתובת co.il שנבדקה לא החזירה תוכן טקסטואלי מספיק.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>אין לטעון שתיקון סיומת הדומיין משחזר איסוף; נדרש payload גיוס מאומת.</p>
+<a href="https://www.strauss-group.co.il/career/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">092</span><bdi>Sunflower Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>sunflower</code> · פעיל בקוד</div>
+<p>לוח Comeet מחזיר מעטפת דינמית בקריאת הדפדפן; לא אומת אפס אמיתי.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש בדיקת COMPANY_POSITIONS_DATA/ה-API החי; לא הוחלף board UID מניחוש.</p>
+<a href="https://www.comeet.com/jobs/sunflower/AA.009" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">093</span><bdi>Super-Pharm — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>super-pharm</code> · פעיל בקוד</div>
+<p>האתר הציג הרבה משרות קמעונאיות בגוף העמוד; המקור אינו ריק.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קורא inline עם מזהי דרישה והפרדה מקטגוריות; סיווג למסלולים יתבצע רק לאחר האיסוף.</p>
+<a href="https://jobs.super-pharm.co.il/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">094</span><bdi>Tefen — IEM Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>tefen</code> · פעיל בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לגלות יעד דרושים רשמי עדכני; אין חלופה מאומתת כאן.</p>
+<a href="https://www.tefen.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">095</span><bdi>Tnuva Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>tnuva</code> · כבוי בקוד</div>
+<p>עמוד המשרות המוגדר לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש לוח גיוס רשמי נוכחי וקורא מותאם לפני הפעלה.</p>
+<a href="https://www.tnuva.co.il/jobs/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">096</span><bdi>Tower Semiconductor — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>tower-semiconductor</code> · פעיל בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש ATS/לוח ישראל מאומת; אין ראיה מהכשל שאין משרות.</p>
+<a href="https://towersemi.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">097</span><bdi>Unilever Israel Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>unilever-israel</code> · כבוי בקוד</div>
+<p>עמוד ישראל רשמי נגיש, אך לא אומת אוסף משרות ממנו.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לוח Workday של Unilever הוא lead מהדוח הקודם; נדרש country facet ותוכן חי לפני הפעלה.</p>
+<a href="https://careers.unilever.com/en/israel" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">098</span><bdi>UPS — CS Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>ups-israel</code> · פעיל בקוד</div>
+<p>הכתובת המוגדרת מופנית לאתר ארה״ב, לא הוכחת חיפוש ישראל.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קישור גיוס ישראלי רשמי; לא להציג תפקידי ארה״ב כישראליים.</p>
+<a href="https://www.jobs-ups.com/us/en" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="unverified" data-disabled="0">
+<summary><span class="num">099</span><bdi>Vayyar Imaging — Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>vayyar</code> · פעיל בקוד</div>
+<p>עמוד גיוס שיווקי נגיש ללא רשימת משרות מאומתת בטקסט שנקרא.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש גילוי ATS/API דרך האתר הרשמי; אין הוכחה לאפס משרות.</p>
+<a href="https://vayyar.com/recruitment/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">100</span><bdi>Verint Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>verint</code> · כבוי בקוד</div>
+<p>האתר הרשמי מקשר ל-Oracle Candidate Experience באתר CX.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש קורא Oracle עם מזהי משרות ומיקום; אין collector מאומת ליעד זה בעדכון.</p>
+<a href="https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="unverified" data-disabled="0">
+<summary><span class="num">101</span><bdi>Wiliot — Hardware Israel</bdi><span class="badge">לא מאומת</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>wiliot</code> · פעיל בקוד</div>
+<p>נמצאו משרות בישראל וקישורי positions/position-... שלא התאימו לדפוס הישן.</p><p><strong>נוסף ניתוב Comeet</strong></p><p><strong>השלב הדרוש: </strong>נוסף ניתוב ללוח Comeet wiliot/F6.003 עם גבולות ואימות מזהים.</p>
+<a href="https://www.wiliot.com/careers" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="pending" data-disabled="1">
+<summary><span class="num">102</span><bdi>XM Cyber Careers Israel</bdi><span class="badge">ממתין לאימות</span></summary>
+<div class="source-body"><div class="source-meta"><code>official_careers</code> · <code>xm-cyber</code> · כבוי בקוד</div>
+<p>עמוד הקריירה לא נקרא בהצלחה.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>לוח Comeet xmcyber/15.005 הוא lead קודם שהחזיר ריק; נדרש אימות נוכחי לפני הפעלה.</p>
+<a href="https://xmcyber.com/careers/" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="1" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">103</span><bdi>CyberArk Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>smartrecruiters</code> · <code>Cyberark1</code> · פעיל בקוד</div>
+<p>אתר הקריירה של CyberArk מפנה ל-Palo Alto Networks; זה אינו אימות שאין משרות בישראל.</p><p><strong>הגנה מפני אפס מטעה</strong></p><p><strong>השלב הדרוש: </strong>נוספה הגנה מפני empty של הלוח הישן; יש להצליב עם מקור Palo Alto הקיים ולא למזג היסטוריה אוטומטית.</p>
+<a href="https://www.paloaltonetworks.com/idira" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details><details class="source" data-changed="0" data-reason="zero_israel" data-disabled="0">
+<summary><span class="num">104</span><bdi>Western Digital Careers Israel</bdi><span class="badge">אפס בישראל</span></summary>
+<div class="source-body"><div class="source-meta"><code>smartrecruiters</code> · <code>WesternDigital</code> · פעיל בקוד</div>
+<p>הלוח הציבורי מציג משרות בחו״ל. הטקסט שנקרא אינו רשימה עולמית מלאה ואינו מוכיח אפס בישראל.</p><p><strong>ללא תיקון חדש</strong></p><p><strong>השלב הדרוש: </strong>נדרש probe ל-Posting API עם country=il; אין להחליף חברה/לוח בלי ראיה רשמית.</p>
+<a href="https://careers.smartrecruiters.com/WesternDigital" target="_blank" rel="noopener noreferrer">העמוד שנבדק ↗</a><p class="muted">בדיקת אתר: 26.09.2026 · איסוף חי מתוך הקוד: לא אומת</p></div></details></article><footer>בסיס הבדיקה: ZIP המקור והדוח שהועלו ב-26.09.2026. לא בוצעו שינויים בשרת או במסד הנתונים.<br>SHA-256 של ZIP המקור: <bdi>730ba9b3476a53146f37dd852e9756c4743b151ae9dd9bdbe652b93b5a8c056b</bdi><br>המסמך עצמאי: אין טעינת ספריות, גופנים או משאבים חיצוניים. קישורי המקורות נפתחים רק בלחיצה.</footer></main><script>const cards=[...document.querySelectorAll('.source')];const q=document.querySelector('#q'),filter=document.querySelector('#filter');function refresh(){let count=0;const term=q.value.toLocaleLowerCase();for(const card of cards){const f=filter.value;const ok=card.textContent.toLocaleLowerCase().includes(term)&&(f==='all'||(f==='changed'&&card.dataset.changed==='1')||(f==='disabled'&&card.dataset.disabled==='1')||card.dataset.reason===f);card.hidden=!ok;count+=ok?1:0}document.querySelector('#count').textContent=count+' מתוך 104 מקורות'}q.addEventListener('input',refresh);filter.addEventListener('change',refresh);document.querySelector('#expand').onclick=()=>cards.filter(c=>!c.hidden).forEach(c=>c.open=true);document.querySelector('#collapse').onclick=()=>cards.forEach(c=>c.open=false);window.addEventListener('beforeprint',()=>cards.forEach(c=>c.open=true));refresh();</script></body></html>

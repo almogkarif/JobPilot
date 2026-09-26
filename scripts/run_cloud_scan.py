@@ -5,8 +5,11 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
+import signal
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 from sqlalchemy import select
 
@@ -25,10 +28,38 @@ from app.services.source_catalog import install_recommended_sources  # noqa: E40
 from app.services.source_repair import repair_error_sources  # noqa: E402
 from app.services.scan_runtime import (  # noqa: E402
     create_scan_run,
+    claim_scan_run,
+    finish_interrupted_worker_runs,
     queued_scan_runs,
     scheduled_scan_due,
     update_scan_run,
 )
+
+_LOCAL_WORKER_OWNER = "local:" + uuid4().hex
+
+
+def worker_owner(*, require_github: bool = False) -> str:
+    values = [os.environ.get(key, "").strip() for key in
+              ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")]
+    if all(values):
+        return "github:" + ":".join(values)
+    if require_github:
+        raise RuntimeError("Finalization requires the exact GitHub run and attempt")
+    return _LOCAL_WORKER_OWNER
+
+
+def finalize_worker() -> int:
+    # Do not initialize schema, profiles, catalog routing, collectors or recovery.
+    current_owner = worker_owner(require_github=True)
+    owner = os.environ.get("JOBPILOT_SCAN_FINALIZER_OWNER", "").strip() or current_owner
+    # A retry of only the failed finalizer must use the original scan job's output.
+    # Never accept an owner belonging to another repository or workflow run.
+    if (owner.rsplit(":", 1)[0] != current_owner.rsplit(":", 1)[0]
+            or not owner.rsplit(":", 1)[-1].isdigit()):
+        raise RuntimeError("Finalizer owner does not match this GitHub workflow run")
+    with user_session(SHARED_CATALOG_USER_ID) as db:
+        return finish_interrupted_worker_runs(db, owner,
+            error="GitHub scan job ended before this scan completed")
 
 
 def known_user_ids() -> list[str]:
@@ -196,10 +227,8 @@ def queue_admin_applications_once() -> int:
     print(f"[one-time-queue] complete admins={len(admin_ids)} queued={queued_total}", flush=True)
     return queued_total
 
-def progress_writer(run_id: str, career_track: str):
+def progress_writer(run_id: str, career_track: str, *, owner: str | None = None):
     def write(progress: dict) -> None:
-        with user_session(SHARED_CATALOG_USER_ID) as status_db:
-            update_scan_run(status_db, run_id, career_track, status="running", progress=progress, started=True)
         # Keep diagnostics available even if a later source/ranking step fails.
         # Only bounded public source labels and counters enter the Actions log.
         print('[scan-progress] ' + json.dumps({
@@ -208,6 +237,12 @@ def progress_writer(run_id: str, career_track: str):
             'total': int(progress.get('total') or 0),
             'source': str(progress.get('current_source') or '')[:160],
         }, ensure_ascii=False), flush=True)
+        if isinstance(progress.get('source_result'), dict):
+            print_source_summary({'per_source': [progress['source_result']]})
+        with user_session(SHARED_CATALOG_USER_ID) as status_db:
+            update_scan_run(status_db, run_id, career_track, status="running",
+                            progress={key: value for key, value in progress.items() if key != 'source_result'},
+                            started=True, worker_owner=owner)
     return write
 
 
@@ -216,7 +251,7 @@ def print_source_summary(result: dict) -> None:
     for item in result.get("per_source") or []:
         print(
             "[source] "
-            f"name={item.get('source')} "
+            f"name={str(item.get('source') or '')[:160]} "
             f"collected={int(item.get('collected') or 0)} "
             f"israel={int(item.get('israel_found') or 0)} "
             f"matching={int(item.get('found') or 0)} "
@@ -260,9 +295,13 @@ async def execute_run(run_id: str, career_track: str) -> dict:
     from app.services.scanner import scan_all_sources
 
     career_track = normalize_track(career_track)
+    owner = worker_owner()
     with user_session(SHARED_CATALOG_USER_ID) as status_db:
+        if not claim_scan_run(status_db, run_id, career_track, owner):
+            return {"status": "not_claimed", "career_track": career_track}
         update_scan_run(
             status_db, run_id, career_track, status="running", started=True,
+            worker_owner=owner,
             progress={"phase": "starting", "current": 0, "completed": 0, "total": 0, "current_source": None, "active_sources": []},
         )
     try:
@@ -276,13 +315,14 @@ async def execute_run(run_id: str, career_track: str) -> dict:
                 )
             result = await scan_all_sources(
                 db, career_track=career_track, catalog_only=True,
-                progress_callback=progress_writer(run_id, career_track),
+                progress_callback=progress_writer(run_id, career_track, owner=owner),
             )
         result["career_track"] = career_track
         print_source_summary(result)
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
             update_scan_run(
                 status_db, run_id, career_track,
+                worker_owner=owner,
                 status="running",
                 progress={"phase": "ranking", "current_source": None, "active_sources": []},
                 result=result, error="",
@@ -291,19 +331,16 @@ async def execute_run(run_id: str, career_track: str) -> dict:
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
             update_scan_run(
                 status_db, run_id, career_track,
+                worker_owner=owner,
                 status=str(result.get("status") or "ok"),
                 progress={"phase": "done", "current_source": None, "active_sources": []},
                 result=result, error="", finished=True,
             )
         return result
-    except Exception as exc:  # noqa: BLE001
-        failure = {"status": "failed", "error": str(exc), "career_track": career_track}
+    except BaseException as exc:  # Cancellation and SIGTERM must release this owned run too.
         with user_session(SHARED_CATALOG_USER_ID) as status_db:
-            update_scan_run(
-                status_db, run_id, career_track, status="failed",
-                progress={"phase": "done", "current_source": None, "active_sources": []},
-                result=failure, error=str(exc), finished=True,
-            )
+            finish_interrupted_worker_runs(status_db, owner, run_id=run_id,
+                                           error=str(exc) or type(exc).__name__)
         raise
 
 
@@ -313,20 +350,26 @@ async def run_queued() -> int:
         for log in queued_scan_runs(db):
             details = json.loads(log.details_json or "{}")
             candidates.append((log.entity_id, normalize_track(details.get("career_track"))))
-    ran = 0
+    ran = failures = 0
     for run_id, track in candidates:
         print(f"[scan] queued shared track={track} run={run_id[:8]}", flush=True)
         try:
             result = await execute_run(run_id, track)
             print(f"[scan] finished shared track={track} status={result.get('status')}", flush=True)
+            if result.get('status') == 'failed':
+                failures += 1
+            elif result.get('status') != 'not_claimed':
+                ran += 1
         except Exception as exc:  # noqa: BLE001
+            failures += 1
             print(f"[scan] failed shared track={track} error={exc}", flush=True)
-        ran += 1
+    if failures:
+        raise RuntimeError(f"{failures} queued scan(s) failed; {ran} completed")
     return ran
 
 
 async def run_scheduled(*, force: bool = False) -> int:
-    ran = 0
+    ran = failures = 0
     for definition in scan_track_definitions():
         track = definition.key
         with user_session(SHARED_CATALOG_USER_ID) as db:
@@ -340,16 +383,25 @@ async def run_scheduled(*, force: bool = False) -> int:
                 continue
             log, created = create_scan_run(db, track, trigger="manual_action" if force else "scheduled")
             if not created:
-                print(f"[scan] already queued/running shared track={track}", flush=True)
-                continue
+                details = json.loads(log.details_json or "{}")
+                if details.get("status") != "queued":
+                    print(f"[scan] already running shared track={track}", flush=True)
+                    continue
+                print(f"[scan] consuming queued shared track={track}", flush=True)
             run_id = log.entity_id
         print(f"[scan] starting shared track={track} run={run_id[:8]}", flush=True)
         try:
             result = await execute_run(run_id, track)
             print(f"[scan] finished shared track={track} status={result.get('status')}", flush=True)
+            if result.get('status') == 'failed':
+                failures += 1
+            elif result.get('status') != 'not_claimed':
+                ran += 1
         except Exception as exc:  # noqa: BLE001
+            failures += 1
             print(f"[scan] failed shared track={track} error={exc}", flush=True)
-        ran += 1
+    if failures:
+        raise RuntimeError(f"{failures} scheduled scan(s) failed; {ran} completed")
     return ran
 
 
@@ -468,9 +520,15 @@ def work_available(mode: str) -> bool:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Run JobPilot scans outside the web service")
-    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile", "applications", "queue-admin-once"), default="queued")
+    parser.add_argument("--mode", choices=("queued", "scheduled", "all", "recover", "diagnose", "audit", "reconcile", "applications", "queue-admin-once", "finalize"), default="queued")
     parser.add_argument("--check-only", action="store_true", help="Exit 0 when scan work exists, 3 otherwise")
     args = parser.parse_args()
+    if args.mode == "finalize":
+        if args.check_only:
+            parser.error("Finalization cannot be used as a work probe")
+        count = finalize_worker()
+        print(f"[scan] finalized interrupted runs={count}", flush=True)
+        return 0
     if args.check_only:
         from app.database import engine
         from app.services.catalog_routing import initialize_catalog_runtime
@@ -509,4 +567,7 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
+    def terminated(_signal, _frame):
+        raise SystemExit("Scan worker terminated by SIGTERM")
+    signal.signal(signal.SIGTERM, terminated)
     raise SystemExit(asyncio.run(main()))

@@ -74,6 +74,7 @@ def test_scan_remains_active_until_all_personal_rankings_finish(monkeypatch, cap
     from app.services import scanner
     states = []
     monkeypatch.setattr(worker, 'user_session', dummy_session)
+    monkeypatch.setattr(worker, 'claim_scan_run', lambda *args: True)
     monkeypatch.setattr(worker, 'install_recommended_sources', lambda *args: None)
     monkeypatch.setattr(worker, 'repair_error_sources', lambda *args: {'source_ids': []})
     monkeypatch.setattr(worker, 'update_scan_run', lambda *args, **kwargs: states.append(kwargs))

@@ -50,7 +50,7 @@ def test_retym_uses_real_ids_full_requirements_and_explicit_detail_locations(mon
     assert {job.external_id for job in jobs} == {f'{index:02}.ABC' for index in range(6)}
     assert all('Three years' in job.description for job in jobs)
     assert sum(job.location == 'Ramat Gan, Israel' for job in jobs) == 5
-    assert jobs[-1].location == ''  # Explicit foreign location wins over the Israel footer.
+    assert jobs[-1].location == 'Austin, Texas'  # Preserve the explicit foreign office; never infer Israel from a footer.
     assert not jobs.complete
     assert len(calls) == 7
     assert preset['max_detail_jobs'] == 40 and preset['detail_response_bytes'] == 4_000_000

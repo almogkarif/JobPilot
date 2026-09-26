@@ -33,6 +33,8 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      worker_owner: ${{ steps.owner.outputs.value }}
     env:
       JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
       JOBPILOT_AUTH_MODE: supabase
@@ -48,6 +50,9 @@ jobs:
       JOBPILOT_GITHUB_REF: main
       JOBPILOT_GITHUB_APPLICATION_WORKFLOW: jobpilot-application.yml
     steps:
+      - name: Record exact scan attempt
+        id: owner
+        run: echo "value=github:$GITHUB_REPOSITORY:$GITHUB_RUN_ID:$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
       - name: Checkout JobPilot
         uses: actions/checkout@v7
 
@@ -120,3 +125,32 @@ jobs:
         run: |
           echo "Running JobPilot external scan worker in mode: $MODE"
           python scripts/run_cloud_scan.py --mode "$MODE"
+
+  finalize:
+    # A separate job still runs when the scan job exhausts its 45-minute timeout.
+    needs: scan
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      JOBPILOT_SCAN_FINALIZER_OWNER: ${{ needs.scan.outputs.worker_owner }}
+      JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
+      JOBPILOT_AUTH_MODE: supabase
+      JOBPILOT_SCHEDULER_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install lightweight finalizer dependencies
+        run: >-
+          python -m pip install
+          fastapi==0.141.1
+          sqlalchemy==2.0.50
+          pydantic-settings==2.15.0
+          psycopg[binary]==3.2.9
+          beautifulsoup4==4.14.3
+          httpx==0.28.1
+      - name: Finalize only this GitHub run attempt
+        run: python scripts/run_cloud_scan.py --mode finalize

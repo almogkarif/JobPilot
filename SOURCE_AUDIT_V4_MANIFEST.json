@@ -1,0 +1,25 @@
+{
+  "revision": "source-audit-v4-20260926",
+  "baseline_zip": "jobpilot-source-audit-v3-20260926-fixed.zip",
+  "baseline_zip_sha256": "fcbb01fe44396e82a2652ed9c8b01f3417c162b51c4ae7c4de6ae9f55428e04e",
+  "live_input_report": "source-health-live-v3.json",
+  "live_input_sha256": "3a41573a4e81276ab26a5bca5192d645e771474ae0b98380ec158c54c86c60d5",
+  "scope": "Elad text/layout variants, Retym ID-scoped content fallback, optional bounded diagnostics; not a repair of all eight unresolved sources",
+  "new_post_v4_live_collection_validated": false,
+  "new_tests": 50,
+  "final_filtered_pytest_passed": 1722,
+  "code_sha256": {
+    "app/collectors/audit_diagnostics.py": "d435c3bf5d642d06b9b87a83199c108012acfa45900dd69cf825717c0c82daa6",
+    "app/collectors/elad.py": "feb3febe3c61fa30086541ccdf9e23d074fca9ca86ec9a95b3a80147ea498875",
+    "app/collectors/expansion_ats.py": "f7d82cdc7508f92512627720e94eafa94d0fcad6981f7950c2f4f704523b1239",
+    "app/collectors/official.py": "b8bfbb62d5c08fd5ca46f6ed6c7f11d62cc6444c963a53781165ebdb4f2779fc",
+    "app/collectors/workday.py": "30d354ec98e6e2a1cc57b432ec962588d8451495dd216fa71ef502513494a860",
+    "scripts/audit_source_health.py": "b8516a066a96c0f3767adba126807d71f3631e4861a8c9270b7292f777bb44e9",
+    "tests/test_source_audit_v3_20260926.py": "1b22813fdf526cea3f833aacb619977e05fe72169932d3d9ee277b426beac765",
+    "tests/test_source_audit_v4_20260926.py": "52f73e64a3a6bc4d1d5d3b523fb4609e339e8edb06d70bea38a594279644ee63"
+  },
+  "production_database_changed": false,
+  "source_defaults_changed": false,
+  "track_union_changed": false,
+  "ranking_changed": false
+}

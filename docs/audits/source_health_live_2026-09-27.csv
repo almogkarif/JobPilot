@@ -1,0 +1,263 @@
+﻿name,kind,identifier,status_group,default_enabled,israel_rows,total_rows,checked_at,official_url,error
+4M Analytics Careers Israel,official_careers,4manalytics,working,True,4,8,2026-09-26T20:57:48.304972+00:00,https://www.comeet.com/jobs/4Manalytics/B6.00F,
+accessiBe Careers Israel,greenhouse,accessibe,working,True,2,3,2026-09-26T20:56:50.951557+00:00,,
+Aidoc — Operations & Product Analytics,greenhouse,aidocmedical,working,True,21,33,2026-09-26T20:56:50.982697+00:00,,
+Amazon Jobs Israel,official_careers,amazon,working,True,10,10,2026-09-26T20:57:48.371393+00:00,https://www.amazon.jobs/en/search?country=ISR&loc_query=Israel&result_limit=100,
+Amdocs Careers Israel,official_careers,amdocs,empty,True,0,0,2026-09-26T20:57:49.211523+00:00,https://jobs.amdocs.com/,
+Analog Devices Careers Israel,official_careers,analog-devices,unverified,False,,,2026-09-26T20:57:49.629546+00:00,https://careers.analog.com/,PreserveExistingJobs: Analog Devices bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist
+Apiiro Careers Israel,greenhouse,apiiro,working,True,4,6,2026-09-26T20:56:51.250128+00:00,,
+Apple Careers Israel,official_careers,apple,working,True,20,20,2026-09-26T20:57:50.636339+00:00,https://jobs.apple.com/en-il/search?location=israel-ISR,
+Applied Materials Israel,workday,applied-materials,working,True,61,61,2026-09-26T21:04:05.354344+00:00,https://amat.wd1.myworkdayjobs.com/External,
+AppsFlyer Careers Israel,greenhouse,appsflyer,working,True,12,43,2026-09-26T20:56:51.468261+00:00,https://careers.appsflyer.com/herzliya/,
+Aqua Security Careers,official_careers,aqua,working,True,5,9,2026-09-26T20:57:51.336841+00:00,https://www.aquasec.com/about-us/careers/,
+Arbe Robotics — Israel,official_careers,arbe,working,True,7,7,2026-09-26T20:57:52.781396+00:00,https://arberobotics.com/career/,
+Arm — Israel,official_careers,arm-israel,working,True,6,9,2026-09-26T20:57:53.584316+00:00,https://careers.arm.com/location/israel-jobs/33099/294640/2,
+Armis — Data & Program Operations,greenhouse,armissecurity,unverified,True,,,2026-09-26T20:56:52.970569+00:00,,PreserveExistingJobs: Armis now lists roles through ServiceNow; this legacy Greenhouse board is empty. Check the existing ServiceNow source; previous Armis jobs are preserved.
+Ashdod Port — CS Israel,official_careers,ashdod-port,unverified,True,,,2026-09-26T20:57:53.943705+00:00,https://www.ashdodport.co.il/about/careers/,"PreserveExistingJobs: Ashdod Port did not expose a reliable job payload; candidate_rows=3, rejected={'detail': 0, 'schema': 3, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Ashley Digital — BI & Data Solutions Israel,greenhouse,residenthome,working,True,4,12,2026-09-26T20:57:24.008681+00:00,,
+Assuta Medical Centers Careers Israel,official_careers,assuta,unverified,False,,,2026-09-26T20:57:54.314955+00:00,https://www.assuta.co.il/about/jobs/,"PreserveExistingJobs: Assuta Medical Centers did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Astrix Security Careers Israel,official_careers,astrix-security,empty,True,0,0,2026-09-26T21:16:42.906950+00:00,https://astrix.security/careers/,
+At-Bay Careers Israel,greenhouse,atbayjobs,working,True,3,35,2026-09-26T20:56:53.166580+00:00,,
+Atera Careers Israel,official_careers,atera,working,True,7,8,2026-09-26T20:57:55.018520+00:00,https://www.atera.com/careers/,
+Augury Careers Israel,greenhouse,augury,working,True,1,14,2026-09-26T20:56:53.683812+00:00,,
+AutoDS — Data Analytics Israel,greenhouse,autods,working,True,5,5,2026-09-26T20:56:53.974202+00:00,,
+Axon — Program & R&D Operations Israel,greenhouse,axon,working,True,1,520,2026-09-26T20:56:54.195876+00:00,,
+Axonius Careers Israel,greenhouse,axonius,working,True,8,19,2026-09-26T20:56:59.412065+00:00,,
+Bank Hapoalim — CS Israel,official_careers,bank-hapoalim,working,True,6,6,2026-09-26T21:13:31.174513+00:00,https://www.bankhapoalim.co.il/he/about/careers,
+Bank Leumi — CS Israel,official_careers,bank-leumi,working,True,44,44,2026-09-26T21:13:31.174600+00:00,https://www.leumi.co.il/he/about-leumi/career,
+BeamUP Careers Israel,greenhouse,beamup,working,True,4,4,2026-09-26T20:56:59.590938+00:00,,
+Bezeq Careers Israel,official_careers,bezeq,working,True,2,2,2026-09-26T21:13:31.174640+00:00,https://www.bezeq.co.il/career/,
+BigID Careers Israel,greenhouse,bigid,working,True,1,7,2026-09-26T20:56:59.806514+00:00,,
+Bluevine Israel Careers,greenhouse,bluevineisrael,working,True,3,3,2026-09-26T20:57:00.049545+00:00,,
+Boston Scientific Careers Israel,official_careers,boston-scientific,empty,True,0,0,2026-09-26T20:58:00.804966+00:00,https://www.bostonscientific.com/en-US/careers.html,
+Broadcom — Israel,official_careers,broadcom-israel,working,True,2,2,2026-09-26T20:58:01.176090+00:00,https://www.broadcom.com/company/careers,
+Cadence Design Systems — Israel,official_careers,cadence,working,True,5,5,2026-09-26T20:58:01.567406+00:00,https://cadence.wd1.myworkdayjobs.com/External_Careers,
+Cal — CS Israel,official_careers,cal,unverified,True,,,2026-09-26T20:58:03.176034+00:00,https://www.cal-online.co.il/about/careers/,"PreserveExistingJobs: Cal did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Camtek — Israel,official_careers,camtek,working,True,21,29,2026-09-26T20:58:03.547657+00:00,https://www.camtek.com/careers/open-positions/,
+Cato Networks Careers,greenhouse,catonetworks,working,True,38,99,2026-09-26T20:57:00.108452+00:00,,
+Cellcom Careers Israel,official_careers,cellcom,unverified,False,,,2026-09-26T20:58:03.799693+00:00,https://www.cellcom.co.il/career/,"PreserveExistingJobs: Cellcom did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Chain Reaction — Hardware Israel,official_careers,chain-reaction,empty,True,0,0,2026-09-26T21:13:31.828421+00:00,https://chain-reaction.io/careers/,
+Chainalysis Careers,ashby,chainalysis-careers,working,True,7,52,2026-09-26T20:56:50.042143+00:00,,
+Check Point Careers Israel,smartrecruiters,CheckPointSoftwareTechnologies2,working,True,101,101,2026-09-26T21:00:49.115089+00:00,,
+Cisco Careers Israel,official_careers,cisco,working,True,9,9,2026-09-26T20:58:04.458597+00:00,https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel,
+Clalit — CS Israel,official_careers,clalit,unverified,True,,,2026-09-26T20:58:04.770091+00:00,https://jobs.clalitapps.co.il/,"PreserveExistingJobs: Clalit did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Claroty Careers Israel,official_careers,claroty,working,True,10,24,2026-09-26T20:58:06.783370+00:00,https://www.comeet.com/jobs/Claroty/F2.004,
+Cloudinary Careers Israel,lever,cloudinary,working,True,4,8,2026-09-26T20:57:38.621775+00:00,,
+Connecteam Careers Israel,greenhouse,connecteam,working,True,19,57,2026-09-26T20:57:00.326161+00:00,https://connecteam.com/careers/,
+ControlUp Careers Israel,lever,controlup,working,True,4,11,2026-09-26T20:57:41.028750+00:00,,
+Coralogix Careers Israel,official_careers,coralogix,working,True,10,46,2026-09-26T20:58:07.825509+00:00,https://coralogix.com/careers/,
+CyberArk Careers Israel,smartrecruiters,Cyberark1,unverified,True,,,2026-09-26T21:00:51.830687+00:00,,PreserveExistingJobs: CyberArk's careers site now redirects to Palo Alto Networks. This empty legacy board is not proof that no roles exist; previous jobs are preserved.
+Cyera Careers Israel,official_careers,cyera,working,True,31,222,2026-09-26T20:58:08.961051+00:00,https://www.comeet.com/jobs/cyera/17.008,
+Cymulate Careers Israel,greenhouse,cymulate,working,True,3,15,2026-09-26T20:57:01.015798+00:00,,
+Datadog Careers Israel,greenhouse,datadog,working,True,2,449,2026-09-26T20:57:01.362219+00:00,,
+Datarails Careers Israel,greenhouse,datarails,working,True,4,13,2026-09-26T20:57:01.637947+00:00,,
+Daylight Security Careers Israel,greenhouse,daylightsecurity,working,True,6,10,2026-09-26T20:57:01.902123+00:00,,
+Deep Instinct Careers Israel,official_careers,deep-instinct,unverified,False,,,2026-09-26T20:58:10.200893+00:00,https://www.deepinstinct.com/careers,"PreserveExistingJobs: Deep Instinct did not expose a reliable job payload; candidate_rows=2, rejected={'detail': 0, 'schema': 2, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Dell Technologies Careers Israel,official_careers,dell,unverified,False,,,2026-09-26T20:58:10.549986+00:00,https://jobs.dell.com/,"PreserveExistingJobs: Dell Technologies did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Deloitte Israel — CS Israel,official_careers,deloitte-israel,unverified,True,,,2026-09-26T20:58:11.933693+00:00,https://www.deloitte.com/il/en/careers.html,"PreserveExistingJobs: Deloitte Israel did not expose a reliable job payload; candidate_rows=4, rejected={'detail': 0, 'schema': 4, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Delta Galil Careers Israel,official_careers,delta-galil,working,True,6,6,2026-09-26T21:13:32.420160+00:00,https://www.deltagalil.com/careers/,
+Descope Careers Israel,greenhouse,descope,working,True,1,5,2026-09-26T20:57:02.149540+00:00,,
+DHL — CS Israel,official_careers,dhl-israel,unverified,True,,,2026-09-26T20:58:12.689371+00:00,https://careers.dhl.com/global/en,"PreserveExistingJobs: DHL did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+DoiT Careers Israel,greenhouse,doitintl,working,True,13,122,2026-09-26T20:57:02.402128+00:00,,
+DustPhotonics — Israel,official_careers,dustphotonics,working,True,4,4,2026-09-26T21:13:32.489924+00:00,https://www.dustphotonics.com/careers/,
+Earnix Careers Israel,official_careers,earnix,working,True,3,13,2026-09-26T20:58:14.019866+00:00,https://earnix.com/careers/,
+Elad Systems — CS Israel,official_careers,elad-systems,working,True,40,40,2026-09-26T21:13:32.720609+00:00,https://www.eladsoft.com/careers/,
+Elastic Careers Israel,greenhouse,elastic,working,True,4,384,2026-09-26T20:57:03.670290+00:00,,
+Elbit Systems Careers,official_careers,elbit,working,True,545,579,2026-09-26T20:58:15.367202+00:00,https://elbitsystemscareer.com/jobs/,
+Electra Group Careers Israel,official_careers,electra-group,working,True,39,39,2026-09-26T20:58:15.778069+00:00,https://www.electra.co.il/career/משרות,
+Eleos Health — Operations & Process Improvement,greenhouse,eleoshealth,working,True,8,15,2026-09-26T20:57:06.512397+00:00,,
+Elspec Careers Israel,official_careers,elspec,unverified,False,,,2026-09-26T20:58:17.381589+00:00,https://www.elspec-ltd.com/careers/,"HTTPStatusError: Client error '403 Forbidden' for url 'https://www.elspec-ltd.com/careers/'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+Ericsson Careers Israel,official_careers,ericsson,unverified,False,,,2026-09-26T20:58:34.139216+00:00,https://www.ericsson.com/en/careers,"PreserveExistingJobs: Ericsson did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+eToro Careers Israel,official_careers,etoro,working,True,4,21,2026-09-26T20:58:34.319055+00:00,https://www.etoro.com/about/careers/,
+Exodigo Careers Israel,official_careers,exodigo,working,True,13,60,2026-09-26T20:58:35.046013+00:00,https://www.comeet.com/jobs/exodigo/89.005,
+EY Israel — CS Israel,official_careers,ey-israel,unverified,True,,,2026-09-26T20:58:35.348719+00:00,https://www.ey.com/en_il/careers,"PreserveExistingJobs: EY Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Figma Careers,greenhouse,figma,working,True,1,163,2026-09-26T20:57:06.775744+00:00,,
+Fireblocks Careers Israel,greenhouse,fireblocks,working,True,11,68,2026-09-26T20:57:06.953385+00:00,,
+Fiverr — CS Israel,official_careers,fiverr,working,True,16,21,2026-09-26T20:58:35.836730+00:00,https://www.fiverr.com/jobs,
+Flex — Hardware Israel,official_careers,flex-israel,working,True,10,10,2026-09-26T20:58:36.821782+00:00,https://flex.com/careers/israel-en,
+Forter — Business & Finance Operations,greenhouse,forter,working,True,6,26,2026-09-26T20:57:10.571976+00:00,,
+Fox Group — CS Israel,official_careers,fox-group,unverified,True,,,2026-09-26T20:58:38.648919+00:00,https://www.foxhr.2.idus.co.il/,"PreserveExistingJobs: Fox Group did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Fridenson — IEM Israel,official_careers,friedenson,working,True,10,10,2026-09-26T20:58:38.779749+00:00,https://fridenson.co.il/careers/,
+Fundbox Careers Israel,official_careers,fundbox,empty,True,0,4,2026-09-26T20:58:39.483875+00:00,https://fundbox.com/careers/,
+G-STAT — Data Analyst & BI,official_careers,g-stat,working,True,37,37,2026-09-26T20:58:40.067233+00:00,https://g-stat.com/careers/,
+GE HealthCare Careers Israel,official_careers,ge-healthcare,working,True,30,30,2026-09-26T20:58:40.454904+00:00,https://careers.gehealthcare.com/global/en,
+GitLab Careers Israel,greenhouse,gitlab,working,True,9,199,2026-09-26T20:57:11.096662+00:00,,
+Gloat Careers Israel,official_careers,gloat,working,True,5,5,2026-09-26T20:58:41.218467+00:00,https://www.comeet.com/jobs/gloat/E5.000,
+Global-e Careers Israel,official_careers,global-e,working,True,14,35,2026-09-26T20:58:43.128181+00:00,https://www.global-e.com/careers/,
+Gong — Operational Excellence & Analytics,greenhouse,gongio,working,True,12,97,2026-09-26T20:57:11.313858+00:00,,
+Google Careers Israel,google_careers,israel,working,True,20,20,2026-09-26T20:56:50.674386+00:00,,
+Grip Security Careers Israel,official_careers,grip-security,working,True,1,2,2026-09-26T20:58:43.706170+00:00,https://www.comeet.com/jobs/grip/A8.001,
+Guardz Careers Israel,greenhouse,guardz,working,True,2,2,2026-09-26T20:57:12.456824+00:00,,
+Guesty Careers Israel,official_careers,guesty,working,True,3,19,2026-09-26T20:58:44.239823+00:00,https://www.guesty.com/careers/,
+Guidde Careers Israel,greenhouse,guidde,working,True,4,9,2026-09-26T20:57:12.679334+00:00,,
+Hadassah Careers Israel,official_careers,hadassah,working,True,13,13,2026-09-26T20:58:44.570557+00:00,https://he.hadassah.org.il/wanted/careers/,
+Haifa Port — CS Israel,official_careers,haifa-port,unverified,True,,,2026-09-26T20:58:44.656735+00:00,https://www.haifaport.co.il/jobs/,"PreserveExistingJobs: Haifa Port did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Hailo — AI Silicon Israel,official_careers,hailo,working,True,1,1,2026-09-26T20:58:45.140875+00:00,https://hailo.ai/company-overview/careers/,
+Harel — CS Israel,official_careers,harel,unverified,True,,,2026-09-26T20:58:47.962576+00:00,https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx,"PreserveExistingJobs: Harel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+HiBob Careers Israel,official_careers,hibob,working,True,19,79,2026-09-26T20:58:48.909852+00:00,https://www.hibob.com/careers/,
+HOT Careers Israel,official_careers,hot,unverified,False,,,2026-09-26T20:58:49.485405+00:00,https://www.hot.net.il/heb/career/,"PreserveExistingJobs: HOT did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+HP Careers Israel,official_careers,hp,working,True,9,9,2026-09-26T20:58:50.021355+00:00,https://jobs.hp.com/,
+IAI Careers,official_careers,iai,working,True,513,518,2026-09-26T20:58:50.128290+00:00,https://jobs.iai.co.il/jobs/,
+IBM Careers Israel,official_careers,ibm,unverified,True,,,2026-09-26T20:58:51.294474+00:00,https://www.ibm.com/careers/search?field_keyword_05[0]=Israel,"PreserveExistingJobs: IBM did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Ichilov Medical Center — CS Israel,official_careers,ichilov,unverified,True,,,2026-09-26T20:58:52.598023+00:00,https://www.tasmc.org.il/careers/,"PreserveExistingJobs: Ichilov Medical Center did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+ICL — CS Israel,official_careers,icl,working,True,25,25,2026-09-26T20:58:53.265703+00:00,https://careers.icl-group.com/,
+IDE Technologies Careers Israel,official_careers,ide-technologies,working,True,12,12,2026-09-26T20:58:55.997284+00:00,https://ide-tech.com/en/join-us/,
+Innoviz — Israel,official_careers,innoviz,working,True,1,1,2026-09-26T20:59:05.342581+00:00,https://innoviz.tech/join-us,
+Intel Careers Israel,workday,intel,working,True,21,21,2026-09-26T21:04:05.371949+00:00,,
+Island Careers Israel,official_careers,island,working,True,9,38,2026-09-26T20:59:06.423000+00:00,https://www.island.io/careers,
+Isracard — CS Israel,official_careers,isracard,unverified,True,,,2026-09-26T20:59:07.841613+00:00,https://www.isracard.co.il/pages/careers/,"PreserveExistingJobs: Isracard did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Israel Discount Bank — CS Israel,official_careers,discount-bank,unverified,True,,,2026-09-26T20:58:13.153211+00:00,https://www.discountbank.co.il/private/general-information/careers/,"PreserveExistingJobs: Israel Discount Bank did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Israel Electric Corporation Careers Israel,official_careers,iec,unverified,False,,,2026-09-26T20:59:04.730736+00:00,https://www.iec.co.il/careers,"PreserveExistingJobs: Israel Electric Corporation did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Israel Post — CS Israel,official_careers,israel-post,unverified,True,,,2026-09-26T20:59:08.317729+00:00,https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/,"PreserveExistingJobs: Israel Post did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Israel Railways — CS Israel,official_careers,israel-railways,unverified,True,,,2026-09-26T20:59:09.497486+00:00,https://www.rail.co.il/?page=career,"PreserveExistingJobs: Israel Railways did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Jabil Careers Israel,official_careers,jabil-israel,unverified,False,,,2026-09-26T20:59:09.812175+00:00,https://careers.jabil.com/,PreserveExistingJobs: Jabil bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist
+JFrog Careers Israel,greenhouse,jfrog,working,True,16,58,2026-09-26T20:57:12.927319+00:00,,
+Johnson & Johnson Israel Careers Israel,official_careers,jnj-israel,working,True,12,12,2026-09-26T20:59:09.918640+00:00,https://www.careers.jnj.com/,
+Kaltura Careers Israel,official_careers,kaltura,working,True,17,25,2026-09-26T20:59:11.066582+00:00,https://corp.kaltura.com/company/careers/,
+KLA Israel — Operations,workday,kla-israel,working,True,76,76,2026-09-26T21:04:08.601353+00:00,,
+Kornit Digital Careers Israel,official_careers,kornit-digital,working,True,12,14,2026-09-26T20:59:11.975530+00:00,https://careers.kornit.com/all-positions/,
+KPMG Israel — CS Israel,official_careers,kpmg-israel,working,True,40,40,2026-09-26T21:13:34.900828+00:00,https://kpmg.com/il/en/home/careers.html,
+L'Oréal Israel Careers Israel,official_careers,loreal-israel,working,True,7,7,2026-09-26T21:13:35.822427+00:00,https://careers.loreal.com/,
+Legit Security Careers Israel,official_careers,legitsecurity,working,True,5,9,2026-09-26T20:59:12.780200+00:00,https://www.comeet.com/jobs/legitsecurity.com/37.004,
+Lemonade Careers Israel,official_careers,lemonade,working,True,23,39,2026-09-26T20:59:12.920599+00:00,https://www.lemonade.com/careers,
+Lendbuzz Careers Israel,lever,lendbuzz,working,True,3,61,2026-09-26T20:57:43.920303+00:00,,
+Lightricks Careers Israel,greenhouse,lightricks,working,True,1,1,2026-09-26T20:57:13.352907+00:00,,
+Logz.io Careers Israel,lever,logz,empty,True,0,0,2026-09-26T20:57:44.321959+00:00,,
+Maccabi Healthcare — CS Israel,official_careers,maccabi-health,working,True,39,39,2026-09-26T21:13:35.961862+00:00,https://www.maccabi4u.co.il/careers/,
+Malam Team — CS Israel,official_careers,malam-team,unverified,True,,,2026-09-26T20:59:14.261784+00:00,https://www.malamteam.com/careers/,"PreserveExistingJobs: Malam Team did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Marvell — Israel,official_careers,marvell,working,True,7,7,2026-09-26T20:59:14.491817+00:00,https://www.marvell.com/company/careers.html,
+Matrix — CS Israel,official_careers,matrix-israel,working,True,100,100,2026-09-26T20:59:15.243884+00:00,https://www.matrix.co.il/jobs/,
+Max — CS Israel,official_careers,max,unverified,True,,,2026-09-26T20:59:16.293648+00:00,https://www.max.co.il/careers,"PreserveExistingJobs: Max did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Medtronic Israel — Operations,workday,medtronic,working,True,24,24,2026-09-26T21:04:11.019268+00:00,,
+Mekorot Careers Israel,official_careers,mekorot,working,True,32,33,2026-09-26T20:59:16.462725+00:00,https://careers.mekorot.co.il/open-jobs/,
+Melio Engineering Israel,greenhouse,melio,working,True,8,23,2026-09-26T20:57:13.565263+00:00,,
+Meta Careers Israel,official_careers,meta,unverified,True,,,2026-09-26T20:59:16.974933+00:00,https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel,PreserveExistingJobs: Meta could not verify the official listing; preserving the last successful job snapshot
+Meuhedet Careers Israel,official_careers,meuhedet,unverified,False,,,2026-09-26T20:59:19.932228+00:00,https://www.meuhedet.co.il/en/career-at-meuhedet/,"PreserveExistingJobs: Meuhedet did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Microsoft Careers Israel,official_careers,microsoft,working,True,14,14,2026-09-26T20:59:20.404015+00:00,https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance,
+Migdal — CS Israel,official_careers,migdal,working,True,49,49,2026-09-26T21:13:36.485572+00:00,https://www.migdal.co.il/about/careers,
+Mobileye Careers Israel,lever,eu:mobileye,working,True,151,178,2026-09-26T20:57:42.977420+00:00,,
+monday.com Careers Israel,official_careers,monday,working,True,5,10,2026-09-26T20:59:35.404707+00:00,https://monday.com/careers,
+MongoDB Careers Israel,greenhouse,mongodb,working,True,7,396,2026-09-26T20:57:13.946195+00:00,,
+Moon Active Careers Israel,official_careers,moonactive,working,True,27,35,2026-09-26T20:59:35.870897+00:00,https://www.moonactive.com/careers/,
+Motorola Solutions Careers Israel,official_careers,motorola-solutions,working,True,3,3,2026-09-26T20:59:36.202130+00:00,https://www.motorolasolutions.com/en_us/about/careers.html,
+Natural Intelligence Careers Israel,official_careers,natural-intelligence,working,True,4,4,2026-09-26T20:59:39.563557+00:00,https://www.naturalint.com/careers/,
+Nayax Careers Israel,official_careers,nayax,working,True,5,24,2026-09-26T20:59:39.960787+00:00,https://www.nayax.com/careers/,
+Neo Security Engineering Israel,greenhouse,neosecurityinc,working,True,3,24,2026-09-26T20:57:15.510129+00:00,,
+Ness — CS Israel,official_careers,ness-israel,unverified,True,,,2026-09-26T20:59:40.167819+00:00,https://www.ness-tech.co.il/careers,"PreserveExistingJobs: Ness did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Netafim Careers Israel,official_careers,netafim,working,True,2,20,2026-09-26T20:59:40.775854+00:00,https://careers.netafim.com/jobs,
+NeuroBlade — Israel,official_careers,neuroblade,unverified,True,,,2026-09-26T20:59:40.927238+00:00,https://www.neuroblade.com/careers/,"PreserveExistingJobs: NeuroBlade did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+NextSilicon — Hardware Israel,official_careers,nextsilicon,working,True,6,11,2026-09-26T20:59:43.808625+00:00,https://www.nextsilicon.com/careers/,
+Nexxen Careers,ashby,nexxen,working,True,7,28,2026-09-26T20:56:50.042178+00:00,,
+NICE Careers Israel,greenhouse,nice,working,True,17,178,2026-09-26T20:57:17.126786+00:00,,
+Nift — Data Analytics Israel,greenhouse,nift,working,True,3,13,2026-09-26T20:57:17.399044+00:00,,
+Niram Gitan — IEM Israel,official_careers,niram-gitan,unverified,True,,,2026-09-26T20:59:45.387411+00:00,https://www.niramgitan.com/,"PreserveExistingJobs: Niram Gitan did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Nokia Careers Israel,official_careers,nokia,unverified,False,,,2026-09-26T20:59:45.594819+00:00,https://www.nokia.com/about-us/careers/,"PreserveExistingJobs: Nokia did not expose a reliable job payload; candidate_rows=7, rejected={'detail': 0, 'schema': 7, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Nova — Israel,official_careers,nova,working,True,34,95,2026-09-26T20:59:47.412109+00:00,https://www.novami.com/career,
+NVIDIA Careers Israel,workday,nvidia,working,True,119,119,2026-09-26T21:04:14.989520+00:00,,
+Okta Careers Israel,greenhouse,okta,working,True,1,333,2026-09-26T20:57:19.016557+00:00,,
+ONE Technologies — CS Israel,official_careers,one-technologies,working,True,10,10,2026-09-26T20:59:47.546491+00:00,https://www.one1.co.il/careers/,
+Optimove Careers Israel,greenhouse,optimove,working,True,3,16,2026-09-26T20:57:19.080710+00:00,,
+Oracle Careers Israel,official_careers,oracle,working,True,33,33,2026-09-26T21:13:36.604101+00:00,https://careers.oracle.com/jobs/,
+Orca Security Careers,greenhouse,orcasecurity,working,True,2,11,2026-09-26T20:57:19.365660+00:00,,
+OrCam Careers Israel,official_careers,orcam,unverified,False,,,2026-09-26T20:59:49.106582+00:00,https://www.orcam.com/en-us/careers/,"PreserveExistingJobs: OrCam did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Ormat Technologies Careers Israel,official_careers,ormat,working,True,14,14,2026-09-26T21:13:37.048444+00:00,https://www.ormat.com/en/company/careers/,
+Osem-Nestle — CS Israel,official_careers,osem-nestle,unverified,True,,,2026-09-26T20:59:50.094846+00:00,https://www.osem-nestle.co.il/career,"HTTPStatusError: Client error '403 Forbidden' for url 'https://www.osem-nestle.co.il/career/open-positions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"
+Outbrain Careers Israel,greenhouse,outbraininc,working,True,3,61,2026-09-26T20:57:21.806330+00:00,,
+Pagaya Israel Careers,greenhouse,pagayais,working,True,8,8,2026-09-26T20:57:21.877869+00:00,,
+Palantir Careers Israel,lever,palantir,working,True,2,321,2026-09-26T20:57:44.349020+00:00,,
+Palo Alto Networks Israel,official_careers,paloalto,working,True,15,15,2026-09-26T20:59:50.333665+00:00,https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2,
+Papaya Global Careers Israel,official_careers,papaya-global,working,True,5,51,2026-09-26T20:59:50.821882+00:00,https://www.papayaglobal.com/careers/,
+Paragon Careers Israel,official_careers,paragon,working,True,23,24,2026-09-26T20:59:50.985661+00:00,https://www.comeet.com/jobs/paragon/76.006,
+Partner Careers Israel,official_careers,partner,unverified,False,,,2026-09-26T20:59:51.735488+00:00,https://www.partner.co.il/n/career,"PreserveExistingJobs: Partner did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Payoneer Careers Israel,greenhouse,payoneer,working,True,21,110,2026-09-26T20:57:22.138705+00:00,,
+Pendo Careers Israel,greenhouse,pendo,working,True,2,22,2026-09-26T20:57:22.753805+00:00,,
+Pentera Careers Israel,official_careers,pentera,working,True,12,23,2026-09-26T20:59:51.848960+00:00,https://pentera.io/careers/,
+Personetics Careers Israel,official_careers,personetics,working,True,9,12,2026-09-26T20:59:52.818185+00:00,https://personetics.com/careers/,
+Philips Careers Israel,official_careers,philips,working,True,12,12,2026-09-26T20:59:54.525352+00:00,https://www.careers.philips.com/il/en/search-results,
+Playtika — CS Israel,official_careers,playtika,working,True,14,24,2026-09-26T20:59:57.686867+00:00,https://www.playtika.com/careers/,
+Pliops — Storage Silicon Israel,official_careers,pliops,unverified,True,,,2026-09-26T20:59:58.072306+00:00,https://pliops.com/careers/,"PreserveExistingJobs: Pliops did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Priority Software Careers Israel,official_careers,priority-software,working,True,9,9,2026-09-26T20:59:58.218663+00:00,https://www.priority-software.com/careers/,
+Procter & Gamble Israel Careers Israel,official_careers,pg-israel,working,True,2,2,2026-09-26T20:59:53.742105+00:00,https://www.pgcareers.com/location-israel,
+proteanTecs — Israel,official_careers,proteantecs,working,True,9,16,2026-09-26T20:59:59.248061+00:00,https://www.proteantecs.com/careers,
+PwC Israel — CS Israel,official_careers,pwc-israel,unverified,True,,,2026-09-26T21:00:00.286338+00:00,https://www.pwc.com/il/he/career.html,"PreserveExistingJobs: PwC Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Qualcomm Careers Israel,official_careers,qualcomm,working,True,20,20,2026-09-26T21:13:38.871801+00:00,https://careers.qualcomm.com/careers?location=Israel,
+QuantHealth — Operations Israel,greenhouse,quanthealth,working,True,5,5,2026-09-26T20:57:23.673490+00:00,,
+rafael,ashby,https://career.rafael.co.il/search/,unverified,,,,2026-09-26T20:56:50.042166+00:00,,PreserveExistingJobs: Ashby requires a board name or https://jobs.ashbyhq.com/<board>; an employer careers URL is not an Ashby board
+Rafael Careers,official_careers,rafael,unverified,True,,,2026-09-26T21:00:00.504874+00:00,https://career.rafael.co.il/search/,"PreserveExistingJobs: Rafael did not expose a reliable job payload; candidate_rows=31, rejected={'detail': 31, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Rambam Careers Israel,official_careers,rambam,unverified,False,,,2026-09-26T21:00:00.850643+00:00,https://www.rambam.org.il/about-rambam/careers/,"PreserveExistingJobs: Rambam did not expose a reliable job payload; candidate_rows=5, rejected={'detail': 0, 'schema': 5, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Rapyd Careers Israel,official_careers,rapyd,working,True,16,32,2026-09-26T21:00:02.341431+00:00,https://www.rapyd.net/company/careers-search/,
+Reco Careers Israel,official_careers,reco,working,True,2,3,2026-09-26T21:00:03.623871+00:00,https://www.comeet.com/jobs/reco/3A.00D,
+Redis Careers,ashby,redis,empty,True,0,29,2026-09-26T20:56:50.078006+00:00,,
+Reindeer AI Careers,ashby,reindeer-ai,working,True,6,14,2026-09-26T20:56:50.470805+00:00,,
+Retym — Semiconductor Israel,official_careers,retym,working,True,15,35,2026-09-26T21:00:04.410611+00:00,https://retym.com/careers-2/,
+Riskified Careers Israel,greenhouse,riskified,working,True,8,28,2026-09-26T20:57:24.048522+00:00,,
+Rubrik Careers Israel,greenhouse,rubrik,working,True,3,140,2026-09-26T20:57:24.352231+00:00,,
+SafeBreach Careers Israel,greenhouse,safebreach,working,True,4,7,2026-09-26T20:57:24.549412+00:00,,
+Salesforce Careers Israel,official_careers,salesforce,working,True,9,9,2026-09-26T21:00:06.612244+00:00,https://careers.salesforce.com/en/jobs/?search=&country=Israel,
+Salt Security Careers Israel,greenhouse,saltsecurity,working,True,5,12,2026-09-26T20:57:24.824136+00:00,,
+Samsung Research Israel,official_careers,samsung,working,True,1,1,2026-09-26T21:13:40.443526+00:00,https://research.samsung.com/sril/careers,
+SAP Careers Israel,official_careers,sap-israel,unverified,False,,,2026-09-26T21:00:10.139748+00:00,https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/,"PreserveExistingJobs: SAP did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Sapiens Careers Israel,official_careers,sapiens,working,True,2,2,2026-09-26T21:00:10.247073+00:00,https://careers.sapiens.com/search/?q=&locationsearch=Israel,
+ScaleOps Careers Israel,greenhouse,scaleops,working,True,32,58,2026-09-26T20:57:25.812540+00:00,,
+SCD — SemiConductor Devices,official_careers,scd,unverified,True,,,2026-09-26T21:00:11.726671+00:00,https://scdusa-ir.com/find-a-job/,"PreserveExistingJobs: SCD - SemiConductor Devices did not expose a reliable job payload; candidate_rows=10, rejected={'detail': 10, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+SentinelOne Careers Israel,greenhouse,sentinellabs,working,True,11,243,2026-09-26T20:57:26.051981+00:00,,
+ServiceNow Careers Israel,smartrecruiters,ServiceNow,working,True,11,11,2026-09-26T21:00:52.052888+00:00,,
+Sheba Medical Center — CS Israel,official_careers,sheba,unverified,True,,,2026-09-26T21:00:12.929010+00:00,https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D,"PreserveExistingJobs: Sheba Medical Center did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Shufersal — CS Israel,official_careers,shufersal,unverified,True,,,2026-09-26T21:00:13.034642+00:00,https://career.shufersal.co.il/,"PreserveExistingJobs: Shufersal did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Siemens EDA — Israel,official_careers,siemens-eda,working,True,2,2,2026-09-26T21:13:42.246784+00:00,https://www.siemens.com/en-us/company/jobs/,
+Silverfort Careers Israel,official_careers,silverfort,working,True,11,35,2026-09-26T21:00:13.805420+00:00,https://www.comeet.com/jobs/silverfort/54.007,
+Similarweb Careers Israel,greenhouse,similarweb,working,True,24,67,2026-09-26T20:57:26.223485+00:00,https://www.similarweb.com/corp/careers/,
+Snyk Careers Israel,official_careers,snyk,empty,True,0,0,2026-09-26T21:16:42.907065+00:00,https://snyk.io/careers/all-jobs/,
+SodaStream Careers Israel,official_careers,sodastream,unverified,False,,,2026-09-26T21:00:19.078409+00:00,https://sodastream.com/pages/careers,"PreserveExistingJobs: SodaStream did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+SolarEdge Careers Israel,official_careers,solaredge,working,True,48,110,2026-09-26T21:00:19.587522+00:00,https://careers.solaredge.com/,
+Speechify Careers,greenhouse,speechify,working,True,3,254,2026-09-26T20:57:26.882479+00:00,,
+Speedata — Israel,official_careers,speedata,working,True,7,7,2026-09-26T21:00:20.823822+00:00,https://www.speedata.io/careers-1,
+StarkWare Careers Israel,official_careers,starkware,unverified,False,,,2026-09-26T21:00:21.636086+00:00,https://starkware.co/careers/,PreserveExistingJobs: Public ATS feed returned an empty list; employer-wide absence is unverified
+Stratasys Careers Israel,official_careers,stratasys,working,True,13,13,2026-09-26T21:00:22.206689+00:00,https://careers.stratasys.com/search/?q=&locationsearch=Israel,
+Strauss Group — CS Israel,official_careers,strauss,working,True,12,12,2026-09-26T21:13:43.354881+00:00,https://www.strauss-group.com/career/,
+Stripe Careers Israel,greenhouse,stripe,working,True,3,702,2026-09-26T20:57:28.664803+00:00,,
+Sunflower Careers Israel,official_careers,sunflower,working,True,27,27,2026-09-26T21:00:24.943573+00:00,https://www.comeet.com/jobs/sunflower/AA.009,
+Super-Pharm — CS Israel,official_careers,super-pharm,unverified,True,,,2026-09-26T21:00:25.795491+00:00,https://jobs.super-pharm.co.il/careers/,"PreserveExistingJobs: Super-Pharm did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Sweet Security Careers Israel,greenhouse,sweetsecurity,working,True,2,3,2026-09-26T20:57:30.211031+00:00,,
+Synopsys — Israel,official_careers,synopsys-israel,working,True,6,10,2026-09-26T21:00:31.174915+00:00,https://careers.synopsys.com/location/israel-jobs/44408/294640/2,
+Taboola Careers Israel,greenhouse,taboola,working,True,22,85,2026-09-26T20:57:33.068047+00:00,https://www.taboola.com/careers/jobs,
+Tavily Careers,ashby,tavily,working,True,9,18,2026-09-26T20:56:50.510535+00:00,,
+Tefen — IEM Israel,official_careers,tefen,unverified,True,,,2026-09-26T21:00:31.779023+00:00,https://www.tefen.com/careers/,"PreserveExistingJobs: Tefen did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Tenable Careers,greenhouse,tenableinc,working,True,6,42,2026-09-26T20:57:33.285754+00:00,,
+Teva — CS Israel,official_careers,teva,working,True,10,10,2026-09-26T21:00:32.131295+00:00,https://www.careers.teva/careers?location=Israel,
+Texas Instruments — Israel,official_careers,texas-instruments,working,True,5,5,2026-09-26T21:00:32.229281+00:00,https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs?location=Israel,
+The Phoenix — CS Israel,official_careers,phoenix,unverified,True,,,2026-09-26T20:59:57.448078+00:00,https://www.fnx.co.il/about-us/careers/,"PreserveExistingJobs: The Phoenix did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Tipalti Careers Israel,official_careers,tipalti,working,True,6,21,2026-09-26T21:00:34.735552+00:00,https://tipalti.com/company/careers/,
+Tnuva Careers Israel,official_careers,tnuva,unverified,False,,,2026-09-26T21:00:35.247478+00:00,https://www.tnuva.co.il/jobs/,"PreserveExistingJobs: Tnuva did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Tonkean Careers Israel,lever,tonkean,working,True,3,3,2026-09-26T20:57:45.233439+00:00,,
+Torq — Business Analysis & Operations,greenhouse,torq,working,True,7,27,2026-09-26T20:57:33.810178+00:00,,
+Tower Semiconductor — CS Israel,official_careers,tower-semiconductor,unverified,True,,,2026-09-26T21:00:35.581552+00:00,https://towersemi.com/careers/,"PreserveExistingJobs: Tower Semiconductor did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+TRAILD Careers,lever,traildsoftware,working,True,2,11,2026-09-26T20:57:46.042220+00:00,,
+Transmit Security Careers Israel,greenhouse,transmitsecurity,working,True,13,15,2026-09-26T20:57:34.390003+00:00,,
+TriEye — Israel,official_careers,trieye,working,True,1,1,2026-09-26T21:00:36.322429+00:00,https://trieye.tech/careers/,
+Unframe Careers Israel,greenhouse,unframe,working,True,11,35,2026-09-26T20:57:34.549880+00:00,,
+Unilever Israel Careers Israel,official_careers,unilever-israel,unverified,False,,,2026-09-26T21:00:37.517051+00:00,https://careers.unilever.com/en/israel,"PreserveExistingJobs: Unilever Israel did not expose a reliable job payload; candidate_rows=2, rejected={'detail': 0, 'schema': 2, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Unity Careers Israel,official_careers,unity,working,True,9,9,2026-09-26T21:00:39.023609+00:00,https://unity.com/careers/positions,
+UPS — CS Israel,official_careers,ups-israel,unverified,True,,,2026-09-26T21:00:39.931175+00:00,https://www.jobs-ups.com/,"PreserveExistingJobs: UPS did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Upwind Careers Israel,official_careers,upwind,working,True,18,77,2026-09-26T21:00:40.448269+00:00,https://www.upwind.io/careers,
+Valens Semiconductor — Hardware Israel,official_careers,valens,working,True,4,4,2026-09-26T21:00:40.711732+00:00,https://www.valens.com/positions/,
+VAST Data Careers Israel,official_careers,vastdata,working,True,21,160,2026-09-26T21:00:41.217078+00:00,https://www.comeet.com/jobs/vastdata/43.001,
+Vayyar Imaging — Israel,official_careers,vayyar,unverified,True,,,2026-09-26T21:00:41.363856+00:00,https://vayyar.com/recruitment/,"PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Verint Careers Israel,official_careers,verint,working,True,2,2,2026-09-26T21:13:46.047627+00:00,https://www.verint.com/careers/,
+Via Careers Israel,greenhouse,via,working,True,12,168,2026-09-26T20:57:34.908609+00:00,,
+Voyantis Careers Israel,official_careers,voyantis,working,True,9,9,2026-09-26T21:00:44.639581+00:00,https://www.comeet.com/jobs/voyantis/86.00B,
+WalkMe Careers Israel,lever,walkme,working,True,4,21,2026-09-26T20:57:46.315765+00:00,,
+Western Digital Careers Israel,smartrecruiters,WesternDigital,empty,True,0,0,2026-09-26T21:00:52.643234+00:00,,
+Wiliot — Hardware Israel,official_careers,wiliot,working,True,9,24,2026-09-26T21:00:45.984494+00:00,https://www.wiliot.com/careers,
+Wix Careers Israel,official_careers,wix,working,True,31,31,2026-09-26T21:00:46.967272+00:00,https://careers.wix.com/location/tel-aviv/positions,
+Wiz Careers Israel,greenhouse,wizinc,working,True,22,134,2026-09-26T20:57:34.974141+00:00,,
+Wolt — Supply Chain & Operations Israel,greenhouse,wolt,working,True,11,212,2026-09-26T20:57:35.939244+00:00,,
+XM Cyber Careers Israel,official_careers,xm-cyber,unverified,False,,,2026-09-26T21:00:47.108994+00:00,https://xmcyber.com/careers/,"PreserveExistingJobs: XM Cyber did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+Yotpo Careers Israel,greenhouse,yotpo,working,True,5,15,2026-09-26T20:57:36.771722+00:00,,
+Zadara Careers Israel,lever,Zadara,working,True,2,8,2026-09-26T20:57:48.258347+00:00,,
+ZIM Careers Israel,official_careers,zim,working,True,9,73,2026-09-26T21:00:48.178197+00:00,https://www.zim.com/careers/job-opportunities,
+Zscaler Careers Israel,greenhouse,zscaler,working,True,4,380,2026-09-26T20:57:37.223446+00:00,,
+החברה המרכזית למשקאות — CS Israel,official_careers,cocacola-israel,unverified,True,,,2026-09-26T20:58:07.654977+00:00,https://careers.cocacola.co.il/,"PreserveExistingJobs: החברה המרכזית למשקאות did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"
+משרד הביטחון — CS Israel,official_careers,ministry-of-defense-il,unverified,True,,,2026-09-26T20:59:34.104499+00:00,https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx,"PreserveExistingJobs: משרד הביטחון did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot"

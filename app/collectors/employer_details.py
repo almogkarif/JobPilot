@@ -100,6 +100,22 @@ def employer_job_detail(soup: BeautifulSoup, company: str, *, external_id: str =
     return title, '\n'.join([title, text])[:24000], _domestic_board_location(company, location)
 
 
+_MATRIX_DOMESTIC_REGIONS = frozenset({
+    'מרכז', 'המרכז', 'אזור המרכז', 'מרכז הארץ', 'גוש דן', 'דן',
+    'שרון', 'השרון', 'אזור השרון', 'שפלה', 'השפלה', 'מרכז ושפלה',
+    'מרכז והשפלה', 'המרכז והשפלה', 'צפון', 'הצפון', 'אזור הצפון',
+    'צפון הארץ', 'דרום', 'הדרום', 'אזור הדרום', 'דרום הארץ', 'כל הארץ',
+})
+
+
+def matrix_location_label(value: str) -> str:
+    compact = ' '.join(str(value or '').split())
+    parts = [part.strip() for part in re.split(r'[,;|/]', compact) if part.strip()]
+    if parts and all(part in _MATRIX_DOMESTIC_REGIONS for part in parts):
+        return compact + ', Israel'
+    return compact
+
+
 def matrix_job_rows(soup: BeautifulSoup, base_url: str, limit: int = 100):
     rows = []
     for item in soup.select('.job-item[job-id]')[:limit]:
@@ -116,6 +132,6 @@ def matrix_job_rows(soup: BeautifulSoup, base_url: str, limit: int = 100):
         if len(text) < 80:
             continue
         rows.append(dict(href=href, title=title, linkText=title, text=(title+'\n'+text)[:24000],
-                         location=location.get_text(' ', strip=True) if location else '',
+                         location=matrix_location_label(location.get_text(' ', strip=True)) if location else '',
                          _external_id=job_id, _verified_job=True, _structured_description=True))
     return rows

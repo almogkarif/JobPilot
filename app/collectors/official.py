@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import html as html_lib
 import hashlib
 import json
@@ -19,12 +20,19 @@ from .microsoft_detail import microsoft_position_detail
 from .mobileye_detail import mobileye_job_detail, mobileye_job_closed
 from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from . import audit_diagnostics as diagnostics
 from .expansion_ats import VERIFIED_ATS_IDENTIFIERS, collect_expansion_feed
 from .eightfold import EIGHTFOLD_ROUTES, collect_eightfold
+from .technical_recovery import TECHNICAL_ROUTES, collect_technical_source
+from .tech_board_recovery import TECH_BOARD_IDENTIFIERS, collect_tech_board_recovery
+from .israeli_boards import ISRAELI_BOARD_ROUTES, collect_israeli_board
+from .consumer_employers import CONSUMER_EMPLOYER_ROUTES, collect_consumer_employer
+from .source_recovery import RECOVERY_ROUTES, collect_source_recovery
+from .elad import ELAD_LISTING_URL, collect_elad
 from .zim_ide import FEED_URLS as ZIM_IDE_FEEDS, collect_zim_ide
 from .workday import EXPANSION_WORKDAY_IDENTIFIERS
 from ..services.job_text import clean_job_text, job_text_quality
-from ..services.source_quality import is_navigation_title
+from ..services.source_quality import is_navigation_title, is_navigation_url
 from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
 
 
@@ -70,7 +78,7 @@ PRESETS = {
     "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "static_only": True, "allow_empty": True,
         "preserve_on_empty": True, "allow_no_links": True},
     "chain-reaction": {"url": "https://chain-reaction.io/careers/", "selector": 'a[href*="/careers"]', "id_pattern": r"/careers(?:-2)?/(?:co/)?([^/?#]+)", "company": "Chain Reaction", "prefer_link_text": True, "http_first": True, "allow_empty": True},
-    "scd": {"url": "https://scdusa-ir.com/find-a-job/", "selector": 'a[href*="job"], a[href*="position"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SCD - SemiConductor Devices", "prefer_link_text": True, "http_first": True, "allow_empty": True},
+    "scd": {"url": "https://www.scd-infrared.com/find-a-job/", "selector": 'a[href*="job"], a[href*="position"]', "id_pattern": r"(?:jobs?|positions?)/([^/?#]+)", "company": "SCD - SemiConductor Devices", "prefer_link_text": True, "http_first": True, "preserve_on_empty": True},
     "cadence": {"url": "https://cadence.wd1.myworkdayjobs.com/External_Careers", "selector": 'a[href*="/job/"]', "id_pattern": r"_([A-Za-z]\d+)$", "company": "Cadence Design Systems", "prefer_link_text": True, "selector_timeout_ms": 18000},
     "texas-instruments": {"url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs?location=Israel", "selector": 'a[href*="/job/"]', "id_pattern": r"/job/([^/?#]+)", "company": "Texas Instruments", "prefer_link_text": True, "selector_timeout_ms": 18000, "dynamic_scroll": True},
     "flex-israel": {"url": "https://flex.com/careers/israel-en", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)/([^/?#]+)", "company": "Flex", "prefer_link_text": True, "http_first": True, "allow_empty": True},
@@ -83,7 +91,7 @@ PRESETS = {
     "wiliot": {"url": "https://www.wiliot.com/careers", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Wiliot", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "vayyar": {"url": "https://vayyar.com/recruitment/", "selector": 'a[href*="job"], a[href*="career"]', "id_pattern": r"(?:jobs?|careers?)[^/?#]*/([^/?#]+)", "company": "Vayyar Imaging", "prefer_link_text": True, "http_first": True, "allow_empty": True,
         "preserve_on_empty": True},
-    "arbe": {"url": "https://arberobotics.com/career/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 30, "preserve_on_empty": True},
+    "arbe": {"url": "https://arberobotics.com/career/", "selector": 'a[href*="/career/co/"]', "id_pattern": r"/career/co/[^/]+/([A-Za-z0-9]{2,3}\.[A-Za-z0-9]{3})/", "company": "Arbe Robotics", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 30, "preserve_on_empty": True},
     "trieye": {"url": "https://trieye.tech/careers/", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "TriEye", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "speedata": {"url": "https://www.speedata.io/careers-1", "selector": 'a[href*="job"], a[href*="career"], a[href*="position"]', "id_pattern": r"(?:jobs?|careers?|positions?)[^/?#]*/([^/?#]+)", "company": "Speedata", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "proteantecs": {"url": "https://www.proteantecs.com/careers", "data_url": "https://www.comeet.co/careers-api/2.0/company/D5.00E/positions?token=5DE23340029121D562912029122334&details=true", "data_only": True, "trusted_israel_feed": True, "selector": 'a[href*="careerinfo"], a[href*="/careers/"]', "id_pattern": r"(?:careerinfo\?pi=|/careers/)([^&#/?]+)", "company": "proteanTecs", "prefer_link_text": True, "href_template": "https://www.proteantecs.com/careerinfo?pi={id}", "network_id_keys": ("uid", "pi", "positionId", "position_id", "jobId", "job_id", "id"), "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}", "network_title_keys": ("title", "name", "positionTitle", "jobTitle"), "network_description_keys": ("details", "description", "department", "employment_type", "experience_level", "workplace_type")},
@@ -236,18 +244,32 @@ PRESETS.update({
     "bank-leumi": _bounded_official_board("https://www.leumi.co.il/he/about-leumi/career", "Bank Leumi", trusted_israel_feed=True),
     "bank-hapoalim": _bounded_official_board("https://www.bankhapoalim.co.il/he/about/careers", "Bank Hapoalim", trusted_israel_feed=True),
     "discount-bank": _bounded_official_board("https://www.discountbank.co.il/private/general-information/careers/", "Israel Discount Bank", trusted_israel_feed=True),
-    "cal": _bounded_official_board("https://www.cal-online.co.il/about/careers/", "Cal", trusted_israel_feed=True),
+    "cal": _bounded_official_board("https://www.cal-online.co.il/about/jobs/", "Cal", trusted_israel_feed=True),
     "max": _bounded_official_board("https://www.max.co.il/careers", "Max", trusted_israel_feed=True),
     "isracard": _bounded_official_board("https://www.isracard.co.il/pages/careers/", "Isracard", trusted_israel_feed=True),
     "harel": _bounded_official_board("https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx", "Harel", trusted_israel_feed=True),
     "phoenix": _bounded_official_board("https://www.fnx.co.il/about-us/careers/", "The Phoenix", trusted_israel_feed=True),
-    "migdal": _bounded_official_board("https://www.migdal.co.il/about/careers", "Migdal", trusted_israel_feed=True),
+    "migdal": _bounded_official_board("https://my.migdal.co.il/about/jobs", "Migdal", trusted_israel_feed=True),
     "clalit": _bounded_official_board("https://jobs.clalitapps.co.il/", "Clalit", trusted_israel_feed=True),
     "maccabi-health": _bounded_official_board("https://www.maccabi4u.co.il/careers/", "Maccabi Healthcare", trusted_israel_feed=True),
     "sheba": _bounded_official_board("https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D", "Sheba Medical Center", trusted_israel_feed=True),
     "ichilov": _bounded_official_board("https://www.tasmc.org.il/careers/", "Ichilov Medical Center", trusted_israel_feed=True),
 })
 
+
+# The old Elad careers link redirects to a retired page. This exact public
+# listing is also the starting point of the dedicated, identity-bound adapter.
+PRESETS["elad-systems"]["url"] = ELAD_LISTING_URL
+
+# Directory links are not enough to establish an SCD/Siemens vacancy.
+# Unknown links require their own structured JobPosting detail, rather than a
+# longer list of prohibited department names. This is protection, not a claim
+# that the site's inline/JavaScript vacancy feed has been recovered.
+for _key in ("scd", "siemens-eda"):
+    PRESETS[_key].update(hydrate_details=True, require_job_schema=True,
+                         require_complete_detail=True, max_detail_jobs=20,
+                         detail_response_bytes=4_000_000, listing_response_bytes=4_000_000,
+                         static_only=True, preserve_on_empty=True)
 
 # Verified detail adapters. Limits apply per explicit scan; failures preserve
 # existing records rather than accepting summary cards as complete descriptions.
@@ -293,8 +315,34 @@ class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        if identifier == "verint":
+            from .verint import collect_verint
+            return await collect_verint(company_name or "Verint")
+        if identifier == "oracle":
+            from .oracle_employer import collect_oracle_employer
+            return await collect_oracle_employer(company_name or "Oracle")
+        if identifier == "bezeq":
+            from .bezeq import collect_bezeq
+            return await collect_bezeq(company_name or "Bezeq")
+        if identifier in ISRAELI_BOARD_ROUTES:
+            return await collect_israeli_board(identifier, company_name or PRESETS[identifier]["company"])
+        if identifier in CONSUMER_EMPLOYER_ROUTES:
+            return await collect_consumer_employer(identifier, company_name or PRESETS[identifier]["company"])
+        if identifier == "elad-systems":
+            return await collect_elad(company_name or "Elad Systems")
+        if identifier == "moonactive":
+            from .ashby import AshbyCollector
+            jobs = await AshbyCollector().collect("moonactive", company_name or "Moon Active")
+            return JobCollection(jobs, complete=False,
+                                 blocked_external_ids=getattr(jobs, "blocked_external_ids", ()))
+        if identifier in RECOVERY_ROUTES:
+            return await collect_source_recovery(identifier, company_name or PRESETS[identifier]['company'])
         if identifier in ZIM_IDE_FEEDS:
             return await collect_zim_ide(identifier, company_name)
+        if identifier in TECH_BOARD_IDENTIFIERS:
+            return await collect_tech_board_recovery(identifier, company_name)
+        if identifier in TECHNICAL_ROUTES:
+            return await collect_technical_source(identifier, company_name)
         if identifier in EIGHTFOLD_ROUTES:
             return await collect_eightfold(identifier, company_name)
         if identifier in VERIFIED_ATS_IDENTIFIERS:
@@ -304,7 +352,8 @@ class OfficialCareersCollector:
             jobs = await WorkdayCollector().collect(identifier, company_name)
             # Keep legacy records until a separate, explicit reconciliation: the
             # previous generic adapter did not use these stable Workday IDs.
-            return JobCollection(jobs, complete=False)
+            return JobCollection(jobs, complete=False,
+                                 blocked_external_ids=getattr(jobs, "blocked_external_ids", ()))
         preset = PRESETS.get(identifier)
         if not preset:
             raise ValueError(f"Unsupported official careers preset: {identifier}")
@@ -313,6 +362,7 @@ class OfficialCareersCollector:
         # avoids Chromium/anti-bot timing issues. Dynamic boards fall back to
         # Playwright below when the static response contains no usable job links.
         rows: list[dict] = []
+        static_error: Exception | None = None
         if preset.get("globale_feed"):
             rows = await collect_globale_rows()
         if preset.get("matrix_inline"):
@@ -331,7 +381,10 @@ class OfficialCareersCollector:
                 if not rows:
                     rows = await _collect_static_rows(preset)
                     rows = [row for row in rows if _resolve_row_href(row, preset)[1]]
-            except Exception:
+            except Exception as exc:
+                # Keep the actual HTTP/parser failure for the diagnostic report;
+                # "no reliable payload" alone hides 403s, 404s and DNS failures.
+                static_error = exc
                 rows = []
 
         rendered_error: Exception | None = None
@@ -365,10 +418,10 @@ class OfficialCareersCollector:
 
         if not rows and rendered_error is not None and (identifier == "rafael" or preset.get("preserve_on_empty")):
             raise PreserveExistingJobs(
-                f"{preset['company']} temporarily blocked automated access; preserving the last successful job snapshot"
-            ) from rendered_error
+                f"{preset['company']} could not verify the official listing; preserving the last successful job snapshot"
+            ) from (static_error or rendered_error)
         if not rows and rendered_error is not None:
-            raise rendered_error
+            raise rendered_error from static_error
 
         if preset.get("hydrate_details") and rows:
             rows = await _hydrate_detail_rows(rows, preset)
@@ -376,15 +429,23 @@ class OfficialCareersCollector:
         blocked_ids = tuple(str(row.get("_external_id") or match.group(1)) for row in rows if row.get("_detail_blocked")
                             and (match := _resolve_row_href(row, preset)[1]))
         results: dict[str, NormalizedJob] = {}
+        rejected = {"detail": 0, "schema": 0, "identity": 0, "navigation": 0}
         for row in rows:
             if row.get("_detail_blocked"):
+                rejected["detail"] += 1
                 continue
             if preset.get("require_complete_detail") and not ((row.get("_detail_complete") or row.get("_structured_description")) and job_text_quality(row.get("text")) == "complete"):
+                rejected["detail"] += 1
                 continue
             if preset.get("require_job_schema") and not row.get("_verified_job"):
+                rejected["schema"] += 1
                 continue
             href, match = _resolve_row_href(row, preset)
             if not match:
+                rejected["identity"] += 1
+                continue
+            if is_navigation_url(href):
+                rejected["navigation"] += 1
                 continue
             text = clean_job_text(row.get("text"))
             title = _resolve_title(
@@ -396,6 +457,7 @@ class OfficialCareersCollector:
             )
             title = _repair_known_listing_title(identifier, title, text)
             if not title or is_navigation_title(title):
+                rejected["navigation"] += 1
                 continue
             if identifier == "wix" and not _row_has_human_title({"title": title}):
                 # Never persist Wix infrastructure IDs (oracle/seat/REF) as titles.
@@ -407,6 +469,13 @@ class OfficialCareersCollector:
             location_text = text[:500] if preset.get("location_from_detail_header") else text
             explicit_location = str(row.get("location") or "")
             location = _extract_israel_location(explicit_location or location_text)
+            if identifier == "retym" and explicit_location:
+                # This field was read from the exact vacancy's Comeet location
+                # element. Keep foreign offices too; the Israel filter runs later.
+                location = explicit_location
+            if identifier == "matrix-israel" and explicit_location.endswith(", Israel"):
+                # Keep the verified board's regional label, without guessing a city.
+                location = explicit_location
             if identifier == "elbit" and (not explicit_location or location == "Israel"):
                 location = _elbit_hashtag_location(text) or location
             if not location and not explicit_location and preset.get("trusted_israel_feed"):
@@ -418,12 +487,50 @@ class OfficialCareersCollector:
                 apply_url=href, source_url=href,
                 metadata={"verified_country_board": "g-stat.com"} if identifier == "g-stat" else {},
             )
+        if diagnostics.enabled():
+            diagnostics.record("official_result", identifier=identifier, candidates=len(rows),
+                               accepted=len(results), rejected=rejected,
+                               failed_details=[{"id": str(match.group(1)),
+                                                "status": row.get("_detail_status", "incomplete_detail"),
+                                                "http_status": row.get("_http_status")}
+                                               for row in rows if not row.get("_detail_complete")
+                                               and (match := _resolve_row_href(row, preset)[1])][:20])
+        if identifier == "retym":
+            # Hydration removes explicit 404/410/closed rows before this point.
+            # Recover only incomplete IDs still present, never every job on a
+            # secondary board, and never replace a successful primary record.
+            eligible = {str(row.get("_external_id") or match.group(1)): href for row in rows
+                        if not row.get("_invalid_detail") and
+                        (resolved := _resolve_row_href(row, preset)) and (href := resolved[0]) and
+                        (match := resolved[1])}
+            missing = eligible.keys() - results.keys()
+            if missing:
+                recovered = set()
+                try:
+                    fallback = await collect_expansion_feed("retym", company_name or preset["company"])
+                    for job in fallback:
+                        if job.external_id in missing and str(job.location or "").strip():
+                            # Keep both primary links and the same source ID.
+                            # The fallback supplies content, not a new catalog identity
+                            # or a change to automatic-application routing.
+                            results[job.external_id] = replace(job, source_url=eligible[job.external_id],
+                                                               apply_url=eligible[job.external_id])
+                            recovered.add(job.external_id)
+                except Exception as exc:
+                    # Failure of an OPTIONAL feed must not discard good primary
+                    # jobs. Cancellation is not swallowed (BaseException).
+                    diagnostics.record("retym_fallback_error", error_type=type(exc).__name__,
+                                       error=str(exc))
+                blocked_ids = tuple(sorted((set(blocked_ids) | missing) - recovered))
+                diagnostics.record("retym_fallback", requested=sorted(missing),
+                                   recovered=sorted(recovered), remaining=sorted(missing - recovered))
         normalized = list(results.values())
         if not normalized:
             raise PreserveExistingJobs(
-                f"{preset['company']} did not expose a reliable job payload; preserving the last successful snapshot",
+                f"{preset['company']} did not expose a reliable job payload; "
+                f"candidate_rows={len(rows)}, rejected={rejected}; preserving the last successful snapshot",
                 blocked_external_ids=blocked_ids
-            ) from rendered_error
+            ) from (static_error or rendered_error)
         return JobCollection(normalized, complete=False, blocked_external_ids=blocked_ids)
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
@@ -997,6 +1104,10 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
         response.raise_for_status()
     # Comeet embeds complete job objects in the public HTML. Parse JSON data,
     # never execute the page's JavaScript or reduce it to Angular summary cards.
+    if diagnostics.enabled():
+        diagnostics.document(str(preset["url"]), response.text)
+        diagnostics.record("official_listing_response", url=str(getattr(response, "url", preset["url"])),
+                           status=getattr(response, "status_code", None))
     if "comeet.com/jobs/" in str(preset["url"]):
         match = re.search(r"\bCOMPANY_POSITIONS_DATA\s*=\s*", response.text)
         if match:
@@ -1163,6 +1274,10 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                         str(preset["detail_api_template"]).format(id=match.group(1))
                         if preset.get("detail_api_template") else href, preset.get("detail_response_bytes")
                     )
+                if diagnostics.enabled():
+                    diagnostics.record("official_detail_response", id=match.group(1),
+                                       url=str(getattr(response, "url", href)),
+                                       status=getattr(response, "status_code", None))
                 if preset.get("company") == "Rafael" and is_rafael_access_challenge(response.status_code, response.text):
                     return {**row, "_detail_blocked": True, "_detail_status": "blocked", "_http_status": response.status_code}
                 if response.status_code in {404, 410}:
@@ -1199,7 +1314,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 if preset.get("require_complete_detail"):
                     final_match = re.search(str(preset["id_pattern"]), final_href)
                     if not final_match or final_match.group(1) != match.group(1):
-                        return row
+                        diagnostics.document(str(response.url), response.text, detail=True)
+                        return {**row, "_detail_status": "redirect_identity_mismatch"}
                 if preset.get("validate_detail_redirects") and not re.search(
                     str(preset["id_pattern"]), final_href,
                 ):
@@ -1218,7 +1334,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 if not structured_detail and preset.get("company") != "Retym":
                     structured_detail = _job_posting_detail(soup)
                 if preset.get("require_complete_detail") and not structured_detail:
-                    return row
+                    diagnostics.document(str(response.url), response.text, detail=True)
+                    return {**row, "_detail_status": "identity_bound_schema_missing"}
                 if structured_detail:
                     title, text, _ = structured_detail
                     if preset.get("require_complete_detail") and len(text) > 24000:
@@ -1244,12 +1361,16 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 hydrated_href = canonical_href or final_href
                 hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
                 if preset.get("require_complete_detail") and canonical_href and (not hydrated_match or unquote(hydrated_match.group(1)) != unquote(match.group(1))):
-                    return row
+                    diagnostics.document(str(response.url), response.text, detail=True)
+                    return {**row, "_detail_status": "canonical_identity_mismatch"}
                 hydrated_title = title.strip()
-                title_is_template = "{{" in hydrated_title or "}}" in hydrated_title
+                title_is_template = ("{{" in hydrated_title or "}}" in hydrated_title
+                                     or is_navigation_title(hydrated_title))
                 result = dict(row)
                 result["_verified_job"] = bool(structured_detail)
                 result["_detail_complete"] = bool(structured_detail) and job_text_quality(text) == "complete"
+                if not result["_detail_complete"]:
+                    diagnostics.document(str(response.url), response.text, detail=True)
                 if structured_detail:
                     result["location"] = structured_detail[2] or row.get("location") or ""
                 result.update({
@@ -1262,6 +1383,13 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
             except Exception as exc:
                 return {**row, "_detail_status": "fetch_error", "_detail_error": type(exc).__name__}
         hydrated = await asyncio.gather(*(one(row) for row in rows))
+        if diagnostics.enabled():
+            diagnostics.record("official_hydration", attempted=len(rows),
+                               complete=sum(bool(row.get("_detail_complete")) for row in hydrated),
+                               dropped=[{"id": match.group(1), "status": row.get("_detail_status"),
+                                         "http_status": row.get("_http_status")}
+                                        for row in hydrated if row.get("_invalid_detail")
+                                        and (match := _resolve_row_href(row, preset)[1])][:20])
         return hydrated if retain_unavailable else [row for row in hydrated if not row.get("_invalid_detail")]
 
 
@@ -1282,7 +1410,7 @@ def _job_posting_detail(soup: BeautifulSoup) -> tuple[str, str, str] | None:
                     continue
                 title = clean_job_text(candidate.get("title"))
                 description = clean_job_text(candidate.get("description"))
-                if not title or not description:
+                if not title or not description or is_navigation_title(title):
                     continue
                 locations = candidate.get("jobLocation") or []
                 if isinstance(locations, dict):

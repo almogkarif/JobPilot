@@ -21,6 +21,7 @@ class SmartRecruitersCollector:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             offset = 0
             total = 1
+            seen_ids: set[str] = set()
             while offset < total:
                 response = await client.get(url, params={
                     "limit": 100,
@@ -29,10 +30,25 @@ class SmartRecruitersCollector:
                 })
                 response.raise_for_status()
                 payload = response.json()
-                if "totalFound" not in payload or not isinstance(payload.get("content"), list):
+                if not isinstance(payload, dict) or "totalFound" not in payload or not isinstance(payload.get("content"), list):
                     raise PreserveExistingJobs("SmartRecruiters returned an unrecognized job-list payload")
-                page_rows = payload.get("content") or []
-                total = int(payload.get("totalFound") or 0)
+                page_rows = payload["content"]
+                total = payload["totalFound"]
+                if isinstance(total, bool) or not isinstance(total, int) or total < 0:
+                    raise PreserveExistingJobs("SmartRecruiters returned an invalid result count")
+                if any(not isinstance(row, dict) for row in page_rows):
+                    raise PreserveExistingJobs("SmartRecruiters returned invalid posting rows")
+                ids = [str(row.get("id") or row.get("uuid") or "").strip() for row in page_rows]
+                if (any(not posting_id or not all(c.isalnum() or c in "-_" for c in posting_id) for posting_id in ids)
+                        or len(set(ids)) != len(ids) or seen_ids.intersection(ids)
+                        or offset + len(page_rows) > total or len(page_rows) > 100):
+                    raise PreserveExistingJobs("SmartRecruiters returned invalid or repeated posting identities")
+                seen_ids.update(ids)
+                if company_id.casefold() == "cyberark1" and total == 0:
+                    raise PreserveExistingJobs(
+                        "CyberArk's careers site now redirects to Palo Alto Networks. "
+                        "This empty legacy board is not proof that no roles exist; previous jobs are preserved."
+                    )
                 rows.extend(page_rows)
                 if not page_rows:
                     break
@@ -47,21 +63,24 @@ class SmartRecruitersCollector:
                 posting_id = str(row.get("id") or row.get("uuid") or "").strip()
                 if not posting_id:
                     return None
-                ref = str(row.get("ref") or "")
-                detail_url = ref if ref.startswith("http") else f"{url}/{posting_id}"
+                # Construct the documented endpoint; never fetch arbitrary row.ref URLs.
+                detail_url = f"{url}/{posting_id}"
                 detail: dict = {}
                 async with semaphore:
                     try:
                         detail_response = await client.get(detail_url)
                         detail_response.raise_for_status()
                         detail = detail_response.json()
-                    except (httpx.HTTPError, ValueError) as exc:
-                        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in {401, 403, 429}:
-                            blocked_ids.add(posting_id)
-                            return None
-                        detail = row
-
+                    except (httpx.HTTPError, ValueError):
+                        blocked_ids.add(posting_id)
+                        return None
+                if not isinstance(detail, dict):
+                    blocked_ids.add(posting_id)
+                    return None
                 location_data = detail.get("location") or row.get("location") or {}
+                if not isinstance(location_data, dict):
+                    blocked_ids.add(posting_id)
+                    return None
                 raw_country = str(location_data.get("country") or location_data.get("countryCode") or "").strip()
                 country_code = raw_country.casefold() if len(raw_country) == 2 else str(location_data.get("countryCode") or "").casefold()
                 display_country = "Israel" if country_code == "il" else raw_country
@@ -74,7 +93,11 @@ class SmartRecruitersCollector:
                 if country_code == "il" and "israel" not in location.casefold():
                     location = f"{location}, Israel".strip(", ")
 
-                sections = ((detail.get("jobAd") or {}).get("sections") or {})
+                job_ad = detail.get("jobAd")
+                sections = job_ad.get("sections") if isinstance(job_ad, dict) else None
+                if not isinstance(sections, dict):
+                    blocked_ids.add(posting_id)
+                    return None
                 description_parts: list[str] = []
                 for section in sections.values():
                     if not isinstance(section, dict):
@@ -86,6 +109,11 @@ class SmartRecruitersCollector:
                     if body:
                         description_parts.append(body)
                 description = "\n\n".join(description_parts)
+                if not description.strip() or not any(
+                        isinstance(section, dict) and html_to_text(section.get("text"))
+                        for section in sections.values()):
+                    blocked_ids.add(posting_id)
+                    return None
 
                 return NormalizedJob(
                     external_id=posting_id,

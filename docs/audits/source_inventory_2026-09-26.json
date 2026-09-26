@@ -1,0 +1,2253 @@
+[
+  {
+    "name": "Chainalysis Careers",
+    "kind": "ashby",
+    "identifier": "chainalysis-careers",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "rafael",
+    "kind": "ashby",
+    "identifier": "https://career.rafael.co.il/search/",
+    "report_state": "נכשל · 5% בריאות מקור",
+    "url": "",
+    "audit_reason": "failed"
+  },
+  {
+    "name": "Nexxen Careers",
+    "kind": "ashby",
+    "identifier": "nexxen",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "Redis Careers",
+    "kind": "ashby",
+    "identifier": "redis",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Reindeer AI Careers",
+    "kind": "ashby",
+    "identifier": "reindeer-ai",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tavily Careers",
+    "kind": "ashby",
+    "identifier": "tavily",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Google Careers Israel",
+    "kind": "google_careers",
+    "identifier": "israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 20,
+    "audit_reason": ""
+  },
+  {
+    "name": "accessiBe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "accessibe",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Aidoc — Operations & Product Analytics",
+    "kind": "greenhouse",
+    "identifier": "aidocmedical",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 21,
+    "audit_reason": ""
+  },
+  {
+    "name": "Apiiro Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "apiiro",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "AppsFlyer Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "appsflyer",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "https://careers.appsflyer.com/herzliya/",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "Armis — Data & Program Operations",
+    "kind": "greenhouse",
+    "identifier": "armissecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "At-Bay Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "atbayjobs",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Augury Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "augury",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "AutoDS — Data Analytics Israel",
+    "kind": "greenhouse",
+    "identifier": "autods",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Axon — Program & R&D Operations Israel",
+    "kind": "greenhouse",
+    "identifier": "axon",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Axonius Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "axonius",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 8,
+    "audit_reason": ""
+  },
+  {
+    "name": "BeamUP Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "beamup",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "BigID Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "bigid",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Bluevine Israel Careers",
+    "kind": "greenhouse",
+    "identifier": "bluevineisrael",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cato Networks Careers",
+    "kind": "greenhouse",
+    "identifier": "catonetworks",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 38,
+    "audit_reason": ""
+  },
+  {
+    "name": "Connecteam Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "connecteam",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "https://connecteam.com/careers/",
+    "reported_israel": 19,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cymulate Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "cymulate",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Datadog Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "datadog",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Datarails Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "datarails",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Daylight Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "daylightsecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Descope Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "descope",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "DoiT Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "doitintl",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 13,
+    "audit_reason": ""
+  },
+  {
+    "name": "Elastic Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "elastic",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Eleos Health — Operations & Process Improvement",
+    "kind": "greenhouse",
+    "identifier": "eleoshealth",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 8,
+    "audit_reason": ""
+  },
+  {
+    "name": "Figma Careers",
+    "kind": "greenhouse",
+    "identifier": "figma",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Fireblocks Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "fireblocks",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Forter — Business & Finance Operations",
+    "kind": "greenhouse",
+    "identifier": "forter",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "GitLab Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "gitlab",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Gong — Operational Excellence & Analytics",
+    "kind": "greenhouse",
+    "identifier": "gongio",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "Guardz Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "guardz",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Guidde Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "guidde",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "JFrog Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "jfrog",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 16,
+    "audit_reason": ""
+  },
+  {
+    "name": "Lightricks Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "lightricks",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Melio Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "melio",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 8,
+    "audit_reason": ""
+  },
+  {
+    "name": "MongoDB Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "mongodb",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "Neo Security Engineering Israel",
+    "kind": "greenhouse",
+    "identifier": "neosecurityinc",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "NICE Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "nice",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 17,
+    "audit_reason": ""
+  },
+  {
+    "name": "Nift — Data Analytics Israel",
+    "kind": "greenhouse",
+    "identifier": "nift",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Okta Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "okta",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Optimove Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "optimove",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Orca Security Careers",
+    "kind": "greenhouse",
+    "identifier": "orcasecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Outbrain Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "outbraininc",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Pagaya Israel Careers",
+    "kind": "greenhouse",
+    "identifier": "pagayais",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 8,
+    "audit_reason": ""
+  },
+  {
+    "name": "Payoneer Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "payoneer",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 21,
+    "audit_reason": ""
+  },
+  {
+    "name": "Pendo Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "pendo",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "QuantHealth — Operations Israel",
+    "kind": "greenhouse",
+    "identifier": "quanthealth",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Ashley Digital — BI & Data Solutions Israel",
+    "kind": "greenhouse",
+    "identifier": "residenthome",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Riskified Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "riskified",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 8,
+    "audit_reason": ""
+  },
+  {
+    "name": "Rubrik Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "rubrik",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "SafeBreach Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "safebreach",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Salt Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "saltsecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "ScaleOps Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "scaleops",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 32,
+    "audit_reason": ""
+  },
+  {
+    "name": "SentinelOne Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "sentinellabs",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Similarweb Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "similarweb",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "https://www.similarweb.com/corp/careers/",
+    "reported_israel": 24,
+    "audit_reason": ""
+  },
+  {
+    "name": "Speechify Careers",
+    "kind": "greenhouse",
+    "identifier": "speechify",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Stripe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "stripe",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Sweet Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "sweetsecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Taboola Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "taboola",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "https://www.taboola.com/careers/jobs",
+    "reported_israel": 22,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tenable Careers",
+    "kind": "greenhouse",
+    "identifier": "tenableinc",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Torq — Business Analysis & Operations",
+    "kind": "greenhouse",
+    "identifier": "torq",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "Transmit Security Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "transmitsecurity",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 13,
+    "audit_reason": ""
+  },
+  {
+    "name": "Unframe Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "unframe",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Via Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "via",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "Wiz Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "wizinc",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 22,
+    "audit_reason": ""
+  },
+  {
+    "name": "Wolt — Supply Chain & Operations Israel",
+    "kind": "greenhouse",
+    "identifier": "wolt",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Yotpo Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "yotpo",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Zscaler Careers Israel",
+    "kind": "greenhouse",
+    "identifier": "zscaler",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cloudinary Careers Israel",
+    "kind": "lever",
+    "identifier": "cloudinary",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "ControlUp Careers Israel",
+    "kind": "lever",
+    "identifier": "controlup",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Mobileye Careers Israel",
+    "kind": "lever",
+    "identifier": "eu:mobileye",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 151,
+    "audit_reason": ""
+  },
+  {
+    "name": "Lendbuzz Careers Israel",
+    "kind": "lever",
+    "identifier": "lendbuzz",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Logz.io Careers Israel",
+    "kind": "lever",
+    "identifier": "logz",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Palantir Careers Israel",
+    "kind": "lever",
+    "identifier": "palantir",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tonkean Careers Israel",
+    "kind": "lever",
+    "identifier": "tonkean",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "TRAILD Careers",
+    "kind": "lever",
+    "identifier": "traildsoftware",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "WalkMe Careers Israel",
+    "kind": "lever",
+    "identifier": "walkme",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Zadara Careers Israel",
+    "kind": "lever",
+    "identifier": "Zadara",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "4M Analytics Careers Israel",
+    "kind": "official_careers",
+    "identifier": "4manalytics",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/4Manalytics/B6.00F",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Amazon Jobs Israel",
+    "kind": "official_careers",
+    "identifier": "amazon",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.amazon.jobs/en/search?country=ISR&loc_query=Israel&result_limit=100",
+    "reported_israel": 10,
+    "audit_reason": ""
+  },
+  {
+    "name": "Amdocs Careers Israel",
+    "kind": "official_careers",
+    "identifier": "amdocs",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://jobs.amdocs.com/",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Analog Devices Careers Israel",
+    "kind": "official_careers",
+    "identifier": "analog-devices",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.analog.com/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Apple Careers Israel",
+    "kind": "official_careers",
+    "identifier": "apple",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://jobs.apple.com/en-il/search?location=israel-ISR",
+    "reported_israel": 20,
+    "audit_reason": ""
+  },
+  {
+    "name": "Aqua Security Careers",
+    "kind": "official_careers",
+    "identifier": "aqua",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.aquasec.com/about-us/careers/",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Arbe Robotics — Israel",
+    "kind": "official_careers",
+    "identifier": "arbe",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://arberobotics.com/career/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Arm — Israel",
+    "kind": "official_careers",
+    "identifier": "arm-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.arm.com/location/israel-jobs/33099/294640/2",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Ashdod Port — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ashdod-port",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.ashdodport.co.il/about/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Assuta Medical Centers Careers Israel",
+    "kind": "official_careers",
+    "identifier": "assuta",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.assuta.co.il/about/jobs/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Astrix Security Careers Israel",
+    "kind": "official_careers",
+    "identifier": "astrix-security",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://astrix.security/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Atera Careers Israel",
+    "kind": "official_careers",
+    "identifier": "atera",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.atera.com/careers/",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "Bank Hapoalim — CS Israel",
+    "kind": "official_careers",
+    "identifier": "bank-hapoalim",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.bankhapoalim.co.il/he/about/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Bank Leumi — CS Israel",
+    "kind": "official_careers",
+    "identifier": "bank-leumi",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.leumi.co.il/he/about-leumi/career",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Bezeq Careers Israel",
+    "kind": "official_careers",
+    "identifier": "bezeq",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.bezeq.co.il/career/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Boston Scientific Careers Israel",
+    "kind": "official_careers",
+    "identifier": "boston-scientific",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.bostonscientific.com/en-US/careers.html",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Broadcom — Israel",
+    "kind": "official_careers",
+    "identifier": "broadcom-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.broadcom.com/company/careers",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cadence Design Systems — Israel",
+    "kind": "official_careers",
+    "identifier": "cadence",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://cadence.wd1.myworkdayjobs.com/External_Careers",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Cal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "cal",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.cal-online.co.il/about/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Camtek — Israel",
+    "kind": "official_careers",
+    "identifier": "camtek",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.camtek.com/careers/open-positions/",
+    "reported_israel": 21,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cellcom Careers Israel",
+    "kind": "official_careers",
+    "identifier": "cellcom",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.cellcom.co.il/career/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Chain Reaction — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "chain-reaction",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://chain-reaction.io/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Cisco Careers Israel",
+    "kind": "official_careers",
+    "identifier": "cisco",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.cisco.com/global/en/search-results?keywords=&from=0&s=1&rk=l-israel",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Clalit — CS Israel",
+    "kind": "official_careers",
+    "identifier": "clalit",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://jobs.clalitapps.co.il/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Claroty Careers Israel",
+    "kind": "official_careers",
+    "identifier": "claroty",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/Claroty/F2.004",
+    "reported_israel": 10,
+    "audit_reason": ""
+  },
+  {
+    "name": "החברה המרכזית למשקאות — CS Israel",
+    "kind": "official_careers",
+    "identifier": "cocacola-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://careers.cocacola.co.il/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Coralogix Careers Israel",
+    "kind": "official_careers",
+    "identifier": "coralogix",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://coralogix.com/careers/",
+    "reported_israel": 10,
+    "audit_reason": ""
+  },
+  {
+    "name": "Cyera Careers Israel",
+    "kind": "official_careers",
+    "identifier": "cyera",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/cyera/17.008",
+    "reported_israel": 31,
+    "audit_reason": ""
+  },
+  {
+    "name": "Deep Instinct Careers Israel",
+    "kind": "official_careers",
+    "identifier": "deep-instinct",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.deepinstinct.com/careers",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Dell Technologies Careers Israel",
+    "kind": "official_careers",
+    "identifier": "dell",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://jobs.dell.com/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Deloitte Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "deloitte-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.deloitte.com/il/en/careers.html",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Delta Galil Careers Israel",
+    "kind": "official_careers",
+    "identifier": "delta-galil",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.deltagalil.com/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "DHL — CS Israel",
+    "kind": "official_careers",
+    "identifier": "dhl-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://careers.dhl.com/global/en",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Israel Discount Bank — CS Israel",
+    "kind": "official_careers",
+    "identifier": "discount-bank",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.discountbank.co.il/private/general-information/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "DustPhotonics — Israel",
+    "kind": "official_careers",
+    "identifier": "dustphotonics",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.dustphotonics.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Earnix Careers Israel",
+    "kind": "official_careers",
+    "identifier": "earnix",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://earnix.com/careers/",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Elad Systems — CS Israel",
+    "kind": "official_careers",
+    "identifier": "elad-systems",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.eladsoft.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Elbit Systems Careers",
+    "kind": "official_careers",
+    "identifier": "elbit",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://elbitsystemscareer.com/jobs/",
+    "reported_israel": 545,
+    "audit_reason": ""
+  },
+  {
+    "name": "Electra Group Careers Israel",
+    "kind": "official_careers",
+    "identifier": "electra-group",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.electra.co.il/career/משרות",
+    "reported_israel": 39,
+    "audit_reason": ""
+  },
+  {
+    "name": "Elspec Careers Israel",
+    "kind": "official_careers",
+    "identifier": "elspec",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.elspec-ltd.com/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Ericsson Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ericsson",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.ericsson.com/en/careers",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "eToro Careers Israel",
+    "kind": "official_careers",
+    "identifier": "etoro",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.etoro.com/about/careers/",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Exodigo Careers Israel",
+    "kind": "official_careers",
+    "identifier": "exodigo",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/exodigo/89.005",
+    "reported_israel": 13,
+    "audit_reason": ""
+  },
+  {
+    "name": "EY Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ey-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.ey.com/en_il/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Fiverr — CS Israel",
+    "kind": "official_careers",
+    "identifier": "fiverr",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.fiverr.com/jobs",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Flex — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "flex-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://flex.com/careers/israel-en",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Fox Group — CS Israel",
+    "kind": "official_careers",
+    "identifier": "fox-group",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.foxhr.2.idus.co.il/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Fridenson — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "friedenson",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://fridenson.co.il/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Fundbox Careers Israel",
+    "kind": "official_careers",
+    "identifier": "fundbox",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://fundbox.com/careers/",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "G-STAT — Data Analyst & BI",
+    "kind": "official_careers",
+    "identifier": "g-stat",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://g-stat.com/careers/",
+    "reported_israel": 37,
+    "audit_reason": ""
+  },
+  {
+    "name": "GE HealthCare Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ge-healthcare",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.gehealthcare.com/global/en",
+    "reported_israel": 30,
+    "audit_reason": ""
+  },
+  {
+    "name": "Gloat Careers Israel",
+    "kind": "official_careers",
+    "identifier": "gloat",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/gloat/E5.000",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Global-e Careers Israel",
+    "kind": "official_careers",
+    "identifier": "global-e",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.global-e.com/careers/",
+    "reported_israel": 14,
+    "audit_reason": ""
+  },
+  {
+    "name": "Grip Security Careers Israel",
+    "kind": "official_careers",
+    "identifier": "grip-security",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/grip/A8.001",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Guesty Careers Israel",
+    "kind": "official_careers",
+    "identifier": "guesty",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.guesty.com/careers/",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Hadassah Careers Israel",
+    "kind": "official_careers",
+    "identifier": "hadassah",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://he.hadassah.org.il/wanted/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Haifa Port — CS Israel",
+    "kind": "official_careers",
+    "identifier": "haifa-port",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.haifaport.co.il/jobs/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Hailo — AI Silicon Israel",
+    "kind": "official_careers",
+    "identifier": "hailo",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://hailo.ai/company-overview/careers/",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Harel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "harel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "HiBob Careers Israel",
+    "kind": "official_careers",
+    "identifier": "hibob",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.hibob.com/careers/",
+    "reported_israel": 19,
+    "audit_reason": ""
+  },
+  {
+    "name": "HOT Careers Israel",
+    "kind": "official_careers",
+    "identifier": "hot",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.hot.net.il/heb/career/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "HP Careers Israel",
+    "kind": "official_careers",
+    "identifier": "hp",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://jobs.hp.com/",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "IAI Careers",
+    "kind": "official_careers",
+    "identifier": "iai",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://jobs.iai.co.il/jobs/",
+    "reported_israel": 513,
+    "audit_reason": ""
+  },
+  {
+    "name": "IBM Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ibm",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Ichilov Medical Center — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ichilov",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.tasmc.org.il/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "ICL — CS Israel",
+    "kind": "official_careers",
+    "identifier": "icl",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://careers.icl-group.com/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "IDE Technologies Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ide-technologies",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://ide-tech.com/en/join-us/",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "Israel Electric Corporation Careers Israel",
+    "kind": "official_careers",
+    "identifier": "iec",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.iec.co.il/careers",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Innoviz — Israel",
+    "kind": "official_careers",
+    "identifier": "innoviz",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://innoviz.tech/join-us",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Island Careers Israel",
+    "kind": "official_careers",
+    "identifier": "island",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.island.io/careers",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Isracard — CS Israel",
+    "kind": "official_careers",
+    "identifier": "isracard",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.isracard.co.il/pages/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Israel Post — CS Israel",
+    "kind": "official_careers",
+    "identifier": "israel-post",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Israel Railways — CS Israel",
+    "kind": "official_careers",
+    "identifier": "israel-railways",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.rail.co.il/?page=career",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Jabil Careers Israel",
+    "kind": "official_careers",
+    "identifier": "jabil-israel",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.jabil.com/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Johnson & Johnson Israel Careers Israel",
+    "kind": "official_careers",
+    "identifier": "jnj-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.careers.jnj.com/",
+    "reported_israel": 22,
+    "audit_reason": ""
+  },
+  {
+    "name": "Kaltura Careers Israel",
+    "kind": "official_careers",
+    "identifier": "kaltura",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://corp.kaltura.com/company/careers/",
+    "reported_israel": 17,
+    "audit_reason": ""
+  },
+  {
+    "name": "Kornit Digital Careers Israel",
+    "kind": "official_careers",
+    "identifier": "kornit-digital",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.kornit.com/all-positions/",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "KPMG Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "kpmg-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://kpmg.com/il/en/home/careers.html",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Legit Security Careers Israel",
+    "kind": "official_careers",
+    "identifier": "legitsecurity",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/legitsecurity.com/37.004",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Lemonade Careers Israel",
+    "kind": "official_careers",
+    "identifier": "lemonade",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.lemonade.com/careers",
+    "reported_israel": 23,
+    "audit_reason": ""
+  },
+  {
+    "name": "L'Oréal Israel Careers Israel",
+    "kind": "official_careers",
+    "identifier": "loreal-israel",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.loreal.com/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Maccabi Healthcare — CS Israel",
+    "kind": "official_careers",
+    "identifier": "maccabi-health",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.maccabi4u.co.il/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Malam Team — CS Israel",
+    "kind": "official_careers",
+    "identifier": "malam-team",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.malamteam.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Marvell — Israel",
+    "kind": "official_careers",
+    "identifier": "marvell",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.marvell.com/company/careers.html",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "Matrix — CS Israel",
+    "kind": "official_careers",
+    "identifier": "matrix-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.matrix.co.il/jobs/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Max — CS Israel",
+    "kind": "official_careers",
+    "identifier": "max",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.max.co.il/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Mekorot Careers Israel",
+    "kind": "official_careers",
+    "identifier": "mekorot",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.mekorot.co.il/open-jobs/",
+    "reported_israel": 32,
+    "audit_reason": ""
+  },
+  {
+    "name": "Meta Careers Israel",
+    "kind": "official_careers",
+    "identifier": "meta",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Meuhedet Careers Israel",
+    "kind": "official_careers",
+    "identifier": "meuhedet",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Microsoft Careers Israel",
+    "kind": "official_careers",
+    "identifier": "microsoft",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://apply.careers.microsoft.com/careers?query=&location=Israel&domain=microsoft.com&sort_by=relevance",
+    "reported_israel": 14,
+    "audit_reason": ""
+  },
+  {
+    "name": "Migdal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "migdal",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.migdal.co.il/about/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "משרד הביטחון — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ministry-of-defense-il",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "monday.com Careers Israel",
+    "kind": "official_careers",
+    "identifier": "monday",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://monday.com/careers",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Moon Active Careers Israel",
+    "kind": "official_careers",
+    "identifier": "moonactive",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.moonactive.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Motorola Solutions Careers Israel",
+    "kind": "official_careers",
+    "identifier": "motorola-solutions",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.motorolasolutions.com/en_us/about/careers.html",
+    "reported_israel": 3,
+    "audit_reason": ""
+  },
+  {
+    "name": "Natural Intelligence Careers Israel",
+    "kind": "official_careers",
+    "identifier": "natural-intelligence",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.naturalint.com/careers/",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "Nayax Careers Israel",
+    "kind": "official_careers",
+    "identifier": "nayax",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.nayax.com/careers/",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Ness — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ness-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.ness-tech.co.il/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Netafim Careers Israel",
+    "kind": "official_careers",
+    "identifier": "netafim",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.netafim.com/jobs",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "NeuroBlade — Israel",
+    "kind": "official_careers",
+    "identifier": "neuroblade",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.neuroblade.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "NextSilicon — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "nextsilicon",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.nextsilicon.com/careers/",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Niram Gitan — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "niram-gitan",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.niramgitan.com/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Nokia Careers Israel",
+    "kind": "official_careers",
+    "identifier": "nokia",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.nokia.com/about-us/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Nova — Israel",
+    "kind": "official_careers",
+    "identifier": "nova",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.novami.com/career",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "ONE Technologies — CS Israel",
+    "kind": "official_careers",
+    "identifier": "one-technologies",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.one1.co.il/careers/",
+    "reported_israel": 10,
+    "audit_reason": ""
+  },
+  {
+    "name": "Oracle Careers Israel",
+    "kind": "official_careers",
+    "identifier": "oracle",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.oracle.com/jobs/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "OrCam Careers Israel",
+    "kind": "official_careers",
+    "identifier": "orcam",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.orcam.com/en-us/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Ormat Technologies Careers Israel",
+    "kind": "official_careers",
+    "identifier": "ormat",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.ormat.com/en/company/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Osem-Nestle — CS Israel",
+    "kind": "official_careers",
+    "identifier": "osem-nestle",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.osem-nestle.co.il/career",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Palo Alto Networks Israel",
+    "kind": "official_careers",
+    "identifier": "paloalto",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2",
+    "reported_israel": 15,
+    "audit_reason": ""
+  },
+  {
+    "name": "Papaya Global Careers Israel",
+    "kind": "official_careers",
+    "identifier": "papaya-global",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.papayaglobal.com/careers/",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Paragon Careers Israel",
+    "kind": "official_careers",
+    "identifier": "paragon",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/paragon/76.006",
+    "reported_israel": 23,
+    "audit_reason": ""
+  },
+  {
+    "name": "Partner Careers Israel",
+    "kind": "official_careers",
+    "identifier": "partner",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.partner.co.il/n/career",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Pentera Careers Israel",
+    "kind": "official_careers",
+    "identifier": "pentera",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://pentera.io/careers/",
+    "reported_israel": 12,
+    "audit_reason": ""
+  },
+  {
+    "name": "Personetics Careers Israel",
+    "kind": "official_careers",
+    "identifier": "personetics",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://personetics.com/careers/",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Procter & Gamble Israel Careers Israel",
+    "kind": "official_careers",
+    "identifier": "pg-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.pgcareers.com/location-israel",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Philips Careers Israel",
+    "kind": "official_careers",
+    "identifier": "philips",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.careers.philips.com/il/en/search-results",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "The Phoenix — CS Israel",
+    "kind": "official_careers",
+    "identifier": "phoenix",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.fnx.co.il/about-us/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Playtika — CS Israel",
+    "kind": "official_careers",
+    "identifier": "playtika",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.playtika.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Pliops — Storage Silicon Israel",
+    "kind": "official_careers",
+    "identifier": "pliops",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://pliops.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Priority Software Careers Israel",
+    "kind": "official_careers",
+    "identifier": "priority-software",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.priority-software.com/careers/",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "proteanTecs — Israel",
+    "kind": "official_careers",
+    "identifier": "proteantecs",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.proteantecs.com/careers",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "PwC Israel — CS Israel",
+    "kind": "official_careers",
+    "identifier": "pwc-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.pwc.com/il/he/career.html",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Qualcomm Careers Israel",
+    "kind": "official_careers",
+    "identifier": "qualcomm",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://careers.qualcomm.com/careers?location=Israel",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Rafael Careers",
+    "kind": "official_careers",
+    "identifier": "rafael",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://career.rafael.co.il/search/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Rambam Careers Israel",
+    "kind": "official_careers",
+    "identifier": "rambam",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.rambam.org.il/about-rambam/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Rapyd Careers Israel",
+    "kind": "official_careers",
+    "identifier": "rapyd",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.rapyd.net/company/careers-search/",
+    "reported_israel": 16,
+    "audit_reason": ""
+  },
+  {
+    "name": "Reco Careers Israel",
+    "kind": "official_careers",
+    "identifier": "reco",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/reco/3A.00D",
+    "reported_israel": 2,
+    "audit_reason": ""
+  },
+  {
+    "name": "Retym — Semiconductor Israel",
+    "kind": "official_careers",
+    "identifier": "retym",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://retym.com/careers-2/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Salesforce Careers Israel",
+    "kind": "official_careers",
+    "identifier": "salesforce",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://careers.salesforce.com/en/jobs/?search=&country=Israel",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Samsung Research Israel",
+    "kind": "official_careers",
+    "identifier": "samsung",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://research.samsung.com/sril/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "SAP Careers Israel",
+    "kind": "official_careers",
+    "identifier": "sap-israel",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Sapiens Careers Israel",
+    "kind": "official_careers",
+    "identifier": "sapiens",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.sapiens.com/search/?q=&locationsearch=Israel",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "SCD — SemiConductor Devices",
+    "kind": "official_careers",
+    "identifier": "scd",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://scdusa-ir.com/find-a-job/",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Sheba Medical Center — CS Israel",
+    "kind": "official_careers",
+    "identifier": "sheba",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Shufersal — CS Israel",
+    "kind": "official_careers",
+    "identifier": "shufersal",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://career.shufersal.co.il/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Siemens EDA — Israel",
+    "kind": "official_careers",
+    "identifier": "siemens-eda",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.siemens.com/en-us/company/jobs/",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Silverfort Careers Israel",
+    "kind": "official_careers",
+    "identifier": "silverfort",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/silverfort/54.007",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Snyk Careers Israel",
+    "kind": "official_careers",
+    "identifier": "snyk",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://snyk.io/careers/all-jobs/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "SodaStream Careers Israel",
+    "kind": "official_careers",
+    "identifier": "sodastream",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://sodastream.com/pages/careers",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "SolarEdge Careers Israel",
+    "kind": "official_careers",
+    "identifier": "solaredge",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.solaredge.com/",
+    "reported_israel": 48,
+    "audit_reason": ""
+  },
+  {
+    "name": "Speedata — Israel",
+    "kind": "official_careers",
+    "identifier": "speedata",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.speedata.io/careers-1",
+    "reported_israel": 7,
+    "audit_reason": ""
+  },
+  {
+    "name": "StarkWare Careers Israel",
+    "kind": "official_careers",
+    "identifier": "starkware",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://starkware.co/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Stratasys Careers Israel",
+    "kind": "official_careers",
+    "identifier": "stratasys",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.stratasys.com/search/?q=&locationsearch=Israel",
+    "reported_israel": 13,
+    "audit_reason": ""
+  },
+  {
+    "name": "Strauss Group — CS Israel",
+    "kind": "official_careers",
+    "identifier": "strauss",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.strauss-group.com/career/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Sunflower Careers Israel",
+    "kind": "official_careers",
+    "identifier": "sunflower",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/sunflower/AA.009",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Super-Pharm — CS Israel",
+    "kind": "official_careers",
+    "identifier": "super-pharm",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://jobs.super-pharm.co.il/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Synopsys — Israel",
+    "kind": "official_careers",
+    "identifier": "synopsys-israel",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.synopsys.com/location/israel-jobs/44408/294640/2",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tefen — IEM Israel",
+    "kind": "official_careers",
+    "identifier": "tefen",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.tefen.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Teva — CS Israel",
+    "kind": "official_careers",
+    "identifier": "teva",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.careers.teva/careers?location=Israel",
+    "reported_israel": 10,
+    "audit_reason": ""
+  },
+  {
+    "name": "Texas Instruments — Israel",
+    "kind": "official_careers",
+    "identifier": "texas-instruments",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://edbz.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/jobs?location=Israel",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tipalti Careers Israel",
+    "kind": "official_careers",
+    "identifier": "tipalti",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://tipalti.com/company/careers/",
+    "reported_israel": 6,
+    "audit_reason": ""
+  },
+  {
+    "name": "Tnuva Careers Israel",
+    "kind": "official_careers",
+    "identifier": "tnuva",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.tnuva.co.il/jobs/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Tower Semiconductor — CS Israel",
+    "kind": "official_careers",
+    "identifier": "tower-semiconductor",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://towersemi.com/careers/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "TriEye — Israel",
+    "kind": "official_careers",
+    "identifier": "trieye",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://trieye.tech/careers/",
+    "reported_israel": 1,
+    "audit_reason": ""
+  },
+  {
+    "name": "Unilever Israel Careers Israel",
+    "kind": "official_careers",
+    "identifier": "unilever-israel",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://careers.unilever.com/en/israel",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Unity Careers Israel",
+    "kind": "official_careers",
+    "identifier": "unity",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://unity.com/careers/positions",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "UPS — CS Israel",
+    "kind": "official_careers",
+    "identifier": "ups-israel",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.jobs-ups.com/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Upwind Careers Israel",
+    "kind": "official_careers",
+    "identifier": "upwind",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.upwind.io/careers",
+    "reported_israel": 18,
+    "audit_reason": ""
+  },
+  {
+    "name": "Valens Semiconductor — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "valens",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.valens.com/positions/",
+    "reported_israel": 4,
+    "audit_reason": ""
+  },
+  {
+    "name": "VAST Data Careers Israel",
+    "kind": "official_careers",
+    "identifier": "vastdata",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/vastdata/43.001",
+    "reported_israel": 21,
+    "audit_reason": ""
+  },
+  {
+    "name": "Vayyar Imaging — Israel",
+    "kind": "official_careers",
+    "identifier": "vayyar",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://vayyar.com/recruitment/",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Verint Careers Israel",
+    "kind": "official_careers",
+    "identifier": "verint",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://www.verint.com/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "Voyantis Careers Israel",
+    "kind": "official_careers",
+    "identifier": "voyantis",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.comeet.com/jobs/voyantis/86.00B",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Wiliot — Hardware Israel",
+    "kind": "official_careers",
+    "identifier": "wiliot",
+    "report_state": "לא אומת · 50% בריאות מקור",
+    "url": "https://www.wiliot.com/careers",
+    "audit_reason": "unverified"
+  },
+  {
+    "name": "Wix Careers Israel",
+    "kind": "official_careers",
+    "identifier": "wix",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://careers.wix.com/location/tel-aviv/positions",
+    "reported_israel": 5,
+    "audit_reason": ""
+  },
+  {
+    "name": "XM Cyber Careers Israel",
+    "kind": "official_careers",
+    "identifier": "xm-cyber",
+    "report_state": "ממתין לאימות מנגנון האיסוף · 100% בריאות מקור",
+    "url": "https://xmcyber.com/careers/",
+    "audit_reason": "pending"
+  },
+  {
+    "name": "ZIM Careers Israel",
+    "kind": "official_careers",
+    "identifier": "zim",
+    "report_state": "איסוף חלקי · 100% בריאות מקור",
+    "url": "https://www.zim.com/careers/job-opportunities",
+    "reported_israel": 9,
+    "audit_reason": ""
+  },
+  {
+    "name": "Check Point Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "CheckPointSoftwareTechnologies2",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 101,
+    "audit_reason": ""
+  },
+  {
+    "name": "CyberArk Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "Cyberark1",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "ServiceNow Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "ServiceNow",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 11,
+    "audit_reason": ""
+  },
+  {
+    "name": "Western Digital Careers Israel",
+    "kind": "smartrecruiters",
+    "identifier": "WesternDigital",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 0,
+    "audit_reason": "zero_israel"
+  },
+  {
+    "name": "Applied Materials Israel",
+    "kind": "workday",
+    "identifier": "applied-materials",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "https://amat.wd1.myworkdayjobs.com/External",
+    "reported_israel": 40,
+    "audit_reason": ""
+  },
+  {
+    "name": "Intel Careers Israel",
+    "kind": "workday",
+    "identifier": "intel",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 21,
+    "audit_reason": ""
+  },
+  {
+    "name": "KLA Israel — Operations",
+    "kind": "workday",
+    "identifier": "kla-israel",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 40,
+    "audit_reason": ""
+  },
+  {
+    "name": "Medtronic Israel — Operations",
+    "kind": "workday",
+    "identifier": "medtronic",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 24,
+    "audit_reason": ""
+  },
+  {
+    "name": "NVIDIA Careers Israel",
+    "kind": "workday",
+    "identifier": "nvidia",
+    "report_state": "איסוף מלא · 100% בריאות מקור",
+    "url": "",
+    "reported_israel": 39,
+    "audit_reason": ""
+  }
+]

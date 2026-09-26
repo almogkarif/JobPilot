@@ -106,9 +106,9 @@ from app.collectors.official import OfficialCareersCollector, PRESETS
         ),
         (
             "moonactive",
-            "https://www.moonactive.com/moonactive-position/?uid=CC.D1E",
+            "https://jobs.ashbyhq.com/moonactive/d6b8e001-c645-4463-9707-09552fab60fd",
             "Senior Backend Developer",
-            "CC.D1E",
+            "d6b8e001-c645-4463-9707-09552fab60fd",
             "Moon Active",
         ),
         (
@@ -133,6 +133,36 @@ def test_new_official_sources_extract_real_job_rows_and_hydrate_details(
 
     monkeypatch.setattr(official_module, "_collect_static_rows", fake_static_rows)
     monkeypatch.setattr(official_module, "_hydrate_detail_rows", fake_hydrate)
+    if identifier == "sunflower":
+        # The feed now uses embedded structured Comeet data rather than the
+        # broken per-detail Angular shell. Exercise that parser, not real HTTP.
+        import json
+        from app.collectors import expansion_ats
+        async def fake_comeet(url, **kwargs):
+            assert url == "https://www.comeet.com/jobs/sunflower/AA.009"
+            description = (f"{title}. 3+ years of relevant experience. "
+                           "Requirements: B.Sc. degree and SQL programming. "
+                           "Responsibilities: maintain business reporting, collaborate with teams, "
+                           "implement analytics workflows, test integration changes and document solutions.")
+            return "var COMPANY_POSITIONS_DATA = " + json.dumps([{
+                "uid": expected_id, "name": title, "location": {"name": "Tel Aviv", "country": "IL"},
+                "url_comeet_hosted_page": href, "details": [{"name": "Description", "value": description}],
+            }]) + ";"
+        monkeypatch.setattr(expansion_ats, "bounded_public_get", fake_comeet)
+    if identifier == "moonactive":
+        # The official site now links to Ashby; do not exercise the obsolete
+        # Moon Active DOM fixture or accidentally make a live HTTP request.
+        from app.collectors.ashby import AshbyCollector
+        from app.collectors.base import JobCollection, NormalizedJob
+        async def fake_ashby(self, board, company_name=""):
+            assert board == "moonactive" and company_name == expected_company
+            return JobCollection([NormalizedJob(
+                external_id=expected_id, title=title, company=company_name,
+                location="Tel Aviv, Israel", workplace="onsite",
+                description=f"{title}\n3+ years of relevant experience",
+                apply_url=href, source_url=href,
+            )], complete=True)
+        monkeypatch.setattr(AshbyCollector, "collect", fake_ashby)
 
     jobs = asyncio.run(OfficialCareersCollector().collect(identifier))
 

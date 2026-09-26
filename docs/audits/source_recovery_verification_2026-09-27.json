@@ -1,0 +1,131 @@
+{
+  "checked_at": "2026-09-26T21:35:06.450060+00:00",
+  "base_commit": "e11787b8eb08af9e40a017dd8506ee0cdea2aaad",
+  "environment": {
+    "python": "3.11.2",
+    "database": "isolated SQLite and disposable PostgreSQL; no production database"
+  },
+  "web_patch_preservation": {
+    "v4_code_hashes_matched_before_changes": 8,
+    "baseline_record": "Original user changes were recorded and preserved before extension; historical v1-v4 manifests were not rewritten."
+  },
+  "test_runs": [
+    {
+      "command": ".venv/bin/pytest -q --ignore=tests/test_agent_browser_flow.py",
+      "stage": "initial combined",
+      "passed": 2062,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": ".venv/bin/pytest -q -n 4 tests/test_agent_browser_flow.py",
+      "passed": 98,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": ".venv/bin/pytest -q --ignore=tests/test_agent_browser_flow.py",
+      "stage": "final combined before historical-count assertion update",
+      "passed": 2112,
+      "failed": 1,
+      "skipped": 0,
+      "failure": "Historical cohort expected 38 enabled; verified eight new defaults make46. Assertion corrected and exact added employer set asserted."
+    },
+    {
+      "command": ".venv/bin/pytest -q tests/test_pending_source_audit.py tests/test_source_expansion_v053.py tests/test_supabase_egress_optimization.py tests/test_tech_board_recovery.py tests/test_samsung_chain_recovery.py tests/test_scan_efficiency_20260926.py tests/test_source_live_recovery_20260926.py",
+      "stage": "after correcting the historical activation count",
+      "passed": 138,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "public_live_audit": {
+    "entries": 260,
+    "with_israel_jobs": 191,
+    "no_israel_jobs_in_response": 9,
+    "unverified_or_failed": 60,
+    "raw_israel_rows": 3673,
+    "production_scan_started": false
+  },
+  "html_report_ui": {
+    "rows": 260,
+    "unverified_filter_rows": 60,
+    "company_search": "Oracle only",
+    "details_toggle": true,
+    "javascript_errors": 0
+  },
+  "production_observation": {
+    "run_id": 36262156707,
+    "commit": "e11787b",
+    "scan_status": "partial",
+    "date_utc": "2026-09-26",
+    "sources": 229,
+    "counters": {
+      "collected": 10317,
+      "israel": 2843,
+      "matching": 1691,
+      "new": 0,
+      "updated": 3,
+      "unchanged": 2840,
+      "deferred": 57
+    },
+    "ranking": "10 accounts; ranked=0 each, failed=0, deferred=0",
+    "new_fixes_deployed": false
+  },
+  "code_sha256": {
+    ".github/workflows/jobpilot-scan.yml": "1524ad2105633c38c136e83fd52e9279e2602fb7cb032ca9f57b5b8cf0f0b658",
+    "app/collectors/ashby.py": "0cc22f70f4eecaa03351ad5e47820d61a940130a287281893221404c3e666ab1",
+    "app/collectors/audit_diagnostics.py": "d435c3bf5d642d06b9b87a83199c108012acfa45900dd69cf825717c0c82daa6",
+    "app/collectors/bezeq.py": "943896b8ad561936ea1827df198bb796e998c27708f60a55689f10c660f59c0d",
+    "app/collectors/consumer_employers.py": "0055c4fe88dad4698d4f2c21b52b0ecbe465aab4298caa27c5820ace2a075753",
+    "app/collectors/eightfold.py": "71c00ad8a02c0c3a9bf904778eb0af514f83de29021a7b03e809f7a005e76ffa",
+    "app/collectors/elad.py": "5085c5665114fddd0af72cb1cd9d0ba5292f0cc3575b03afd8579a669a782eb1",
+    "app/collectors/employer_details.py": "2ecaca33c5d287f893e86ac0d1eb30f5db5b83e9d1cae9a977ffcc50a37cc810",
+    "app/collectors/expansion_ats.py": "7216a4bf5fba46a92a39e325fb3b598b024f38206015a432bea192ac4afe2544",
+    "app/collectors/greenhouse.py": "b38c6ec64464fd7cfa99445f15cb8abf0983246115d5b6114476a49dc7e03378",
+    "app/collectors/israeli_boards.py": "61f77bc0e3f05522f9df3145267166366865152cf8157341d276e4b428ef3752",
+    "app/collectors/official.py": "c73d1f02a053ca9d62cbcd791ca27f4e55d331a5bb62cab5bfed67f4ac6b7701",
+    "app/collectors/oracle_employer.py": "74dded314d51abd9151ce4f39adde21e73205a3893364832e914b297d9bdf232",
+    "app/collectors/smartrecruiters.py": "b78bf78805cf914476345b86a5a96084e3dcc67919d6d7c5c849aaf6413e9b0b",
+    "app/collectors/source_recovery.py": "3218a681c58ad61f5711597d73857c0c50d16a1646026e8fe318006eac4fa824",
+    "app/collectors/tech_board_recovery.py": "cffea3d9823d060efaeaee85896fb87ed0c66b3efc68ee15f3097dd6eb837367",
+    "app/collectors/technical_recovery.py": "e0a4f8488f5fa075c46708a838e3df9953eaa3de6e1decfd5acc6015125b3886",
+    "app/collectors/verint.py": "9b61e71882055f9fb660a78a46b2fbbcf9737e82cf0f14ea60b016c5ac73e910",
+    "app/collectors/workday.py": "e39c903100748eb8e55a9b4ab631075283c3328380b0fb4ef6ab89d1c42cf8da",
+    "app/schemas.py": "37ae7a608ca03df157ca7deefd1e51fc92246f9189b3928ce35a18c82b524bff",
+    "app/services/scan_runtime.py": "d1bdfac0da19fd34d7f50177748c283aa2803d2939da4f8cdc1730aa66aa42a9",
+    "app/services/source_identifiers.py": "acf1e99fe68ad8e86d2b7647a1bd8349ceb1a563b8772aea7022a9611396b744",
+    "app/services/source_quality.py": "2a97ca2eb57f309f96110a53e7dd674a9aaa0120a1d46cdcbd7badd17447df7e",
+    "app/services/unified_catalog.py": "7e5533e004fc53d10d8eb51c5223d794e5e83f8a88afd8390cb9700b321a9339",
+    "app/source_expansion.py": "ea48c0caa7844a892dfcdd19de517a36998c19482e6209769ef16ade888c9e1a",
+    "app/utils.py": "8e453861df6e0a1e782f8c4bbf086a0581e47213b3f0e1a57c195900ca50f363",
+    "scripts/audit_source_health.py": "e80c966461214d22737a1b3d3d7fc1113a68137db01737dba66afd9ac8813ffe",
+    "scripts/repair_source_audit.py": "01210dd71a7fb6408450e30102ff7659a2250d4a607963c42ec9196278f88f57",
+    "scripts/run_cloud_scan.py": "ee1010deeb60bb0dd4eccb083a1a6e22e960a28c8b5546256365ee066866b02e",
+    "tests/test_bezeq_collector.py": "057565fe3336b6c95a8936a2677cbc7ca466ad62b9598db374202c8955f8c4a9",
+    "tests/test_collector_completeness.py": "b4817f78b609219680d0f5ac510adeaff8e4324d72551ffa32f82c1efb0e12f5",
+    "tests/test_consumer_employers.py": "87e80e8d4885afe36e925ae4a48750ba712c5d02ba23476aee4cb245bd59a6c7",
+    "tests/test_israeli_boards.py": "cede9a28e80e2af7973fa2a056d718cd9aed359cb99d702171c68f06f562e643",
+    "tests/test_official_collector_titles.py": "e6705bfa373d08c4a56df3c7df64a6d1990b4f70ea6ab5197be3d7633c380971",
+    "tests/test_oracle_employer.py": "f97b50c8c73ea819eb567df82c28410c5a2ce23819523c81574e0727363b18eb",
+    "tests/test_pending_source_audit.py": "73f54314243c9039c12ebd6e03b62d827f374ce972f1b1ee3cf9881abdb803da",
+    "tests/test_retym_speedata_recovery.py": "9856d9a12f66b60a015b3f46dd857940d5ee1db1492b543835d9722a2e734f0f",
+    "tests/test_samsung_chain_recovery.py": "fad96cf5f7d8f4f410cec2c56d9b505b6421fff8e20722a449ab2a9d18d6b0b2",
+    "tests/test_scan_efficiency_20260926.py": "4670c188a016f124ba1daba6e764ae21f9df4a4cfaaa097b1be3cf0ed858f4d2",
+    "tests/test_scan_worker_recovery.py": "57ca0e3ecbc659c52318f6bbf67216dfa10c82d789cedcab02b19f46b6535e2e",
+    "tests/test_source_audit_20260926.py": "0bf509a3fd592661fd76ac812c089868e1b65da0ded800c4aa68239a61c8ff43",
+    "tests/test_source_audit_followup_20260926.py": "30fcca7315137052b833926fb5c9eae7e06c9df11693ef32322431174ae747db",
+    "tests/test_source_audit_v3_20260926.py": "92dccaad281f8df9f635c451e33675d8ee137c5c503b834dce39736ce5138ae4",
+    "tests/test_source_audit_v4_20260926.py": "52f73e64a3a6bc4d1d5d3b523fb4609e339e8edb06d70bea38a594279644ee63",
+    "tests/test_source_expansion_v053.py": "671db48534c6e919f6c6a158be5fb73e3b212fac656530450ccae1abdbe86ebf",
+    "tests/test_source_live_recovery_20260926.py": "7e831bfa00ccc2343653d4810a555d2effea326d31d804b4fb8bbcc1b718cf97",
+    "tests/test_source_quality.py": "2089fe18b00282f18e24139982a33e734b07fec0030b8d66b074afe8f611dd82",
+    "tests/test_source_recovery.py": "285f582caa9ccde5233d609a185813df6a1240cbf1ffb07e54a7731f42734317",
+    "tests/test_supabase_egress_optimization.py": "9e992d38832eba006753c3ee4dbe78063ae1a6c9fa166d5992e27d3e32ee0d75",
+    "tests/test_tech_board_recovery.py": "1b6aceedf4d14a84ede4a483e166e95543af869838f8c22538cd754fbd9b3961",
+    "tests/test_technical_source_recovery.py": "9e56dd61a5b114b44e4936b485882141b2e37e81e2e329ba11467f7ba919f307",
+    "tests/test_unified_cloud_worker.py": "f50befa92cc5ddbfefb9c2f76589550c5928d3c40f96d40631a539366d197bc3",
+    "tests/test_verint_collector.py": "1be40fb209435d123e0067bad4d8403dbc5e4890ff126c63098c5e331cbed62a",
+    "tests/test_workday_pagination_recovery.py": "8fd637b2a7c1e00c08c3d66481c630d451ba193cc328db4456f206ce3a9d703d"
+  }
+}

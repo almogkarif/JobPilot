@@ -1,0 +1,249 @@
+{
+  "checked_at": "2026-09-26",
+  "scope": "Public HTTP only; no production DB, Supabase requests, user browser or deployment",
+  "quality_gate": "validate_source_payload executed on live collector results for all repaired sources",
+  "repaired": [
+    {
+      "identifier": "qualcomm",
+      "count": 20,
+      "complete": false,
+      "blocked": [],
+      "samples": [
+        {
+          "id": "446720462722",
+          "title": "Senior Software Engineer cloud data platforms - Ramat Gan",
+          "location": "Ramat Gan, Israel",
+          "description_chars": 5219,
+          "url": "https://careers.qualcomm.com/careers/job/446720462722"
+        },
+        {
+          "id": "446718149954",
+          "title": "Senior Software Engineer, Core AI Software - Haifa or Ramat Gan",
+          "location": "Haifa, Haifa District, Israel; Ramat Gan, Israel",
+          "description_chars": 6185,
+          "url": "https://careers.qualcomm.com/careers/job/446718149954"
+        },
+        {
+          "id": "446718912075",
+          "title": "DevOps Engineer Kfar Netter, Israel",
+          "location": "Kfar-Netter, Israel",
+          "description_chars": 3107,
+          "url": "https://careers.qualcomm.com/careers/job/446718912075"
+        },
+        {
+          "id": "446720516229",
+          "title": "V2X Customer Engineer - Netanya",
+          "location": "Kfar-Netter, Israel",
+          "description_chars": 6983,
+          "url": "https://careers.qualcomm.com/careers/job/446720516229"
+        },
+        {
+          "id": "446720933472",
+          "title": "PHY/Radio Validation Engineer - Kfar-Netter - Israel",
+          "location": "Kfar-Netter, Israel",
+          "description_chars": 4624,
+          "url": "https://careers.qualcomm.com/careers/job/446720933472"
+        },
+        {
+          "id": "446721080257",
+          "title": "Senior Technical Project & Release Manager Kfar-Netter - Israel",
+          "location": "Kfar-Netter, Israel",
+          "description_chars": 6922,
+          "url": "https://careers.qualcomm.com/careers/job/446721080257"
+        },
+        {
+          "id": "446718579255",
+          "title": "Senior DSP FW Engineer - Kfar-Netter, Israel",
+          "location": "Kfar-Netter, Israel",
+          "description_chars": 3562,
+          "url": "https://careers.qualcomm.com/careers/job/446718579255"
+        },
+        {
+          "id": "446721222578",
+          "title": "Engineer, Systems - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 4338,
+          "url": "https://careers.qualcomm.com/careers/job/446721222578"
+        },
+        {
+          "id": "446720273102",
+          "title": "Pre-Silicon Verification Engineer - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 3623,
+          "url": "https://careers.qualcomm.com/careers/job/446720273102"
+        },
+        {
+          "id": "446720246524",
+          "title": "VLSI Design Engineer - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 3551,
+          "url": "https://careers.qualcomm.com/careers/job/446720246524"
+        },
+        {
+          "id": "446720549371",
+          "title": "Engineer, Staff VLSI Architect - Haifa",
+          "location": "Haifa, Haifa District, Israel; Hod Hasharon, Haifa District, Israel",
+          "description_chars": 4598,
+          "url": "https://careers.qualcomm.com/careers/job/446720549371"
+        },
+        {
+          "id": "446720257218",
+          "title": "Engineer, Senior Staff - VLSI Design - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 3647,
+          "url": "https://careers.qualcomm.com/careers/job/446720257218"
+        },
+        {
+          "id": "446720998059",
+          "title": "Senior Staff Hardware Engineer - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 6350,
+          "url": "https://careers.qualcomm.com/careers/job/446720998059"
+        },
+        {
+          "id": "446721223819",
+          "title": "Engineer, Senior Systems - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 4997,
+          "url": "https://careers.qualcomm.com/careers/job/446721223819"
+        },
+        {
+          "id": "446717763516",
+          "title": "CPU Architect – Security and MMU Aspects - Hod HaSharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 5315,
+          "url": "https://careers.qualcomm.com/careers/job/446717763516"
+        },
+        {
+          "id": "446719862303",
+          "title": "ASIC Chief Architect - Hod HaSharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 6292,
+          "url": "https://careers.qualcomm.com/careers/job/446719862303"
+        },
+        {
+          "id": "446720262702",
+          "title": "Senior Software Architect - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 5075,
+          "url": "https://careers.qualcomm.com/careers/job/446720262702"
+        },
+        {
+          "id": "446719451179",
+          "title": "Physical Design Engineer, Sr Staff - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 6130,
+          "url": "https://careers.qualcomm.com/careers/job/446719451179"
+        },
+        {
+          "id": "446719863448",
+          "title": "Architecture Engineer, Senior Staff - Hod HaSharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 4744,
+          "url": "https://careers.qualcomm.com/careers/job/446719863448"
+        },
+        {
+          "id": "446720243269",
+          "title": "Test Engineer, Senior - Hod Hasharon",
+          "location": "Hod Hasharon, Haifa District, Israel",
+          "description_chars": 4918,
+          "url": "https://careers.qualcomm.com/careers/job/446720243269"
+        }
+      ]
+    },
+    {
+      "identifier": "siemens-eda",
+      "count": 2,
+      "complete": false,
+      "blocked": [],
+      "samples": [
+        {
+          "id": "523891",
+          "title": "Account Manager - EDA - Israel",
+          "location": "Tel Aviv - Tel Aviv - Israel",
+          "description_chars": 4606,
+          "url": "https://jobs.siemens.com/en_US/externaljobs/JobDetail/523891"
+        },
+        {
+          "id": "520011",
+          "title": "DFT Application Support Engineer (Tessent)",
+          "location": "Gedera - HaMerkaz - Israel",
+          "description_chars": 3950,
+          "url": "https://jobs.siemens.com/en_US/externaljobs/JobDetail/520011"
+        }
+      ]
+    },
+    {
+      "identifier": "verint",
+      "count": 2,
+      "complete": false,
+      "blocked": [],
+      "samples": [
+        {
+          "id": "4111",
+          "title": "Human Resources Director – Israel",
+          "location": "Herzliya, Israel",
+          "description_chars": 4606,
+          "url": "https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/4111"
+        },
+        {
+          "id": "4135",
+          "title": "Technical Writer",
+          "location": "Herzliya, Israel",
+          "description_chars": 5456,
+          "url": "https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/4135"
+        }
+      ]
+    }
+  ],
+  "unresolved": [
+    {
+      "identifier": "scd",
+      "url": "https://www.scd-infrared.com/find-a-job/",
+      "finding": "Full inline descriptions exist,10 visible/page and40 advertised. Hidden job_number fields empty and ContactForm identifiers are ordinal. No stable individual job/application identity proven; navigation URLs remain blocked. Do not infer Israel for descriptions without explicit geography."
+    },
+    {
+      "identifier": "vayyar",
+      "url": "https://apply.workable.com/api/v1/widget/accounts/vayyar",
+      "finding": "Employer official /careers redirects to this Workable account. Public typed widget returns name Vayyar and jobs:[] HTTP200. Runtime generic adapter not replaced based only on an empty feed; future detail protocol not validated."
+    },
+    {
+      "identifier": "xm-cyber",
+      "url": "https://xmcyber.com/job-listing/",
+      "finding": "Both official www/non-www careers routes redirect here and return403. This is blocked, not zero vacancies."
+    },
+    {
+      "identifier": "analog-devices",
+      "finding": "Installed v4 audit reports no explicit Israel country facet and bounded Israel keyword result0; no evidence for speculative location change."
+    },
+    {
+      "identifier": "jabil-israel",
+      "finding": "Installed v4 audit reports no explicit Israel country facet and bounded Israel keyword result0; cannot assert no Israel jobs exist."
+    }
+  ],
+  "bounds": {
+    "qualcomm": {
+      "listing_pages": 2,
+      "details": 40,
+      "concurrency": 4,
+      "response_bytes": 4000000,
+      "description_chars": 24000
+    },
+    "siemens-eda": {
+      "listing_pages": 3,
+      "details": 40,
+      "concurrency": 4,
+      "response_bytes": 4000000,
+      "description_chars": 24000
+    },
+    "verint": {
+      "listing_pages": 2,
+      "rows_per_page": 25,
+      "details": 40,
+      "concurrency": 4,
+      "response_bytes": 4000000,
+      "description_chars": 24000
+    }
+  },
+  "tests": "240 passed: technical recovery, Verint, Eightfold, source recovery, Web v3/v4, pending sources, source quality and official titles. The Web v3 Siemens test now mocks the new native HTTP boundary while preserving rejection of marketing-only links."
+}

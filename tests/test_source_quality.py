@@ -23,6 +23,20 @@ def test_quality_accepts_normal_board_and_empty_board():
     validate_source_payload("Normal", [_job(i) for i in range(20)])
 
 
+@pytest.mark.parametrize('url', [
+    'https://www.comeet.co/careers-api/2.0/api.js?company=example',
+    'https://example.com/assets/careers.JSON',
+    'https://example.com/careers/style%2Ecss',
+])
+def test_quality_rejects_static_assets_even_in_single_row_board(url):
+    with pytest.raises(SourceDataQualityError, match='static assets'):
+        validate_source_payload('Bad links', [_job(1, url=url)])
+
+
+def test_quality_allows_job_url_with_asset_names_only_in_query():
+    validate_source_payload('Real job', [_job(1, url='https://example.com/jobs/123?ref=api.js')])
+
+
 def test_quality_rejects_uuid_titles_like_legacy_mobileye_payload():
     jobs = [
         _job(i, title=f"bb661a53 79b8 459d a8df {i:012x}", location="Israel")

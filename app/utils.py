@@ -9,7 +9,10 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Application, Job
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .models import Application, Job
 
 
 def dumps(value) -> str:
@@ -61,6 +64,7 @@ def select_next_queued_application(db: Session, career_track: str | None = None)
     """Return the next queued application, optionally restricted to one career track."""
     from .services.catalog_routing import job_in_track, unified_catalog_enabled
 
+    from .models import Application, Job
     statement = select(Application).join(Job, Application.job_id == Job.id).where(Job.is_active.is_(True))
     if career_track:
         statement = statement.where(job_in_track(career_track))

@@ -1,0 +1,87 @@
+{
+  "revision": "source-audit-v3-20260926",
+  "date": "2026-09-26",
+  "python_version": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "input_baseline_zip": {
+    "name": "jobpilot-source-audit-followup-fixed-20260926.zip",
+    "sha256": "9a030d1af2990c5cd47c7c8918910ffd77530e35063fab0d718be15fecd168cd"
+  },
+  "pytest": {
+    "passed": 1672,
+    "skipped": 89,
+    "deselected": 5,
+    "failures": 0,
+    "errors": 0,
+    "new_cases": 78,
+    "command": [
+      "/opt/pyvenv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "-k",
+      "not test_rehearsal_rejects_noncopy_target_without_connecting and not test_postgres_rehearsal_refuses_cloud_before_opening_a_connection",
+      "--ignore=tests/test_ranking_filter_first_ui.py",
+      "--ignore=tests/test_unified_catalog_local.py",
+      "--ignore=tests/test_ui_e2e.py",
+      "--ignore=tests/test_supported_ats_submission_e2e.py",
+      "--ignore=tests/test_cloud_ui_offline.py",
+      "--ignore=tests/test_ui_offline.py",
+      "--ignore=tests/test_agent_browser_flow.py",
+      "--ignore=tests/test_developer_collection_metrics_ui.py",
+      "--ignore=tests/test_track_comparison_report.py",
+      "--ignore=tests/test_career_track_browser_offline.py",
+      "--ignore=tests/test_scoped_save_browser_offline.py",
+      "--ignore=tests/test_grade_sheet_context_repair.py",
+      "--ignore=tests/test_ranking_refresh_failure_ui.py",
+      "--junitxml=/mnt/data/audit_v3/pytest-full.xml"
+    ],
+    "exit_code": 0,
+    "duration_seconds": 126.34
+  },
+  "limitations": [
+    "89 cases skipped; see log for each reason",
+    "13 browser test files excluded explicitly",
+    "5 parameterized cases not selected by the two PostgreSQL-related -k exclusions",
+    "No post-v3 live network collector validation in this environment; DNS unavailable",
+    "No browser or production PostgreSQL integration sign-off",
+    "HTML/API fixtures are synthetic, not live recordings"
+  ],
+  "scope": {
+    "original_files_changed": [
+      "app/collectors/expansion_ats.py",
+      "app/collectors/official.py",
+      "app/collectors/workday.py",
+      "app/services/source_quality.py",
+      "scripts/audit_source_health.py",
+      "tests/test_retym_speedata_recovery.py"
+    ],
+    "new_code_and_test_files": [
+      "app/collectors/elad.py",
+      "tests/test_source_audit_v3_20260926.py"
+    ],
+    "all_other_original_files_byte_identical": true,
+    "unchanged_original_files_count": 417,
+    "database_requests_by_audit": 0,
+    "applications_sent": 0,
+    "enabled_source_defaults_changed": false,
+    "production_deployment_performed": false
+  },
+  "raw_test_evidence_archive": "jobpilot-source-audit-v3-20260926-test-evidence.zip",
+  "code_hashes": {
+    "app/collectors/expansion_ats.py": "7c983c3b31601e598bc04ad512901129bead87ed2cf650c0c67c51ddc38a3d4b",
+    "app/collectors/official.py": "73cb2a936c0f0c58ecd046713a290df50ecdda7ba683016a4087628404d77b8e",
+    "app/collectors/workday.py": "cb8f80e22882ab22104ed7edafba6a891b91889b2fb29bdd40a96bcdceba065b",
+    "app/services/source_quality.py": "5627d4a007bdb5862f13785d8303ed1cd5115a2b2580275220db67674ec88ec4",
+    "scripts/audit_source_health.py": "7891e40875398b5a156d9281c0d3286b28440541eadb8d170d90a10597a1ee06",
+    "tests/test_retym_speedata_recovery.py": "9856d9a12f66b60a015b3f46dd857940d5ee1db1492b543835d9722a2e734f0f",
+    "app/collectors/elad.py": "e6f1db36c9f8683838e4719e0ef0ee6909de7c412188f0eb3c62e5a6f09d0917",
+    "tests/test_source_audit_v3_20260926.py": "774151cea661181a3745570ccb71ccf1bb8fa62e6ee3abc677db018a814888f9"
+  },
+  "patch_validation": {
+    "git_apply_check": true,
+    "applied_to_pristine_baseline": true,
+    "all_packaged_files_byte_identical_after_application": true,
+    "second_apply_rejected_without_modification": true,
+    "git_diff_check": true
+  }
+}

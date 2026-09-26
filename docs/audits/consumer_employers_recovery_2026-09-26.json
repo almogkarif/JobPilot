@@ -1,0 +1,366 @@
+{
+  "checked_at": "2026-09-26T21:12:20.437843+00:00",
+  "scope": "Six requested employers; three verified public readers and three unresolved evidence-only diagnoses. No browser/DB/deployment/default changes. Historical audits unchanged.",
+  "sources": [
+    {
+      "identifier": "ormat",
+      "checked_at": "2026-09-26T21:10:54.695341+00:00",
+      "endpoint": "https://careers.ormat.com/search/?q=&locationsearch=Israel",
+      "rows": 14,
+      "israel_rows": 14,
+      "full_descriptions": 14,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "1370890457",
+          "title": "Technical Account Manager",
+          "location": "YAVNE, Israel, 81515",
+          "url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-Technical-Account-Manager-81515/1370890457/",
+          "description_chars": 1248
+        },
+        {
+          "id": "1367043357",
+          "title": "Principal AI Engineer",
+          "location": "YAVNE, Israel, 81515",
+          "url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-Principal-AI-Engineer-81515/1367043357/",
+          "description_chars": 4306
+        },
+        {
+          "id": "1370890357",
+          "title": "מהנדס.ת תרמודינמיקה",
+          "location": "YAVNE, Israel, 81515",
+          "url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-%D7%9E%D7%94%D7%A0%D7%93%D7%A1_%D7%AA-%D7%AA%D7%A8%D7%9E%D7%95%D7%93%D7%99%D7%A0%D7%9E%D7%99%D7%A7%D7%94-81515/1370890357/",
+          "description_chars": 428
+        },
+        {
+          "id": "1368345457",
+          "title": "Program Operations Specialist, AI & Innovation",
+          "location": "YAVNE, Israel, 81515",
+          "url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-Program-Operations-Specialist%2C-AI-&-Innovation-81515/1368345457/",
+          "description_chars": 2341
+        }
+      ],
+      "status": "verified_repair",
+      "evidence": "Old corporate URL returned403. Current employer SuccessFactors portal exposes14 Israel detail links. Both current h1 and legacy span itemprop=title markup are supported. Stable numeric ID comes from employer-listed detail URL; streetAddress explicitly contains IL; datePosted is parsed only when supplied. All14 public details accepted in final live run."
+    },
+    {
+      "identifier": "delta-galil",
+      "checked_at": "2026-09-26T21:10:56.537101+00:00",
+      "endpoint": "https://career-api.deltagalil.com/wp-json/api/get_positions",
+      "rows": 6,
+      "israel_rows": 6,
+      "full_descriptions": 6,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "EB.277",
+          "title": "Manufacturing Systems Specialist",
+          "location": "Caesarea- Israel",
+          "url": "https://www.career.deltagalil.com/position/EB.277",
+          "description_chars": 4079
+        },
+        {
+          "id": "A9.D61",
+          "title": "OD Lead",
+          "location": "Caesarea- Israel",
+          "url": "https://www.career.deltagalil.com/position/A9.D61",
+          "description_chars": 2196
+        },
+        {
+          "id": "B0.375",
+          "title": "חשב.ת",
+          "location": "Caesarea- Israel",
+          "url": "https://www.career.deltagalil.com/position/B0.375",
+          "description_chars": 1459
+        },
+        {
+          "id": "B5.272",
+          "title": "נאמן.ת ביטחון",
+          "location": "Caesarea- Israel",
+          "url": "https://www.career.deltagalil.com/position/B5.272",
+          "description_chars": 1309
+        }
+      ],
+      "status": "verified_repair",
+      "evidence": "Old corporate URL returned403. Current employer Next.js careers app publishes career-api.deltagalil.com/wp-json/api/get_positions in its JavaScript. Feed34 records:8 explicitly Israel, of which2 are talent-pool advertisements (לא מצאת משרה רלוונטית). Six real Israel detail pages accepted. Actual feed IDs, matching visible titles, Description/Requirements and explicit detail Location required. No date invented."
+    },
+    {
+      "identifier": "loreal-israel",
+      "checked_at": "2026-09-26T21:11:00.409195+00:00",
+      "endpoint": "https://careers.loreal.com/en_US/jobs/SearchJobs?search=Israel",
+      "rows": 7,
+      "israel_rows": 7,
+      "full_descriptions": 7,
+      "quality_gate": "passed",
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "251736",
+          "title": "איש.ת תפעול ונראות שטח באזור ירושלים והשפלה",
+          "location": "Jerusalem, Jerusalem, Israel",
+          "url": "https://careers.loreal.com/en_US/jobs/JobDetail/2026-LOA-IL/251736",
+          "description_chars": 585
+        },
+        {
+          "id": "252036",
+          "title": "מנהל/ת תחום מדיה ומשפיענים לחטיבת היוקרה",
+          "location": "Netanya, Central District, Israel",
+          "url": "https://careers.loreal.com/en_US/jobs/JobDetail/Country-Head-of-Digital-Division-Brand/252036",
+          "description_chars": 1248
+        },
+        {
+          "id": "245161",
+          "title": "מנהל.ת הדרכה בעולמות הביוטי והדיגיטל",
+          "location": "Netanya, Central District, Israel",
+          "url": "https://careers.loreal.com/en_US/jobs/JobDetail/National-Education-Manager-Country/245161",
+          "description_chars": 1291
+        },
+        {
+          "id": "255695",
+          "title": "מנהל.ת אזור בחטיבת מוצרי הצריכה - משרה זמנית",
+          "location": "Tel Aviv, Central District, Israel",
+          "url": "https://careers.loreal.com/en_US/jobs/JobDetail/Sales-Executive/255695",
+          "description_chars": 759
+        }
+      ],
+      "status": "verified_repair",
+      "evidence": "Actual public search form supports search=Israel. Seven unique public detail links accepted. Full description is scoped to section--description; explicit employer analytics metadata binds jobIDATS, jobCountry=Israel, jobLocation and visible title. Employer leaves an unescaped quote in one Hebrew jobTitle abbreviation: parser reads the complete named line as text, never executes JavaScript. Publication date comes from same-page JobPosting JSON-LD."
+    },
+    {
+      "identifier": "tnuva",
+      "status": "access_challenge",
+      "endpoint": "https://www.tnuva.co.il/jobs/",
+      "http_status": 200,
+      "evidence": "Only212 bytes, empty visible body and Incapsula resource script. HTTP200 is a challenge response, not a job list. No current public feed verified in this bounded cohort; job availability unknown."
+    },
+    {
+      "identifier": "sodastream",
+      "status": "moved_route_unimplemented_ats",
+      "endpoint": "https://www.pepsicojobs.com/sodastream",
+      "http_status": 200,
+      "evidence": "Configured sodastream.com/pages/careers returns404, whose own footer links current PepsiCo SodaStream landing page. That page links main/jobs?keywords=sodastream and the Israel filter. Combined keywords=sodastream&country=Israel returns200 client-rendered Jibe search shell. No role API/full detail contract verified; no broad PepsiCo jobs imported under SodaStream. Job availability unknown."
+    },
+    {
+      "identifier": "unilever-israel",
+      "status": "unimplemented_ats",
+      "endpoint": "https://careers.unilever.com/en/israel",
+      "http_status": 200,
+      "evidence": "Current official TalentBrew Israel landing page reachable, links search-jobs and employer Workday Unilever_Experienced_Professionals account. No identity-bound full Israel detail found in this bounded page evidence; API/Israel facet not revalidated by this cohort. Job availability unknown."
+    }
+  ],
+  "bounds": {
+    "public_requests_per_source_per_scan": 41,
+    "public_requests_aggregate_per_scan": 123,
+    "public_requests_aggregate_per_day_if_hourly": 2952,
+    "public_requests_aggregate_per_30_days_if_hourly": 88560,
+    "maximum_roles_per_source": 40,
+    "maximum_roles_aggregate": 120,
+    "detail_concurrency_per_source": 4,
+    "response_bytes": 4000000,
+    "request_timeout_seconds": 25,
+    "description_characters": 24000,
+    "delta_feed_maximum_records": 200,
+    "snapshot_complete": false,
+    "new_database_queries": 0,
+    "supabase_note": "Public employer HTTP is not Supabase egress. The adapters introduce no database queries. Downstream worker receives at most120 roles; a24k Unicode description can occupy96k UTF-8 bytes before record overhead. Existing bounded changed-row persistence remains responsible for database transfer."
+  },
+  "tests": {
+    "command": ".venv/bin/pytest -q tests/test_consumer_employers.py tests/test_source_quality.py tests/test_israeli_boards.py",
+    "passed": 91,
+    "skipped": 0,
+    "full_suite": "Not run by this subagent; root owns shared full-suite validation."
+  },
+  "public_probe_evidence": [
+    {
+      "id": "tnuva",
+      "requested_url": "https://www.tnuva.co.il/jobs/",
+      "checked_at": "2026-09-26T20:59:45.084858+00:00",
+      "status": 200,
+      "url": "https://www.tnuva.co.il/jobs/",
+      "bytes": 212,
+      "sha256": "d02032286070b4dd9d8fbd985a7bdca8af8edf52b89ff177db3bfcb2c8a9c43d"
+    },
+    {
+      "id": "delta-galil",
+      "requested_url": "https://www.deltagalil.com/careers/",
+      "checked_at": "2026-09-26T20:59:45.134121+00:00",
+      "status": 403,
+      "url": "https://www.deltagalil.com/careers/",
+      "bytes": 5433,
+      "sha256": "688db5e87af88be04ec18b5a4d054a4fa3c2fd2cebb83734611e32df1a756307"
+    },
+    {
+      "id": "ormat",
+      "requested_url": "https://www.ormat.com/en/company/careers/",
+      "checked_at": "2026-09-26T20:59:45.139286+00:00",
+      "status": 403,
+      "url": "https://www.ormat.com/en/company/careers/",
+      "bytes": 1367,
+      "sha256": "b6946fa771d6f86a2632fac9e85d28f12738fa2fba9d00e0af056937bf92a9e7"
+    },
+    {
+      "id": "sodastream",
+      "requested_url": "https://sodastream.com/pages/careers",
+      "checked_at": "2026-09-26T20:59:45.375244+00:00",
+      "status": 404,
+      "url": "https://sodastream.com/pages/careers",
+      "bytes": 618554,
+      "sha256": "eee0d46b52d9986dd913124a5a9463a869065fc7e86316afb11bae5828601dbb"
+    },
+    {
+      "id": "unilever-israel",
+      "requested_url": "https://careers.unilever.com/en/israel",
+      "checked_at": "2026-09-26T20:59:45.500918+00:00",
+      "status": 200,
+      "url": "https://careers.unilever.com/en/israel",
+      "bytes": 285278,
+      "sha256": "b88d5342b261a92c18f9d884f176d2d59755ea7d4c4b36a9165131908d413096"
+    },
+    {
+      "id": "loreal-israel",
+      "requested_url": "https://careers.loreal.com/",
+      "checked_at": "2026-09-26T20:59:45.848056+00:00",
+      "status": 200,
+      "url": "https://careers.loreal.com/en_US/content",
+      "bytes": 222065,
+      "sha256": "ccdaf7cb6c14d27e82d2b7cfdca9f1e69b4b0c8752e1bdbbf67893b6136c5c10"
+    },
+    {
+      "id": "ormat-new",
+      "requested_url": "https://careers.ormat.com/",
+      "checked_at": "2026-09-26T21:00:09.974585+00:00",
+      "status": 200,
+      "url": "https://careers.ormat.com/",
+      "bytes": 48299,
+      "sha256": "644fc2aa0451f46c3eb8d9b62c323fb4897787469c54041095f177deee9d40dd"
+    },
+    {
+      "id": "delta-new",
+      "requested_url": "https://www.career.deltagalil.com/",
+      "checked_at": "2026-09-26T21:00:10.025902+00:00",
+      "status": 200,
+      "url": "https://www.career.deltagalil.com/",
+      "bytes": 77978,
+      "sha256": "119d5c941c7f90037beae1638f9ab4707d228fc814d217b1b1de1ebd5d7e9de3"
+    },
+    {
+      "id": "sodastream-new",
+      "requested_url": "https://corp.sodastream.com/job-openings/",
+      "checked_at": "2026-09-26T21:00:10.030656+00:00",
+      "status": 403,
+      "url": "https://corp.sodastream.com/job-openings/",
+      "bytes": 451,
+      "sha256": "5b074f6c8f6909d83d552c40f9ed8a510896d1f6a74a86399950d1631d8be902"
+    },
+    {
+      "id": "ormat-search",
+      "requested_url": "https://careers.ormat.com/search/?q=&locationsearch=Israel",
+      "checked_at": "2026-09-26T21:00:32.802857+00:00",
+      "status": 200,
+      "url": "https://careers.ormat.com/search/?q=&locationsearch=Israel",
+      "bytes": 122993,
+      "sha256": "bc45262ca33a1cd01588a251e8780582e7994c1de36d29e7bedb5ecf47e83bd5"
+    },
+    {
+      "id": "sodastream-pepsi",
+      "requested_url": "https://www.pepsicojobs.com/sodastream",
+      "checked_at": "2026-09-26T21:00:32.838432+00:00",
+      "status": 200,
+      "url": "https://www.pepsicojobs.com/sodastream",
+      "bytes": 1088802,
+      "sha256": "5bbc5e1f150a7eb634016df2cf85730e3e604f8f07bd2079c90e22794402f039"
+    },
+    {
+      "id": "loreal-search",
+      "requested_url": "https://careers.loreal.com/en_US/jobs/SearchJobs",
+      "checked_at": "2026-09-26T21:00:32.842497+00:00",
+      "status": 200,
+      "url": "https://careers.loreal.com/en_US/jobs/SearchJobs",
+      "bytes": 229350,
+      "sha256": "f14c0ccdf01a597e3b88477c31215e0eb6deb978415fb1df269baf04396cf5dc"
+    },
+    {
+      "id": "delta-page-js",
+      "requested_url": "https://www.career.deltagalil.com/_next/static/chunks/app/page-148a9a791ba094b9.js",
+      "checked_at": "2026-09-26T21:01:14.827589+00:00",
+      "status": 200,
+      "url": "https://www.career.deltagalil.com/_next/static/chunks/app/page-148a9a791ba094b9.js",
+      "bytes": 836627,
+      "sha256": "d13232a3eab2674a6e0dacb4180cb1beee80402d0d452eb5b741fdebae95651a"
+    },
+    {
+      "id": "delta-331-js",
+      "requested_url": "https://www.career.deltagalil.com/_next/static/chunks/331-1e488433a550e7f8.js",
+      "checked_at": "2026-09-26T21:01:14.866390+00:00",
+      "status": 200,
+      "url": "https://www.career.deltagalil.com/_next/static/chunks/331-1e488433a550e7f8.js",
+      "bytes": 11278,
+      "sha256": "5a3f7676d077b2f6ea0e5ab77699ae9b98d7f5190813cc44691c5db51158de32"
+    },
+    {
+      "id": "delta-493-js",
+      "requested_url": "https://www.career.deltagalil.com/_next/static/chunks/493-28dafb299649a3f1.js",
+      "checked_at": "2026-09-26T21:01:14.870917+00:00",
+      "status": 200,
+      "url": "https://www.career.deltagalil.com/_next/static/chunks/493-28dafb299649a3f1.js",
+      "bytes": 24032,
+      "sha256": "96f1c25b34ec3fd351b857483615d56fec30ed406a955acbacc5f0da2b449de8"
+    },
+    {
+      "id": "delta-feed",
+      "requested_url": "https://career-api.deltagalil.com/wp-json/api/get_positions",
+      "checked_at": "2026-09-26T21:01:54.320907+00:00",
+      "status": 200,
+      "url": "https://career-api.deltagalil.com/wp-json/api/get_positions",
+      "bytes": 18862,
+      "sha256": "3358dc02b31fd2d06771223b25d3a2dcba68add8df82d747d59e1d740d0039aa"
+    },
+    {
+      "id": "soda-search",
+      "requested_url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream&country=Israel",
+      "checked_at": "2026-09-26T21:01:54.366092+00:00",
+      "status": 200,
+      "url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream&country=Israel",
+      "bytes": 1101123,
+      "sha256": "7602072d27b27257e982327bdb45129719ce309f50421568d874a3a8942cd43f"
+    },
+    {
+      "id": "loreal-israel-search",
+      "requested_url": "https://careers.loreal.com/en_US/jobs/SearchJobs?search=Israel",
+      "checked_at": "2026-09-26T21:01:54.370353+00:00",
+      "status": 200,
+      "url": "https://careers.loreal.com/en_US/jobs/SearchJobs?search=Israel",
+      "bytes": 171967,
+      "sha256": "3590e727eedaa2591013eb1bd15e4b7f20aab1173ebc29abc875e23d12186e0b"
+    },
+    {
+      "id": "ormat-detail",
+      "requested_url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-Technical-Account-Manager-81515/1370890457/",
+      "checked_at": "2026-09-26T21:02:03.244391+00:00",
+      "status": 200,
+      "url": "https://careers.ormat.com/HebrewIsrael/job/YAVNE-Technical-Account-Manager-81515/1370890457/",
+      "bytes": 51971,
+      "sha256": "8d41f0e5eca1b04fe033a3741a6f1b295c268f08aa99742e203fa786c2b8f6b7"
+    },
+    {
+      "id": "delta-detail",
+      "requested_url": "https://www.career.deltagalil.com/position/EB.277",
+      "checked_at": "2026-09-26T21:02:36.232862+00:00",
+      "status": 200,
+      "url": "https://www.career.deltagalil.com/position/EB.277",
+      "bytes": 60816,
+      "sha256": "5f51e5dab63cf1f365967c1d7c87365e24028d4e9dd2e123b41fe23336c42183"
+    },
+    {
+      "id": "loreal-detail",
+      "requested_url": "https://careers.loreal.com/en_US/jobs/JobDetail/2026-LOA-IL/251736",
+      "checked_at": "2026-09-26T21:02:57.251698+00:00",
+      "status": 200,
+      "url": "https://careers.loreal.com/en_US/jobs/JobDetail/2026-LOA-IL/251736",
+      "bytes": 107477,
+      "sha256": "0457dcb9b29df9517c95732ccce1860d54c10e8802094ea49a0cbdbccf839df0"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+........................................................................ [  4%]
+.........................................................sssssssss...... [  8%]
+.s.sssssssssssssss.........................s.s.s.s......s..ss..ss.s.s.ss [ 13%]
+ss.......ss............................................................. [ 17%]
+.......s.............................ss................................. [ 22%]
+........................................................................ [ 26%]
+...........................................ssssssss..................... [ 31%]
+........................................................ss.............. [ 35%]
+........................................................................ [ 40%]
+............sss......................................................... [ 44%]
+.............ssss................ssssssss......s........................ [ 49%]
+........................................................................ [ 53%]
+..........................................................s............. [ 58%]
+...................................................................s..ss [ 62%]
+s....................................................................... [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+.............................................s.s.s.s.s.s.s.s.s.s.s.s.s.. [ 98%]
+.............................                                            [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_canonical_legacy_shadows.py:29: Local PostgreSQL binaries required for real migration integration
+SKIPPED [8] tests/test_canonical_legacy_shadows.py:94: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_migration_batching.py:24: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:101: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:136: Local PostgreSQL binaries required for real migration integration
+SKIPPED [7] tests/test_canonical_postgres.py:150: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:171: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:188: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:196: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:213: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:218: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_canonical_postgres.py:237: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:41: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:55: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:64: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_egress_budget.py:78: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:66: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_catalog_ranking_bounds.py:88: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_catalog_ranking_bounds.py:115: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:147: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:175: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_catalog_ranking_bounds.py:192: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_citizenship_reload_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_cloud_catalog_diagnostics.py:11: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_diagnostics.py:58: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_rollout.py:32: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_cloud_catalog_rollout.py:71: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_dashboard_scan_suggestions_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_dock_stacking_ui.py:4: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_dock_stacking_ui.py:26: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:25: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:34: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:42: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:49: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:57: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:70: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:79: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_guided_submission_browser.py:86: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_job_description_scroll_ui.py:6: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_job_description_scroll_ui.py:31: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:42: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_onboarding_resume_review_ui.py:53: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_postgres_legacy_runtime_compatibility.py:32: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_postgres_legacy_runtime_compatibility.py:44: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_postgres_legacy_runtime_compatibility.py:134: Local PostgreSQL binaries required for real migration integration
+SKIPPED [2] tests/test_profile_alerts_browser.py:6: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_alerts_browser.py:28: The current execution sandbox blocks browser access to localhost
+SKIPPED [4] tests/test_profile_alerts_browser.py:47: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_alerts_browser.py:79: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_profile_city_save_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_resume_autofill_ui.py:5: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_seniority_filter.py:85: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_seniority_preferences_ui.py:18: The current execution sandbox blocks browser access to localhost
+SKIPPED [2] tests/test_seniority_preferences_ui.py:59: The current execution sandbox blocks browser access to localhost
+SKIPPED [1] tests/test_unified_rollout_sources.py:12: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:33: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:45: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:56: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:66: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:79: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:109: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:127: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:156: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:180: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:215: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:247: Local PostgreSQL binaries required for real migration integration
+SKIPPED [1] tests/test_unified_rollout_sources.py:286: Local PostgreSQL binaries required for real migration integration
+1524 passed, 89 skipped, 5 deselected in 115.63s (0:01:55)

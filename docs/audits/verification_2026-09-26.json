@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-26",
+  "input_zip": "jobpilot-source-20260926-190035.zip",
+  "input_sha256": "730ba9b3476a53146f37dd852e9756c4743b151ae9dd9bdbe652b93b5a8c056b",
+  "dashboard_text_sha256": "bd0467cdbadac50750d0aca09cf48965439154c2d6b786242af93b5d82f4a04d",
+  "baseline_offline_suite": {
+    "tests": 1529,
+    "failures": 5,
+    "errors": 0,
+    "skipped": 89,
+    "passed": 1435,
+    "deselected": 5,
+    "failed_test_ids": [
+      "tests.test_pending_source_audit::test_original_audit_cohort_remains_67_after_activating_verified_defaults",
+      "tests.test_source_expansion_v053::test_only_verified_structured_sources_are_enabled",
+      "tests.test_source_expansion_v053::test_expansion_keeps_scheduled_scan_growth_bounded_by_track",
+      "tests.test_supabase_egress_optimization::test_new_source_expansion_does_not_enable_unbounded_official_pages",
+      "tests.test_supabase_egress_optimization::test_permalink_compatibility_lookup_is_bounded_and_id_only"
+    ]
+  },
+  "final_offline_suite": {
+    "tests": 1613,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 89,
+    "passed": 1524,
+    "deselected": 5,
+    "failed_test_ids": []
+  },
+  "new_regression_cases": {
+    "source_audit": 82,
+    "egress_safety": 2
+  },
+  "test_command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "-k",
+    "not test_rehearsal_rejects_noncopy_target_without_connecting and not test_postgres_rehearsal_refuses_cloud_before_opening_a_connection",
+    "--ignore=tests/test_ranking_filter_first_ui.py",
+    "--ignore=tests/test_unified_catalog_local.py",
+    "--ignore=tests/test_ui_e2e.py",
+    "--ignore=tests/test_supported_ats_submission_e2e.py",
+    "--ignore=tests/test_cloud_ui_offline.py",
+    "--ignore=tests/test_ui_offline.py",
+    "--ignore=tests/test_agent_browser_flow.py",
+    "--ignore=tests/test_developer_collection_metrics_ui.py",
+    "--ignore=tests/test_track_comparison_report.py",
+    "--ignore=tests/test_career_track_browser_offline.py",
+    "--ignore=tests/test_scoped_save_browser_offline.py",
+    "--ignore=tests/test_grade_sheet_context_repair.py",
+    "--ignore=tests/test_ranking_refresh_failure_ui.py"
+  ],
+  "excluded_browser_files": [
+    "test_ranking_filter_first_ui.py",
+    "test_unified_catalog_local.py",
+    "test_ui_e2e.py",
+    "test_supported_ats_submission_e2e.py",
+    "test_cloud_ui_offline.py",
+    "test_ui_offline.py",
+    "test_agent_browser_flow.py",
+    "test_developer_collection_metrics_ui.py",
+    "test_track_comparison_report.py",
+    "test_career_track_browser_offline.py",
+    "test_scoped_save_browser_offline.py",
+    "test_grade_sheet_context_repair.py",
+    "test_ranking_refresh_failure_ui.py"
+  ],
+  "environment_limits": [
+    "Container DNS/network unavailable",
+    "Browser navigation blocked by administrator; some browser binaries unavailable",
+    "psycopg and local PostgreSQL binaries unavailable"
+  ],
+  "full_unfiltered_suite_completed": false,
+  "full_unfiltered_suite_note": "Baseline and modified attempts interrupted after environment-specific browser/driver failures; not counted as passing.",
+  "live_collectors_verified": 0,
+  "database_touched": false,
+  "production_deployed": false,
+  "unchanged_production_paths": [
+    "app/source_expansion.py",
+    "app/services/source_catalog.py",
+    "app/services/unified_catalog.py"
+  ],
+  "fixture_notice": "Synthetic regression contracts, not captured live HTTP payloads."
+}
