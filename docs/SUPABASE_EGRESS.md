@@ -4,6 +4,31 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Ranking progress labels — September 27, 2026
+
+Progress distinguishes jobs checked for eligibility, jobs filtered out, and jobs
+that passed filtering. The dashboard no longer subtracts the pending count from
+the entire catalog and calls the remainder "ranked". Live outcome counters come
+from rows already returned by the ranking worker, with **zero additional database
+queries or downloaded rows**. Eligibility still precedes scoring; this change
+does not invalidate caches or trigger a catalog reranking/backfill.
+
+The onboarding status adds one `COUNT(CASE ...)` to its existing aggregate SELECT
+to separate exclusions from scored results. It still fetches two scalar aggregate
+rows (catalog count and outcome counts), plus the unchanged profile/settings
+reads. No descriptions or result JSON are loaded. Polling intervals and stopping
+conditions are unchanged: dashboard 8 seconds, up to 45 automatic polls; onboarding
+700 ms while unfinished. At most one extra aggregate integer is downloaded per
+onboarding poll; allowing 64 extra bytes per response is about 0.314 MiB/hour,
+7.54 MiB/day, or 226 MiB/30 days per continuously unfinished polling client.
+This deliberately pessimistic incremental estimate is independent of catalog size;
+normal onboarding ends when the checks finish. Dashboard counters add zero
+Supabase egress. No new Storage or employer calls are introduced.
+
+Regression gate: `test_ranking_progress_uses_memory_and_two_scalar_aggregates`
+executes the status paths and verifies zero live-progress queries, exactly two
+scalar aggregates for catalog outcomes, and no description/result payload reads.
+
 ## Before every relevant change
 
 Use this check for database reads, startup work, scanners, scheduled tasks, API

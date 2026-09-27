@@ -32,7 +32,20 @@ def test_dashboard_stops_failed_refresh_and_offers_targeted_retry():
         assert page.evaluate('loads') == 1
         page.evaluate("""() => renderRanking({career_track:'computer_science',total_jobs:20,ranking_pending_jobs:3,
           ranking_refresh:{running:true,phase:'v2',completed:2,total:3}})""")
-        assert page.locator('#recommendations-ranking-details').get_attribute('data-progress') == 'דורגו 2 מתוך 3'
+        assert page.locator('#recommendations-ranking-details').get_attribute('data-progress') == 'נבדקו 2 מתוך 3'
+        # Losing in-process progress must not label the entire catalog as scored.
+        page.evaluate("""() => renderRanking({career_track:'computer_science',total_jobs:1313,ranking_pending_jobs:28,
+          ranking_refresh:{running:false,phase:'complete',completed:1285,total:1313}})""")
+        details = page.locator('#recommendations-ranking-details')
+        assert details.get_attribute('data-progress') == 'נותרו 28 משרות לבדיקת סינון והתאמה'
+        assert page.evaluate('requests')[-1] == '/api/ranking/refresh'
+        page.evaluate("""() => renderRanking({career_track:'computer_science',total_jobs:1313,ranking_pending_jobs:28,
+          ranking_refresh:{running:true,phase:'v2',checked:1285,completed:1285,total:1313,eligible:85,filtered:1200}})""")
+        assert details.get_attribute('data-progress') == 'נבדקו 1285 מתוך 1313 · 85 עברו סינון · 1200 סוננו'
+        assert 'דורגו' not in details.get_attribute('data-progress')
+        page.evaluate("""() => renderRanking({career_track:'computer_science',total_jobs:1313,ranking_pending_jobs:0,
+          ranking_refresh:{running:false,phase:'complete'}})""")
+        assert not page.locator('#recommendations-ranking-status').is_visible()
         browser.close()
 
 
@@ -55,4 +68,12 @@ def test_onboarding_failure_stops_polling_and_allows_retry():
         assert 'רענון הדירוג לא הושלם' in page.locator('#onboarding-ranking-status').inner_text()
         page.click('#onboarding-retry-ranking')
         assert '/api/ranking/refresh?failed_only=true' in page.evaluate('requests')
+        page.evaluate("""() => renderOnboardingRankingStatus({running:true,total:64,checked:40,ranked:10,filtered:30})""")
+        target = page.locator('#onboarding-ranking-status')
+        assert 'נבדקו 40 מתוך 64' in target.inner_text()
+        assert '10 עברו סינון · 30 סוננו' in target.inner_text()
+        assert target.evaluate("el => el.style.getPropertyValue('--scan-progress')") == '63%'
+        page.evaluate("""() => renderOnboardingRankingStatus({ready:true,total:64,checked:64,ranked:0,filtered:64})""")
+        assert '0 משרות עברו סינון ודורגו עבורך · 64 סוננו' in target.inner_text()
+        assert target.evaluate("el => el.style.getPropertyValue('--scan-progress')") == '100%'
         browser.close()

@@ -403,6 +403,31 @@ def test_two_stage_ranking_uses_bounded_keyset_batches():
     assert "rescore_jobs=False, refresh_resumes=False, rank_v2=True" in source
 
 
+def test_ranking_progress_uses_memory_and_two_scalar_aggregates(monkeypatch):
+    from tests.test_ranking_v2 import profile
+    engine, Session = _isolated_session_factory()
+    with Session() as db:
+        set_user_scope(db, 'progress-test')
+        p = profile(); p.user_id = 'progress-test'
+        db.add(p); db.flush()
+        ranking_settings = get_ranking_settings(db)
+        db.commit()
+        monkeypatch.setattr(main_module, 'get_user_profile', lambda _db: p)
+        monkeypatch.setattr(main_module, 'get_ranking_settings', lambda _db: ranking_settings)
+        statements = []
+        event.listen(engine, 'before_cursor_execute',
+                     lambda _c, _cu, statement, _p, _ctx, _many: statements.append(statement.lower()))
+        main_module._ranking_refresh_status('progress-test', 'computer_science', include_progress=True)
+        assert statements == []
+        result = main_module.personal_ranking_status(db=db)
+        assert result['ready']
+        assert (result['checked'], result['ranked'], result['filtered']) == (0, 0, 0)
+        assert len(statements) == 2
+        assert all('count(' in sql and 'group by' not in sql for sql in statements)
+        assert all('description' not in sql and 'result_json' not in sql for sql in statements)
+    engine.dispose()
+
+
 def test_requested_employer_expansion_is_bounded_and_static_only():
     from app.collectors.official import PRESETS
     from app.services.source_catalog import IEM_RECOMMENDED_SOURCES, _REQUESTED_EMPLOYER_SOURCES

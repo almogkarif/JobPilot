@@ -1481,12 +1481,17 @@ async function loadDashboard() {
   const recommendationsPending = !dashboard.guest_catalog && pendingRankingJobs > 0;
   const rankingFailed = !rankingRefresh.running && (Number(rankingRefresh.failed) > 0 || rankingRefresh.phase === 'failed');
   const rankingIsLoading = !rankingFailed && Boolean(rankingRefresh.running || recommendationsPending);
-  const completed=Math.max(0,rankingRefresh.running
-    ? Number(rankingRefresh.completed)||0
-    : (Number(dashboard.total_jobs)||0)-pendingRankingJobs);
-  const total=Math.max(0,rankingRefresh.running ? Number(rankingRefresh.total)||0 : Number(dashboard.total_jobs)||0);
-  const progressLabel=total?`דורגו ${Math.min(completed,total)} מתוך ${total}`:'';
-  const remainingJobs=Math.max(0,total-completed);
+  // A refresh checks eligibility before scoring. Its total includes jobs that
+  // will be filtered out; without live progress only the backlog is known.
+  const total=Math.max(0,Number(rankingRefresh.total)||0);
+  const hasLiveProgress=rankingRefresh.running && total>0;
+  const checked=Math.max(0,Number(rankingRefresh.checked ?? rankingRefresh.completed)||0);
+  const outcomes=hasLiveProgress && rankingRefresh.eligible!=null && rankingRefresh.filtered!=null
+    ? ` · ${Number(rankingRefresh.eligible)||0} עברו סינון · ${Number(rankingRefresh.filtered)||0} סוננו` : '';
+  const progressLabel=hasLiveProgress
+    ? `נבדקו ${Math.min(checked,total)} מתוך ${total}${outcomes}`
+    : pendingRankingJobs ? `נותרו ${pendingRankingJobs} משרות לבדיקת סינון והתאמה` : 'הבדיקה ממתינה להתחלה';
+  const remainingJobs=hasLiveProgress ? Math.max(0,total-checked) : pendingRankingJobs;
   const serverEta=Math.max(0,Number(rankingRefresh.eta_seconds)||0);
   const rankingTrack=String(dashboard.career_track||'');
   if (rankingIsLoading) {
@@ -1503,7 +1508,7 @@ async function loadDashboard() {
     <button type="button" class="btn secondary small" id="retry-failed-ranking">נסה שוב</button>
   ` : rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
-    <span><strong>${rankingRefresh.running ? 'מתבצע דירוג מחדש של המשרות' : 'המשרות עדיין נטענות ומדורגות'}</strong><small id="recommendations-ranking-details"></small></span>
+    <span><strong>בדיקת סינון ועדכון התאמות</strong><small id="recommendations-ranking-details"></small></span>
   ` : '';
   const retryRanking = $('#retry-failed-ranking');
   if (retryRanking) retryRanking.onclick = async () => {
@@ -1523,7 +1528,7 @@ async function loadDashboard() {
   if (rankingIsLoading) {
     const details=$('#recommendations-ranking-details');
     details.dataset.progress=progressLabel;
-    details.dataset.message=rankingRefresh.message || 'ההתאמות והציונים יתעדכנו אוטומטית עם השלמת התהליך.';
+    details.dataset.message=rankingRefresh.message || 'רק משרות שעוברות את המסננים שלך מקבלות ציון התאמה.';
     updateDashboardRankingCountdown();
     dashboardRankingCountdownTimer=setInterval(updateDashboardRankingCountdown,1000);
   } else {
@@ -5422,7 +5427,9 @@ async function onboardingFinish(skipped=false){
 function renderOnboardingRankingStatus(status){
   const target=$('#onboarding-ranking-status'); if(!target)return;
   const total=Math.max(0,Number(status.total||0)), ranked=Math.max(0,Number(status.ranked||0));
-  const percent=total?Math.min(100,Math.round((ranked/total)*100)):100;
+  const checked=Math.max(0,Number(status.checked ?? status.ranked)||0);
+  const filtered=Math.max(0,Number(status.filtered)||0);
+  const percent=total?Math.min(100,Math.round((checked/total)*100)):100;
   const ready=Boolean(status.ready);
   const failed=!status.running && (Number(status.failed)>0 || status.phase==='failed');
   if(failed){
@@ -5442,10 +5449,10 @@ function renderOnboardingRankingStatus(status){
   target.style.setProperty('--scan-progress',`${percent}%`);
   const waiting=!ready && (!total || status.phase==='queued');
   target.innerHTML=ready
-    ? `<span><b>ההתאמות מוכנות</b><small>${total?`${ranked} משרות דורגו עבורך`:'הפרופיל מוכן; משרות חדשות ידורגו אוטומטית כשהמאגר יתעדכן'}</small></span><i class="scan-status-fill" aria-hidden="true"></i>`
+    ? `<span><b>ההתאמות מוכנות</b><small>${total?`${ranked} משרות עברו סינון ודורגו עבורך · ${filtered} סוננו`:'הפרופיל מוכן; משרות חדשות ידורגו אוטומטית כשהמאגר יתעדכן'}</small></span><i class="scan-status-fill" aria-hidden="true"></i>`
     : waiting
       ? `<span><b>מכין את הדירוג האישי…</b><small>הדירוג נכנס לתור ויתחיל מיד כשהשרת פנוי. אפשר להמשיך לאתר כבר עכשיו.</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>`
-      : `<span><b>מחשב התאמות · ${ranked} מתוך ${total}</b><small>המאגר המשותף נשאר זמין בזמן שהדירוג האישי מתעדכן</small></span><i class="scan-status-fill" aria-hidden="true"></i>`;
+      : `<span><b>נבדקו ${checked} מתוך ${total}</b><small>${ranked} עברו סינון · ${filtered} סוננו. רק משרות שעוברות את המסננים שלך מקבלות ציון התאמה.</small></span><i class="scan-status-fill" aria-hidden="true"></i>`;
 }
 async function onboardingWatchRanking(){
   try{

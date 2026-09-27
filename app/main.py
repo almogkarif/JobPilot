@@ -2939,23 +2939,29 @@ def personal_ranking_status(db: Session = Depends(get_db)):
         JobRanking.config_version == ranking_settings.config_version,
         JobRanking.stale.is_(False), JobRanking.error == "",
     )
-    ranked, failed = db.execute(select(
-        func.count(case((valid, 1))), func.count(case((JobRanking.error != "", 1))),
+    checked, filtered, failed = db.execute(select(
+        func.count(case((valid, 1))),
+        func.count(case((and_(valid, JobRanking.eligibility_state == "excluded"), 1))),
+        func.count(case((JobRanking.error != "", 1))),
     ).join(Job, JobRanking.job_id == Job.id).where(
         job_in_track(track), Job.is_active.is_(True), JobRanking.engine == "v2",
     )).one()
     refresh = _ranking_failure_status(refresh, int(failed or 0))
-    live_completed = int(refresh.get("completed") or 0)
     live_total = int(refresh.get("total") or 0)
-    display_ranked = live_completed if refresh.get("running") and live_total else min(ranked, total)
-    display_total = live_total if refresh.get("running") and live_total else total
+    live = bool(refresh.get("running") and live_total)
+    display_total = live_total if live else total
+    display_checked = int(refresh.get("checked") or 0) if live else checked
+    display_filtered = int(refresh.get("filtered") or 0) if live else filtered
+    display_eligible = int(refresh.get("eligible") or 0) if live else checked - filtered
     return {
         "career_track": track,
         "running": bool(refresh.get("running")),
         "phase": refresh.get("phase", ""),
         "total": display_total,
-        "ranked": min(display_ranked, display_total),
-        "ready": not refresh.get("failed") and refresh.get("phase") != "failed" and (total == 0 or (not refresh.get("running") and ranked >= total)),
+        "checked": min(display_checked, display_total),
+        "filtered": min(display_filtered, display_total),
+        "ranked": min(display_eligible, display_total),
+        "ready": not refresh.get("failed") and refresh.get("phase") != "failed" and (total == 0 or (not refresh.get("running") and checked >= total)),
         "failed": int(refresh.get("failed") or 0),
         "message": refresh.get("message", ""),
     }
@@ -6703,21 +6709,25 @@ def _ranking_refresh_status(user_id: str, career_track: str, *, include_progress
         "phase": str(progress.get("phase") or ("queued" if running else "")),
         "failed": int(progress.get("failed") or 0),
         "message": (
-            "אנחנו מדרגים מחדש את המשרות לפי הפרופיל וההעדפות העדכניים שלך. "
-            "ההתאמות המוצגות יתעדכנו אוטומטית עם השלמת התהליך."
+            "רק משרות שעוברות את המסננים שלך מקבלות ציון התאמה. "
+            "ציונים שמורים שעדיין תקפים אינם מחושבים מחדש."
         ) if running else "",
     }
     if include_progress:
         completed = int(progress.get("completed") or 0)
+        checked = completed + int(progress.get("failed") or 0)
         total = int(progress.get("total") or 0)
         started_at = float(progress.get("started_at") or 0)
         elapsed = max(0.0, time.monotonic() - started_at) if started_at else 0.0
         eta_seconds = None
-        if running and completed > 0 and total > completed and elapsed > 0:
-            eta_seconds = max(1, int(((total - completed) * elapsed / completed) + .999))
+        if running and checked > 0 and total > checked and elapsed > 0:
+            eta_seconds = max(1, int(((total - checked) * elapsed / checked) + .999))
         payload.update({
             "phase": str(progress.get("phase") or ("queued" if running else "")),
             "completed": completed,
+            "checked": checked,
+            "eligible": int(progress.get("eligible") or 0),
+            "filtered": int(progress.get("filtered") or 0),
             "total": total,
             "eta_seconds": eta_seconds,
         })
@@ -6737,12 +6747,14 @@ def _ranking_failure_status(payload: dict, persisted_failed: int | None = None) 
 
 def _set_ranking_refresh_progress(
     user_id: str, career_track: str, *, phase: str, completed: int, total: int, failed: int = 0,
+    eligible: int = 0, filtered: int = 0,
 ) -> None:
     key = (user_id, normalize_track(career_track))
     with _profile_refresh_queue_lock:
         previous = _profile_refresh_progress.get(key, {})
         _profile_refresh_progress[key] = {
             "phase": phase, "completed": max(0, int(completed)), "total": max(0, int(total)), "failed": failed,
+            "eligible": max(0, int(eligible)), "filtered": max(0, int(filtered)),
             "started_at": float(previous.get("started_at") or time.monotonic()),
         }
 
@@ -6879,7 +6891,7 @@ def _rescore_v2_jobs(
     # fail its next write with SQLITE_BUSY_SNAPSHOT even in WAL mode.
     order_date = func.coalesce(Job.published_at, Job.discovered_at, datetime(1970, 1, 1))
     cursor = None
-    failed = completed = processed = 0
+    failed = completed = processed = eligible = filtered = 0
     batch_size = min(commit_every or 50, 50)
     if progress_key:
         _set_ranking_refresh_progress(*progress_key, phase="priority" if priority_limit else "v2",
@@ -6909,18 +6921,27 @@ def _rescore_v2_jobs(
         )).all()}
         for item in batch:
             job = item.Job
+            row = existing.get(job.id)
             should_rank = not stale_only or result_is_stale(existing.get(job.id), job, profile, ranking_settings)
             if should_rank:
                 try:
-                    persist_v2_result(db, job, profile, ranking_settings, context=context,
-                                      existing_row=existing.get(job.id))
+                    row = persist_v2_result(db, job, profile, ranking_settings, context=context,
+                                            existing_row=existing.get(job.id))
                 except Exception as exc:
                     failed += 1
+                    row = None
                     db.add(AuditLog(
                         event_type="ranking_v2_error", entity_type="job", entity_id=str(job.id),
                         message="V2 background ranking failed",
                         details_json=dumps({"stage": "ranking", "error": str(exc)[:1000]}),
                     ))
+            # A persisted exclusion records the filter decision, not a score.
+            # Eligible results can reuse cached scores after filter-only edits.
+            if row is not None:
+                if row.eligibility_state == "excluded":
+                    filtered += 1
+                else:
+                    eligible += 1
             processed += 1
         # Background batches commit; synchronous callers keep their transaction.
         if commit_every or priority_limit:
@@ -6930,14 +6951,14 @@ def _rescore_v2_jobs(
         completed = processed - failed
         if progress_key:
             _set_ranking_refresh_progress(*progress_key, phase="v2", completed=completed,
-                                         total=total, failed=failed)
+                                         total=total, failed=failed, eligible=eligible, filtered=filtered)
         if yield_seconds > 0:
             time.sleep(yield_seconds)
 
     if progress_key:
         _set_ranking_refresh_progress(
             *progress_key, phase="partial_failure" if failed else "complete",
-            completed=completed, total=total, failed=failed,
+            completed=completed, total=total, failed=failed, eligible=eligible, filtered=filtered,
         )
 
 

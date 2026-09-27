@@ -71,6 +71,7 @@ def test_worker_reports_partial_failure_and_retries_only_failed_jobs(ranking_db,
         status = main._ranking_refresh_status(*key, include_progress=True)
         assert not status['running'] and status['phase'] == 'partial_failure'
         assert status['failed'] == 1 and status['completed'] == 1
+        assert status['checked'] == 2 and status['eligible'] == 1 and status['filtered'] == 0
         with ranking_db('one') as db:
             result = main.personal_ranking_status(db=db)
             assert result['failed'] == 1 and not result['ready']
@@ -112,6 +113,32 @@ def test_worker_does_not_turn_fatal_failure_into_complete(ranking_db, monkeypatc
     finally:
         for store in (main._profile_refresh_progress, main._profile_refresh_pending, main._profile_refresh_active):
             store.pop(key, None)
+
+
+def test_personal_status_counts_exclusions_as_checked_but_not_ranked(ranking_db):
+    with ranking_db('one') as db:
+        # A catalog consisting entirely of exclusions must still finish.
+        result = main.personal_ranking_status(db=db)
+        assert result['ready'] and not result['running']
+        assert (result['total'], result['checked'], result['filtered'], result['ranked']) == (1, 1, 1, 0)
+        p = db.scalar(select(Profile))
+        normal = add_job(db, db.scalar(select(Job)), 'normal', 'Software Engineer')
+        service.persist_v2_result(db, normal, p, service.get_settings(db))
+        db.commit()
+        result = main.personal_ranking_status(db=db)
+        assert result['ready']
+        assert (result['total'], result['checked'], result['filtered'], result['ranked']) == (2, 2, 1, 1)
+
+
+def test_personal_status_uses_live_batch_counts_while_running(ranking_db, monkeypatch):
+    key = ('one', 'computer_science')
+    monkeypatch.setattr(main, '_profile_refresh_active', {key: {'rank_v2': True}})
+    monkeypatch.setattr(main, '_profile_refresh_progress', {})
+    main._set_ranking_refresh_progress(*key, phase='v2', completed=40, total=64, eligible=10, filtered=30)
+    with ranking_db('one') as db:
+        result = main.personal_ranking_status(db=db)
+        assert result['running'] and not result['ready']
+        assert (result['total'], result['checked'], result['filtered'], result['ranked']) == (64, 40, 30, 10)
 
 
 def test_title_filter_does_not_preserve_invalid_or_other_users_results(ranking_db, monkeypatch):
