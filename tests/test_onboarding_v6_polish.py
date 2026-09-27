@@ -25,7 +25,8 @@ def test_all_steps_receive_shared_visual_step_class():
 def test_ranking_waits_for_personal_catalog_ranking_before_declaring_completion():
     assert "onboardingWatchRanking" in JS
     assert "status.ready" in JS
-    assert "ranked/total" in JS
+    # Progress includes jobs rejected by filters; the behavioral completion
+    # gate is covered in test_ranking_refresh_failure_ui.py.
     assert "renderOnboardingRankingStatus" in JS
     assert "למשרות שנבחרו עבורך" in JS
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.52.25" />
+    <link rel="stylesheet" href="/static/styles.css?v=0.52.26" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -398,7 +398,7 @@
                 <label><input type="checkbox" data-profile-option="desired_titles" value="ai research" /> AI Research</label>
               </div><label class="custom-preference">תפקידים נוספים<textarea id="desired-titles-custom" name="desired_titles" rows="2" placeholder="למשל: Developer Tools, Integration"></textarea></label></fieldset>
 
-              <fieldset class="preference-group" data-field="seniority_levels"><legend>רמות ניסיון להצגה</legend><p class="preference-help">יוצגו רק משרות ברמות המסומנות. רמות שלא סומנו יוסרו לפני הדירוג. ללא סימון לא יוצגו משרות.</p><input type="hidden" name="seniority_levels" /><div class="option-grid">
+              <fieldset class="preference-group" data-field="seniority_levels"><legend>רמות ניסיון להצגה</legend><p class="preference-filter-warning">יוצגו רק משרות ברמות המסומנות. רמות שלא סומנו יוסרו לפני הדירוג. ללא סימון לא יוצגו משרות.</p><input type="hidden" name="seniority_levels" /><div class="option-grid">
                 <label><input type="checkbox" data-profile-option="seniority_levels" value="student" /> Student / Intern</label>
                 <label><input type="checkbox" data-profile-option="seniority_levels" value="entry level" /> Entry Level / Graduate</label>
                 <label><input type="checkbox" data-profile-option="seniority_levels" value="junior" /> Junior</label>
@@ -489,6 +489,6 @@
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js?v=0.31.37"></script>
+    <script src="/static/app.js?v=0.31.38"></script>
 </body>
 </html>

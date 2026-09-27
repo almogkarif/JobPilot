@@ -3243,7 +3243,7 @@ async function showJob(id) {
       </section>
       <h3>אפשרויות הגשה</h3>
       <div class="job-capabilities job-capabilities-modal">${automaticSubmissionBadge(job)}${job.application_adapter?.label ? `<span class="ats-label">${esc(job.application_adapter.label)}</span>` : ''}</div>
-      ${resumes.length ? `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>JobPilot ממליץ על הגרסה עם חפיפת הסקילים הגבוהה ביותר. אפשר לשנות ידנית לפני הכנסה לתור.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.sort((a,b)=>(b.fit?.score||0)-(a.fit?.score||0)).map((resume) => `<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.fit?.recommended ? 'selected' : ''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${resume.fit?.score ?? 0}% התאמה</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit"></div>` : '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>'}
+      ${resumeChoiceMarkup(resumes, job.selected_resume_id)}
       ${antiAutomationBlocked ? `<div class="agent-restricted-note manual-only-note"><strong>מערכת הגיוס חסמה את ההגשה האוטומטית</strong><span>JobPilot לא יבצע retry אוטומטי נוסף למשרה הזו. פתח את אתר החברה והגש ידנית.</span></div>` : applicationAgentAllowed() && automaticSupported ? `<div class="application-options">
         <button class="application-option application-option-review" type="button" onclick="queueJob(${job.id},'audit',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
           <i class="application-option-icon">◉</i><span class="application-option-copy"><small>דפדפן גלוי · ללא שליחה</small><strong>אני רוצה לראות את הסוכן מגיש</strong><span>הסוכן המקומי ימלא את הטופס, ישאיר את עמוד Review פתוח ואתה תלחץ בעצמך על Submit.</span></span><b>←</b>
@@ -3280,7 +3280,27 @@ async function showJob(id) {
   }
 }
 
-function updateResumeFit(select){let fit={};try{fit=JSON.parse(select.selectedOptions[0]?.dataset.fit||'{}')}catch{}const missing=fit.missing_skills||[];const matched=fit.matched_skills||[];$('#resume-fit').innerHTML=`<div class="resume-fit-score"><strong>${fit.score ?? 0}% התאמת קורות חיים</strong><span>${matched.length} סקילים תואמים</span></div>${missing.length?`<p><strong>${missing.length} סקילים מרכזיים אינם מופיעים בגרסה:</strong> ${missing.map(esc).join(', ')}</p>`:'<p><strong>לא זוהו פערי סקילים מול הגרסה שנבחרה.</strong></p>'}`;}
+function resumeChoiceMarkup(resumes, selectedResumeId) {
+  if (!resumes.length) return '<div class="warning">לא הוגדרה גרסת קורות חיים. העלה גרסאות באזור המסמכים בפרופיל.</div>';
+  // The API orders mandatory coverage first; sorting by the displayed weighted
+  // percentage alone can undo that rule. An attached/manual choice takes priority.
+  const selected=resumes.find(resume=>resume.id===selectedResumeId)||resumes.find(resume=>resume.fit?.recommended)||resumes.find(resume=>resume.is_default)||resumes[0];
+  return `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>ההמלצה נותנת עדיפות לכיסוי כישורי חובה, ואחריהם לכישורי יתרון. אפשר לבחור גרסה אחרת לפני ההגשה.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.map(resume=>`<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.id===selected.id?'selected':''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${Number.isFinite(resume.fit?.score)?`${resume.fit.score}% כיסוי כישורים`:'אין מספיק מידע לחישוב'}</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit" aria-live="polite"></div>`;
+}
+
+function updateResumeFit(select) {
+  let fit={};try{fit=JSON.parse(select.selectedOptions[0]?.dataset.fit||'{}')}catch{}
+  const known=Number.isFinite(fit.score),groups=fit.groups||{};
+  const labels={required:'חובה',preferred:'יתרון',supporting:'אזכורים נוספים'};
+  const unknownLabels={job_skills_missing:'לא זוהו מספיק כישורים במידע שנאסף על המשרה.',resume_unreadable:'אין טקסט קריא או כישורים שמורים לגרסת הקובץ הזו.'};
+  const groupRows=Object.entries(labels).filter(([key])=>groups[key]?.skills?.length).map(([key,label])=>{
+    const group=groups[key];
+    return `<div class="resume-fit-group"><strong>${label}${known?` · ${group.matched.length}/${group.skills.length}`:''}</strong><span>${known?`${group.matched.length?`זוהו: ${group.matched.map(esc).join(', ')}`:'לא זוהו כישורים תואמים'}${group.missing.length?`<br>לא זוהו בגרסה: ${group.missing.map(esc).join(', ')}`:''}`:`במשרה: ${group.skills.map(esc).join(', ')}`}</span></div>`;
+  }).join('');
+  const additions=[...(fit.manual_matched_skills||[]),...(fit.saved_matched_skills||[])];
+  const weights=Object.entries(labels).filter(([key])=>groups[key]?.skills?.length).map(([key,label])=>`${label} ${groups[key].weight}%`).join(' · ');
+  $('#resume-fit').innerHTML=`<div class="resume-fit-score"><strong>${known?`${fit.score}% כיסוי כישורים`:'אין מספיק מידע לחישוב'}</strong>${known?`<span>${(fit.matched_skills||[]).length} כישורים זוהו</span>`:''}</div>${!known?`<p class="resume-fit-unknown">${(fit.unknown_reasons?.length?fit.unknown_reasons:['unavailable']).map(reason=>esc(unknownLabels[reason]||'המידע הדרוש לחישוב אינו זמין.')).join(' ')}</p>`:''}${fit.evidence_mode==='manual_only'?'<p class="resume-fit-unknown">הקובץ לא נקרא. הכיסוי חלקי ומבוסס רק על כישורים שנוספו לגרסה, ללא אימות מתוך המסמך.</p>':''}${groupRows}${additions.length?`<p>כישורים שנוספו לגרסה ולא זוהו בטקסט הקו״ח: <b dir="auto">${additions.map(esc).join(', ')}</b>.</p>`:''}<p class="resume-fit-note">${known?`משקל בחישוב: ${weights}. `:''}זהו כיסוי הכישורים שזוהו, ולא ציון התאמה כולל או סיכויי קבלה. היעדר אזכור אינו מעיד בהכרח על היעדר ידע.</p>`;
+}
 
 let applicationsView = localStorage.getItem('jobpilot-applications-view') || 'kanban';
 if (!['kanban', 'table'].includes(applicationsView)) applicationsView = 'kanban';

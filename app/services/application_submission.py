@@ -26,6 +26,7 @@ class ATSAdapter:
 
 
 ADAPTERS = {
+    "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
     "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
     "wix": ATSAdapter(
         "wix", "Wix Careers", execution="manual_only", supports_automatic_submit=False,
@@ -166,12 +167,22 @@ def automation_apply_url(job) -> str:
     )
 
 
+def is_gstat_application_url(url: str) -> bool:
+    parsed = urlparse(str(url or ""))
+    return (
+        parsed.scheme == "https" and parsed.netloc.casefold() in {"g-stat.com", "www.g-stat.com"}
+        and bool(re.fullmatch(r"/jobs/[^/]+/?", parsed.path))
+    )
+
+
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     value = str(url or "").strip()
     host = urlparse(value).netloc.casefold()
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if is_gstat_application_url(value):
+        return ADAPTERS["gstat"]
     if host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}:
         return ADAPTERS["elbit"]
     if host in {"careers.wix.com", "www.careers.wix.com"}:

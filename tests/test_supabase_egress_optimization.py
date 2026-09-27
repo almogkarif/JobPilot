@@ -885,6 +885,73 @@ def test_resume_delete_does_not_download_file_or_read_job_catalog():
     assert "read_bytes" not in request
 
 
+def test_resume_coverage_reuses_versions_once_without_text_storage_or_catalog_reads(monkeypatch):
+    from types import SimpleNamespace
+    from app.models import ResumeProfile
+    from app.utils import dumps
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    with factory() as db:
+        db.add_all([ResumeProfile(label=str(i), path='/unused.txt', career_track='computer_science',
+            extracted_text='x' * 250_000, skills_json='["python"]',
+            analysis_json=dumps({'skills':['python'], 'text_length':250_000})) for i in range(3)])
+        db.commit(); db.expunge_all()
+        profile = SimpleNamespace(active_career_track='computer_science')
+        job = SimpleNamespace(id=7, title='Engineer', description='Requirements: Python required.',
+                              skills_json='[]', career_track='computer_science')
+        monkeypatch.setattr(main_module, 'get_user_profile', lambda _: profile)
+        monkeypatch.setattr(main_module, 'resolve_job', lambda *_: job)
+        monkeypatch.setattr(main_module, 'job_belongs_to_track', lambda *_: True)
+        def forbidden(*_args, **_kwargs):
+            pytest.fail('Coverage must not download documents or rerank the catalog')
+        for name in ('materialized_file', 'read_bytes', '_rescore_v2_jobs'):
+            monkeypatch.setattr(main_module, name, forbidden)
+        queries = []
+        event.listen(engine, 'before_cursor_execute', lambda _c, _u, sql, *_args: queries.append(sql.lower()))
+        calls = []
+        coverage = main_module.resume_skill_coverage
+        def recorded(resume, job, **kwargs):
+            calls.append(resume.id)
+            return coverage(resume, job, **kwargs)
+        monkeypatch.setattr(main_module, 'resume_skill_coverage', recorded)
+        rows = main_module.list_resumes(7, db)
+        assert len(rows) == 3 and len(set(calls)) == len(calls) == 3
+        reads = [sql for sql in queries if sql.lstrip().startswith('select')]
+        assert len(reads) == 1 and 'from resume_profiles' in reads[0]
+        assert 'extracted_text' not in reads[0] and 'from jobs' not in reads[0]
+        assert all(row['fit']['score'] == 100 for row in rows)
+        queries.clear()
+        assert main_module._best_resume_for_job(db, job) is not None
+        assert len(queries) == 1 and 'extracted_text' not in queries[0]
+    engine.dispose()
+
+
+def test_resume_preview_attachment_lookup_is_one_compact_row(monkeypatch):
+    from types import SimpleNamespace
+    from app.models import Application
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    with factory() as db:
+        source = Source(name='Synthetic', kind='greenhouse', identifier='resume-preview')
+        db.add(source); db.flush()
+        job = Job(source_id=source.id, external_id='preview', title='Engineer', company='Synthetic',
+                  apply_url='https://example.com/job', career_track='computer_science')
+        db.add(job); db.flush()
+        db.add(Application(job_id=job.id, resume_path='/attached.pdf', answers_json='x' * 250_000))
+        db.commit(); db.expire(job, ['application'])
+        monkeypatch.setattr(main_module, 'get_user_profile', lambda _: SimpleNamespace(active_career_track='computer_science'))
+        queries = []
+        event.listen(engine, 'before_cursor_execute', lambda _c, _u, sql, *_args: queries.append(sql.lower()))
+        selected = main_module._selected_resume_for_job(db, job)
+        assert selected.path == '/attached.pdf'
+        assert len(queries) == 1
+        assert 'applications.resume_id' in queries[0] and 'applications.resume_path' in queries[0]
+        assert 'limit' in queries[0] and 'answers_json' not in queries[0] and 'description' not in queries[0]
+    engine.dispose()
+
+
 
 def test_hidden_score_cache_rejects_oversized_components():
     from types import SimpleNamespace

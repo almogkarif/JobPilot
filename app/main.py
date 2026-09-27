@@ -89,6 +89,8 @@ from .services.career_tracks import (
     auto_submit_is_enabled, persist_active_track, switch_track, track_public_dict,
 )
 from .services.resume_analysis import analyze_resume, extract_resume_bytes, extract_resume_text, normalize_phone
+from .services.resume_fit import (job_skill_groups, resume_recommendation_key, resume_skill_coverage,
+                                  resume_skill_evidence)
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
 from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
 from .services.github_actions import (dispatch_application_workflow,
@@ -2606,11 +2608,11 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     else:
         resume = ResumeProfile(label="כללי", filename=file.filename or safe_name, path=stored_ref,
                                career_track=career_track, skills_json="[]", is_default=True)
-    _analyze_resume_record(resume, profile, extracted_text=extracted_text, extraction_error=extraction_error)
+    _analyze_resume_record(resume, profile, [], extracted_text=extracted_text, extraction_error=extraction_error)
     analysis = loads(resume.analysis_json, {})
     autofilled = _autofill_profile_from_resume(profile, analysis)
     if autofilled:
-        _analyze_resume_record(resume, profile, extracted_text=extracted_text, extraction_error=extraction_error)
+        _analyze_resume_record(resume, profile, [], extracted_text=extracted_text, extraction_error=extraction_error)
         analysis = loads(resume.analysis_json, {})
     db.add(resume)
     db.add(AuditLog(event_type="resume_uploaded", entity_type="profile", entity_id="1", message=safe_name,
@@ -2623,15 +2625,22 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
 @app.get("/api/resumes")
 def list_resumes(job_id: int | None = None, db: Session = Depends(get_db)):
     career_track = active_track(get_user_profile(db))
-    resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)
+    resumes = db.scalars(select(ResumeProfile).options(defer(ResumeProfile.extracted_text)).where(ResumeProfile.career_track == career_track)
         .order_by(desc(ResumeProfile.is_default), desc(ResumeProfile.created_at))).all()
     job = resolve_job(db, job_id) if job_id else None
     if job and not job_belongs_to_track(db, job, career_track):
         job = None
-    best = _best_resume_for_job(db, job) if job else None
-    result = [_resume_dict(resume, job) for resume in resumes]
+    groups = job_skill_groups(job) if job else None
+    fits = {resume.id: resume_skill_coverage(resume, job, groups=groups) for resume in resumes} if job else {}
+    best = max(resumes, key=lambda resume: resume_recommendation_key(resume, fits[resume.id])) if resumes and job else None
+    if best and fits[best.id]["score"] is not None:
+        fits[best.id]["recommended"] = True
+    if job:
+        resumes.sort(key=lambda resume: resume_recommendation_key(resume, fits[resume.id]), reverse=True)
+    result = [_resume_dict(resume) for resume in resumes]
     for item in result:
-        if item.get("fit"): item["fit"]["recommended"] = bool(best and item["id"] == best.id)
+        if job:
+            item["fit"] = fits[item["id"]]
     return result
 
 
@@ -3540,7 +3549,7 @@ async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session =
         return _application_dict(application, db)
     if application and application.status == "queued" and application.mode in {"auto", "audit"} and not application.last_error:
         raise HTTPException(409, "ההגשה כבר בתור. יש להמתין לסיום הניסיון לפני שינוי מסלול ההגשה.")
-    selected_resume = db.get(ResumeProfile, payload.resume_id) if payload.resume_id else _best_resume_for_job(db, job)
+    selected_resume = _selected_resume_for_job(db, job, payload.resume_id)
     if selected_resume and selected_resume.career_track != effective_job_track(job, get_user_profile(db)):
         raise HTTPException(404, "Resume not found")
     preview = build_submission_preview(job, get_user_profile(db), selected_resume)
@@ -3660,7 +3669,7 @@ def application_live_view(application_id: int, db: Session = Depends(get_db)):
 def application_preview(job_id: int, resume_id: int | None = None, db: Session = Depends(get_db)):
     _repair_existing_ashby_spam_blocks(db)
     job = _active_job_or_404(db, job_id)
-    selected_resume = db.get(ResumeProfile, resume_id) if resume_id else _best_resume_for_job(db, job)
+    selected_resume = _selected_resume_for_job(db, job, resume_id)
     if selected_resume and selected_resume.career_track != effective_job_track(job, get_user_profile(db)):
         raise HTTPException(404, "Resume not found")
     preview = build_submission_preview(job, get_user_profile(db), selected_resume)
@@ -3756,7 +3765,7 @@ def dry_run_application_campaign(request: Request, db: Session = Depends(get_db)
         if job.application and job.application.status in {"submitted", "verification_pending", "applying", "queued"}:
             skipped.append({"job_id": job.id, "reason": "already_in_pipeline"})
             continue
-        resume = _best_resume_for_job(db, job)
+        resume = _selected_resume_for_job(db, job)
         preview = build_submission_preview(job, profile, resume)
         pause = automatic_submission_pause(db, job)
         if pause:
@@ -3813,7 +3822,7 @@ async def activate_application_campaign(run_id: int, request: Request, db: Sessi
         job = resolve_job(db, int(item["job_id"]))
         if not job or not job.is_active or not job_belongs_to_track(db, job, campaign.career_track) or effective_status(job, db) not in {"new", "saved", "failed"}:
             continue
-        resume = db.get(ResumeProfile, item.get("resume_id")) if item.get("resume_id") else _best_resume_for_job(db, job)
+        resume = _selected_resume_for_job(db, job, item.get("resume_id"))
         if automatic_submission_pause(db, job):
             continue
         if not build_submission_preview(job, profile, resume)["ready"]:
@@ -6105,7 +6114,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -6144,7 +6153,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     # never becomes a misleading request for an additional file.
     if not str(application.resume_path or "").strip():
         profile = get_user_profile(db)
-        selected_resume = _best_resume_for_job(db, application.job)
+        selected_resume = _selected_resume_for_job(db, application.job, application=application)
         if selected_resume:
             application.resume_id = selected_resume.id
             application.resume_path = selected_resume.path
@@ -6274,6 +6283,8 @@ def _deterministic_ats_anti_automation_block(application: Application, payload: 
     diagnostics = payload.diagnostics if isinstance(payload.diagnostics, dict) else {}
     if payload.kind not in {"captcha", "anti_automation_blocked"}:
         return False
+    if adapter == "gstat":
+        return diagnostics.get("gstat_response_outcome") == "blocked"
     if adapter == "comeet":
         return bool(diagnostics.get("invisible_recaptcha_rejected")) or any(
             int(item.get("status") or 0) == 423
@@ -7080,6 +7091,7 @@ def _job_dict(j: Job, full: bool = False, profile: Profile | None = None) -> dic
             "eligibility": None, "ranking_warnings": [], "ranking_pending": True,
         })
     if full:
+        data["selected_resume_id"] = j.application.resume_id if j.application else None
         from .services.job_text import clean_job_text, job_text_quality
         cleaned_description = clean_job_text(j.description)
         data["description"] = (
@@ -7225,25 +7237,52 @@ def _resume_dict(resume: ResumeProfile, job: Job | None = None) -> dict:
 
 
 def _resume_fit(resume: ResumeProfile, job: Job) -> dict:
-    required = loads(job.skills_json, [])
-    owned = {skill.casefold() for skill in loads(resume.skills_json, [])}
-    matched = [skill for skill in required if skill.casefold() in owned]
-    missing = [skill for skill in required if skill.casefold() not in owned]
-    coverage = round(len(matched) / len(required) * 100) if required else 50
-    return {"score": coverage, "matched_skills": matched, "missing_skills": missing,
-            "recommended": False}
+    return resume_skill_coverage(resume, job)
 
 
 def _best_resume_for_job(db: Session, job: Job) -> ResumeProfile | None:
-    resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == effective_job_track(job, get_user_profile(db)))).all()
+    resumes = db.scalars(select(ResumeProfile).options(defer(ResumeProfile.extracted_text)).where(
+        ResumeProfile.career_track == effective_job_track(job, get_user_profile(db)))).all()
     if not resumes: return None
-    return max(resumes, key=lambda resume: (_resume_fit(resume, job)["score"], bool(resume.is_default), resume.created_at))
+    groups = job_skill_groups(job)
+    return max(resumes, key=lambda resume: resume_recommendation_key(
+        resume, resume_skill_coverage(resume, job, groups=groups)))
+
+
+def _selected_resume_for_job(db: Session, job: Job, resume_id: int | None = None,
+                             *, application: Application | None = None) -> ResumeProfile | None:
+    if resume_id is not None:
+        resume = db.get(ResumeProfile, resume_id)
+        if not resume:
+            raise HTTPException(404, "Resume not found")
+        return resume
+    if application is None:
+        if "application" in job.__dict__:
+            application = job.application
+        else:
+            # Preview does not otherwise need the application's answers/history.
+            application = db.execute(select(Application.resume_id, Application.resume_path).where(
+                Application.job_id == job.id).limit(1)).first()
+    if application and application.resume_id:
+        resume = db.get(ResumeProfile, application.resume_id)
+        if resume:
+            return resume
+    # A legacy attachment may exist without a ResumeProfile row. Do not silently
+    # replace it with a newly recommended file when retrying that application.
+    if application and application.resume_path:
+        return ResumeProfile(label="Attached resume", path=application.resume_path,
+                             filename=Path(application.resume_path).name,
+                             career_track=effective_job_track(job, get_user_profile(db)))
+    return _best_resume_for_job(db, job)
 
 
 def _analyze_resume_record(
     resume: ResumeProfile, profile: Profile, manual_skills: list[str] | None = None,
     *, extracted_text: str | None = None, extraction_error: str = "",
 ) -> None:
+    if manual_skills is None:
+        previous = resume_skill_evidence(resume)
+        manual_skills = sorted(previous["manual"] | previous["saved"])
     try:
         if extracted_text is None:
             with materialized_file(resume.path, resume.filename or "resume.pdf") as local_path:
@@ -7257,6 +7296,7 @@ def _analyze_resume_record(
             analysis["warning"] = extraction_error
     except Exception as exc:  # corrupted/encrypted documents remain uploadable and explain why analysis failed
         text = ""; analysis = {"skills": [], "suggestions": [], "detected_profile": {}, "text_length": 0, "error": str(exc)[:300]}
+    analysis["manual_skills"] = manual_skills or []
     combined = list(dict.fromkeys([*(manual_skills or []), *analysis.get("skills", [])]))
     resume.extracted_text = text[:250_000]
     resume.skills_json = dumps(combined)
@@ -7269,6 +7309,7 @@ def _refresh_resume_analyses(db: Session, profile: Profile | None, career_track:
         return
     track = normalize_track(career_track or active_track(profile))
     for resume in db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == track)).all():
+        previous = resume_skill_evidence(resume)
         text = str(resume.extracted_text or "")
         if not text and resume.path:
             try:
@@ -7279,11 +7320,11 @@ def _refresh_resume_analyses(db: Session, profile: Profile | None, career_track:
                 # A moved legacy CV should not erase its existing analysis.
                 continue
         analysis = analyze_resume(text, profile)
+        analysis["manual_skills"] = sorted(previous["manual"] | previous["saved"])
         # Preserve manually-added resume-specific skills while refreshing extracted ones.
-        existing_skills = loads(resume.skills_json, [])
         combined: list[str] = []
         seen: set[str] = set()
-        for skill in [*existing_skills, *analysis.get("skills", [])]:
+        for skill in [*analysis["manual_skills"], *analysis.get("skills", [])]:
             value = str(skill).strip()
             key = value.casefold()
             if value and key not in seen:

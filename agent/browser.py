@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-from app.services.application_submission import lever_confirmation_from_url
+from app.services.application_submission import is_gstat_application_url, lever_confirmation_from_url
 from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
@@ -180,6 +180,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     if progress:
         progress("page_opened", "עמוד ההגשה נפתח ברקע", page.url)
     _detect_captcha(page)
+
+    if is_gstat_application_url(job["apply_url"]):
+        from .gstat import fill_gstat_application
+        return fill_gstat_application(page, task, auto_submit, progress)
 
     filled = []
     visited_steps: dict[tuple, int] = {}

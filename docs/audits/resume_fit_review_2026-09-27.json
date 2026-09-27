@@ -1,0 +1,72 @@
+{
+  "scope": "Synthetic fixtures only; no personal CV, production database, Storage or model calls.",
+  "current_function": "app.main._resume_fit",
+  "findings": {
+    "no_detected_job_skills": {
+      "score": 50,
+      "matched_skills": [],
+      "missing_skills": [],
+      "recommended": false
+    },
+    "job_cache_empty_but_description_has_python": {
+      "score": 50,
+      "matched_skills": [],
+      "missing_skills": [],
+      "recommended": false
+    },
+    "mandatory_only_resume": {
+      "score": 25,
+      "matched_skills": [
+        "python"
+      ],
+      "missing_skills": [
+        "docker",
+        "kubernetes",
+        "aws"
+      ],
+      "recommended": false
+    },
+    "optional_only_resume": {
+      "score": 75,
+      "matched_skills": [
+        "docker",
+        "kubernetes",
+        "aws"
+      ],
+      "missing_skills": [
+        "python"
+      ],
+      "recommended": false
+    },
+    "unreadable_resume": {
+      "score": 0,
+      "matched_skills": [],
+      "missing_skills": [
+        "python"
+      ],
+      "recommended": false
+    },
+    "manual_skill_alias_cpp": {
+      "score": 0,
+      "matched_skills": [],
+      "missing_skills": [
+        "c++"
+      ],
+      "recommended": false
+    },
+    "existing_requirement_parser": {
+      "required": [
+        "python"
+      ],
+      "preferred": [
+        "aws",
+        "docker",
+        "kubernetes"
+      ],
+      "supporting": []
+    },
+    "existing_alias_parser": [
+      "c++"
+    ]
+  }
+}

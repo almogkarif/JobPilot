@@ -4,6 +4,36 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Resume skill coverage — September 27, 2026
+
+Coverage now uses the requested job's already-loaded title/description and each
+version's saved analysis/skills. It makes zero model, Storage or document reads,
+does not access the global profile's skills, and never reranks the job catalog.
+`/api/resumes?job_id=...` reuses one version list and one fit calculation per version,
+instead of reading and calculating the same versions twice. Both that endpoint
+and the automatic recommendation defer `ResumeProfile.extracted_text` (up to
+250,000 characters per version). No startup, polling, scan or bulk backfill changes.
+
+Incremental Supabase calls/rows/bytes for coverage itself are zero per hour/day/
+cycle; the existing list of user-owned versions is unchanged and is not newly
+claimed to have a global pagination or analysis-JSON byte limit. The change
+reduces its query count and projection. Added group breakdowns are calculated
+in Render memory, not fetched from Supabase. Per-job skill classification runs
+once for the list. Synthetic query tests assert one resume SELECT, zero extracted
+text downloads, one calculation per version, and forbid Storage or reranking.
+
+Preserving a previously attached file in an explicit submission preview may add
+one bounded SELECT of `Application.resume_id, resume_path LIMIT 1` when that
+relationship is not already loaded; it never loads answers, history or job text.
+The path is at most 700 characters: allow 4 KiB including row/protocol overhead,
+so 10 previews/hour add at most 40 KiB/hour, 960 KiB/day, 28.13 MiB/30 days per
+continuously active user. Explicit resume selection adds no attachment lookup;
+normal queue calls already have the application loaded. No background poll is
+added. Existing selected-resume reads are unchanged; recommendation reads become
+smaller. `test_resume_preview_attachment_lookup_is_one_compact_row` enforces this
+projection, while `test_resume_coverage_reuses_versions_once_without_text_storage_or_catalog_reads`
+protects the version-list and recommendation paths. No production DB was accessed.
+
 ## Resumable detail batches — September 27, 2026
 
 The shared scanner opts in seven existing official sources: Oracle, Ormat, Elad,
