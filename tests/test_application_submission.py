@@ -144,6 +144,16 @@ def test_traild_is_manual_only_after_live_captcha_audit():
     assert "CAPTCHA" in payload["exclusion_reason"]
 
 
+def test_kaltura_is_manual_only_after_live_recaptcha_rejection():
+    job = _job("https://www.comeet.com/jobs/kaltura/E2.00D/devops-engineer/70.D6F/")
+    job.company = "Kaltura"
+    payload = adapter_payload_for_job(job)
+    assert payload["key"] == "comeet"
+    assert payload["execution"] == "manual_only"
+    assert payload["supports_automatic_submit"] is False
+    assert "reCAPTCHA" in payload["exclusion_reason"]
+
+
 def test_vast_data_is_manual_only_after_live_invisible_recaptcha_rejection():
     job = type("Job", (), {
         "company": "VAST Data",

@@ -594,6 +594,31 @@ def test_gstat_inline_collection_is_bounded_and_needs_no_detail_downloads():
     assert len(_extract_gstat_job_rows(soup, preset['max_inline_jobs'])) == 100
 
 
+def test_verified_application_sources_use_existing_bounded_sql_metadata():
+    from sqlalchemy.dialects import postgresql, sqlite
+    statement = select(Job.id).where(main_module._automatic_application_query_filter()).order_by(
+        main_module._automatic_submit_sort_order().desc(), Job.id,
+    ).limit(50)
+    for dialect in (postgresql.dialect(), sqlite.dialect()):
+        sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
+        assert 'careers.eladsoft.com/jobs/' in sql and 'g-stat.com/jobs/' in sql
+        assert 'kaltura' in sql and 'limit 50' in sql
+        assert 'description' not in sql and 'metadata_json' not in sql
+        assert 'resume_profiles' not in sql and 'application_events' not in sql
+
+
+def test_elad_worker_does_not_download_unused_grade_sheet(monkeypatch):
+    from agent import run_agent
+    def unexpected_download(*args, **kwargs):
+        raise AssertionError('Elad only needs the selected CV, not a grade-sheet Storage read')
+    monkeypatch.setattr(run_agent.httpx, 'get', unexpected_download)
+    task = {
+        'submission_adapter': {'key': 'elad'}, 'application': {'id': 42},
+        'profile': {'grade_sheet_path': 'supabase://private/unused.pdf'},
+    }
+    assert run_agent.prepare_grade_sheet(task) == ''
+
+
 def test_dashboard_scan_suggestions_project_only_three_small_rows():
     source = Path(main_module.__file__).read_text()
     query = source.split('scan_suggestions_statement = select(', 1)[1].split('scan_suggestions = [', 1)[0]

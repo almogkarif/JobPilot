@@ -11,22 +11,23 @@ from app.utils import dumps, loads
 
 @pytest.mark.parametrize('kind,diagnostics,status', [
     ('confirmation_missing', {'request_sent': True}, 'verification_pending'),
-    ('anti_automation_blocked', {'gstat_response_outcome': 'blocked', 'http_status': 403}, 'manual_required'),
+    ('anti_automation_blocked', {'elad_response_outcome': 'blocked', 'http_status': 403}, 'manual_required'),
+    ('submit_rejected', {'elad_response_outcome': 'rejected', 'request_sent': True}, 'needs_input'),
 ])
-def test_gstat_cloud_claim_and_blocker_do_not_requeue(tmp_path, kind, diagnostics, status):
+def test_elad_cloud_claim_is_exact_and_uncertain_or_blocked_sends_cannot_requeue(tmp_path, kind, diagnostics, status):
     with TestClient(app) as client:
         with SessionLocal() as db:
             profile = get_user_profile(db)
             profile.full_name = 'Synthetic Candidate'
             profile.email = 'candidate@example.invalid'
-            profile.phone = '+972501234567'
+            profile.phone = '0501234567'
             cv = tmp_path / 'synthetic.pdf'
             cv.write_bytes(b'%PDF-1.4 test')
-            source = Source(name='G-STAT test', kind='official_careers', identifier='g-stat')
+            source = Source(name='Elad test', kind='official_careers', identifier='elad-test')
             db.add(source)
             db.flush()
-            job = Job(source_id=source.id, external_id=kind, title='Data Analyst', company='G-STAT',
-                      apply_url='https://g-stat.com/jobs/marketind-data-analyst/')
+            job = Job(source_id=source.id, external_id=kind, title='Junior Software QA', company='Elad',
+                      apply_url='https://careers.eladsoft.com/jobs/1007746/')
             db.add(job)
             db.flush()
             application = Application(job_id=job.id, mode='auto', status='queued', resume_path=str(cv),
@@ -38,16 +39,18 @@ def test_gstat_cloud_claim_and_blocker_do_not_requeue(tmp_path, kind, diagnostic
             assert db.scalar(select(Job.id).where(Job.id == job.id, _automatic_application_query_filter())) == job.id
             assert db.scalar(select(_automatic_submit_sort_order()).where(Job.id == job.id)) == 2
 
-        params = {'token': 'change-me', 'agent_id': 'gstat-test', 'worker_type': 'cloud', 'application_id': application_id}
+        params = {'token': 'change-me', 'agent_id': 'elad-test', 'worker_type': 'cloud', 'application_id': application_id}
         result = client.get('/api/agent/tasks/next', params=params)
         assert result.status_code == 200, result.text
         task = result.json()['task']
         assert task and task['application']['id'] == application_id
+        assert task['submission_adapter']['key'] == 'elad'
+        assert task['job']['apply_url'] == job.apply_url
         assert task['submit_approved_once'] is True
         assert client.get('/api/agent/tasks/next', params=params).json()['task'] is None
         response = client.post(f'/api/agent/tasks/{application_id}/blocked', json={
             'token': 'change-me', 'kind': kind, 'diagnostics': diagnostics,
-            'explanation': 'Synthetic G-STAT outcome', 'page_url': job.apply_url,
+            'explanation': 'Synthetic Elad outcome', 'page_url': job.apply_url,
         })
         assert response.status_code == 200, response.text
         with SessionLocal() as db:

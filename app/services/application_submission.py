@@ -26,6 +26,7 @@ class ATSAdapter:
 
 
 ADAPTERS = {
+    "elad": ATSAdapter("elad", "Elad Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש התואם למשרה."),
     "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
     "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
     "wix": ATSAdapter(
@@ -58,6 +59,7 @@ _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "medtronic": "Medtronic הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "nvidia": "NVIDIA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה דורש כניסה חיצונית ורב-שלבית.",
     "vast data": "VAST Data הוסרה מהגשה אוטומטית: Comeet דוחה את אימות ה-reCAPTCHA הבלתי-נראה בזמן השליחה.",
+    "kaltura": "Kaltura דורשת הגשה ידנית: Comeet דחה את ההגשה האוטומטית בגלל אימות reCAPTCHA.",
 }
 
 
@@ -85,6 +87,8 @@ def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["nvidia"]
     if normalized_company in {"vast data", "vastdata"}:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["vast data"]
+    if normalized_company == "kaltura":
+        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["kaltura"]
     return ""
 
 
@@ -175,12 +179,22 @@ def is_gstat_application_url(url: str) -> bool:
     )
 
 
+def elad_job_id(url: str) -> str:
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme != "https" or parsed.netloc.casefold() != "careers.eladsoft.com" or parsed.query or parsed.fragment:
+        return ""
+    match = re.fullmatch(r"/jobs/([1-9][0-9]{0,11})/?", parsed.path)
+    return match[1] if match else ""
+
+
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     value = str(url or "").strip()
     host = urlparse(value).netloc.casefold()
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if elad_job_id(value):
+        return ADAPTERS["elad"]
     if is_gstat_application_url(value):
         return ADAPTERS["gstat"]
     if host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}:

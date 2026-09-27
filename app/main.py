@@ -948,6 +948,8 @@ def _automatic_application_query_filter():
     ))
     supported = (
         apply_url.like("%elbitsystemscareer.com/%")
+        | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
+        | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%aquasec.com/careers/%")
@@ -966,7 +968,7 @@ def _automatic_application_query_filter():
             "intel", "applied materials", "applied material",
             "check point", "check point software", "check point software technologies",
             "servicenow", "service now", "traild", "claroty", "kla", "medtronic", "nvidia",
-            "vast data", "vastdata",
+            "vast data", "vastdata", "kaltura",
         )
     )
     return supported & ~excluded
@@ -981,6 +983,8 @@ def _automatic_submit_sort_order():
     supported = _automatic_application_query_filter()
     short_form = (
         apply_url.like("%elbitsystemscareer.com/%")
+        | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
+        | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%aquasec.com/careers/%")
@@ -6114,7 +6118,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"elad", "gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -6285,6 +6289,8 @@ def _deterministic_ats_anti_automation_block(application: Application, payload: 
         return False
     if adapter == "gstat":
         return diagnostics.get("gstat_response_outcome") == "blocked"
+    if adapter == "elad":
+        return diagnostics.get("elad_response_outcome") == "blocked"
     if adapter == "comeet":
         return bool(diagnostics.get("invisible_recaptcha_rejected")) or any(
             int(item.get("status") or 0) == 423

@@ -4,6 +4,41 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Verified Elad application support — September 27, 2026
+
+Elad's adapter uses the already-claimed job/profile and already-selected local CV.
+It adds zero database queries, downloaded rows, Storage reads, model calls,
+startup work, polling, scans, or backfills per application/hour/day/cycle. The
+automatic-list predicate adds Elad and the previously omitted G-STAT URL prefixes
+and excludes Kaltura; it still executes in SQL with the existing projection and
+pagination. No catalog descriptions are loaded to determine these capabilities.
+
+Existing queue approval, campaign limits and worker scheduling are unchanged;
+this release does not enqueue applications or launch a campaign. Each explicitly
+requested Elad attempt uses the existing single selected-resume delivery. It now
+skips the unused grade-sheet download entirely. Under the existing 10 MiB Storage
+bucket limit, N newly requested attempts entail at most N resume object reads /
+10N MiB of file-body egress (for example 10 attempts/hour: 100 MiB/hour; 10/day:
+100 MiB/day or 3,000 MiB/30 days). Those are existing per-attempt delivery costs,
+not added downloads, a new quota allowance, or a guarantee that bulk campaigns
+fit the free organization budget. Bucket-limit changes or legacy larger objects
+must be budgeted separately; the adapter's 15 MiB employer limit is checked only
+after the existing delivery and is not a new Storage-download limit.
+
+The browser reads at most 15 MiB + 1 from the chosen local file, then verifies the
+actual outgoing multipart bytes/hash before allowing one normal form POST. It
+retains at most 8 KiB of receipt text. This traffic goes to Elad, not Supabase.
+No automatic retries are added. A bounded clone of the normal fetch response
+preserves its receipt before navigation and makes no extra HTTP request. A
+thank-you page alone is not accepted by the adapter. All live validation here
+used local files/SQLite: zero Supabase egress. Check current daily usage before
+launching any bulk production campaign.
+
+Regression gates: `test_verified_application_sources_use_existing_bounded_sql_metadata`
+checks SQLite/PostgreSQL projections and pagination; `test_elad_worker_does_not_download_unused_grade_sheet`
+forbids the unused download. Queue tests verify a single exact claim and no
+requeue after uncertainty, rejection, or an anti-automation block.
+
 ## Resume skill coverage — September 27, 2026
 
 Coverage now uses the requested job's already-loaded title/description and each
