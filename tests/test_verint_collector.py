@@ -29,6 +29,14 @@ def test_verint_recovers_full_requirements_and_external_id():
     validate_source_payload('Verint', [job])
 
 
+def test_oversized_detail_is_rejected_instead_of_losing_mandatory_qualification():
+    mandatory = 'Mandatory qualification: professional security certification is required.'
+    payload = {**detail(), 'ExternalDescriptionStr': DESCRIPTION * 200,
+               'ExternalQualificationsStr': mandatory}
+    assert len(payload['ExternalDescriptionStr']) > verint.MAX_DESCRIPTION_CHARS
+    assert verint.parse_detail('4111', payload) is None
+
+
 @pytest.mark.parametrize('kw', [{'Id': '999'}, {'PrimaryLocationCountry':'US','PrimaryLocation':'New York'},
                                {'ExternalPostedEndDate':'2020-01-01T00:00:00Z'}, {'ExternalPostedEndDate':'broken'}])
 def test_wrong_identity_foreign_and_closed_details_are_rejected(kw):
@@ -74,8 +82,9 @@ def test_hard_request_row_and_description_limits(monkeypatch):
             offset=25 if 'offset%3D25' in url else 0
             return json.dumps({'items':[{'TotalJobsCount':1000,'requisitionList':[row(str(i+1))for i in range(offset,offset+25)]}]})
         active+=1;peak=max(peak,active);await asyncio.sleep(0);active-=1
-        return json.dumps({**detail(url.rsplit('/',1)[-1]),'ExternalDescriptionStr':DESCRIPTION*200})
+        return json.dumps({**detail(url.rsplit('/',1)[-1]),'ExternalDescriptionStr':DESCRIPTION*100})
     monkeypatch.setattr(verint,'bounded_public_get',get)
     jobs=asyncio.run(verint.collect_verint())
     assert len(jobs)==40 and len(calls)==42 and peak<=4
-    assert all(len(j.description)==24_000 for j in jobs)
+    assert all(j.description == DESCRIPTION * 100 + '\n' + REQUIREMENTS for j in jobs)
+    assert all(len(j.description) <= verint.MAX_DESCRIPTION_CHARS for j in jobs)

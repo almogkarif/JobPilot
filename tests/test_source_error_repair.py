@@ -43,16 +43,18 @@ def test_known_errored_sources_migrate_and_are_reenabled_for_targeted_retry():
 
     result = repair_error_sources(db)
 
-    assert set(result["source_ids"]) == {row.id for row in rows[:8]}
+    assert set(result["source_ids"]) == {row.id for i, row in enumerate(rows[:8]) if i != 3}
     assert (rows[0].kind, rows[0].identifier) == ("workday", "applied-materials")
     assert (rows[1].kind, rows[1].identifier) == ("greenhouse", "similarweb")
     assert (rows[2].kind, rows[2].identifier) == ("greenhouse", "outbraininc")
-    assert (rows[3].kind, rows[3].identifier) == ("smartrecruiters", "Cyberark1")
+    # Its retired SmartRecruiters target must not be resurrected by legacy repair.
+    assert (rows[3].kind, rows[3].identifier) == ("official_careers", "cyberark")
+    assert rows[3].disabled_until is not None
     assert (rows[4].kind, rows[4].identifier) == ("lever", "eu:mobileye")
     assert (rows[5].kind, rows[5].identifier) == ("greenhouse", "taboola")
     assert (rows[6].kind, rows[6].identifier) == ("greenhouse", "orcasecurity")
     assert rows[7].kind == "official_careers"
-    assert all(row.disabled_until is None for row in rows[:8])
+    assert all(row.disabled_until is None for i, row in enumerate(rows[:8]) if i != 3)
     assert all(row.last_error for row in rows[:4])  # errors remain until retries succeed
     assert rows[8].disabled_until is not None
     db.close()
@@ -61,7 +63,7 @@ def test_known_errored_sources_migrate_and_are_reenabled_for_targeted_retry():
 def test_already_migrated_source_with_error_is_retried_again_after_interrupted_startup():
     db = _session()
     source = Source(
-        name="CyberArk", kind="smartrecruiters", identifier="Cyberark1", company_name="CyberArk",
+        name="Check Point", kind="smartrecruiters", identifier="CheckPointSoftwareTechnologies2", company_name="Check Point",
         last_error="network interrupted", disabled_until=datetime.now(timezone.utc) + timedelta(hours=4),
     )
     db.add(source)

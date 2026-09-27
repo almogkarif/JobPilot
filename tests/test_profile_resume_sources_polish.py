@@ -36,21 +36,21 @@ def test_multiple_work_experiences_persist_without_other_card_save_overwriting_t
         client.patch("/api/profile", json={"application_profile": {"work_experiences": baseline_work}})
 
 
-def test_source_reconciliation_installs_rafael_and_hides_exact_legacy_duplicate():
+def test_source_reconciliation_installs_elbit_and_hides_exact_legacy_duplicate():
     created_id = None
     with TestClient(app) as client, SessionLocal() as db:
-        # The catalog must contain Rafael even for accounts created before that preset existed.
+        # The catalog must contain Elbit Systems even for accounts created before that preset existed.
         install_recommended_sources(db, COMPUTER_SCIENCE)
-        rafael = db.scalars(select(Source).where(
+        elbit = db.scalars(select(Source).where(
             Source.career_track == COMPUTER_SCIENCE,
             Source.kind == "official_careers",
-            Source.identifier == "rafael",
+            Source.identifier == "elbit",
         ).order_by(Source.id)).all()
-        assert rafael
-        canonical = rafael[0]
+        assert elbit
+        canonical = elbit[0]
         duplicate = Source(
-            name="Rafael legacy duplicate", kind=canonical.kind, identifier=canonical.identifier,
-            company_name="Rafael", career_track=COMPUTER_SCIENCE, enabled=True, metadata_json=dumps({"legacy": True}),
+            name="Elbit Systems legacy duplicate", kind=canonical.kind, identifier=canonical.identifier,
+            company_name="Elbit Systems", career_track=COMPUTER_SCIENCE, enabled=True, metadata_json=dumps({"legacy": True}),
         )
         db.add(duplicate); db.commit(); created_id = duplicate.id
         install_recommended_sources(db, COMPUTER_SCIENCE)
@@ -61,8 +61,8 @@ def test_source_reconciliation_installs_rafael_and_hides_exact_legacy_duplicate(
         assert metadata.get("duplicate_of") == canonical.id
 
         visible = client.get("/api/sources").json()
-        visible_rafael = [row for row in visible if row["kind"] == "official_careers" and row["identifier"] == "rafael"]
-        assert len(visible_rafael) == 1
+        visible_elbit = [row for row in visible if row["kind"] == "official_careers" and row["identifier"] == "elbit"]
+        assert len(visible_elbit) == 1
 
         duplicate = db.get(Source, created_id)
         if duplicate:

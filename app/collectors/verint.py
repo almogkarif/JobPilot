@@ -53,10 +53,10 @@ def parse_detail(external_id, row, company='', *, public_job_base=BASE + '/hcmUI
     # External requirements and responsibilities are separate fields, not a card summary.
     description = clean_job_text('\n'.join(str(row.get(key) or '') for key in
         ('ExternalDescriptionStr', 'ExternalResponsibilitiesStr', 'ExternalQualificationsStr')))
-    if job_text_quality(description) != 'complete': return None
+    if len(description) > MAX_DESCRIPTION_CHARS or job_text_quality(description) != 'complete': return None
     url = public_job_base + external_id
     return NormalizedJob(external_id=external_id, title=title[:300], company=company or 'Verint',
-                         location=location[:300], workplace='unknown', description=description[:MAX_DESCRIPTION_CHARS],
+                         location=location[:300], workplace='unknown', description=description,
                          apply_url=url, source_url=url, metadata={'content_quality': 'complete'})
 
 

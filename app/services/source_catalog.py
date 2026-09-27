@@ -7,6 +7,7 @@ from ..models import AuditLog, Source
 from ..source_expansion import EXPANDED_EMPLOYER_SOURCES
 from .career_tracks import COMPUTER_SCIENCE, INDUSTRIAL_ENGINEERING, ELECTRICAL_ENGINEERING, DEFAULT_TRACK, normalize_track
 from ..utils import dumps, loads
+from .source_retirements import retirement_reason
 
 # Public ATS boards that regularly publish relevant roles in Israel.
 # Source rows are track-scoped: the same company may exist in both tracks with
@@ -204,6 +205,13 @@ EE_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
 # `tracks` documents where the same official board is also useful: `cs` for
 # software/data/IT roles and `ee` for electrical, hardware, controls and systems.
 _REQUESTED_EMPLOYER_SOURCES: tuple[tuple[str, str, str], ...] = (
+    ("cognyte", "Cognyte", "iem,cs,ee"),
+    ("cellebrite", "Cellebrite", "iem,cs,ee"),
+    ("d-fend-solutions", "D-Fend Solutions", "iem,cs,ee"),
+    ("scylladb", "ScyllaDB", "iem,cs,ee"),
+    ("classiq", "Classiq", "iem,cs,ee"),
+    ("oligo-security", "Oligo Security", "iem,cs,ee"),
+    ("quantum-machines", "Quantum Machines", "iem,cs,ee"),
     ("apple", "Apple", "iem,cs,ee"),
     ("playtika", "Playtika", "iem,cs"),
     ("fiverr", "Fiverr", "iem,cs"),
@@ -394,7 +402,8 @@ def suppress_duplicate_sources(db: Session, career_track: str = DEFAULT_TRACK) -
 
 
 def recommended_sources_for_track(career_track: str = DEFAULT_TRACK) -> tuple[dict[str, str], ...]:
-    return RECOMMENDED_SOURCES_BY_TRACK[normalize_track(career_track)]
+    return tuple(item for item in RECOMMENDED_SOURCES_BY_TRACK[normalize_track(career_track)]
+                 if not retirement_reason(item['kind'], item['identifier']))
 
 
 def install_recommended_sources(db: Session, career_track: str = DEFAULT_TRACK) -> int:
@@ -480,7 +489,8 @@ def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) ->
     if unified_catalog_enabled():
         from .unified_catalog import unified_sources
         existing = {_source_key(s): s for s in unified_sources(db)}
-        catalog = {_source_key(item): item for items in RECOMMENDED_SOURCES_BY_TRACK.values() for item in items}
+        catalog = {_source_key(item): item for items in RECOMMENDED_SOURCES_BY_TRACK.values() for item in items
+                   if not retirement_reason(item['kind'], item['identifier'])}
         return [{**item, 'career_track': 'shared', 'installed': key in existing,
                  'enabled': bool(existing[key].enabled) if key in existing else False}
                 for key, item in catalog.items()]

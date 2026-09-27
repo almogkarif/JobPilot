@@ -9,6 +9,7 @@ from app.collectors.workday import EXPANSION_WORKDAY_IDENTIFIERS
 from app.source_expansion import EXPANDED_EMPLOYER_SOURCES
 
 VERIFIED_OFFICIAL = {"hadassah", "sapiens", "cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
+VERIFIED_OFFICIAL |= {"starkware", "sap-israel", "dell", "sodastream", "hot", "iec"}
 VERIFIED_OFFICIAL |= {"verint", "oracle", "bezeq", "ormat", "delta-galil", "loreal-israel", "snyk"}
 
 
@@ -20,8 +21,8 @@ def test_expansion_contains_exactly_100_distinct_employers_across_all_tracks():
 
 def test_only_verified_structured_sources_are_enabled():
     enabled = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
-    # These two adapters were already enabled in the uploaded baseline.
-    assert len(enabled) == 79
+    # Six bounded, live-verified alternatives were promoted by the September 27 audit.
+    assert len(enabled) == 85
     assert {"hadassah", "sapiens", "verint", "oracle", "bezeq"} <= {item["identifier"] for item in enabled}
     assert all(item["validation_status"] == "verified" for item in enabled)
     assert all(
@@ -39,9 +40,9 @@ def test_only_verified_structured_sources_are_enabled():
 
 def test_expansion_keeps_scheduled_scan_growth_bounded_by_track():
     active_counts = Counter(item["track"] for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"])
-    assert active_counts["cs"] <= 59
-    assert active_counts["iem"] <= 8
-    assert active_counts["ee"] <= 12
+    assert active_counts["cs"] <= 61
+    assert active_counts["iem"] <= 9
+    assert active_counts["ee"] <= 15
 
 
 def test_every_expanded_source_has_logo_and_official_adapter():

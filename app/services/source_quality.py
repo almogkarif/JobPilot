@@ -48,6 +48,13 @@ def _url_key(value: str | None) -> str:
             identity_names.add("job")
         if (parsed.hostname, parsed.path) == ("www.bezeq.co.il", "/career/jobs/form/"):
             identity_names.add("jobs")
+        if (parsed.hostname, parsed.path) in {
+            ("jobs.clalitapps.co.il", "/clalit/redmatch-apply/redmatch.apply.html"),
+            ("jobs.tasmc.org.il", "/Positions/redmatch-apply/redmatch.apply.html"),
+        }:
+            identity_names.add("comppositionid")
+        if (parsed.hostname, unquote(parsed.path)) == ("www.cbccom.com", "/משרה"):
+            identity_names.add("id")
         identity_query = [
             (key.casefold(), val.casefold())
             for key, val in parse_qsl(parsed.query, keep_blank_values=False)
@@ -106,6 +113,24 @@ def _verified_inline_identity(job: NormalizedJob) -> str | None:
             and str(metadata.get('employer_record_id')) == job.external_id
             and job_text_quality(job.description) == 'complete'):
         return 'migdal-record:' + job.external_id
+    if (metadata.get('verified_inline_board') == 'www.hot.net.il'
+            and job.apply_url == job.source_url == 'https://www.hot.net.il/heb/careersearch/'
+            and re.fullmatch(r'JB-\d{1,10}', job.external_id)
+            and str(metadata.get('employer_record_id')) == job.external_id
+            and job_text_quality(job.description) == 'complete'):
+        return 'hot-record:' + job.external_id
+    if (metadata.get('verified_inline_board') == 'jobs.super-pharm.co.il'
+            and re.fullmatch(r'\d{1,12}', job.external_id)
+            and job.apply_url == job.source_url == 'https://jobs.super-pharm.co.il/careers/#collapse-' + job.external_id
+            and str(metadata.get('employer_record_id')) == job.external_id
+            and job_text_quality(job.description) == 'complete'):
+        return 'super-pharm-record:' + job.external_id
+    if (metadata.get('verified_inline_board') == 'jobs.mod.gov.il'
+            and re.fullmatch(r'\d{1,12}', job.external_id)
+            and job.apply_url == job.source_url == 'https://jobs.mod.gov.il/#/Tenders/' + job.external_id
+            and str(metadata.get('employer_record_id')) == job.external_id
+            and job_text_quality(job.description) == 'complete'):
+        return 'ministry-record:' + job.external_id
     return None
 
 

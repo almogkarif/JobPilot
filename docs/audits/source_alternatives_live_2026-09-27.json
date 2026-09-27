@@ -1,0 +1,921 @@
+{
+  "schema_version": 2,
+  "audit_revision": "source-audit-v4-20260926",
+  "checked_at": "2026-09-26T22:47:04.611192+00:00",
+  "run_status": "completed",
+  "source_count": 19,
+  "planned_source_count": 19,
+  "counts": {
+    "partial": 19
+  },
+  "inventory": "Static 2026-09-26 audit inventory, NOT the current database source list. Disabled rows are NOT enabled.",
+  "safety": {
+    "database_requests": 0,
+    "applications_sent": 0,
+    "enabled_sources_changed": 0,
+    "concurrent_boards": 2,
+    "per_source_timeout_seconds": 120,
+    "network_limits": "Existing collector caps; not all legacy collectors have streaming byte caps"
+  },
+  "sources": [
+    {
+      "name": "Clalit — CS Israel",
+      "kind": "official_careers",
+      "identifier": "clalit",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:33.688425+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://jobs.clalitapps.co.il/",
+      "effective_endpoint": "https://jobs.clalitapps.co.il/clalit/index.html",
+      "state": "partial",
+      "total_rows": 200,
+      "israel_rows": 200,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 200,
+      "description_quality_counts": {
+        "complete": 200
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "50076",
+          "title": "רכז/ת פיתוח משאבי אנוש",
+          "location": "רעננה",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=50076"
+        },
+        {
+          "id": "49365",
+          "title": "ממונה/ת בטיחות",
+          "location": "רעננה",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=49365"
+        },
+        {
+          "id": "47045",
+          "title": "פקיד.ה לבי\"ח כרמל- עבודה במשמרות",
+          "location": "חיפה - בי\"ח כרמל",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=47045"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 5.21
+    },
+    {
+      "name": "החברה המרכזית למשקאות — CS Israel",
+      "kind": "official_careers",
+      "identifier": "cocacola-israel",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:33.690780+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://careers.cocacola.co.il/",
+      "effective_endpoint": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+      "state": "partial",
+      "total_rows": 20,
+      "israel_rows": 20,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 20,
+      "description_quality_counts": {
+        "complete": 20
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "17903",
+          "title": "עובד/ת תפעול חצר- בני ברק",
+          "location": "גוש דן, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%97%D7%A6%D7%A8-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7%20"
+        },
+        {
+          "id": "17902",
+          "title": "מהנדס/ת ארגון ושיטות למחלקת אפקטיביות תפעולית- קריית שדה התעופה",
+          "location": "גוש דן, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%94%D7%A0%D7%93%D7%A1%2F%D7%AA%20%D7%90%D7%A8%D7%92%D7%95%D7%9F%20%D7%95%D7%A9%D7%99%D7%98%D7%95%D7%AA%20%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA%20%D7%90%D7%A4%D7%A7%D7%98%D7%99%D7%91%D7%99%D7%95%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%D7%AA-%20%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94"
+        },
+        {
+          "id": "17900",
+          "title": "מחסנאי/ת תפעולי/ת - חיפה",
+          "location": "צפון, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%2F%D7%AA%20-%20%D7%97%D7%99%D7%A4%D7%94"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.79
+    },
+    {
+      "name": "Dell Technologies Careers Israel",
+      "kind": "official_careers",
+      "identifier": "dell",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:35.484332+00:00",
+      "adapter": "oracle_cx_country_facet",
+      "listing_url": "https://jobs.dell.com/",
+      "effective_endpoint": "https://enterpriseplatform.dell.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions",
+      "state": "partial",
+      "total_rows": 9,
+      "israel_rows": 9,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 9,
+      "description_quality_counts": {
+        "complete": 9
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "298815",
+          "title": "Software Senior Principal Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/298815"
+        },
+        {
+          "id": "296146",
+          "title": "Software Senior Principal Engineer (Beer-Sheva)",
+          "location": "Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/296146"
+        },
+        {
+          "id": "292332",
+          "title": "ML Ops Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/292332"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 3.43
+    },
+    {
+      "name": "Israel Discount Bank — CS Israel",
+      "kind": "official_careers",
+      "identifier": "discount-bank",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:38.894487+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.discountbank.co.il/private/general-information/careers/",
+      "effective_endpoint": "https://www.discountbank.co.il/DB/jobs/",
+      "state": "partial",
+      "total_rows": 40,
+      "israel_rows": 40,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 40,
+      "description_quality_counts": {
+        "complete": 40
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "5623",
+          "title": "ראש.ת תחום יעוץ משפטי- ניהול מחלקת תביעות- חטיבת הייעוץ המשפטי",
+          "location": "ראשון לציון, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5623"
+        },
+        {
+          "id": "5613",
+          "title": "יועץ.ת משכנתאות - סניף לוד - החטיבה הבנקאית",
+          "location": "לוד, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5613"
+        },
+        {
+          "id": "103",
+          "title": "בנקאי.ת טלפוני.ת - מוקד ראשון לציון - החטיבה הבנקאית",
+          "location": "ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/103"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 4.7
+    },
+    {
+      "name": "EY Israel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ey-israel",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:38.913764+00:00",
+      "adapter": "successfactors_details",
+      "listing_url": "https://www.ey.com/en_il/careers",
+      "effective_endpoint": "https://careers.ey.com/search/",
+      "state": "partial",
+      "total_rows": 25,
+      "israel_rows": 25,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 25,
+      "description_quality_counts": {
+        "complete": 25
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "1117187801",
+          "title": "איש-ת אחזקה, מחלקת התפעול",
+          "location": "Haifa, Israel",
+          "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%90%D7%99%D7%A9-%D7%AA-%D7%90%D7%97%D7%96%D7%A7%D7%94%2C-%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%AA%D7%A4%D7%A2%D7%95%D7%9C-6706703/1117187801/"
+        },
+        {
+          "id": "1410371233",
+          "title": "מבקר-ת למערך הבקרה במחלקת המגזר הציבורי",
+          "location": "Jerusalem, Israel",
+          "url": "https://careers.ey.com/ey/job/Jerusalem-%D7%9E%D7%91%D7%A7%D7%A8-%D7%AA-%D7%9C%D7%9E%D7%A2%D7%A8%D7%9A-%D7%94%D7%91%D7%A7%D7%A8%D7%94-%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%9E%D7%92%D7%96%D7%A8-%D7%94%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99-9777508/1410371233/"
+        },
+        {
+          "id": "1416792033",
+          "title": "התמחות בחיפה",
+          "location": "Haifa, Israel",
+          "url": "https://careers.ey.com/ey/job/Haifa-%D7%94%D7%AA%D7%9E%D7%97%D7%95%D7%AA-%D7%91%D7%97%D7%99%D7%A4%D7%94-3309502/1416792033/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 5.7
+    },
+    {
+      "name": "Fox Group — CS Israel",
+      "kind": "official_careers",
+      "identifier": "fox-group",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:43.594116+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.foxhr.2.idus.co.il/",
+      "effective_endpoint": "https://dreamjobs.co.il/",
+      "state": "partial",
+      "total_rows": 28,
+      "israel_rows": 28,
+      "blocked_count": 2,
+      "blocked_external_ids": [
+        "10612",
+        "9954"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 28,
+      "description_quality_counts": {
+        "complete": 28
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "10518",
+          "title": "יועצי/ות מכירה MANGO גינדי תל אביב",
+          "location": "תל אביב",
+          "url": "https://dreamjobs.co.il/career/10518"
+        },
+        {
+          "id": "10264",
+          "title": "יועצי/ות מכירה MANGO ממילא ירושלים",
+          "location": "ירושלים",
+          "url": "https://dreamjobs.co.il/career/10264"
+        },
+        {
+          "id": "10449",
+          "title": "אחמש\"ים/ות לרשת FOX – חצי חינם חולון",
+          "location": "חולון",
+          "url": "https://dreamjobs.co.il/career/10449"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 4.52
+    },
+    {
+      "name": "HOT Careers Israel",
+      "kind": "official_careers",
+      "identifier": "hot",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:44.615554+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.hot.net.il/heb/career/",
+      "effective_endpoint": "https://www.hot.net.il/heb/careersearch/",
+      "state": "partial",
+      "total_rows": 4,
+      "israel_rows": 4,
+      "blocked_count": 1,
+      "blocked_external_ids": [
+        "JB- 149"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 4,
+      "description_quality_counts": {
+        "complete": 4
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "JB-265",
+          "title": "כלכלן/ית למחלקת הכנסות ופיתוח עסקי",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        },
+        {
+          "id": "JB-141",
+          "title": "רכז/ת תפעול ובקרה",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        },
+        {
+          "id": "JB-186",
+          "title": "נציג.ת תמיכה ללקוחות אסטרטגיים",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 0.15
+    },
+    {
+      "name": "Ichilov Medical Center — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ichilov",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:44.764533+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.tasmc.org.il/careers/",
+      "effective_endpoint": "https://jobs.tasmc.org.il/Positions/",
+      "state": "partial",
+      "total_rows": 78,
+      "israel_rows": 78,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 78,
+      "description_quality_counts": {
+        "complete": 78
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "199255",
+          "title": "מנהל.ת מחקר למרכז PREACT להיערכות לטראומה נפשית המונית",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199255"
+        },
+        {
+          "id": "199248",
+          "title": "כלכלן.ית לאגף הרכש והלוגיסטיקה",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199248"
+        },
+        {
+          "id": "196149",
+          "title": "ראש.ת צוות ליחידת המחקר באונקולוגיה",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=196149"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.29
+    },
+    {
+      "name": "Israel Electric Corporation Careers Israel",
+      "kind": "official_careers",
+      "identifier": "iec",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:46.055129+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.iec.co.il/careers",
+      "effective_endpoint": "https://careers.iec.co.il/",
+      "state": "partial",
+      "total_rows": 31,
+      "israel_rows": 31,
+      "blocked_count": 2,
+      "blocked_external_ids": [
+        "15392",
+        "15508"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 31,
+      "description_quality_counts": {
+        "complete": 31
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "15534",
+          "title": "הנדסאי/ת מכשור ובקרה לתחנת הכוח בחדרה",
+          "location": "השרון, Israel",
+          "url": "https://careers.iec.co.il/order/15534/"
+        },
+        {
+          "id": "15524",
+          "title": "עוזר/ת למהנדס/ת התפעול בתחנת הכוח גזר ברמלה",
+          "location": "השפלה, Israel",
+          "url": "https://careers.iec.co.il/order/15524/"
+        },
+        {
+          "id": "15513",
+          "title": "מנהל/ת רשת תקשורת ואבטחת רשת לגן שורק",
+          "location": "חיפה והצפון, Israel",
+          "url": "https://careers.iec.co.il/order/15513/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 0.95
+    },
+    {
+      "name": "Meta Careers Israel",
+      "kind": "official_careers",
+      "identifier": "meta",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:47.009020+00:00",
+      "adapter": "rendered_listing_full_jsonld_details",
+      "listing_url": "https://www.metacareers.com/jobsearch/",
+      "effective_endpoint": "https://www.metacareers.com/jobsearch/",
+      "state": "partial",
+      "total_rows": 8,
+      "israel_rows": 8,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 8,
+      "description_quality_counts": {
+        "complete": 8
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "2082780019279407",
+          "title": "Software Engineer, Systems",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/2082780019279407/"
+        },
+        {
+          "id": "1063946209792967",
+          "title": "Data Scientist, Product Analytics",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/1063946209792967/"
+        },
+        {
+          "id": "2316600655751692",
+          "title": "Machine Learning Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/2316600655751692/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 7.69
+    },
+    {
+      "name": "משרד הביטחון — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ministry-of-defense-il",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:48.120484+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+      "effective_endpoint": "https://jobs.mod.gov.il/api/TenderPublish/GetAllPublished",
+      "state": "partial",
+      "total_rows": 18,
+      "israel_rows": 18,
+      "blocked_count": 2,
+      "blocked_external_ids": [
+        "34890",
+        "34917"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 18,
+      "description_quality_counts": {
+        "complete": 18
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "34928",
+          "title": "ע' לניהול",
+          "location": "תל אביב-יפו, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34928"
+        },
+        {
+          "id": "34930",
+          "title": "ר' תחום פרויקטים",
+          "location": "תל אביב-יפו, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34930"
+        },
+        {
+          "id": "34937",
+          "title": "ע' בכיר לשירות",
+          "location": "תל השומר, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34937"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.83
+    },
+    {
+      "name": "Ness — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ness-israel",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:49.953702+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://www.ness-tech.co.il/careers",
+      "effective_endpoint": "https://www.ness-tech.co.il/careers/api/Careers/GetOrderDetailsList",
+      "state": "partial",
+      "total_rows": 200,
+      "israel_rows": 200,
+      "blocked_count": 1,
+      "blocked_external_ids": [
+        "42622"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 200,
+      "description_quality_counts": {
+        "complete": 200
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "42814",
+          "title": "מיישמ/ת SAP SD",
+          "location": "אזור המרכז, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/42814"
+        },
+        {
+          "id": "42251",
+          "title": "מומחה/ית תקשורת",
+          "location": "אזור השרון, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/42251"
+        },
+        {
+          "id": "41065",
+          "title": "מפתח/ת אוטומציה בסייבר",
+          "location": "אזור המרכז, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/41065"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.08
+    },
+    {
+      "name": "Osem-Nestle — CS Israel",
+      "kind": "official_careers",
+      "identifier": "osem-nestle",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:51.036319+00:00",
+      "adapter": "verified_employer_alternative",
+      "listing_url": "https://www.osem-nestle.co.il/career",
+      "effective_endpoint": "https://jobdetails.nestle.com/search/",
+      "state": "partial",
+      "total_rows": 40,
+      "israel_rows": 40,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 40,
+      "description_quality_counts": {
+        "complete": 40
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "406972",
+          "title": "חשמלאי/ת למחלקת תשתיות",
+          "location": "Qiryat Gat, Israel, 8213508",
+          "url": "https://jobdetails.nestle.com/job/Qiryat-Gat-%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%D7%AA-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%AA%D7%A9%D7%AA%D7%99%D7%95%D7%AA-8213508/1405357133/"
+        },
+        {
+          "id": "419712",
+          "title": "מנהל/ת משמרת במבה",
+          "location": "Qiryat Gat, Israel, 8213508",
+          "url": "https://jobdetails.nestle.com/job/Qiryat-Gat-%D7%9E%D7%A0%D7%94%D7%9C%D7%AA-%D7%9E%D7%A9%D7%9E%D7%A8%D7%AA-%D7%91%D7%9E%D7%91%D7%94-8213508/1436936033/"
+        },
+        {
+          "id": "392492",
+          "title": "חשמלאי/ת מוסמכ/ת מפעל אסם נסטלה בשדרות",
+          "location": "Sderot, Israel, 8015000",
+          "url": "https://jobdetails.nestle.com/job/Sderot-%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%D7%AA-%D7%9E%D7%95%D7%A1%D7%9E%D7%9B%D7%AA-%D7%9E%D7%A4%D7%A2%D7%9C-%D7%90%D7%A1%D7%9D-%D7%A0%D7%A1%D7%98%D7%9C%D7%94-%D7%91%D7%A9%D7%93%D7%A8%D7%95%D7%AA-8015000/1371319933/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 8.38
+    },
+    {
+      "name": "PwC Israel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "pwc-israel",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:54.696032+00:00",
+      "adapter": "employer_linked_hunter_feed",
+      "listing_url": "https://www.pwc.com/il/he/career.html",
+      "effective_endpoint": "https://niloo-server.herokuapp.com/actions-pwc-career",
+      "state": "partial",
+      "total_rows": 49,
+      "israel_rows": 49,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 49,
+      "description_quality_counts": {
+        "complete": 49
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "766",
+          "title": "EDGE Team Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=766"
+        },
+        {
+          "id": "760",
+          "title": "DevOps Tech Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=760"
+        },
+        {
+          "id": "762",
+          "title": "AI Adoption & Implementation Consultant",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=762"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 2.56
+    },
+    {
+      "name": "SAP Careers Israel",
+      "kind": "official_careers",
+      "identifier": "sap-israel",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:57.262353+00:00",
+      "adapter": "successfactors_details",
+      "listing_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+      "effective_endpoint": "https://careers.sap.com/go/SAP-Jobs-in-Israel/851401/",
+      "state": "partial",
+      "total_rows": 4,
+      "israel_rows": 4,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 4,
+      "description_quality_counts": {
+        "complete": 4
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "1429741933",
+          "title": "Cloud Platform Engineer - Student (Java)",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Cloud-Platform-Engineer-Student-%28Java%29-4366202/1429741933/"
+        },
+        {
+          "id": "1276005301",
+          "title": "Student Developer - SAP BTP - CCS",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Student-Developer-SAP-BTP-CCS-4366202/1276005301/"
+        },
+        {
+          "id": "1436495733",
+          "title": "Max Success Plan Manager (SPM) - SAP IL",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Max-Success-Plan-Manager-%28SPM%29-SAP-IL-4366202/1436495733/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.68
+    },
+    {
+      "name": "SodaStream Careers Israel",
+      "kind": "official_careers",
+      "identifier": "sodastream",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:58.948415+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://sodastream.com/pages/careers",
+      "effective_endpoint": "https://www.pepsicojobs.com/api/jobs",
+      "state": "partial",
+      "total_rows": 22,
+      "israel_rows": 22,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 22,
+      "description_quality_counts": {
+        "complete": 22
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "436942",
+          "title": "SodaStream: Junior Global Procurement Buyer",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il"
+        },
+        {
+          "id": "469598",
+          "title": "Sodastream: Legal Counsel, Employment Law (Maternity Leave Cover)",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/469598?lang=he-il"
+        },
+        {
+          "id": "430939",
+          "title": "SodaStream: Performance Marketing Campaign Lead",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/430939?lang=he-il"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.09
+    },
+    {
+      "name": "StarkWare Careers Israel",
+      "kind": "official_careers",
+      "identifier": "starkware",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:46:59.419232+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://starkware.co/careers/",
+      "effective_endpoint": "https://starkware.co/careers/",
+      "state": "partial",
+      "total_rows": 1,
+      "israel_rows": 1,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 1,
+      "description_quality_counts": {
+        "complete": 1
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "blockchain-security-researcher",
+          "title": "Blockchain Security Researcher",
+          "location": "Israel",
+          "url": "https://starkware.co/position/blockchain-security-researcher/"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 1.23
+    },
+    {
+      "name": "Super-Pharm — CS Israel",
+      "kind": "official_careers",
+      "identifier": "super-pharm",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:47:00.038261+00:00",
+      "adapter": "verified_tech_consumer_alternative",
+      "listing_url": "https://jobs.super-pharm.co.il/careers/",
+      "effective_endpoint": "https://jobs.super-pharm.co.il/careers/",
+      "state": "partial",
+      "total_rows": 200,
+      "israel_rows": 200,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 200,
+      "description_quality_counts": {
+        "complete": 200
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "16655",
+          "title": "אנשי צוות שירות",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16655"
+        },
+        {
+          "id": "16654",
+          "title": "יועצ.ת ביוטי",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16654"
+        },
+        {
+          "id": "16653",
+          "title": "יועצ.ת ביוטי",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16653"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 4.55
+    },
+    {
+      "name": "Tefen — IEM Israel",
+      "kind": "official_careers",
+      "identifier": "tefen",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:47:00.653579+00:00",
+      "adapter": "verified_employer_alternative",
+      "listing_url": "https://www.tefen.com/careers/",
+      "effective_endpoint": "https://app.civi.co.il/promos/id=WN8NBHHQUY",
+      "state": "partial",
+      "total_rows": 15,
+      "israel_rows": 15,
+      "blocked_count": 4,
+      "blocked_external_ids": [
+        "584252",
+        "777504",
+        "817629",
+        "967354"
+      ],
+      "snapshot_complete": false,
+      "complete_descriptions": 15,
+      "description_quality_counts": {
+        "complete": 15
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "799362",
+          "title": "לפירמת הייעוץ TEFEN דרושים.ות יועצים.ות / מנהלי.ות פרוייקטים לחטיבה הטכנולוגית",
+          "location": "Israel",
+          "url": "https://app.civi.co.il/promo/id=799362"
+        },
+        {
+          "id": "915495",
+          "title": "פירמת הייעוץ TEFEN מחפשת איש.אשת תפ\"י / Planning",
+          "location": "Central District, Israel",
+          "url": "https://app.civi.co.il/promo/id=915495"
+        },
+        {
+          "id": "841611",
+          "title": "לפירמת הייעוץ TEFEN דרושים.ות מהנדסי.ות /הנדסאי.ות תעשייה וניהול לפרויקט בצפון הארץ",
+          "location": "Northern District, Israel",
+          "url": "https://app.civi.co.il/promo/id=841611"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 3.96
+    }
+  ]
+}

@@ -1,0 +1,724 @@
+{
+  "generated_at": "2026-09-26T23:26:12.314598+00:00",
+  "scope": "Public employer verification through integrated collectors, no production DB/Storage/Chrome or bulk scan. Code additions remain local.",
+  "retirement_categorization_note": "Primary-cause grouping of the prior audit; not proof of employer-wide job absence or permanent impossibility of collection.",
+  "retirement_categories": [
+    {
+      "code": "access_or_empty_shell",
+      "label_he": "חסימות גישה או מעטפות אבטחה/לקוח ללא תוכן נגיש",
+      "count": 16,
+      "sources": [
+        {
+          "identifier": "ashdod-port",
+          "name": "Ashdod Port — CS Israel",
+          "reason": "Old page and current indexed /about/Careers/pages/careers.aspx both returned Request Rejected; the latter redirected to the same blocked homepage. No bypass attempted; no verified public alternative feed."
+        },
+        {
+          "identifier": "assuta",
+          "name": "Assuta Medical Centers Careers Israel",
+          "reason": "Old /about/jobs/ is404 and points to /jobs/. The current official /jobs/ redirected to a Radware CAPTCHA. Search found aggregate employer pages, but no verified official public payload; no CAPTCHA bypass attempted."
+        },
+        {
+          "identifier": "cal",
+          "name": "Cal — CS Israel",
+          "reason": "Current indexed individual-job URL and old listing both returned HTTP400 Request Rejected. No verified alternative feed; no bypass attempted."
+        },
+        {
+          "identifier": "deloitte-israel",
+          "name": "Deloitte Israel — CS Israel",
+          "reason": "The general global careers page is not the local job board. Official local careers.deloitte.co.il exposes 68 positions in web research, but both its landing and positions page returned 403 directly. No challenge was bypassed and no unverified reader was enabled."
+        },
+        {
+          "identifier": "elspec",
+          "name": "Elspec Careers Israel",
+          "reason": "Official careers returns HTTP 403. The accessible employer home page links that same careers route; web research found no verified public official ATS alternative. No challenge bypass attempted."
+        },
+        {
+          "identifier": "haifa-port",
+          "name": "Haifa Port — CS Israel",
+          "reason": "Listing and search-indexed official vacancy detail both return HTTP403. No bypass attempted and no official alternative feed verified."
+        },
+        {
+          "identifier": "isracard",
+          "name": "Isracard — CS Israel",
+          "reason": "Old path404; search-discovered official marketing.isracard.co.il/careershome/ returns Cloudflare403 blocked page. No bypass attempted or alternate feed verified."
+        },
+        {
+          "identifier": "israel-post",
+          "name": "Israel Post — CS Israel",
+          "reason": "Old page404 points to current /שירותים/דרושים-ומשרות-פנויות/. Current official page redirects to Radware CAPTCHA; no bypass attempted or alternative official feed verified."
+        },
+        {
+          "identifier": "israel-railways",
+          "name": "Israel Railways — CS Israel",
+          "reason": "Official careers route returns403 Page Capture requiring JavaScript/cookies and robot validation. Search finds aggregate employer listings but no employer-confirmed alternative feed; challenge not bypassed."
+        },
+        {
+          "identifier": "malam-team",
+          "name": "Malam Team — CS Israel",
+          "reason": "Old /careers, new Hebrew career route discovered in indexed official results, and career.malamteam.com all return Cloudflare HTTP 403 challenges to this runtime. Jobs exist in indexed official pages, but no reliable fresh detail payload was obtained."
+        },
+        {
+          "identifier": "neuroblade",
+          "name": "NeuroBlade — Israel",
+          "reason": "Official /careers returns 403 in this recheck (previous audit 500). Indexed native job URLs expose gh_jid, but the corresponding public NeuroBlade Greenhouse board returns 404. No verified active official alternative."
+        },
+        {
+          "identifier": "partner",
+          "name": "Partner Careers Israel",
+          "reason": "Original /n/career is 404. Official home and /u/career return small client/security-shell responses with no complete job records or verified linked ATS; third-party vacancies do not establish an official adapter."
+        },
+        {
+          "identifier": "pliops",
+          "name": "Pliops — Storage Silicon Israel",
+          "reason": "Official careers is 403. Employer home responds 503 and only links the same careers URL. No verified alternative official board was found."
+        },
+        {
+          "identifier": "rafael",
+          "name": "Rafael Careers",
+          "reason": "Both official career.rafael.co.il/search/ and its root return status 247,457-byte access-control responses. Kept official-only as assigned; no Drushim fallback, private API, or bypass used."
+        },
+        {
+          "identifier": "tnuva",
+          "name": "Tnuva Careers Israel",
+          "reason": "Official /jobs, Hebrew career route and sitemap return short security/client shells rather than job content. Indexed jobs on outside services do not provide a verified official feed."
+        },
+        {
+          "identifier": "tower-semiconductor",
+          "name": "Tower Semiconductor — CS Israel",
+          "reason": "Old corporate and Japanese careers URLs are 403 in direct HTTP. Indexed official Japanese page links new careers.towersemi.com, whose Israel page returns 20 explicit ISR listing IDs. Its linked /job-description?job_id=9592 and /search-jobs return 403. No full detail payload verified; cards alone are not imported."
+        }
+      ]
+    },
+    {
+      "code": "adapter_or_identity_limits",
+      "label_he": "מגבלות באוסף: פורמט, גודל תגובה, מזהים או מיקום שלא אומתו",
+      "count": 9,
+      "sources": [
+        {
+          "identifier": "cellcom",
+          "name": "Cellcom Careers Israel",
+          "reason": "Careers URL returns an empty JavaScript application shell. Its published application bundle exceeds4MB and the bounded read stopped. Search found a third-party company page, but no employer-confirmed feed with full stable vacancy payloads."
+        },
+        {
+          "identifier": "harel",
+          "name": "Harel — CS Israel",
+          "reason": "Old official careers path404. Search-discovered Harel AdamTotal board contains indexed full job content, but direct response exceeds4MB and is rejected by audit budget. Official /about page did not independently link the token. No bounded confirmed feed verified."
+        },
+        {
+          "identifier": "max",
+          "name": "Max — CS Israel",
+          "reason": "Old /careers404. Official homepage links /career/lobby, whose public response contains metadata and app shell without vacancies. Published app bundle exceeds4MB and bounded read stops. No current stable vacancy feed verified; official indexed social post confirms same lobby rather than another board."
+        },
+        {
+          "identifier": "sheba",
+          "name": "Sheba Medical Center — CS Israel",
+          "reason": "Official careers and an indexed numeric vacancy266937 now both return the same Angular shell with no vacancy body. Main script verified but no current public vacancy contract found within bounded checks. Older indexed text does not prove current availability; no official alternative verified."
+        },
+        {
+          "identifier": "shufersal",
+          "name": "Shufersal — CS Israel",
+          "reason": "Current career.shufersal.co.il and the indexed alternate jobs.shufersal.co.il/Job-Search/Basic.aspx failed to provide a bounded usable response. No fresh complete official payload verified."
+        },
+        {
+          "identifier": "dhl-israel",
+          "name": "DHL — CS Israel",
+          "reason": "Global search returned 0. The official local DHL article lists nine roles with descriptions and Israel locations, but applications use one email and no real per-vacancy IDs. Synthetic IDs or invented URLs were not created."
+        },
+        {
+          "identifier": "rambam",
+          "name": "Rambam Careers Israel",
+          "reason": "Official general careers and digital-IT category expose full inline descriptions. IT titles include real requisition numbers1001 onward, but role cards have no explicit location field or independent vacancy URL (email application and shared category only). Existing generic parser mistakes categories for jobs. Country/location and canonical application contract remain unverified; no fabricated jobs or locations."
+        },
+        {
+          "identifier": "scd",
+          "name": "SCD — SemiConductor Devices",
+          "reason": "Official listing contains 10 full accordion jobs and job-specific location evidence in several descriptions. However, all 10 hidden_job_num fields and application job_number values are empty and no per-job URL/record identity is exposed. Do not invent IDs from row positions or treat department links as jobs."
+        },
+        {
+          "identifier": "phoenix",
+          "name": "The Phoenix — CS Israel",
+          "reason": "Public vacancies exist. The correct career/open-positions route exposes numeric job URLs and embedded Nuxt data, but a complete identity-bound reader was not verified. The frontend-published read-only career-list API returned403. No challenge or authentication was bypassed; excluded rather than interpreting this as no vacancies."
+        }
+      ]
+    },
+    {
+      "code": "no_verified_israel_payload",
+      "label_he": "לא אומתה משרה ישראלית בחלופה שנבדקה",
+      "count": 10,
+      "sources": [
+        {
+          "identifier": "analog-devices",
+          "name": "Analog Devices Careers Israel",
+          "reason": "The existing bounded Workday reader was rechecked and again found no verified Israel details. The official analog.com careers page still links the same External Workday board; there is no verified alternative vacancy feed."
+        },
+        {
+          "identifier": "deep-instinct",
+          "name": "Deep Instinct Careers Israel",
+          "reason": "Current official Next.js page exposes five real open-role cards, all explicitly US regions or Japan. No Israel vacancy detail is published there. Do not turn this into an employer-wide zero-jobs claim."
+        },
+        {
+          "identifier": "ericsson",
+          "name": "Ericsson Careers Israel",
+          "reason": "The primary page was 403 in the earlier audit. Employer-specific public Eightfold careers page works, but its Israel search returns count 0. This does not establish no Israel vacancies and cannot justify enabling a new collector."
+        },
+        {
+          "identifier": "ibm",
+          "name": "IBM Careers Israel",
+          "reason": "The official country-filtered search renders 0 items and its current global location facets omit Israel. The employer-linked Avature alternative returned an empty 202 response. Neither supplies verified live vacancies."
+        },
+        {
+          "identifier": "jabil-israel",
+          "name": "Jabil Careers Israel",
+          "reason": "The bounded Workday reader was rechecked with the same failure. Official alternate jobs.jabil.com board is live but its global country filter has no Israel entry; no Israeli detail was verified."
+        },
+        {
+          "identifier": "nokia",
+          "name": "Nokia Careers Israel",
+          "reason": "The careers marketing pages return 403 directly. Official web research links jobs.nokia.com, whose public Oracle configuration and API are accessible. The Israel keyword search returns 0, leaving availability unverified."
+        },
+        {
+          "identifier": "unilever-israel",
+          "name": "Unilever Israel Careers Israel",
+          "reason": "The official Israel marketing page links the global TalentBrew board and a Workday talent profile. Israel keyword and explicit country search pages contain no vacancies; that alone is not proof of company-wide absence."
+        },
+        {
+          "identifier": "ups-israel",
+          "name": "UPS — CS Israel",
+          "reason": "The original domain now redirects to a new Phenom career page. Its Israel search exposes no jobs, and official web research did not establish a usable domestic alternative."
+        },
+        {
+          "identifier": "vayyar",
+          "name": "Vayyar Imaging — Israel",
+          "reason": "Official /recruitment links /careers, which redirects to the employer Workable account. Its public widget payload confirms Vayyar identity but currently returns jobs=[]. Empty board is not evidence of employer-wide absence or a useful recovered source."
+        },
+        {
+          "identifier": "xm-cyber",
+          "name": "XM Cyber Careers Israel",
+          "reason": "Official careers is 403. Indexed employer Comeet board 15.005 returns correct XM Cyber COMPANY_DATA but COMPANY_POSITIONS_DATA=[]. No complete current Israel vacancy verified; do not infer that historical jobs closed."
+        }
+      ]
+    },
+    {
+      "code": "no_usable_official_board",
+      "label_he": "לוח רשמי חסר, הועבר או לא זמין בכתובת שאומתה",
+      "count": 3,
+      "sources": [
+        {
+          "identifier": "meuhedet",
+          "name": "Meuhedet Careers Israel",
+          "reason": "English careers page and current official Hebrew careers page return200 marketing pages with professional-category links and recruitment contact. Neither exposes current full job records or a verified hiring feed. Third-party listings do not establish an official alternative contract."
+        },
+        {
+          "identifier": "niram-gitan",
+          "name": "Niram Gitan — IEM Israel",
+          "reason": "Old niramgitan.com and historical nggconsult.co.il fail DNS. Current official nggconsult.com identifies Niram Gitan and is accessible, but home/about expose consulting information and contact links, no official public job board. Jobnet listings were found but are not a verified official alternative."
+        },
+        {
+          "identifier": "orcam",
+          "name": "OrCam Careers Israel",
+          "reason": "Original official careers route redirects to the product home page. The home page explicitly links legacy.orcam.com/en/careers/, which returns 404. No complete fresh official job payload verified."
+        }
+      ]
+    },
+    {
+      "code": "malformed_duplicate",
+      "label_he": "רישום כפול עם הגדרה שגויה",
+      "count": 1,
+      "sources": [
+        {
+          "identifier": "https://career.rafael.co.il/search/",
+          "name": "rafael",
+          "reason": "Malformed duplicate: this employer URL was configured as an Ashby board identifier. Official Rafael was investigated separately; its current board rejects automatic collection. Neither record is deleted and no vacancy-absence claim is made."
+        }
+      ]
+    }
+  ],
+  "prior_retired_count": 39,
+  "prior_operational_count": 219,
+  "new_sources": [
+    {
+      "identifier": "cognyte",
+      "company": "Cognyte",
+      "official_careers_url": "https://www.cognyte.com/careers/",
+      "endpoint": "https://www.comeet.co/careers-api/2.0/company/F2.009/positions?token=2F9EDD2F92F911D61AC12F914CF11D62F9&details=true",
+      "checked_at": "2026-09-26T23:24:02.371571+00:00",
+      "total_rows": 44,
+      "israel_rows": 13,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        1458,
+        3085
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://www.cognyte.com/careers/",
+        "evidence": "Official COMEET.init publishes F2.009/public embed token; exact cognyte board URLs and full details in public response."
+      },
+      "sample_jobs": [
+        {
+          "id": "4F.F60",
+          "title": "Data Analyst",
+          "location": "Israel, Bar Lev",
+          "url": "https://www.comeet.com/jobs/cognyte/F2.009/data-analyst/4F.F60",
+          "description_chars": 2309
+        },
+        {
+          "id": "89.E6F",
+          "title": "Field Support Engineer and Asset Manager",
+          "location": "Israel, Herzliya",
+          "url": "https://www.comeet.com/jobs/cognyte/F2.009/field-support-engineer-and-asset-manager/89.E6F",
+          "description_chars": 2431
+        },
+        {
+          "id": "72.C68",
+          "title": "Finance Business Partner Team Lead",
+          "location": "Israel, Herzliya",
+          "url": "https://www.comeet.com/jobs/cognyte/F2.009/finance-business-partner-team-lead/72.C68",
+          "description_chars": 2766
+        },
+        {
+          "id": "E6.E6E",
+          "title": "Junior Intelligence Analyst",
+          "location": "Israel, Herzliya",
+          "url": "https://www.comeet.com/jobs/cognyte/F2.009/junior-intelligence-analyst/E6.E6E",
+          "description_chars": 2813
+        },
+        {
+          "id": "C6.07D",
+          "title": "Marketing Operations Manager",
+          "location": "Israel, Herzliya",
+          "url": "https://www.comeet.com/jobs/cognyte/F2.009/marketing-operations-manager/C6.07D",
+          "description_chars": 3053
+        }
+      ]
+    },
+    {
+      "identifier": "cellebrite",
+      "company": "Cellebrite",
+      "official_careers_url": "https://cellebrite.com/en/about/careers/",
+      "endpoint": "https://www.comeet.com/jobs/Cellebrite/C3.00F",
+      "checked_at": "2026-09-26T23:24:02.728804+00:00",
+      "total_rows": 50,
+      "israel_rows": 21,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        2117,
+        5773
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://cellebrite.com/en/about/careers/positions/",
+        "evidence": "Official base64-encoded comeetvar script publishes company UID C3.00F/public embed token. Matching Cellebrite board returns structured full details."
+      },
+      "sample_jobs": [
+        {
+          "id": "7C.276",
+          "title": "AI Engineer",
+          "location": "Israel - Petah Tikva",
+          "url": "https://www.comeet.com/jobs/Cellebrite/C3.00F/ai-engineer/7C.276",
+          "description_chars": 2971
+        },
+        {
+          "id": "FE.D18",
+          "title": "Android Security Researcher",
+          "location": "Israel - TLV",
+          "url": "https://www.comeet.com/jobs/Cellebrite/C3.00F/android-security-researcher/FE.D18",
+          "description_chars": 2685
+        },
+        {
+          "id": "01.37F",
+          "title": "Android Vulnerability Researcher",
+          "location": "Israel - TLV",
+          "url": "https://www.comeet.com/jobs/Cellebrite/C3.00F/android-vulnerability-researcher/01.37F",
+          "description_chars": 2605
+        },
+        {
+          "id": "DE.B60",
+          "title": "Director of Global Procurement",
+          "location": "Israel - Petah Tikva",
+          "url": "https://www.comeet.com/jobs/Cellebrite/C3.00F/director-of-global-procurement/DE.B60",
+          "description_chars": 4961
+        },
+        {
+          "id": "84.561",
+          "title": "Embedded Linux & Security Engineer",
+          "location": "Israel - TLV",
+          "url": "https://www.comeet.com/jobs/Cellebrite/C3.00F/embedded-linux--security-engineer/84.561",
+          "description_chars": 3849
+        }
+      ]
+    },
+    {
+      "identifier": "d-fend-solutions",
+      "company": "D-Fend Solutions",
+      "official_careers_url": "https://d-fendsolutions.com/about-us/careers/",
+      "endpoint": "https://api.lever.co/v0/postings/d-fendsolutions?mode=json",
+      "checked_at": "2026-09-26T23:24:04.247512+00:00",
+      "total_rows": 24,
+      "israel_rows": 17,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        1964,
+        4937
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://d-fendsolutions.com/about-us/careers/",
+        "evidence": "Official leverJobsOptions embeds accountName d-fendsolutions. Lever payload supplies country IL, UUID and full description/lists/additional."
+      },
+      "sample_jobs": [
+        {
+          "id": "b39bbd95-5891-4bf8-b460-d485900da7e6",
+          "title": "Communication PHY Algorithms Engineer",
+          "location": "Raanana, Center District, Israel",
+          "url": "https://jobs.lever.co/d-fendsolutions/b39bbd95-5891-4bf8-b460-d485900da7e6",
+          "description_chars": 2850
+        },
+        {
+          "id": "f0fa08d2-0d69-408c-b45f-05e0cb794660",
+          "title": "Controller",
+          "location": "Raanana, Center District, Israel",
+          "url": "https://jobs.lever.co/d-fendsolutions/f0fa08d2-0d69-408c-b45f-05e0cb794660",
+          "description_chars": 4910
+        },
+        {
+          "id": "04088468-f37a-441a-8f8d-10be41619d4c",
+          "title": "Drone Pilots Team Leader",
+          "location": "Raanana, Center District, Israel",
+          "url": "https://jobs.lever.co/d-fendsolutions/04088468-f37a-441a-8f8d-10be41619d4c",
+          "description_chars": 2798
+        },
+        {
+          "id": "dc1b0f80-3ba6-4077-b815-41d3a2ccdeab",
+          "title": "Field System QA",
+          "location": "Raanana, Center District, Israel",
+          "url": "https://jobs.lever.co/d-fendsolutions/dc1b0f80-3ba6-4077-b815-41d3a2ccdeab",
+          "description_chars": 3141
+        },
+        {
+          "id": "6a52d9de-ec0e-48f7-8c4f-ba409b0dd256",
+          "title": "Market Intelligence Analyst (Drone & Counter-Drone Systems)",
+          "location": "Raanana, Center District, Israel",
+          "url": "https://jobs.lever.co/d-fendsolutions/6a52d9de-ec0e-48f7-8c4f-ba409b0dd256",
+          "description_chars": 4685
+        }
+      ]
+    },
+    {
+      "identifier": "scylladb",
+      "company": "ScyllaDB",
+      "official_careers_url": "https://www.scylladb.com/company/careers/job-openings/",
+      "endpoint": "https://www.comeet.co/careers-api/2.0/company/E4.006/positions?token=4E6187E1D64224A0013984E60187E&details=true",
+      "checked_at": "2026-09-26T23:24:03.964680+00:00",
+      "total_rows": 8,
+      "israel_rows": 3,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        2920,
+        3738
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://www.scylladb.com/company/careers/job-openings/",
+        "evidence": "Official page comeetvar publishes same company UID/public embed token and live vacancy IDs."
+      },
+      "sample_jobs": [
+        {
+          "id": "FC.078-75.10C",
+          "title": "Cloud Software Engineer (AI-Powered / End-to-End)",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/scylladb/E4.006/cloud-software-engineer-ai-powered--end-to-end/FC.078-75.10C",
+          "description_chars": 3032
+        },
+        {
+          "id": "B4.274",
+          "title": "GTM Engineer (AI & Automation)",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/scylladb/E4.006/gtm-engineer-ai--automation/B4.274",
+          "description_chars": 2920
+        },
+        {
+          "id": "1E.C62",
+          "title": "Solution Architect (Israel)",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/scylladb/E4.006/solution-architect-israel/1E.C62",
+          "description_chars": 3738
+        }
+      ]
+    },
+    {
+      "identifier": "classiq",
+      "company": "Classiq",
+      "official_careers_url": "https://www.classiq.io/careers-page",
+      "endpoint": "https://www.comeet.co/careers-api/2.0/company/F7.008/positions?token=7F82FD01FE03FC037C87F87F82FD017E847B8&details=true",
+      "checked_at": "2026-09-26T23:24:04.074061+00:00",
+      "total_rows": 22,
+      "israel_rows": 10,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        1881,
+        3551
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://www.classiq.io/positions/position-cb_d67",
+        "evidence": "Official careers links official job detail; COMEET.init publishes same company UID/public embed token; applyform data-position-uid CB.D67 matches feed."
+      },
+      "sample_jobs": [
+        {
+          "id": "F2.072",
+          "title": "AI Developer Builder",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/classiq/F7.008/ai-developer-builder/F2.072",
+          "description_chars": 1881
+        },
+        {
+          "id": "23.177",
+          "title": "EMEA Field marketing manager",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/classiq/F7.008/emea-field-marketing-manager/23.177",
+          "description_chars": 2709
+        },
+        {
+          "id": "17.072",
+          "title": "Product Designer (UI/Visual)",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/classiq/F7.008/product-designer-uivisual/17.072",
+          "description_chars": 2560
+        },
+        {
+          "id": "65.D6D",
+          "title": "Quantum Algorithm Engineer",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/classiq/F7.008/quantum-algorithm-engineer/65.D6D",
+          "description_chars": 3228
+        },
+        {
+          "id": "96.D6F",
+          "title": "Quantum Compilation Product Engineer",
+          "location": "Israel",
+          "url": "https://www.comeet.com/jobs/classiq/F7.008/quantum-compilation-product-engineer/96.D6F",
+          "description_chars": 2952
+        }
+      ]
+    },
+    {
+      "identifier": "oligo-security",
+      "company": "Oligo Security",
+      "official_careers_url": "https://www.oligo.security/company/careers",
+      "endpoint": "https://www.comeet.co/careers-api/2.0/company/5A.00B/positions?token=A5B487D296C487D01F1152D852D852D8487D&details=true",
+      "checked_at": "2026-09-26T23:24:04.142667+00:00",
+      "total_rows": 9,
+      "israel_rows": 8,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        2364,
+        5493
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://www.oligo.security/positions/position-73_755",
+        "evidence": "Official careers links official job detail; COMEET.init publishes same company UID/public embed token; applyform data-position-uid 73.755 matches feed."
+      },
+      "sample_jobs": [
+        {
+          "id": "DC.952",
+          "title": "Linux Security Researcher",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.comeet.com/jobs/oligosecurity/5A.00B/linux-security-researcher/DC.952",
+          "description_chars": 3705
+        },
+        {
+          "id": "12.F54",
+          "title": "Low-level Engineering Group Manager",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.comeet.com/jobs/oligosecurity/5A.00B/low-level-engineering-group-manager/12.F54",
+          "description_chars": 3102
+        },
+        {
+          "id": "03.F6F",
+          "title": "Low-level Quality Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.comeet.com/jobs/oligosecurity/5A.00B/low-level-quality-lead/03.F6F",
+          "description_chars": 2787
+        },
+        {
+          "id": "07.755",
+          "title": "Senior Low-level Software Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.comeet.com/jobs/oligosecurity/5A.00B/senior-low-level-software-engineer/07.755",
+          "description_chars": 2364
+        },
+        {
+          "id": "73.755",
+          "title": "Senior Software Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.comeet.com/jobs/oligosecurity/5A.00B/senior-software-engineer/73.755",
+          "description_chars": 2389
+        }
+      ]
+    },
+    {
+      "identifier": "quantum-machines",
+      "company": "Quantum Machines",
+      "official_careers_url": "https://www.quantum-machines.co/careers/",
+      "endpoint": "https://www.comeet.com/jobs/quantummachines/D6.000",
+      "checked_at": "2026-09-26T23:24:06.031710+00:00",
+      "total_rows": 63,
+      "israel_rows": 21,
+      "snapshot_complete": false,
+      "quality_ok": true,
+      "description_char_range": [
+        1479,
+        5290
+      ],
+      "new_company_vs_prior_catalog": true,
+      "official_linkage": {
+        "url": "https://qm.teamme.link/",
+        "evidence": "Web open of official careers redirects to qm.teamme.link; that live HTML JSON-LD names Quantum Machines and sameAs the exact Comeet board. Comeet COMPANY_DATA names Quantum Machines and official website."
+      },
+      "sample_jobs": [
+        {
+          "id": "13.05B",
+          "title": "Backend Tech Lead",
+          "location": "Israel, Tel Aviv Office",
+          "url": "https://www.comeet.com/jobs/quantummachines/D6.000/backend-tech-lead/13.05B",
+          "description_chars": 2231
+        },
+        {
+          "id": "04.E6B",
+          "title": "Buyer",
+          "location": "Israel, Tel Aviv Office",
+          "url": "https://www.comeet.com/jobs/quantummachines/D6.000/buyer/04.E6B",
+          "description_chars": 2334
+        },
+        {
+          "id": "6F.26D",
+          "title": "Cloud Security Engineer - Microsoft 365",
+          "location": "Israel, Tel Aviv Office",
+          "url": "https://www.comeet.com/jobs/quantummachines/D6.000/cloud-security-engineer---microsoft-365/6F.26D",
+          "description_chars": 5290
+        },
+        {
+          "id": "CC.F46",
+          "title": "Compiler Engineer",
+          "location": "Israel, Tel Aviv Office",
+          "url": "https://www.comeet.com/jobs/quantummachines/D6.000/compiler-engineer/CC.F46",
+          "description_chars": 2307
+        },
+        {
+          "id": "5E.E51",
+          "title": "Customer Success Physicist- Tel Aviv",
+          "location": "Israel, Tel Aviv Office",
+          "url": "https://www.comeet.com/jobs/quantummachines/D6.000/customer-success-physicist--tel-aviv/5E.E51",
+          "description_chars": 2183
+        }
+      ]
+    }
+  ],
+  "new_source_count": 7,
+  "israel_rows": 93,
+  "operational_definitions_after_additions": 226,
+  "limits": {
+    "public_gets_per_source": 1,
+    "max_response_bytes": 4000000,
+    "max_feed_rows": 200,
+    "max_description_chars": 24000,
+    "redirects": false,
+    "snapshots_complete": false
+  },
+  "deferred_candidates": [
+    {
+      "company": "DoubleVerify",
+      "reason": "HTTP200 official page embeds https://doubleverify.wd5.myworkdayjobs.com/DV_Careers. Search-indexed Greenhouse board is insufficient to establish current official route.",
+      "url": "https://doubleverify.com/en/company/careers"
+    },
+    {
+      "company": "Semperis",
+      "reason": "HTTP200 official page loads https://jobs.ashbyhq.com/semperis/embed?ver=7.1. Deferred outside requested Greenhouse/Comeet feeds.",
+      "url": "https://www.semperis.com/careers/"
+    },
+    {
+      "company": "AI21",
+      "reason": "Official careers/about direct HTTP403; web open redirect loop. Comeet board HTTP200 with COMPANY_DATA AI21/ai21.com, but embedded COMPANY_POSITIONS_DATA is empty. Empty list alone does not prove employer has no jobs; no verified technical vacancy.",
+      "url": "https://www.ai21.com/careers/"
+    },
+    {
+      "company": "Trullion",
+      "reason": "Direct official HTTP403; current web results for official page and Comeet board list General Application plus two New York positions, no verified live Israel engineering/data vacancy. No board request made after eligibility failure.",
+      "url": "https://trullion.com/careers/"
+    },
+    {
+      "company": "Lusha",
+      "reason": "Official public GET HTTP403; bounded investigation stopped.",
+      "url": "https://www.lusha.com/careers/"
+    },
+    {
+      "company": "Gett",
+      "reason": "Official public GET HTTP403; bounded investigation stopped.",
+      "url": "https://www.gett.com/careers/"
+    },
+    {
+      "company": "Varonis",
+      "reason": "Web research indicates careers.varonis.com and Jobvite. Internal Jobvite search result deliberately not used; outside requested ATS scope.",
+      "url": "https://www.varonis.com/careers"
+    },
+    {
+      "company": "Verbit",
+      "reason": "Current official careers lists Ukraine ML/AI role and transcription opportunities, no verified Israel role in this check.",
+      "url": "https://verbit.ai/careers/"
+    },
+    {
+      "company": "Trigo",
+      "reason": "Official careers returned403; no verified replacement feed during this bounded check.",
+      "url": "https://www.trigoretail.com/careers/"
+    },
+    {
+      "company": "Bringg",
+      "reason": "Greenhouse returns one full role labeled TLV; current employer page did not establish exact ATS linkage, so not added.",
+      "url": "https://www.bringg.com/careers"
+    }
+  ],
+  "verification": {
+    "live_integrated_collectors": "7/7 successful, distinct IDs/full descriptions/Israel location/quality checks passed",
+    "automated_tests": {
+      "passed": 464,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0,
+      "scope": "Relevant collector, source-catalog, audit and Supabase egress regression suites. Full suite and browser suite not rerun for these additions."
+    },
+    "production_deployed": false
+  },
+  "release_verification": {
+    "general_suite": {
+      "passed": 2296,
+      "failed": 1,
+      "skipped": 0,
+      "command": ".venv/bin/pytest -q --ignore=tests/test_agent_browser_flow.py"
+    },
+    "failure_resolution": "test_every_recommended_company_has_a_logo_domain identified seven missing employer logo domains. Added their verified official domains to SOURCE_LOGO_DOMAINS.",
+    "after_fix": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "command": ".venv/bin/pytest -q tests/test_source_logos.py tests/test_verified_source_additions.py"
+    },
+    "browser_suite": {
+      "passed": 98,
+      "failed": 0,
+      "skipped": 0,
+      "command": ".venv/bin/pytest -q -n 4 tests/test_agent_browser_flow.py"
+    },
+    "javascript_syntax_check": "node --check app/static/app.js passed",
+    "full_general_suite_rerun_after_logo_map_fix": false,
+    "production_scan_triggered": false
+  }
+}

@@ -1,0 +1,2852 @@
+{
+  "generated_at": "2026-09-27T01:58:52+03:00",
+  "scope": "All 60 failed/unverified sources from the baseline260-entry public audit.",
+  "counts": {
+    "retired": 39,
+    "covered_by_existing_parent": 2,
+    "recovered": 19
+  },
+  "recovered_israel_rows": 992,
+  "catalog_after_policy": {
+    "retained_operational": 219,
+    "previously_working": 191,
+    "recovered": 19,
+    "previously_valid_without_israel_rows": 9,
+    "excluded_from_baseline": 41
+  },
+  "safety": {
+    "production_scan": false,
+    "production_database_access": false,
+    "personal_browser_used": false,
+    "applications_sent": 0,
+    "data_deleted": false
+  },
+  "semantics": "Static policy excludes retired sources from scanning, operational lists and installation. Existing records/history remain. Unverified jobs expire after 14 days since last verification, after scan finalization; independently verified source aliases keep a job active. Public diagnostic alone does not persist jobs or start expiry.",
+  "caveats": [
+    "All 19 recovered snapshots are partial and bounded; no claim of complete employer catalogs.",
+    "Final repeat returned 992 rows versus 993 earlier: one additional Ministry vacancy could not be verified in that run. This is not proof that the vacancy closed.",
+    "Counts are before track classification, personal filters, duplicate reconciliation and ranking; not newly inserted production jobs.",
+    "Retired sources may have vacancies; failure to verify collection is not proof of absence.",
+    "The existing shared 64 MiB/day catalog transfer guard can defer work. Production current Supabase usage has not been rechecked."
+  ],
+  "parent_verifications": [
+    {
+      "name": "ServiceNow",
+      "kind": "smartrecruiters",
+      "identifier": "ServiceNow",
+      "audit_reason": null,
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:36:02.273446+00:00",
+      "adapter": "smartrecruiters",
+      "state": "complete",
+      "total_rows": 11,
+      "israel_rows": 11,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": true,
+      "complete_descriptions": 11,
+      "description_quality_counts": {
+        "complete": 11
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "744000151651323",
+          "title": "Sr Staff Product Manager (Armis)",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151651323-sr-staff-product-manager-armis-"
+        },
+        {
+          "id": "744000151647220",
+          "title": "Data Operations Team Lead (Armis)",
+          "location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151647220-data-operations-team-lead-armis-"
+        },
+        {
+          "id": "744000151377000",
+          "title": "Principal AI Security Engineer ",
+          "location": "Petah Tikva, Israel",
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151377000-principal-ai-security-engineer-"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 0.65
+    },
+    {
+      "name": "Palo Alto Networks",
+      "kind": "official_careers",
+      "identifier": "paloalto",
+      "audit_reason": null,
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:36:02.273470+00:00",
+      "adapter": "official_other_or_generic",
+      "listing_url": "https://jobs.paloaltonetworks.com/en/location/israel-jobs/47263/294640/2",
+      "state": "partial",
+      "total_rows": 15,
+      "israel_rows": 15,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 15,
+      "description_quality_counts": {
+        "complete": 15
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "99101926288",
+          "title": "Senior Linux Detection Researcher (Cortex)",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.paloaltonetworks.com/en/job/tel-aviv/senior-linux-detection-researcher-cortex/47263/99101926288"
+        },
+        {
+          "id": "101081218016",
+          "title": "Sr Staff Data Scientist",
+          "location": "Petah Tikva, Israel",
+          "url": "https://jobs.paloaltonetworks.com/en/job/petah-tikva/sr-staff-data-scientist/47263/101081218016"
+        },
+        {
+          "id": "101081217872",
+          "title": "Principal Engineer Software- Backend Infra (Cortex)",
+          "location": "Tel Aviv, Israel",
+          "url": "https://jobs.paloaltonetworks.com/en/job/tel-aviv/principal-engineer-software-backend-infra-cortex/47263/101081217872"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 7.36
+    }
+  ],
+  "sources": [
+    {
+      "name": "Analog Devices Careers Israel",
+      "kind": "official_careers",
+      "identifier": "analog-devices",
+      "decision": "retired",
+      "reason": "The existing bounded Workday reader was rechecked and again found no verified Israel details. The official analog.com careers page still links the same External Workday board; there is no verified alternative vacancy feed.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.analog.com/en/careers.html",
+          "evidence": "Official web research confirms the External Workday board; direct HTTP request timed out."
+        },
+        {
+          "url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "evidence": "Bounded live collector: PreserveExistingJobs; no verified Israel detail, absence remains unproven."
+        }
+      ],
+      "original_url": "https://careers.analog.com/",
+      "original_failure": "PreserveExistingJobs: Analog Devices bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Armis — Data & Program Operations",
+      "kind": "greenhouse",
+      "identifier": "armissecurity",
+      "decision": "covered_by_existing_parent",
+      "reason": "The old Armis Greenhouse board no longer exposes a usable job payload. The current employer careers route leads to ServiceNow; its already-installed source was checked live and includes explicitly titled Armis roles. No duplicate replacement source was added.",
+      "checked_urls": [
+        {
+          "url": "https://www.armis.com/careers/",
+          "evidence": "Official employer careers entry."
+        },
+        {
+          "url": "https://careers.servicenow.com/",
+          "evidence": "Current parent company careers route."
+        },
+        {
+          "url": "https://jobs.smartrecruiters.com/ServiceNow/744000151651323-sr-staff-product-manager-armis-",
+          "evidence": "Explicit Armis role returned by the existing ServiceNow collector."
+        }
+      ],
+      "original_url": "",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Ashdod Port — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ashdod-port",
+      "decision": "retired",
+      "reason": "Old page and current indexed /about/Careers/pages/careers.aspx both returned Request Rejected; the latter redirected to the same blocked homepage. No bypass attempted; no verified public alternative feed.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.ashdodport.co.il/about/careers/",
+          "final_url": "https://www.ashdodport.co.il/about/careers/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 244,
+          "title": "Request Rejected",
+          "sha256": "a4360aabd2e6676257fcf3a47c50d77eafe6e0b850c6117dd541f06be20587e6"
+        },
+        {
+          "url": "https://www.ashdodport.co.il/about/Careers/pages/careers.aspx",
+          "final_url": "https://www.ashdodport.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 244,
+          "title": "Request Rejected",
+          "sha256": "b9019e68e1359806b45793852b013693e2bd350d1858d762a4866ef142609b72"
+        }
+      ],
+      "original_url": "https://www.ashdodport.co.il/about/careers/",
+      "original_failure": "PreserveExistingJobs: Ashdod Port did not expose a reliable job payload; candidate_rows=3, rejected={'detail': 0, 'schema': 3, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Assuta Medical Centers Careers Israel",
+      "kind": "official_careers",
+      "identifier": "assuta",
+      "decision": "retired",
+      "reason": "Old /about/jobs/ is404 and points to /jobs/. The current official /jobs/ redirected to a Radware CAPTCHA. Search found aggregate employer pages, but no verified official public payload; no CAPTCHA bypass attempted.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.assuta.co.il/about/jobs/",
+          "final_url": "https://www.assuta.co.il/about/jobs/",
+          "method": "GET",
+          "status": 404,
+          "bytes": 38473,
+          "title": "",
+          "sha256": "cc01ef086a54ecf9b5cc67bc2c8d2d4666a42c10b6d25db418e62b9c4863c84e"
+        },
+        {
+          "url": "https://www.assuta.co.il/jobs/",
+          "final_url": "https://validate.perfdrive.com/ [CAPTCHA redirect parameters omitted]",
+          "method": "GET",
+          "status": 200,
+          "bytes": 15044,
+          "title": "Radware Captcha Page",
+          "sha256": "ac58b94ff5c7e4e4a08246d601dbb3aa7cb1824d0638a91eef7ed2151de4da8f"
+        }
+      ],
+      "original_url": "https://www.assuta.co.il/about/jobs/",
+      "original_failure": "PreserveExistingJobs: Assuta Medical Centers did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Cal — CS Israel",
+      "kind": "official_careers",
+      "identifier": "cal",
+      "decision": "retired",
+      "reason": "Current indexed individual-job URL and old listing both returned HTTP400 Request Rejected. No verified alternative feed; no bypass attempted.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.cal-online.co.il/about/jobs/",
+          "final_url": "https://www.cal-online.co.il/about/jobs/",
+          "method": "GET",
+          "status": 400,
+          "bytes": 207,
+          "title": "Request Rejected",
+          "sha256": "593e1300c51262ed663d032e898e2f30b86220d6b05be767c42e5db6b739f40d"
+        },
+        {
+          "url": "https://www.cal-online.co.il/about/jobs?job=188",
+          "final_url": "https://www.cal-online.co.il/about/jobs?job=188",
+          "method": "GET",
+          "status": 400,
+          "bytes": 208,
+          "title": "Request Rejected",
+          "sha256": "7c2c7bddbef818b8c53373f01b434bbd288152d61f991c6e06cadbcb5ca28435"
+        }
+      ],
+      "original_url": "https://www.cal-online.co.il/about/careers/",
+      "original_failure": "PreserveExistingJobs: Cal did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Cellcom Careers Israel",
+      "kind": "official_careers",
+      "identifier": "cellcom",
+      "decision": "retired",
+      "reason": "Careers URL returns an empty JavaScript application shell. Its published application bundle exceeds4MB and the bounded read stopped. Search found a third-party company page, but no employer-confirmed feed with full stable vacancy payloads.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.cellcom.co.il/career/",
+          "final_url": "https://cellcom.co.il/career/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 3815,
+          "title": "",
+          "sha256": "aee27931ca78bf3e4ca4c237ce743051b3dfeceb21aa53844749be22bfbb57f7"
+        },
+        {
+          "url": "https://cellcom.co.il/Spa/Scripts/app.69fe12de6a00d691449a.js",
+          "method": "GET",
+          "error": "Application script exceeded4000000bytes; stopped"
+        }
+      ],
+      "original_url": "https://www.cellcom.co.il/career/",
+      "original_failure": "PreserveExistingJobs: Cellcom did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Clalit — CS Israel",
+      "kind": "official_careers",
+      "identifier": "clalit",
+      "decision": "recovered",
+      "reason": "Official Positions redirects to /clalit/index.html?ci=0. Published settings gives the exact public CandidateAPI tenant and countryId2=Israel; components constructs compPositionID job links. Public Search returns557 full-description records; output capped at200. Explicit region and known Clalit affiliate identity required. No publication date inferred from activationDate.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://jobs.clalitapps.co.il/Positions",
+          "final_url": "https://jobs.clalitapps.co.il/clalit/index.html?ci=0",
+          "method": "GET",
+          "status": 200,
+          "bytes": 11559,
+          "title": "משרות בכללית",
+          "sha256": "80f909a29503d7788129da45395ec9b777269a62f191f880461b581adbdee599"
+        },
+        {
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch.settings.js",
+          "final_url": "https://jobs.clalitapps.co.il/clalit/redmatch.settings.js",
+          "method": "GET",
+          "status": 200,
+          "bytes": 702,
+          "title": "",
+          "sha256": "048656bd6ad78802f6c235151a5d8617eee2c695ed129baa12feccd4fe7c8ba1"
+        },
+        {
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch.candidate.components.js",
+          "final_url": "https://jobs.clalitapps.co.il/clalit/redmatch.candidate.components.js",
+          "method": "GET",
+          "status": 200,
+          "bytes": 15977,
+          "title": "",
+          "sha256": "1b8d1d78b3ad6dd71953febbb6571b5d7fc87ac60539f6605ffc600fab3947ed"
+        },
+        {
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=50076",
+          "final_url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=50076",
+          "method": "GET",
+          "status": 200,
+          "bytes": 25391,
+          "title": "apply - {position name}",
+          "sha256": "c98b0272e522de52987e9f71df9487629f7530f7ef101aab553996fab96bf74b"
+        },
+        {
+          "url": "https://jobs.clalitapps.co.il/CandidateAPI/api/position/Search/9E6C0368-A39E-4D83-803E-CF2AF0BA28DD",
+          "method": "POST read-only search",
+          "status": 200,
+          "bytes": 2239913,
+          "raw_rows": 557
+        }
+      ],
+      "original_url": "https://jobs.clalitapps.co.il/",
+      "original_failure": "PreserveExistingJobs: Clalit did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 200,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "50076",
+          "title": "רכז/ת פיתוח משאבי אנוש",
+          "location": "רעננה",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=50076"
+        },
+        {
+          "id": "49365",
+          "title": "ממונה/ת בטיחות",
+          "location": "רעננה",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=49365"
+        },
+        {
+          "id": "47045",
+          "title": "פקיד.ה לבי\"ח כרמל- עבודה במשמרות",
+          "location": "חיפה - בי\"ח כרמל",
+          "url": "https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html?compPositionID=47045"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:33.688425+00:00"
+    },
+    {
+      "name": "CyberArk Careers Israel",
+      "kind": "smartrecruiters",
+      "identifier": "Cyberark1",
+      "decision": "covered_by_existing_parent",
+      "reason": "The obsolete CyberArk SmartRecruiters source is retired. Current official career routing points to Palo Alto Networks, whose existing collector was checked live. The15 parent-company Israel results are not claimed to be15 CyberArk roles or complete subsidiary coverage.",
+      "checked_urls": [
+        {
+          "url": "https://www.cyberark.com/careers/all-job-openings/",
+          "evidence": "Official employer career entry now routes to the parent careers site."
+        },
+        {
+          "url": "https://jobs.paloaltonetworks.com/",
+          "evidence": "Existing parent source rechecked:15 accepted Israel rows, partial snapshot."
+        }
+      ],
+      "original_url": "",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Deep Instinct Careers Israel",
+      "kind": "official_careers",
+      "identifier": "deep-instinct",
+      "decision": "retired",
+      "reason": "Current official Next.js page exposes five real open-role cards, all explicitly US regions or Japan. No Israel vacancy detail is published there. Do not turn this into an employer-wide zero-jobs claim.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.deepinstinct.com/careers",
+          "status": 200,
+          "final_url": "https://www.deepinstinct.com/careers",
+          "bytes": 132089,
+          "title": "Careers | Deep Instinct"
+        }
+      ],
+      "original_url": "https://www.deepinstinct.com/careers",
+      "original_failure": "PreserveExistingJobs: Deep Instinct did not expose a reliable job payload; candidate_rows=2, rejected={'detail': 0, 'schema': 2, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Dell Technologies Careers Israel",
+      "kind": "official_careers",
+      "identifier": "dell",
+      "decision": "recovered",
+      "reason": "jobs.dell.com now redirects to the employer-owned Oracle CX site. Its Israel country facet exposes nine full jobs. The original generic landing-page reader was obsolete.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://jobs.dell.com/",
+          "evidence": "Redirects to https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers."
+        },
+        {
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers",
+          "evidence": "200; public configuration declares CX_1001."
+        },
+        {
+          "url": "https://enterpriseplatform.dell.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_1001,limit=25,offset=0,selectedLocationsFacet=300000000471047",
+          "evidence": "200; Israel facet 300000000471047 verified by the public locationsFacet;9 rows and 9 hydrated details."
+        }
+      ],
+      "original_url": "https://jobs.dell.com/",
+      "original_failure": "PreserveExistingJobs: Dell Technologies did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 9,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "298815",
+          "title": "Software Senior Principal Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/298815"
+        },
+        {
+          "id": "296146",
+          "title": "Software Senior Principal Engineer (Beer-Sheva)",
+          "location": "Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/296146"
+        },
+        {
+          "id": "292332",
+          "title": "ML Ops Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/292332"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:35.484332+00:00"
+    },
+    {
+      "name": "Deloitte Israel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "deloitte-israel",
+      "decision": "retired",
+      "reason": "The general global careers page is not the local job board. Official local careers.deloitte.co.il exposes 68 positions in web research, but both its landing and positions page returned 403 directly. No challenge was bypassed and no unverified reader was enabled.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.deloitte.com/il/en/careers.html",
+          "evidence": "Original generic source was unverified in prior audit."
+        },
+        {
+          "url": "https://careers.deloitte.co.il/",
+          "evidence": "403 on direct public request; official employer careers site confirmed by web research."
+        },
+        {
+          "url": "https://careers.deloitte.co.il/positions/",
+          "evidence": "403 on direct request; indexed official page advertises 68 roles, so no-jobs inference would be false."
+        }
+      ],
+      "original_url": "https://www.deloitte.com/il/en/careers.html",
+      "original_failure": "PreserveExistingJobs: Deloitte Israel did not expose a reliable job payload; candidate_rows=4, rejected={'detail': 0, 'schema': 4, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "DHL — CS Israel",
+      "kind": "official_careers",
+      "identifier": "dhl-israel",
+      "decision": "retired",
+      "reason": "Global search returned 0. The official local DHL article lists nine roles with descriptions and Israel locations, but applications use one email and no real per-vacancy IDs. Synthetic IDs or invented URLs were not created.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://careers.dhl.com/global/en/search-results?keywords=Israel",
+          "evidence": "200; Phenom public embedded search has totalHits 0."
+        },
+        {
+          "url": "https://www.dhl.com/discover/en-il/Career-at-DHL/Career-at-DHL2",
+          "evidence": "Official article, published 2026-09-16, exposes 9 role descriptions but no stable vacancy IDs or unique application URLs."
+        }
+      ],
+      "original_url": "https://careers.dhl.com/global/en",
+      "original_failure": "PreserveExistingJobs: DHL did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Elspec Careers Israel",
+      "kind": "official_careers",
+      "identifier": "elspec",
+      "decision": "retired",
+      "reason": "Official careers returns HTTP 403. The accessible employer home page links that same careers route; web research found no verified public official ATS alternative. No challenge bypass attempted.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.elspec-ltd.com/careers/",
+          "status": 403,
+          "final_url": "https://www.elspec-ltd.com/careers/",
+          "bytes": 52,
+          "title": ""
+        },
+        {
+          "url": "https://www.elspec-ltd.com/",
+          "status": 200,
+          "final_url": "https://www.elspec-ltd.com/",
+          "bytes": 226098,
+          "title": "Power Quality Analyzers & Power Quality Solutions | Elspec"
+        }
+      ],
+      "original_url": "https://www.elspec-ltd.com/careers/",
+      "original_failure": "HTTPStatusError: Client error '403 Forbidden' for url 'https://www.elspec-ltd.com/careers/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Ericsson Careers Israel",
+      "kind": "official_careers",
+      "identifier": "ericsson",
+      "decision": "retired",
+      "reason": "The primary page was 403 in the earlier audit. Employer-specific public Eightfold careers page works, but its Israel search returns count 0. This does not establish no Israel vacancies and cannot justify enabling a new collector.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.ericsson.com/en/careers",
+          "evidence": "Official web research links the careers board; prior direct HTTP 403."
+        },
+        {
+          "url": "https://jobs.ericsson.com/careers?domain=ericsson.com&location=Israel",
+          "evidence": "200 public employer-branded Eightfold page."
+        },
+        {
+          "url": "https://jobs.ericsson.com/api/pcsx/search?domain=ericsson.com&query=&location=Israel&start=0&hl=en",
+          "evidence": "200, count 0, positions[]. No empty-success reader added."
+        }
+      ],
+      "original_url": "https://www.ericsson.com/en/careers",
+      "original_failure": "PreserveExistingJobs: Ericsson did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "EY Israel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ey-israel",
+      "decision": "recovered",
+      "reason": "The old global country URL was 404; local ey.co.il/career returns 403. EY official SuccessFactors search exposes 25 live Israel vacancies on its first page, with full descriptions, canonical numeric IDs, hiringOrganization EY and explicit IL address fields.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.ey.com/en_il/careers",
+          "evidence": "404 in prior audit."
+        },
+        {
+          "url": "https://ey.co.il/career/",
+          "evidence": "403 directly; official web research confirms local openings."
+        },
+        {
+          "url": "https://careers.ey.com/ey/?locale=he_IL",
+          "evidence": "Official Hebrew job-search portal found in web research."
+        },
+        {
+          "url": "https://careers.ey.com/search/?q=&locationsearch=Israel",
+          "evidence": "200; 25 roles on fetched page, 25 hydrated/quality-validated."
+        }
+      ],
+      "original_url": "https://www.ey.com/en_il/careers",
+      "original_failure": "PreserveExistingJobs: EY Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 25,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "1117187801",
+          "title": "איש-ת אחזקה, מחלקת התפעול",
+          "location": "Haifa, Israel",
+          "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%90%D7%99%D7%A9-%D7%AA-%D7%90%D7%97%D7%96%D7%A7%D7%94%2C-%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%AA%D7%A4%D7%A2%D7%95%D7%9C-6706703/1117187801/"
+        },
+        {
+          "id": "1410371233",
+          "title": "מבקר-ת למערך הבקרה במחלקת המגזר הציבורי",
+          "location": "Jerusalem, Israel",
+          "url": "https://careers.ey.com/ey/job/Jerusalem-%D7%9E%D7%91%D7%A7%D7%A8-%D7%AA-%D7%9C%D7%9E%D7%A2%D7%A8%D7%9A-%D7%94%D7%91%D7%A7%D7%A8%D7%94-%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%9E%D7%92%D7%96%D7%A8-%D7%94%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99-9777508/1410371233/"
+        },
+        {
+          "id": "1416792033",
+          "title": "התמחות בחיפה",
+          "location": "Haifa, Israel",
+          "url": "https://careers.ey.com/ey/job/Haifa-%D7%94%D7%AA%D7%9E%D7%97%D7%95%D7%AA-%D7%91%D7%97%D7%99%D7%A4%D7%94-3309502/1416792033/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:38.913764+00:00"
+    },
+    {
+      "name": "Fox Group — CS Israel",
+      "kind": "official_careers",
+      "identifier": "fox-group",
+      "decision": "recovered",
+      "reason": "Official foxgroup.co.il JOB OPENINGS links Dreamjobs. Listing contains numeric /career/{id} URLs and corresponding visible IDs. Full detail has matching repeated ID, title, city and isolated body. Old idus domain has certificate failure; new official board recovers28 complete Israel roles of30 candidates, two unresolved locations withheld.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.foxgroup.co.il/",
+          "final_url": "https://www.foxgroup.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 1470298,
+          "title": "Retail | Fox Group",
+          "sha256": "9620049386af40dee2ee4427613613a2a5dd1fe9c0b179583558fd86cb92ad20"
+        },
+        {
+          "url": "https://dreamjobs.co.il/",
+          "final_url": "https://dreamjobs.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 988743,
+          "title": "Dreamjobs",
+          "sha256": "7fc0a7f2f2be695009beead72d66ea94a86bfd95a1b90106a8869782ee741c98"
+        },
+        {
+          "url": "https://dreamjobs.co.il/career/10518",
+          "final_url": "https://dreamjobs.co.il/career/10518",
+          "method": "GET",
+          "status": 200,
+          "bytes": 642937,
+          "title": "FOX |  יועצי/ות מכירה MANGO גינדי תל אביב",
+          "sha256": "a19a926898050a9d6c3d2433852abf71d1f7546b15bcafb84132a41dba206534"
+        },
+        {
+          "url": "https://www.foxhr.2.idus.co.il/",
+          "method": "GET",
+          "error": "TLS certificate verification failure; certificate checks retained"
+        }
+      ],
+      "original_url": "https://www.foxhr.2.idus.co.il/",
+      "original_failure": "PreserveExistingJobs: Fox Group did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 28,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "10518",
+          "title": "יועצי/ות מכירה MANGO גינדי תל אביב",
+          "location": "תל אביב",
+          "url": "https://dreamjobs.co.il/career/10518"
+        },
+        {
+          "id": "10264",
+          "title": "יועצי/ות מכירה MANGO ממילא ירושלים",
+          "location": "ירושלים",
+          "url": "https://dreamjobs.co.il/career/10264"
+        },
+        {
+          "id": "10449",
+          "title": "אחמש\"ים/ות לרשת FOX – חצי חינם חולון",
+          "location": "חולון",
+          "url": "https://dreamjobs.co.il/career/10449"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:43.594116+00:00"
+    },
+    {
+      "name": "Haifa Port — CS Israel",
+      "kind": "official_careers",
+      "identifier": "haifa-port",
+      "decision": "retired",
+      "reason": "Listing and search-indexed official vacancy detail both return HTTP403. No bypass attempted and no official alternative feed verified.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.haifaport.co.il/jobs/",
+          "final_url": "https://www.haifaport.co.il/jobs/",
+          "method": "GET",
+          "status": 403,
+          "bytes": 118,
+          "title": "403 Forbidden",
+          "sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4"
+        },
+        {
+          "url": "https://www.haifaport.co.il/jobs/נהג-ת-גורר/",
+          "final_url": "https://www.haifaport.co.il/jobs/%D7%A0%D7%94%D7%92-%D7%AA-%D7%92%D7%95%D7%A8%D7%A8/",
+          "method": "GET",
+          "status": 403,
+          "bytes": 118,
+          "title": "403 Forbidden",
+          "sha256": "58bf2215b395dcac74c009aa98701854e43cbe54a1cd3a95fee6a647ca9910d4"
+        }
+      ],
+      "original_url": "https://www.haifaport.co.il/jobs/",
+      "original_failure": "PreserveExistingJobs: Haifa Port did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Harel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "harel",
+      "decision": "retired",
+      "reason": "Old official careers path404. Search-discovered Harel AdamTotal board contains indexed full job content, but direct response exceeds4MB and is rejected by audit budget. Official /about page did not independently link the token. No bounded confirmed feed verified.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx",
+          "final_url": "https://www.harel-group.co.il/about/harel-group/careers/pages/default.aspx",
+          "method": "GET",
+          "status": 404,
+          "bytes": 322653,
+          "title": "דף אינו נמצא - 404 | הראל ביטוח ופיננסים",
+          "sha256": "42b7611dcbf453ec57b91126bee4aecc060c1208699433e1a8e6203ab08d2f70"
+        },
+        {
+          "url": "https://www.harel-group.co.il/about",
+          "final_url": "https://www.harel-group.co.il/about",
+          "method": "GET",
+          "status": 200,
+          "bytes": 352334,
+          "title": "אודות הראל | הראל ביטוח ופיננסים",
+          "sha256": "7041c588f3e4d855613b1640814a27aed50964de7ebf37f68ce703f0d32b8878"
+        },
+        {
+          "url": "https://career.adamtotal.co.il/?token=6675d401-0dee-428a-a776-5d41885d16b0-harel",
+          "method": "GET",
+          "error": "Response body exceeded4000000bytes; stopped"
+        }
+      ],
+      "original_url": "https://www.harel-group.co.il/about/harel-group/careers/Pages/default.aspx",
+      "original_failure": "PreserveExistingJobs: Harel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "HOT Careers Israel",
+      "kind": "official_careers",
+      "identifier": "hot",
+      "decision": "recovered",
+      "reason": "Current official career URL redirects to /heb/careersearch/. Its script documents unauthenticated read-only POST MarketingJob/GetJobs. Five IDs and full responsibility/requirement fields returned; four have explicit Yakum location, one field-only role withheld. Actual inline application board retained with exact employer record metadata; no invented deep links.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.hot.net.il/heb/career/",
+          "final_url": "https://www.hot.net.il/heb/careersearch/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 97634,
+          "title": "HOT | חיפוש משרה - המשרות הכי שוות ב-HOT בואו לעבוד איתנו",
+          "sha256": "9d8742177c2d407fc53e1ab4d2d5efbf98cf681e3663f5d2e273a531e6e72001"
+        },
+        {
+          "url": "https://www.hot.net.il/sc/43ee827a.e78b5c4f.3c082d9f.f8a747b2.d2bb793e.9352ebe2.a2387b4a.fdc62e2a.5717b1b4.a6c86df9.d2d8311b.js.v639260367555964409",
+          "final_url": "https://www.hot.net.il/sc/43ee827a.e78b5c4f.3c082d9f.f8a747b2.d2bb793e.9352ebe2.a2387b4a.fdc62e2a.5717b1b4.a6c86df9.d2d8311b.js.v639260367555964409",
+          "method": "GET",
+          "status": 200,
+          "bytes": 250230,
+          "title": "",
+          "sha256": "88b01e581299bc30233b78c89f475d02ed95f2e721ba067abd4d71795adb0fab"
+        },
+        {
+          "url": "https://www.hot.net.il/HotCmsApiFront/api/MarketingJob/GetJobs",
+          "method": "POST read-only search",
+          "status": 200,
+          "bytes": 10677,
+          "raw_rows": 5
+        }
+      ],
+      "original_url": "https://www.hot.net.il/heb/career/",
+      "original_failure": "PreserveExistingJobs: HOT did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 4,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "JB-265",
+          "title": "כלכלן/ית למחלקת הכנסות ופיתוח עסקי",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        },
+        {
+          "id": "JB-141",
+          "title": "רכז/ת תפעול ובקרה",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        },
+        {
+          "id": "JB-186",
+          "title": "נציג.ת תמיכה ללקוחות אסטרטגיים",
+          "location": "יקום, Israel",
+          "url": "https://www.hot.net.il/heb/careersearch/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:44.615554+00:00"
+    },
+    {
+      "name": "IBM Careers Israel",
+      "kind": "official_careers",
+      "identifier": "ibm",
+      "decision": "retired",
+      "reason": "The official country-filtered search renders 0 items and its current global location facets omit Israel. The employer-linked Avature alternative returned an empty 202 response. Neither supplies verified live vacancies.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+          "evidence": "200 shell; one fresh isolated headless visit rendered0 Israel results and no Israel country facet."
+        },
+        {
+          "url": "https://careers.ibm.com/en_US/careers/SearchJobs/?522=Israel&522_format=1347",
+          "evidence": "202, zero bytes; no usable job detail."
+        },
+        {
+          "url": "https://www-api.ibm.com/search/api/v2",
+          "evidence": "Public search endpoint observed in the official page; no speculative adapter added."
+        }
+      ],
+      "original_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+      "original_failure": "PreserveExistingJobs: IBM did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Ichilov Medical Center — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ichilov",
+      "decision": "recovered",
+      "reason": "Old careers path404. Official jobs.tasmc.org.il Positions publishes an exact Topmatch tenant and countryId2=Israel; its public search returns78 complete records all under the exact Ichilov affiliate name. Actual compPositionID application links verified HTTP200.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.tasmc.org.il/careers/",
+          "final_url": "https://www.tasmc.org.il/careers/",
+          "method": "GET",
+          "status": 404,
+          "bytes": 73978,
+          "title": "404",
+          "sha256": "ccc7c4dc19ceb703920ba6d3c29f5c7aad45445e89b4d6082410c9c4f493951d"
+        },
+        {
+          "url": "https://jobs.tasmc.org.il/Positions/",
+          "final_url": "https://jobs.tasmc.org.il/Positions/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 15100,
+          "title": "קריירה באיכילוב",
+          "sha256": "9e3d0e3e5a64019ab0a1d7592de7f608474b8aa1f2249eb0271466d7f29e8989"
+        },
+        {
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch.settings.js",
+          "final_url": "https://jobs.tasmc.org.il/Positions/redmatch.settings.js",
+          "method": "GET",
+          "status": 200,
+          "bytes": 811,
+          "title": "",
+          "sha256": "5fe6ca821bacef7e15cc690e6edc10df4e4553275b78d33dc78807ba50b0b217"
+        },
+        {
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199255",
+          "final_url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199255",
+          "method": "GET",
+          "status": 200,
+          "bytes": 24415,
+          "title": "apply - {position name}",
+          "sha256": "ae56d3a1d64f6560c539f9483b92195030d586563b87f289ebff20d58444003b"
+        },
+        {
+          "url": "https://careers.topmatch.co.il/CandidateAPI/api/position/Search/3FC41CB2-A7A8-454A-BC2B-0EDC1A919656",
+          "method": "POST read-only search",
+          "status": 200,
+          "bytes": 315447,
+          "raw_rows": 78
+        }
+      ],
+      "original_url": "https://www.tasmc.org.il/careers/",
+      "original_failure": "PreserveExistingJobs: Ichilov Medical Center did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 78,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "199255",
+          "title": "מנהל.ת מחקר למרכז PREACT להיערכות לטראומה נפשית המונית",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199255"
+        },
+        {
+          "id": "199248",
+          "title": "כלכלן.ית לאגף הרכש והלוגיסטיקה",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=199248"
+        },
+        {
+          "id": "196149",
+          "title": "ראש.ת צוות ליחידת המחקר באונקולוגיה",
+          "location": "גוש דן, Israel",
+          "url": "https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html?compPositionID=196149"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:44.764533+00:00"
+    },
+    {
+      "name": "Isracard — CS Israel",
+      "kind": "official_careers",
+      "identifier": "isracard",
+      "decision": "retired",
+      "reason": "Old path404; search-discovered official marketing.isracard.co.il/careershome/ returns Cloudflare403 blocked page. No bypass attempted or alternate feed verified.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.isracard.co.il/pages/careers/",
+          "final_url": "https://www.isracard.co.il/pages/careers",
+          "method": "GET",
+          "status": 404,
+          "bytes": 2206,
+          "title": "404 Error: Page Not Found",
+          "sha256": "b0dbcb29587f204054f61f95d74a902337a305b0e26c6a73a17d8a3c719e5494"
+        },
+        {
+          "url": "https://marketing.isracard.co.il/careershome/",
+          "final_url": "https://marketing.isracard.co.il/careershome/",
+          "method": "GET",
+          "status": 403,
+          "bytes": 5497,
+          "title": "Attention Required! | Cloudflare",
+          "sha256": "1e80c51a37fc040d6335b5777f50b6a711cb1aa10e33013c241b410bb4547396"
+        }
+      ],
+      "original_url": "https://www.isracard.co.il/pages/careers/",
+      "original_failure": "PreserveExistingJobs: Isracard did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Israel Discount Bank — CS Israel",
+      "kind": "official_careers",
+      "identifier": "discount-bank",
+      "decision": "recovered",
+      "reason": "Official homepage and404 footer link /DB/jobs/#he-IL/sites/CX_3001. That official page explicitly embeds ehsb.fa.em2.oraclecloud.com. Existing bounded Oracle CX reader verifies40 complete Israel details with real numeric IDs; all quality checks pass.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.discountbank.co.il/private/general-information/careers/",
+          "final_url": "https://www.discountbank.co.il/private/general-information/careers/",
+          "method": "GET",
+          "status": 404,
+          "bytes": 145045,
+          "title": "דיסקונט 404 | דיסקונט",
+          "sha256": "3dcc100cae475b6b03fd391fde2e86bc349ec9dae6b432c7d1590cf5669826e7"
+        },
+        {
+          "url": "https://www.discountbank.co.il/",
+          "final_url": "https://www.discountbank.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 186288,
+          "title": "בנק דיסקונט לישראל | דיסקונט",
+          "sha256": "4d05eda8f7718e1e2e9077557f6eb882c525c2469d2a999192dab91a56515643"
+        },
+        {
+          "url": "https://www.discountbank.co.il/DB/jobs/",
+          "final_url": "https://www.discountbank.co.il/DB/jobs/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 6734,
+          "title": "",
+          "sha256": "1dcac92bfe547bab8330a813e962278088d1e3d30eec97dad95393313bc10d63"
+        },
+        {
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions",
+          "method": "GET public CX search, siteNumber=CX_3001",
+          "detail_count": 40,
+          "quality_gate": "passed"
+        }
+      ],
+      "original_url": "https://www.discountbank.co.il/private/general-information/careers/",
+      "original_failure": "PreserveExistingJobs: Israel Discount Bank did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 40,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "5623",
+          "title": "ראש.ת תחום יעוץ משפטי- ניהול מחלקת תביעות- חטיבת הייעוץ המשפטי",
+          "location": "ראשון לציון, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5623"
+        },
+        {
+          "id": "5613",
+          "title": "יועץ.ת משכנתאות - סניף לוד - החטיבה הבנקאית",
+          "location": "לוד, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5613"
+        },
+        {
+          "id": "103",
+          "title": "בנקאי.ת טלפוני.ת - מוקד ראשון לציון - החטיבה הבנקאית",
+          "location": "ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/103"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:38.894487+00:00"
+    },
+    {
+      "name": "Israel Electric Corporation Careers Israel",
+      "kind": "official_careers",
+      "identifier": "iec",
+      "decision": "recovered",
+      "reason": "Official IEC careers subdomain provides33 numeric vacancy records in const orders plus same-ID listing cards and actual share links. Full content is embedded separately from shortened cards;31 complete roles accepted, two withheld. Explicit domestic regions and nonexpired application deadline required. No JavaScript execution.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.iec.co.il/careers",
+          "final_url": "https://www.iec.co.il/careers",
+          "method": "GET",
+          "status": 200,
+          "bytes": 36492,
+          "title": "חברת החשמל לישראל - עמוד הבית",
+          "sha256": "681ac3a79414712e50f39abb187148c953a51b61a24da9fb8aa9920bbb41b74b"
+        },
+        {
+          "url": "https://careers.iec.co.il/",
+          "final_url": "https://careers.iec.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 985780,
+          "title": "משרות פנויות - חברת החשמל - אתר המשרות",
+          "sha256": "c792fb8f46057508a2a31de543482fef95afaa206067faa6d79a8e9e382d7815"
+        },
+        {
+          "url": "https://careers.iec.co.il/order/15534/",
+          "final_url": "https://careers.iec.co.il/order/15534/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 116842,
+          "title": "הנדסאי/ת מכשור ובקרה לתחנת הכוח בחדרה - חברת החשמל - אתר המשרות",
+          "sha256": "7fccc71857fb167fb60bbb2581469ec161473019dc2bca0322f2bda96ba5cc87"
+        }
+      ],
+      "original_url": "https://www.iec.co.il/careers",
+      "original_failure": "PreserveExistingJobs: Israel Electric Corporation did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 31,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "15534",
+          "title": "הנדסאי/ת מכשור ובקרה לתחנת הכוח בחדרה",
+          "location": "השרון, Israel",
+          "url": "https://careers.iec.co.il/order/15534/"
+        },
+        {
+          "id": "15524",
+          "title": "עוזר/ת למהנדס/ת התפעול בתחנת הכוח גזר ברמלה",
+          "location": "השפלה, Israel",
+          "url": "https://careers.iec.co.il/order/15524/"
+        },
+        {
+          "id": "15513",
+          "title": "מנהל/ת רשת תקשורת ואבטחת רשת לגן שורק",
+          "location": "חיפה והצפון, Israel",
+          "url": "https://careers.iec.co.il/order/15513/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:46.055129+00:00"
+    },
+    {
+      "name": "Israel Post — CS Israel",
+      "kind": "official_careers",
+      "identifier": "israel-post",
+      "decision": "retired",
+      "reason": "Old page404 points to current /שירותים/דרושים-ומשרות-פנויות/. Current official page redirects to Radware CAPTCHA; no bypass attempted or alternative official feed verified.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://israelpost.co.il/אודות/דרושים/",
+          "final_url": "https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/",
+          "method": "GET",
+          "status": 404,
+          "bytes": 89055,
+          "title": "דף 404 | דואר ישראל",
+          "sha256": "a941e4eaf795941ec61765662f7d34134800be69be87986a96cc2a344ae2c648"
+        },
+        {
+          "url": "https://israelpost.co.il/שירותים/דרושים-ומשרות-פנויות/",
+          "final_url": "http://validate.perfdrive.com/ [CAPTCHA redirect parameters omitted]",
+          "method": "GET",
+          "status": 200,
+          "bytes": 15193,
+          "title": "Radware Captcha Page",
+          "sha256": "3557a157de21a81249940a262233fa896322717a5ae4a817b95dc790590a6d47"
+        }
+      ],
+      "original_url": "https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/",
+      "original_failure": "PreserveExistingJobs: Israel Post did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Israel Railways — CS Israel",
+      "kind": "official_careers",
+      "identifier": "israel-railways",
+      "decision": "retired",
+      "reason": "Official careers route returns403 Page Capture requiring JavaScript/cookies and robot validation. Search finds aggregate employer listings but no employer-confirmed alternative feed; challenge not bypassed.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.rail.co.il/?page=career",
+          "final_url": "https://www.rail.co.il/?page=career",
+          "method": "GET",
+          "status": 403,
+          "bytes": 76735,
+          "title": "Page Capture",
+          "sha256": "0bc35f23654226758d4a773ccfbbbd8af51e0089c2bc0747eb4e2e070a1efedb"
+        }
+      ],
+      "original_url": "https://www.rail.co.il/?page=career",
+      "original_failure": "PreserveExistingJobs: Israel Railways did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Jabil Careers Israel",
+      "kind": "official_careers",
+      "identifier": "jabil-israel",
+      "decision": "retired",
+      "reason": "The bounded Workday reader was rechecked with the same failure. Official alternate jobs.jabil.com board is live but its global country filter has no Israel entry; no Israeli detail was verified.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "evidence": "Bounded live collector: PreserveExistingJobs, no verified Israel detail."
+        },
+        {
+          "url": "https://jobs.jabil.com/en/search-jobs",
+          "evidence": "200, 1,921,968 bytes; real global vacancy links, no Israel country label in fetched board."
+        }
+      ],
+      "original_url": "https://careers.jabil.com/",
+      "original_failure": "PreserveExistingJobs: Jabil bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Malam Team — CS Israel",
+      "kind": "official_careers",
+      "identifier": "malam-team",
+      "decision": "retired",
+      "reason": "Old /careers, new Hebrew career route discovered in indexed official results, and career.malamteam.com all return Cloudflare HTTP 403 challenges to this runtime. Jobs exist in indexed official pages, but no reliable fresh detail payload was obtained.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.malamteam.com/careers/",
+          "status": 403,
+          "final_url": "https://www.malamteam.com/careers/",
+          "bytes": 5432,
+          "title": "Just a moment..."
+        },
+        {
+          "url": "https://www.malamteam.com/לובי-קריירה/",
+          "status": 403,
+          "final_url": "https://www.malamteam.com/%D7%9C%D7%95%D7%91%D7%99-%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94/",
+          "bytes": 5679,
+          "title": "Just a moment..."
+        },
+        {
+          "url": "https://career.malamteam.com/",
+          "status": 403,
+          "final_url": "https://career.malamteam.com/",
+          "bytes": 5411,
+          "title": "Just a moment..."
+        }
+      ],
+      "original_url": "https://www.malamteam.com/careers/",
+      "original_failure": "PreserveExistingJobs: Malam Team did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Max — CS Israel",
+      "kind": "official_careers",
+      "identifier": "max",
+      "decision": "retired",
+      "reason": "Old /careers404. Official homepage links /career/lobby, whose public response contains metadata and app shell without vacancies. Published app bundle exceeds4MB and bounded read stops. No current stable vacancy feed verified; official indexed social post confirms same lobby rather than another board.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.max.co.il/careers",
+          "final_url": "https://www.max.co.il/wrongurl?referrerDomain=www",
+          "method": "GET",
+          "status": 404,
+          "bytes": 5351,
+          "title": "Max",
+          "sha256": "4230f4d185caa3e39c77d936637c8a22777d76912bfb6643bd40a257a8c5d0c5"
+        },
+        {
+          "url": "https://www.max.co.il/",
+          "final_url": "https://www.max.co.il/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 784403,
+          "title": "הלוואות כרטיסי אשראי ושירותי סליקה max",
+          "sha256": "cc70e3e431b72f0113d0c31731a7de83036ecef66773bb10f59e831be9eea712"
+        },
+        {
+          "url": "https://www.max.co.il/career/lobby",
+          "final_url": "https://www.max.co.il/career/lobby",
+          "method": "GET",
+          "status": 200,
+          "bytes": 506282,
+          "title": "קריירה במקס – לעבוד במקס – MAX דרושים",
+          "sha256": "72501c4d11074ec7632d662ce84f4a65d1f6346175290bf469e05ab84c09ea86"
+        },
+        {
+          "url": "https://www.max.co.il/main-es2015.cea35b5a20b4c40f1beb.js",
+          "method": "GET",
+          "error": "Application script exceeded4000000bytes; stopped"
+        }
+      ],
+      "original_url": "https://www.max.co.il/careers",
+      "original_failure": "PreserveExistingJobs: Max did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Meta Careers Israel",
+      "kind": "official_careers",
+      "identifier": "meta",
+      "decision": "recovered",
+      "reason": "The public careers route moved from /jobs to /jobsearch and /profile/job_details. Ordinary isolated headless browsing exposes 8 Tel Aviv roles; default HTTP headers fetch full JSON-LD details. The old fake browser User-Agent caused 400, and was removed for Meta. No authentication/session token replay is used.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+          "evidence": "Redirects to /jobsearch; old /jobs/ selector misses current job links."
+        },
+        {
+          "url": "https://www.metacareers.com/jobsearch/?offices[0]=Tel%20Aviv%2C%20Israel",
+          "evidence": "One public browser page; 8 current numeric /profile/job_details/ links."
+        },
+        {
+          "url": "https://www.metacareers.com/profile/job_details/1063946209792967",
+          "evidence": "200 with default HTTP; complete JSON-LD includes description,responsibilities,qualifications,Meta employer,IL address,canonical numeric ID and expiry."
+        },
+        {
+          "url": "https://www.metacareers.com/graphql",
+          "evidence": "Minimal anonymous direct query returned400; abandoned. Production recovery uses the ordinary rendered listing, without token replay."
+        }
+      ],
+      "original_url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+      "original_failure": "PreserveExistingJobs: Meta could not verify the official listing; preserving the last successful job snapshot",
+      "quality_ok": true,
+      "israel_rows": 8,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "2082780019279407",
+          "title": "Software Engineer, Systems",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/2082780019279407/"
+        },
+        {
+          "id": "1063946209792967",
+          "title": "Data Scientist, Product Analytics",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/1063946209792967/"
+        },
+        {
+          "id": "2316600655751692",
+          "title": "Machine Learning Engineer",
+          "location": "Tel Aviv, Israel",
+          "url": "https://www.metacareers.com/profile/job_details/2316600655751692/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:47.009020+00:00"
+    },
+    {
+      "name": "Meuhedet Careers Israel",
+      "kind": "official_careers",
+      "identifier": "meuhedet",
+      "decision": "retired",
+      "reason": "English careers page and current official Hebrew careers page return200 marketing pages with professional-category links and recruitment contact. Neither exposes current full job records or a verified hiring feed. Third-party listings do not establish an official alternative contract.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+          "final_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 18182,
+          "title": "Career at Meuhedet - Meuhedet",
+          "sha256": "3c06d0ffc5e5b3f1de6126a902cd26c3d7f0dde81104e1c72f2a1af21f74eef3"
+        },
+        {
+          "url": "https://www.meuhedet.co.il/דרושים/קריירה-במאוחדת/",
+          "final_url": "https://www.meuhedet.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94-%D7%91%D7%9E%D7%90%D7%95%D7%97%D7%93%D7%AA/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 20519,
+          "title": "קריירה במאוחדת - משרות פתוחות והצטרפות לצוות | מאוחדת - מאוחדת",
+          "sha256": "241f2a6c8cde647d2a8e33eeecf6f511c3dece52f7e821ef88f7e6844cdf7a25"
+        }
+      ],
+      "original_url": "https://www.meuhedet.co.il/en/career-at-meuhedet/",
+      "original_failure": "PreserveExistingJobs: Meuhedet did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Ness — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ness-israel",
+      "decision": "recovered",
+      "reason": "Official Angular bundle publishes the Careers/GetOrderDetailsList endpoint and /careers/job/:id router. API returns 216 full records despite rows=40; enforce 400 received rows and 200 normalized jobs. Per-record Hebrew region is explicit. Update timestamps are not publication dates.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.ness-tech.co.il/careers",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers",
+          "bytes": 182085,
+          "title": "NESS"
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/main-U7S4H6OE.js",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/main-U7S4H6OE.js",
+          "bytes": 1082838,
+          "title": ""
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/api/Careers/GetOrderDetailsList?profId=&areasId=&freeText=&isHot=false&rows=40&page=1",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/api/Careers/GetOrderDetailsList?profId=&areasId=&freeText=&isHot=false&rows=40&page=1",
+          "bytes": 325280,
+          "title": ""
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/job/42814",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/job/42814",
+          "bytes": 183075,
+          "title": "מיישמ/ת SAP SD"
+        }
+      ],
+      "original_url": "https://www.ness-tech.co.il/careers",
+      "original_failure": "PreserveExistingJobs: Ness did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 200,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "42814",
+          "title": "מיישמ/ת SAP SD",
+          "location": "אזור המרכז, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/42814"
+        },
+        {
+          "id": "42251",
+          "title": "מומחה/ית תקשורת",
+          "location": "אזור השרון, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/42251"
+        },
+        {
+          "id": "41065",
+          "title": "מפתח/ת אוטומציה בסייבר",
+          "location": "אזור המרכז, Israel",
+          "url": "https://www.ness-tech.co.il/careers/job/41065"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:49.953702+00:00"
+    },
+    {
+      "name": "NeuroBlade — Israel",
+      "kind": "official_careers",
+      "identifier": "neuroblade",
+      "decision": "retired",
+      "reason": "Official /careers returns 403 in this recheck (previous audit 500). Indexed native job URLs expose gh_jid, but the corresponding public NeuroBlade Greenhouse board returns 404. No verified active official alternative.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.neuroblade.com/careers/",
+          "status": 403,
+          "final_url": "https://www.neuroblade.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://boards-api.greenhouse.io/v1/boards/neuroblade/jobs?content=true",
+          "status": 404,
+          "final_url": "https://boards-api.greenhouse.io/v1/boards/neuroblade/jobs?content=true",
+          "bytes": 38,
+          "title": ""
+        }
+      ],
+      "original_url": "https://www.neuroblade.com/careers/",
+      "original_failure": "PreserveExistingJobs: NeuroBlade did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Niram Gitan — IEM Israel",
+      "kind": "official_careers",
+      "identifier": "niram-gitan",
+      "decision": "retired",
+      "reason": "Old niramgitan.com and historical nggconsult.co.il fail DNS. Current official nggconsult.com identifies Niram Gitan and is accessible, but home/about expose consulting information and contact links, no official public job board. Jobnet listings were found but are not a verified official alternative.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.niramgitan.com/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.nggconsult.co.il/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.nggconsult.com/he",
+          "status": 200,
+          "final_url": "https://www.nggconsult.com/he/",
+          "bytes": 9141,
+          "title": "NGG — ייעוץ אסטרטגי לעידן של הפרעה מתמשכת"
+        },
+        {
+          "url": "https://www.nggconsult.com/he/pages/about",
+          "status": 200,
+          "final_url": "https://www.nggconsult.com/he/pages/about",
+          "bytes": 28504,
+          "title": "אודות NGG — הצוות, הערכים והסיפור שלנו"
+        }
+      ],
+      "original_url": "https://www.niramgitan.com/",
+      "original_failure": "PreserveExistingJobs: Niram Gitan did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Nokia Careers Israel",
+      "kind": "official_careers",
+      "identifier": "nokia",
+      "decision": "retired",
+      "reason": "The careers marketing pages return 403 directly. Official web research links jobs.nokia.com, whose public Oracle configuration and API are accessible. The Israel keyword search returns 0, leaving availability unverified.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.nokia.com/careers/",
+          "evidence": "Direct HTTP 403; official web research links https://jobs.nokia.com/en/sites/CX_1/."
+        },
+        {
+          "url": "https://www.nokia.com/about-us/careers/",
+          "evidence": "Direct HTTP 403."
+        },
+        {
+          "url": "https://jobs.nokia.com/en/sites/CX_1/",
+          "evidence": "200; declares Oracle host fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com."
+        },
+        {
+          "url": "https://fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList,locationsFacet&finder=findReqs;siteNumber=CX_1,limit=25,offset=0,keyword=Israel",
+          "evidence": "200, TotalJobsCount 0; keyword absence is not whole-country absence."
+        }
+      ],
+      "original_url": "https://www.nokia.com/about-us/careers/",
+      "original_failure": "PreserveExistingJobs: Nokia did not expose a reliable job payload; candidate_rows=7, rejected={'detail': 0, 'schema': 7, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "OrCam Careers Israel",
+      "kind": "official_careers",
+      "identifier": "orcam",
+      "decision": "retired",
+      "reason": "Original official careers route redirects to the product home page. The home page explicitly links legacy.orcam.com/en/careers/, which returns 404. No complete fresh official job payload verified.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.orcam.com/en-us/careers/",
+          "status": 200,
+          "final_url": "https://www.orcam.com/en-us/home",
+          "bytes": 288131,
+          "title": "Experience the Power of Assistive Technology with OrCam's AI Devices"
+        },
+        {
+          "url": "https://legacy.orcam.com/en/careers/",
+          "status": 404,
+          "final_url": "https://legacy.orcam.com/en/careers/",
+          "bytes": 40052,
+          "title": "Page not found - OrCam"
+        }
+      ],
+      "original_url": "https://www.orcam.com/en-us/careers/",
+      "original_failure": "PreserveExistingJobs: OrCam did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Osem-Nestle — CS Israel",
+      "kind": "official_careers",
+      "identifier": "osem-nestle",
+      "decision": "recovered",
+      "reason": "The old local career endpoint returned403. The official Nestlé SuccessFactors Israel search and full employer-bound details work. Preserve original requisition IDs from published j2w Apply data rather than changing to SAP page IDs.",
+      "checked_urls": [
+        {
+          "url": "https://www.osem-nestle.co.il/career",
+          "evidence": "Original local career entry; old route failed."
+        },
+        {
+          "url": "https://jobdetails.nestle.com/search/?q=&locationsearch=Israel",
+          "evidence": "Employer official Israel search; bounded4pages/40details, full role bodies and explicitIL addresses verified."
+        }
+      ],
+      "original_url": "https://www.osem-nestle.co.il/career",
+      "quality_ok": true,
+      "israel_rows": 40,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "406972",
+          "title": "חשמלאי/ת למחלקת תשתיות",
+          "location": "Qiryat Gat, Israel, 8213508",
+          "url": "https://jobdetails.nestle.com/job/Qiryat-Gat-%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%D7%AA-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%AA%D7%A9%D7%AA%D7%99%D7%95%D7%AA-8213508/1405357133/"
+        },
+        {
+          "id": "419712",
+          "title": "מנהל/ת משמרת במבה",
+          "location": "Qiryat Gat, Israel, 8213508",
+          "url": "https://jobdetails.nestle.com/job/Qiryat-Gat-%D7%9E%D7%A0%D7%94%D7%9C%D7%AA-%D7%9E%D7%A9%D7%9E%D7%A8%D7%AA-%D7%91%D7%9E%D7%91%D7%94-8213508/1436936033/"
+        },
+        {
+          "id": "392492",
+          "title": "חשמלאי/ת מוסמכ/ת מפעל אסם נסטלה בשדרות",
+          "location": "Sderot, Israel, 8015000",
+          "url": "https://jobdetails.nestle.com/job/Sderot-%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%D7%AA-%D7%9E%D7%95%D7%A1%D7%9E%D7%9B%D7%AA-%D7%9E%D7%A4%D7%A2%D7%9C-%D7%90%D7%A1%D7%9D-%D7%A0%D7%A1%D7%98%D7%9C%D7%94-%D7%91%D7%A9%D7%93%D7%A8%D7%95%D7%AA-8015000/1371319933/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:51.036319+00:00"
+    },
+    {
+      "name": "Partner Careers Israel",
+      "kind": "official_careers",
+      "identifier": "partner",
+      "decision": "retired",
+      "reason": "Original /n/career is 404. Official home and /u/career return small client/security-shell responses with no complete job records or verified linked ATS; third-party vacancies do not establish an official adapter.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.partner.co.il/n/career",
+          "status": 404,
+          "final_url": "https://www.partner.co.il/n/career",
+          "bytes": 2032,
+          "title": "עמוד אינו זמין (404)  | Partner"
+        },
+        {
+          "url": "https://www.partner.co.il/",
+          "status": 200,
+          "final_url": "https://www.partner.co.il/",
+          "bytes": 6982,
+          "title": "Homepage"
+        },
+        {
+          "url": "https://www.partner.co.il/u/career/",
+          "status": 200,
+          "final_url": "https://www.partner.co.il/u/career/",
+          "bytes": 6342,
+          "title": ""
+        }
+      ],
+      "original_url": "https://www.partner.co.il/n/career",
+      "original_failure": "PreserveExistingJobs: Partner did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Pliops — Storage Silicon Israel",
+      "kind": "official_careers",
+      "identifier": "pliops",
+      "decision": "retired",
+      "reason": "Official careers is 403. Employer home responds 503 and only links the same careers URL. No verified alternative official board was found.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://pliops.com/careers/",
+          "status": 403,
+          "final_url": "https://pliops.com/careers/",
+          "bytes": 52,
+          "title": ""
+        },
+        {
+          "url": "https://pliops.com/",
+          "status": 503,
+          "final_url": "https://pliops.com/",
+          "bytes": 76707,
+          "title": "Pliops | Enabling Fast and Cost-Effective Data Center Storage"
+        }
+      ],
+      "original_url": "https://pliops.com/careers/",
+      "original_failure": "PreserveExistingJobs: Pliops did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "PwC Israel — CS Israel",
+      "kind": "official_careers",
+      "identifier": "pwc-israel",
+      "decision": "recovered",
+      "reason": "The obsolete pwc.com career URL was 404. The current official PwC Israel homepage directly links the HunterHRMS board. Its public frontend defines a dedicated read-only get-jobs endpoint and an explicit domestic city mapping. The live feed has 51 rows;49 complete city-verified roles passed quality checks.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.pwc.com/il/en/",
+          "evidence": "200; direct Careers link to https://pwc-careersite.hunterhrms.com/."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/",
+          "evidence": "200; PwC-branded app."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/_next/static/chunks/25-6ef4c5ee74605bb9.js",
+          "evidence": "Public code defines POST/actions-pwc-career with cmd:get-jobs and jobArea1/2/3/4 as Tel Aviv/Haifa/Jerusalem/Beer Sheva."
+        },
+        {
+          "url": "https://niloo-server.herokuapp.com/actions-pwc-career",
+          "evidence": "Public read-only POST {cmd:get-jobs}:200,149,953 bytes,51 rows. Reject763 (missing detail) and727 (missing city)."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=766",
+          "evidence": "200; job frontend uses get-job with the same numeric jid and renders description plus requirements."
+        }
+      ],
+      "original_url": "https://www.pwc.com/il/he/career.html",
+      "original_failure": "PreserveExistingJobs: PwC Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 49,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "766",
+          "title": "EDGE Team Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=766"
+        },
+        {
+          "id": "760",
+          "title": "DevOps Tech Lead",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=760"
+        },
+        {
+          "id": "762",
+          "title": "AI Adoption & Implementation Consultant",
+          "location": "Tel Aviv, Israel",
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=762"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:54.696032+00:00"
+    },
+    {
+      "name": "rafael",
+      "kind": "ashby",
+      "identifier": "https://career.rafael.co.il/search/",
+      "decision": "retired",
+      "reason": "Malformed duplicate: this employer URL was configured as an Ashby board identifier. Official Rafael was investigated separately; its current board rejects automatic collection. Neither record is deleted and no vacancy-absence claim is made.",
+      "checked_urls": [
+        {
+          "url": "https://career.rafael.co.il/search/",
+          "evidence": "Official board investigated separately; access-control response, no verified alternative."
+        }
+      ],
+      "original_url": "",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Rafael Careers",
+      "kind": "official_careers",
+      "identifier": "rafael",
+      "decision": "retired",
+      "reason": "Both official career.rafael.co.il/search/ and its root return status 247,457-byte access-control responses. Kept official-only as assigned; no Drushim fallback, private API, or bypass used.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://career.rafael.co.il/search/",
+          "status": 247,
+          "final_url": "https://career.rafael.co.il/search/",
+          "bytes": 457,
+          "title": ""
+        },
+        {
+          "url": "https://career.rafael.co.il/",
+          "status": 247,
+          "final_url": "https://career.rafael.co.il/",
+          "bytes": 457,
+          "title": ""
+        }
+      ],
+      "original_url": "https://career.rafael.co.il/search/",
+      "original_failure": "PreserveExistingJobs: Rafael did not expose a reliable job payload; candidate_rows=31, rejected={'detail': 31, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Rambam Careers Israel",
+      "kind": "official_careers",
+      "identifier": "rambam",
+      "decision": "retired",
+      "reason": "Official general careers and digital-IT category expose full inline descriptions. IT titles include real requisition numbers1001 onward, but role cards have no explicit location field or independent vacancy URL (email application and shared category only). Existing generic parser mistakes categories for jobs. Country/location and canonical application contract remain unverified; no fabricated jobs or locations.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.rambam.org.il/about-rambam/careers/",
+          "final_url": "https://www.rambam.org.il/about-rambam/careers/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 381024,
+          "title": "הקריה הרפואית רמב\"ם - משרות פתוחות בשבילך",
+          "sha256": "c5744806f6899522fa5c89a18752c96227ab2ff873d4b35a21a4c836c352dbdd"
+        },
+        {
+          "url": "https://www.rambam.org.il/about-rambam/careers/digital-it-jobs/",
+          "final_url": "https://www.rambam.org.il/about-rambam/careers/digital-it-jobs/",
+          "method": "GET",
+          "status": 200,
+          "bytes": 327481,
+          "title": "הקריה הרפואית רמב\"ם - משרות בחטיבת הדיגיטל וטכנולוגיות המידע",
+          "sha256": "39e3c757bab9be7c498d3c374370a119103e3642ac8b29cd2052fbd387912464"
+        }
+      ],
+      "original_url": "https://www.rambam.org.il/about-rambam/careers/",
+      "original_failure": "PreserveExistingJobs: Rambam did not expose a reliable job payload; candidate_rows=5, rejected={'detail': 0, 'schema': 5, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "SAP Careers Israel",
+      "kind": "official_careers",
+      "identifier": "sap-israel",
+      "decision": "recovered",
+      "reason": "The new jobs.sap.com site returns 403, but SAP itself advertises its previous careers.sap.com site during migration. The old official Israel board exposes four full roles with canonical identities, hiringOrganization SAP and IL address fields.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+          "evidence": "403."
+        },
+        {
+          "url": "https://jobs.sap.com/search/?q=&locationsearch=Israel",
+          "evidence": "403."
+        },
+        {
+          "url": "https://jobs.sap.com/en/?from=email",
+          "evidence": "Official web research says current opportunities remain on careers.sap.com during migration."
+        },
+        {
+          "url": "https://careers.sap.com/go/SAP-Jobs-in-Israel/851401/",
+          "evidence": "200; 4 listed vacancies, all 4 complete details validated."
+        }
+      ],
+      "original_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+      "original_failure": "PreserveExistingJobs: SAP did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 4,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "1429741933",
+          "title": "Cloud Platform Engineer - Student (Java)",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Cloud-Platform-Engineer-Student-%28Java%29-4366202/1429741933/"
+        },
+        {
+          "id": "1276005301",
+          "title": "Student Developer - SAP BTP - CCS",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Student-Developer-SAP-BTP-CCS-4366202/1276005301/"
+        },
+        {
+          "id": "1436495733",
+          "title": "Max Success Plan Manager (SPM) - SAP IL",
+          "location": "Ra'anana, Israel",
+          "url": "https://careers.sap.com/job/Ra'anana-Max-Success-Plan-Manager-%28SPM%29-SAP-IL-4366202/1436495733/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:57.262353+00:00"
+    },
+    {
+      "name": "SCD — SemiConductor Devices",
+      "kind": "official_careers",
+      "identifier": "scd",
+      "decision": "retired",
+      "reason": "Official listing contains 10 full accordion jobs and job-specific location evidence in several descriptions. However, all 10 hidden_job_num fields and application job_number values are empty and no per-job URL/record identity is exposed. Do not invent IDs from row positions or treat department links as jobs.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.scd-infrared.com/find-a-job/",
+          "status": 200,
+          "final_url": "https://www.scd-infrared.com/find-a-job/",
+          "bytes": 280882,
+          "title": "Careers at SCD | Open Positions & Opportunities"
+        }
+      ],
+      "original_url": "https://scdusa-ir.com/find-a-job/",
+      "original_failure": "PreserveExistingJobs: SCD - SemiConductor Devices did not expose a reliable job payload; candidate_rows=10, rejected={'detail': 10, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Sheba Medical Center — CS Israel",
+      "kind": "official_careers",
+      "identifier": "sheba",
+      "decision": "retired",
+      "reason": "Official careers and an indexed numeric vacancy266937 now both return the same Angular shell with no vacancy body. Main script verified but no current public vacancy contract found within bounded checks. Older indexed text does not prove current availability; no official alternative verified.",
+      "evidence_file": "source_alternatives_israeli_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.sheba.co.il/דרושים",
+          "final_url": "https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D",
+          "method": "GET",
+          "status": 200,
+          "bytes": 52817,
+          "title": "המרכז הרפואי שיבא",
+          "sha256": "d52b7d1ca1cc3d176ce32362702ae1faa97fac3173ad4cf50ab457a7c0ab0221"
+        },
+        {
+          "url": "https://www.sheba.co.il/main-4VGT67M2.js",
+          "final_url": "https://www.sheba.co.il/main-4VGT67M2.js",
+          "method": "GET",
+          "status": 200,
+          "bytes": 10646,
+          "title": "",
+          "sha256": "6db3e389e20014d25ba39d4e437b058b49bda9d7692a8193a2f7f33c91108268"
+        },
+        {
+          "url": "https://www.sheba.co.il/266937",
+          "final_url": "https://www.sheba.co.il/266937",
+          "method": "GET",
+          "status": 200,
+          "bytes": 52817,
+          "title": "המרכז הרפואי שיבא",
+          "sha256": "d52b7d1ca1cc3d176ce32362702ae1faa97fac3173ad4cf50ab457a7c0ab0221"
+        }
+      ],
+      "original_url": "https://www.sheba.co.il/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D",
+      "original_failure": "PreserveExistingJobs: Sheba Medical Center did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Shufersal — CS Israel",
+      "kind": "official_careers",
+      "identifier": "shufersal",
+      "decision": "retired",
+      "reason": "Current career.shufersal.co.il and the indexed alternate jobs.shufersal.co.il/Job-Search/Basic.aspx failed to provide a bounded usable response. No fresh complete official payload verified.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://career.shufersal.co.il/",
+          "error": ""
+        },
+        {
+          "url": "https://jobs.shufersal.co.il/Job-Search/Basic.aspx",
+          "error": ""
+        }
+      ],
+      "original_url": "https://career.shufersal.co.il/",
+      "original_failure": "PreserveExistingJobs: Shufersal did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "SodaStream Careers Israel",
+      "kind": "official_careers",
+      "identifier": "sodastream",
+      "decision": "recovered",
+      "reason": "Old Shopify careers 404 explicitly links PepsiCo SodaStream. Official PepsiCo public search returns 22 full Israel jobs with exact tags 5=sodastream and tags 6=Sodastream, PepsiCo organization, matching req_id/slug and real icims apply IDs. Both employer-published Hebrew and global icims hosts are verified; other PepsiCo subsidiaries are excluded.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://sodastream.com/pages/careers",
+          "status": 404,
+          "final_url": "https://sodastream.com/pages/careers",
+          "bytes": 618554,
+          "title": "404 Not Found –\n    SodaStream"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/sodastream",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/sodastream",
+          "bytes": 1087436,
+          "title": "SodaStream – Join our team at PepsiCo"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream",
+          "bytes": 1102452,
+          "title": "PepsiCo Careers"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/api/jobs?keywords=sodastream&country=Israel&limit=40&page=1",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/api/jobs?keywords=sodastream&country=Israel&limit=40&page=1",
+          "bytes": 233365,
+          "title": ""
+        },
+        {
+          "url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il",
+          "bytes": 577679,
+          "title": "SodaStream:  Junior Global Procurement Buyer in Kefar Sava, Israel | PepsiCo"
+        }
+      ],
+      "original_url": "https://sodastream.com/pages/careers",
+      "original_failure": "PreserveExistingJobs: SodaStream did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 22,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "436942",
+          "title": "SodaStream: Junior Global Procurement Buyer",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il"
+        },
+        {
+          "id": "469598",
+          "title": "Sodastream: Legal Counsel, Employment Law (Maternity Leave Cover)",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/469598?lang=he-il"
+        },
+        {
+          "id": "430939",
+          "title": "SodaStream: Performance Marketing Campaign Lead",
+          "location": "Kefar Sava, Israel",
+          "url": "https://www.pepsicojobs.com/main/jobs/430939?lang=he-il"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:58.948415+00:00"
+    },
+    {
+      "name": "StarkWare Careers Israel",
+      "kind": "official_careers",
+      "identifier": "starkware",
+      "decision": "recovered",
+      "reason": "Old Comeet feed was empty in baseline. Current official careers HTML has one native /position/ vacancy beneath the explicitly labeled Israel tab. Native detail canonical URL/title match the listing and full responsibilities and requirements are present.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://starkware.co/careers/",
+          "status": 200,
+          "final_url": "https://starkware.co/careers/",
+          "bytes": 95012,
+          "title": "Careers | Open Positions | StarkWare"
+        },
+        {
+          "url": "https://starkware.co/position/blockchain-security-researcher/",
+          "status": 200,
+          "final_url": "https://starkware.co/position/blockchain-security-researcher/",
+          "bytes": 81543,
+          "title": "Blockchain Security Researcher | StarkWare"
+        }
+      ],
+      "original_url": "https://starkware.co/careers/",
+      "original_failure": "PreserveExistingJobs: Public ATS feed returned an empty list; employer-wide absence is unverified",
+      "quality_ok": true,
+      "israel_rows": 1,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "blockchain-security-researcher",
+          "title": "Blockchain Security Researcher",
+          "location": "Israel",
+          "url": "https://starkware.co/position/blockchain-security-researcher/"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:59.419232+00:00"
+    },
+    {
+      "name": "Super-Pharm — CS Israel",
+      "kind": "official_careers",
+      "identifier": "super-pharm",
+      "decision": "recovered",
+      "reason": "Official Israel board contains 323 inline vacancy inputs job_id[], paired heading/collapse records and full per-job descriptions. Per-record city must match its published city taxonomy. Preserve actual collapse anchors and numeric IDs; output capped 200, received records capped 400.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://jobs.super-pharm.co.il/careers/",
+          "status": 200,
+          "final_url": "https://jobs.super-pharm.co.il/careers/",
+          "bytes": 2753057,
+          "title": "משרות – דרושים בסופר-פארם"
+        }
+      ],
+      "original_url": "https://jobs.super-pharm.co.il/careers/",
+      "original_failure": "PreserveExistingJobs: Super-Pharm did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 200,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "16655",
+          "title": "אנשי צוות שירות",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16655"
+        },
+        {
+          "id": "16654",
+          "title": "יועצ.ת ביוטי",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16654"
+        },
+        {
+          "id": "16653",
+          "title": "יועצ.ת ביוטי",
+          "location": "חדרה, Israel",
+          "url": "https://jobs.super-pharm.co.il/careers/#collapse-16653"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:47:00.038261+00:00"
+    },
+    {
+      "name": "Tefen — IEM Israel",
+      "kind": "official_careers",
+      "identifier": "tefen",
+      "decision": "recovered",
+      "reason": "The corporate careers page links the exact Tefen Civi board. Bound each complete role to its published record ID, employer logo ID and vacancy-specific Israel location. Four roles without explicit safe location were withheld.",
+      "checked_urls": [
+        {
+          "url": "https://www.tefen.com/careers/",
+          "evidence": "Official employer page links its Civi board."
+        },
+        {
+          "url": "https://app.civi.co.il/promos/id=WN8NBHHQUY",
+          "evidence": "Published Tefen board with full individual vacancy details."
+        }
+      ],
+      "original_url": "https://www.tefen.com/careers/",
+      "quality_ok": true,
+      "israel_rows": 15,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "799362",
+          "title": "לפירמת הייעוץ TEFEN דרושים.ות יועצים.ות / מנהלי.ות פרוייקטים לחטיבה הטכנולוגית",
+          "location": "Israel",
+          "url": "https://app.civi.co.il/promo/id=799362"
+        },
+        {
+          "id": "915495",
+          "title": "פירמת הייעוץ TEFEN מחפשת איש.אשת תפ\"י / Planning",
+          "location": "Central District, Israel",
+          "url": "https://app.civi.co.il/promo/id=915495"
+        },
+        {
+          "id": "841611",
+          "title": "לפירמת הייעוץ TEFEN דרושים.ות מהנדסי.ות /הנדסאי.ות תעשייה וניהול לפרויקט בצפון הארץ",
+          "location": "Northern District, Israel",
+          "url": "https://app.civi.co.il/promo/id=841611"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:47:00.653579+00:00"
+    },
+    {
+      "name": "The Phoenix — CS Israel",
+      "kind": "official_careers",
+      "identifier": "phoenix",
+      "decision": "retired",
+      "reason": "Public vacancies exist. The correct career/open-positions route exposes numeric job URLs and embedded Nuxt data, but a complete identity-bound reader was not verified. The frontend-published read-only career-list API returned403. No challenge or authentication was bypassed; excluded rather than interpreting this as no vacancies.",
+      "checked_urls": [
+        {
+          "url": "https://www.fnx.co.il/career/",
+          "evidence": "200; official current careers route."
+        },
+        {
+          "url": "https://www.fnx.co.il/career/open-positions/",
+          "evidence": "200; numeric vacancy links and embeddedNuxt data."
+        },
+        {
+          "url": "https://www.fnx.co.il/career/open-positions/50024129/",
+          "evidence": "200; exactID/title/location, complete description not exposed in simple server-rendered DOM."
+        },
+        {
+          "url": "https://www.fnx.co.il/middle/api/v1/info/careers/career-list",
+          "evidence": "Public frontend read-only action returned403; no credentials used."
+        }
+      ],
+      "original_url": "https://www.fnx.co.il/about-us/careers/",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Tnuva Careers Israel",
+      "kind": "official_careers",
+      "identifier": "tnuva",
+      "decision": "retired",
+      "reason": "Official /jobs, Hebrew career route and sitemap return short security/client shells rather than job content. Indexed jobs on outside services do not provide a verified official feed.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.tnuva.co.il/jobs/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/jobs/",
+          "bytes": 212,
+          "title": ""
+        },
+        {
+          "url": "https://www.tnuva.co.il/מפת-האתר/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/%D7%9E%D7%A4%D7%AA-%D7%94%D7%90%D7%AA%D7%A8/",
+          "bytes": 949,
+          "title": ""
+        },
+        {
+          "url": "https://www.tnuva.co.il/קריירה/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94/",
+          "bytes": 843,
+          "title": ""
+        }
+      ],
+      "original_url": "https://www.tnuva.co.il/jobs/",
+      "original_failure": "PreserveExistingJobs: Tnuva did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Tower Semiconductor — CS Israel",
+      "kind": "official_careers",
+      "identifier": "tower-semiconductor",
+      "decision": "retired",
+      "reason": "Old corporate and Japanese careers URLs are 403 in direct HTTP. Indexed official Japanese page links new careers.towersemi.com, whose Israel page returns 20 explicit ISR listing IDs. Its linked /job-description?job_id=9592 and /search-jobs return 403. No full detail payload verified; cards alone are not imported.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://towersemi.com/careers/",
+          "status": 403,
+          "final_url": "https://towersemi.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://jp.towersemi.com/careers/",
+          "status": 403,
+          "final_url": "https://jp.towersemi.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://careers.towersemi.com/",
+          "status": 200,
+          "final_url": "https://careers.towersemi.com/",
+          "bytes": 88309,
+          "title": "Tower Semiconductor Career – Being part of great opporrtunities"
+        },
+        {
+          "url": "https://careers.towersemi.com/our-loactions/israel/",
+          "status": 200,
+          "final_url": "https://careers.towersemi.com/our-loactions/israel/",
+          "bytes": 108069,
+          "title": "Israel – Tower Semiconductor Career"
+        },
+        {
+          "url": "https://careers.towersemi.com/search-jobs/",
+          "status": 403,
+          "final_url": "https://careers.towersemi.com/search-jobs/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://careers.towersemi.com/job-description?job_id=9592",
+          "status": 403,
+          "final_url": "https://careers.towersemi.com/job-description?job_id=9592",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        }
+      ],
+      "original_url": "https://towersemi.com/careers/",
+      "original_failure": "PreserveExistingJobs: Tower Semiconductor did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Unilever Israel Careers Israel",
+      "kind": "official_careers",
+      "identifier": "unilever-israel",
+      "decision": "retired",
+      "reason": "The official Israel marketing page links the global TalentBrew board and a Workday talent profile. Israel keyword and explicit country search pages contain no vacancies; that alone is not proof of company-wide absence.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://careers.unilever.com/en/israel",
+          "evidence": "200; links global search and unilever.wd3.myworkdayjobs.com/Unilever_Experienced_Professionals/userHome."
+        },
+        {
+          "url": "https://careers.unilever.com/en/search-jobs/Israel",
+          "evidence": "200; no real job links."
+        },
+        {
+          "url": "https://careers.unilever.com/en/location/israel-jobs/34155/294640/2",
+          "evidence": "200, title Search Israel Jobs at Unilever; no real job links."
+        }
+      ],
+      "original_url": "https://careers.unilever.com/en/israel",
+      "original_failure": "PreserveExistingJobs: Unilever Israel did not expose a reliable job payload; candidate_rows=2, rejected={'detail': 0, 'schema': 2, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "UPS — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ups-israel",
+      "decision": "retired",
+      "reason": "The original domain now redirects to a new Phenom career page. Its Israel search exposes no jobs, and official web research did not establish a usable domestic alternative.",
+      "evidence_file": "source_alternatives_global_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.jobs-ups.com/",
+          "evidence": "Redirects to https://www.jobs-ups.com/global/en,200."
+        },
+        {
+          "url": "https://www.jobs-ups.com/global/en/search-results?keywords=Israel",
+          "evidence": "200; totalHits 0 and no job identities."
+        },
+        {
+          "url": "https://www.upsjobs.com/",
+          "evidence": "Official alternative found in web research; same public career branding, no verified Israel vacancies."
+        },
+        {
+          "url": "https://upscareers.jobs/",
+          "evidence": "Official UPS-branded alternative found in web research; no verified Israel detail."
+        }
+      ],
+      "original_url": "https://www.jobs-ups.com/",
+      "original_failure": "PreserveExistingJobs: UPS did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "Vayyar Imaging — Israel",
+      "kind": "official_careers",
+      "identifier": "vayyar",
+      "decision": "retired",
+      "reason": "Official /recruitment links /careers, which redirects to the employer Workable account. Its public widget payload confirms Vayyar identity but currently returns jobs=[]. Empty board is not evidence of employer-wide absence or a useful recovered source.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://vayyar.com/recruitment/",
+          "status": 200,
+          "final_url": "https://vayyar.com/recruitment/",
+          "bytes": 348736,
+          "title": "Learn More About Us - Vayyar"
+        },
+        {
+          "url": "https://vayyar.com/careers",
+          "status": 200,
+          "final_url": "https://apply.workable.com/vayyar/",
+          "bytes": 5778,
+          "title": "Vayyar - Current Openings"
+        },
+        {
+          "url": "https://apply.workable.com/api/v1/widget/accounts/vayyar?details=true",
+          "status": 200,
+          "final_url": "https://apply.workable.com/api/v1/widget/accounts/vayyar?details=true",
+          "bytes": 1668,
+          "title": ""
+        }
+      ],
+      "original_url": "https://vayyar.com/recruitment/",
+      "original_failure": "PreserveExistingJobs: Vayyar Imaging did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "XM Cyber Careers Israel",
+      "kind": "official_careers",
+      "identifier": "xm-cyber",
+      "decision": "retired",
+      "reason": "Official careers is 403. Indexed employer Comeet board 15.005 returns correct XM Cyber COMPANY_DATA but COMPANY_POSITIONS_DATA=[]. No complete current Israel vacancy verified; do not infer that historical jobs closed.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://xmcyber.com/careers/",
+          "status": 403,
+          "final_url": "https://xmcyber.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "status": 200,
+          "final_url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "bytes": 117063,
+          "title": "Spark Hire Recruit Jobs | Spark Hire Recruit - Collaborative Recruiting"
+        }
+      ],
+      "original_url": "https://xmcyber.com/careers/",
+      "original_failure": "PreserveExistingJobs: XM Cyber did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": null,
+      "israel_rows": null,
+      "snapshot_complete": false,
+      "samples": [],
+      "final_live_check": null
+    },
+    {
+      "name": "החברה המרכזית למשקאות — CS Israel",
+      "kind": "official_careers",
+      "identifier": "cocacola-israel",
+      "decision": "recovered",
+      "reason": "Dead careers.cocacola.co.il replaced with employer-owned www.cbccom.com careers portal. Search publishes 129 numeric order_id/title records and 20 native detail links on the current page. Each detail binds numeric position_id, hidden job_title, title and share URL; full description plus job-specific region required. Optional employment-type field cannot discard real roles.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://careers.cocacola.co.il/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.cbccom.com/career.html/",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/career.html/",
+          "bytes": 167814,
+          "title": "הטעם מתחיל באנשים - קריירה - החברה המרכזית למשקאות"
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%AA%20%D7%9E%D7%91%D7%A0%D7%99%D7%9D",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%AA%20%D7%9E%D7%91%D7%A0%D7%99%D7%9D",
+          "bytes": 42871,
+          "title": "עובד/ת אחזקת מבנים"
+        },
+        {
+          "url": "https://www.cbccom.com/on/demandware.static/Sites-CBC-Site/-/default/v1790243753976/js/page-jobsLobby.js",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/on/demandware.static/Sites-CBC-Site/-/default/v1790243753976/js/page-jobsLobby.js",
+          "bytes": 11839,
+          "title": ""
+        },
+        {
+          "url": "https://www.cbccom.com/משרות",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+          "bytes": 256251,
+          "title": "חיפוש משרה"
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 256251
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%97%D7%A6%D7%A8-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43362
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%94%D7%A0%D7%93%D7%A1%2F%D7%AA%20%D7%90%D7%A8%D7%92%D7%95%D7%9F%20%D7%95%D7%A9%D7%99%D7%98%D7%95%D7%AA%20%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA%20%D7%90%D7%A4%D7%A7%D7%98%D7%99%D7%91%D7%99%D7%95%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%D7%AA-%20%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 44617
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%2F%D7%AA%20-%20%D7%97%D7%99%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 43314
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C.%D7%AA%20%D7%97%D7%A9%D7%91%D7%95%D7%A0%D7%95%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 43593
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%98%D7%9B%D7%A0%D7%99%2F%D7%AA%20-%20%D7%A6%D7%A8%D7%99%D7%A4%D7%99%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43331
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%9E%D7%A9%D7%A7%20%D7%95%D7%9C%D7%95%D7%92%D7%99%D7%A1%D7%98%D7%99%D7%A7%D7%94%20-%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%9E%D7%95%D7%A0%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 43835
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%91%D7%A7%D7%A8%2F%D7%99%D7%AA%20%D7%9E%D7%97%D7%A1%D7%9F-%20%D7%90%D7%99%D7%9C%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 43249
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%95%D7%91%D7%99%D7%9C%2F%D7%AA%20%D7%A6%D7%99%D7%95%D7%93%20-%20%D7%A6%D7%A8%D7%99%D7%A4%D7%99%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43405
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%9C%D7%92%D7%96%D7%9F%2F%D7%99%D7%AA-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 42809
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C%2F%D7%AA%20%D7%A6%D7%95%D7%95%D7%AA%20%D7%9C%D7%9E%D7%A2%D7%91%D7%93%D7%94%20-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43890
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A8%D7%9B%D7%96%2F%D7%AA%20%D7%90%D7%93%D7%9E%D7%99%D7%A0%D7%99%D7%A1%D7%98%D7%A8%D7%A6%D7%99%D7%94%20%D7%95%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%91%D7%AA%D7%97%D7%95%D7%9D%20%D7%94%D7%A8%D7%9B%D7%91%20-%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 44593
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A0%D7%94%D7%92%2F%D7%AA%20%D7%9E%D7%97%D7%A1%D7%9F-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43079
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%91%D7%A7%D7%A8%2F%D7%99%D7%AA%20%D7%9C%D7%95%D7%92%D7%99%D7%A1%D7%98%D7%99%2F%D7%AA-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43924
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A1%D7%95%20%D7%A9%D7%A3%2F%D7%99%D7%AA%20%D7%90%D7%96%D7%95%D7%A8%D7%99%2F%D7%AA%20-%20%D7%90%D7%96%D7%95%D7%A8%20%D7%94%D7%9E%D7%A8%D7%9B%D7%96%20",
+          "result": "HTTP success and captured response",
+          "bytes": 44495
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9C%D7%91%D7%95%D7%A8%D7%A0%D7%98%2F%D7%99%D7%AA-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 44472
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%94%20-%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43807
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C%2F%D7%AA%20%D7%AA%D7%97%D7%95%D7%9D%20%D7%9E%D7%9B%D7%99%D7%A8%D7%95%D7%AA%20%D7%9E%D7%A7%D7%A6%D7%95%D7%A2%D7%99%20%D7%97%D7%9C%D7%91-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7",
+          "result": "HTTP success and captured response",
+          "bytes": 44193
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%99%D7%95%D7%A2%D7%A5%2F%D7%AA%20SAP%20IBP%20%D7%9E%D7%A0%D7%95%D7%A1%D7%94%20%D7%9C%D7%94%D7%95%D7%91%D7%9C%D7%AA%20%D7%A4%D7%A8%D7%95%D7%99%D7%A7%D7%98%D7%99%20%D7%A9%D7%A8%D7%A9%D7%A8%D7%AA%20%D7%90%D7%A1%D7%A4%D7%A7%D7%94-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 45243
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A7%D7%A0%D7%99%D7%99%D7%9F%2F%D7%99%D7%AA%20%D7%A8%D7%9B%D7%A9%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43404
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A0%D7%A6%D7%99%D7%92%2F%D7%AA%20%D7%A1%D7%99%D7%93%D7%95%D7%A8%20%D7%A1%D7%97%D7%95%D7%A8%D7%94%20%D7%91%D7%A9%D7%98%D7%97-%20%D7%90%D7%96%D7%95%D7%A8%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F-%20%D7%94%D7%97%D7%9C%D7%A4%D7%94%20%D7%9C%D7%97%D7%9C%22%D7%93",
+          "result": "HTTP success and captured response",
+          "bytes": 43850
+        }
+      ],
+      "original_url": "https://careers.cocacola.co.il/",
+      "original_failure": "PreserveExistingJobs: החברה המרכזית למשקאות did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 20,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "17903",
+          "title": "עובד/ת תפעול חצר- בני ברק",
+          "location": "גוש דן, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%97%D7%A6%D7%A8-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7%20"
+        },
+        {
+          "id": "17902",
+          "title": "מהנדס/ת ארגון ושיטות למחלקת אפקטיביות תפעולית- קריית שדה התעופה",
+          "location": "גוש דן, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%94%D7%A0%D7%93%D7%A1%2F%D7%AA%20%D7%90%D7%A8%D7%92%D7%95%D7%9F%20%D7%95%D7%A9%D7%99%D7%98%D7%95%D7%AA%20%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA%20%D7%90%D7%A4%D7%A7%D7%98%D7%99%D7%91%D7%99%D7%95%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%D7%AA-%20%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94"
+        },
+        {
+          "id": "17900",
+          "title": "מחסנאי/ת תפעולי/ת - חיפה",
+          "location": "צפון, Israel",
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%2F%D7%AA%20-%20%D7%97%D7%99%D7%A4%D7%94"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:33.690780+00:00"
+    },
+    {
+      "name": "משרד הביטחון — CS Israel",
+      "kind": "official_careers",
+      "identifier": "ministry-of-defense-il",
+      "decision": "recovered",
+      "reason": "Old SharePoint URL 500 replaced with /קריירה, explicitly linking jobs.mod.gov.il. Public anonymous POST returns 20 tenders; published-detail GET provides full HtmlContentPublish and matching tender/job IDs. Confirmation/publication flags, location, publication date, and unexpired deadline required. One title conflict remains blocked. API offset-free deadline 20:59:59 corresponds to official 23:59 Israel display and is interpreted UTC.",
+      "evidence_file": "source_alternatives_tech_2026-09-27.json",
+      "checked_urls": [
+        {
+          "url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+          "status": 500,
+          "final_url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+          "bytes": 52289,
+          "title": "undefined | דף הבית "
+        },
+        {
+          "url": "https://www.mod.gov.il/קריירה",
+          "status": 200,
+          "final_url": "https://www.mod.gov.il/%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94",
+          "bytes": 125562,
+          "title": "קריירה | דף הבית "
+        },
+        {
+          "url": "https://jobs.mod.gov.il/",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/",
+          "bytes": 9032,
+          "title": "מערכת איוש משרות. משרד הביטחון"
+        },
+        {
+          "url": "https://jobs.mod.gov.il/hrJobsGreen.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/hrJobsGreen.js",
+          "bytes": 233,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Main/directives/tenders/tenders.controller.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Main/directives/tenders/tenders.controller.js",
+          "bytes": 18320,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Services/TendersPost.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Services/TendersPost.js",
+          "bytes": 3487,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Site.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Site.js",
+          "bytes": 281,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Main/Main.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Main/Main.js",
+          "bytes": 84204,
+          "title": "Export HTML to word Document"
+        },
+        {
+          "url": "https://jobs.mod.gov.il/app.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/app.js",
+          "bytes": 9891,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Services/Post.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Services/Post.js",
+          "bytes": 15993,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34928",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34928",
+          "bytes": 128868,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetAllPublished",
+          "method": "POST",
+          "anonymous_search_body": {},
+          "status": 200,
+          "bytes": 65989
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34930",
+          "result": "HTTP success and captured response",
+          "bytes": 127746
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34937",
+          "result": "HTTP success and captured response",
+          "bytes": 135599
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34939",
+          "result": "HTTP success and captured response",
+          "bytes": 133782
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34940",
+          "result": "HTTP success and captured response",
+          "bytes": 131280
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34941",
+          "result": "HTTP success and captured response",
+          "bytes": 132284
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34890",
+          "result": "HTTP success and captured response",
+          "bytes": 131420
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34934",
+          "result": "HTTP success and captured response",
+          "bytes": 135045
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34935",
+          "result": "HTTP success and captured response",
+          "bytes": 135347
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34936",
+          "result": "HTTP success and captured response",
+          "bytes": 134620
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34907",
+          "result": "HTTP success and captured response",
+          "bytes": 129679
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34911",
+          "result": "HTTP success and captured response",
+          "bytes": 130057
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34912",
+          "result": "HTTP success and captured response",
+          "bytes": 129689
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34915",
+          "result": "HTTP success and captured response",
+          "bytes": 129734
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34917",
+          "result": "HTTP success and captured response",
+          "bytes": 129722
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34920",
+          "result": "HTTP success and captured response",
+          "bytes": 131707
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34922",
+          "result": "HTTP success and captured response",
+          "bytes": 125114
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34893",
+          "result": "HTTP success and captured response",
+          "bytes": 133241
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34895",
+          "result": "HTTP success and captured response",
+          "bytes": 143704
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34874",
+          "result": "HTTP success and captured response",
+          "bytes": 130269
+        }
+      ],
+      "original_url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+      "original_failure": "PreserveExistingJobs: משרד הביטחון did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "quality_ok": true,
+      "israel_rows": 18,
+      "snapshot_complete": false,
+      "samples": [
+        {
+          "id": "34928",
+          "title": "ע' לניהול",
+          "location": "תל אביב-יפו, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34928"
+        },
+        {
+          "id": "34930",
+          "title": "ר' תחום פרויקטים",
+          "location": "תל אביב-יפו, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34930"
+        },
+        {
+          "id": "34937",
+          "title": "ע' בכיר לשירות",
+          "location": "תל השומר, Israel",
+          "url": "https://jobs.mod.gov.il/#/Tenders/34937"
+        }
+      ],
+      "final_live_check": "2026-09-26T22:46:48.120484+00:00"
+    }
+  ],
+  "verification": {
+    "general_suite": {
+      "command": ".venv/bin/pytest -q --ignore=tests/test_agent_browser_flow.py",
+      "passed": 2275,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    },
+    "application_browser_suite": {
+      "command": ".venv/bin/pytest -q -n 4 tests/test_agent_browser_flow.py",
+      "passed": 98,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 0
+    },
+    "live_recovered_sources": 19,
+    "final_live_israel_rows": 992,
+    "additional_oracle_control_sources": 3,
+    "report_ui": "60 rows, filters, evidence links, desktop screenshot and390px viewport verified",
+    "git_baseline_pushed": "5cec7880ece4c346417dbef62a762f8b5a65535a",
+    "new_alternatives_changes": "local, uncommitted; no production deployment or scan"
+  }
+}

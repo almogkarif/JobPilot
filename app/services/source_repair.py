@@ -124,10 +124,12 @@ def repair_error_sources(db: Session) -> dict:
     setting ``last_error``. Other refreshed official sources are retried only when
     they currently carry an error. Errors remain visible until the retry succeeds.
     """
+    from .source_retirements import available_source_condition
     sources = db.scalars(
         select(Source).where(
             Source.enabled.is_(True),
             Source.kind != "demo",
+            available_source_condition(),
         )
     ).all()
 

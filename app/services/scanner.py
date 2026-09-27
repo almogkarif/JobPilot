@@ -70,8 +70,10 @@ async def scan_all_sources(
     stale_deleted = 0
 
     now = datetime.now(timezone.utc)
+    from .source_retirements import available_source_condition
     source_query = select(Source).where(
-        Source.enabled.is_(True), Source.kind != "demo", Source.career_track == career_track
+        Source.enabled.is_(True), Source.kind != "demo", Source.career_track == career_track,
+        available_source_condition(),
     )
     if source_ids:
         source_query = source_query.where(Source.id.in_(source_ids))

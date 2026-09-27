@@ -12,6 +12,7 @@ from ..models import AuditLog, Source, utcnow
 from ..utils import dumps, loads
 from .career_tracks import CAREER_TRACKS, normalize_track
 from .catalog_routing import unified_catalog_enabled
+from .source_retirements import available_source_condition
 
 SCAN_EVENT = "scan_run"
 ACTIVE_STATUSES = {"queued", "running"}
@@ -287,6 +288,7 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
         Source.canonical_source_id.is_(None) if unified_catalog_enabled() else Source.career_track == career_track,
         Source.enabled.is_(True),
         Source.kind != "demo",
+        available_source_condition(),
     ))
     latest_local = None
     if latest:

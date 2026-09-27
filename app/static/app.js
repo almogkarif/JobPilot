@@ -675,6 +675,13 @@ function formatJobDescription(value = '') {
 
 
 const SOURCE_LOGO_DOMAINS = Object.freeze({
+  'cellebrite': 'cellebrite.com',
+  'cognyte': 'cognyte.com',
+  'd-fend solutions': 'd-fendsolutions.com',
+  'scylladb': 'scylladb.com',
+  'classiq': 'classiq.io',
+  'oligo security': 'oligo.security',
+  'quantum machines': 'quantum-machines.co',
   'google': 'google.com',
   'valens semiconductor': 'valens.com',
   'valens': 'valens.com',

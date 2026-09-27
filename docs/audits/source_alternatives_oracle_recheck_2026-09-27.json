@@ -1,0 +1,157 @@
+{
+  "schema_version": 2,
+  "audit_revision": "source-audit-v4-20260926",
+  "checked_at": "2026-09-26T22:50:49.793168+00:00",
+  "run_status": "completed",
+  "source_count": 3,
+  "planned_source_count": 3,
+  "counts": {
+    "partial": 3
+  },
+  "inventory": "Static 2026-09-26 audit inventory, NOT the current database source list. Disabled rows are NOT enabled.",
+  "safety": {
+    "database_requests": 0,
+    "applications_sent": 0,
+    "enabled_sources_changed": 0,
+    "concurrent_boards": 2,
+    "per_source_timeout_seconds": 120,
+    "network_limits": "Existing collector caps; not all legacy collectors have streaming byte caps"
+  },
+  "sources": [
+    {
+      "name": "Dell Technologies Careers Israel",
+      "kind": "official_careers",
+      "identifier": "dell",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:50:43.975152+00:00",
+      "adapter": "oracle_cx_country_facet",
+      "listing_url": "https://jobs.dell.com/",
+      "effective_endpoint": "https://enterpriseplatform.dell.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions",
+      "state": "partial",
+      "total_rows": 9,
+      "israel_rows": 9,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 9,
+      "description_quality_counts": {
+        "complete": 9
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "298815",
+          "title": "Software Senior Principal Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/298815"
+        },
+        {
+          "id": "296146",
+          "title": "Software Senior Principal Engineer (Beer-Sheva)",
+          "location": "Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/296146"
+        },
+        {
+          "id": "292332",
+          "title": "ML Ops Engineer",
+          "location": "Herzliya, Tel Aviv, Israel",
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/292332"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 3.27
+    },
+    {
+      "name": "Israel Discount Bank — CS Israel",
+      "kind": "official_careers",
+      "identifier": "discount-bank",
+      "audit_reason": "unverified",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:50:43.977439+00:00",
+      "adapter": "verified_israeli_alternative",
+      "listing_url": "https://www.discountbank.co.il/private/general-information/careers/",
+      "effective_endpoint": "https://www.discountbank.co.il/DB/jobs/",
+      "state": "partial",
+      "total_rows": 40,
+      "israel_rows": 40,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 40,
+      "description_quality_counts": {
+        "complete": 40
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "5623",
+          "title": "ראש.ת תחום יעוץ משפטי- ניהול מחלקת תביעות- חטיבת הייעוץ המשפטי",
+          "location": "ראשון לציון, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5623"
+        },
+        {
+          "id": "5613",
+          "title": "יועץ.ת משכנתאות - סניף לוד - החטיבה הבנקאית",
+          "location": "לוד, מרכז, ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/5613"
+        },
+        {
+          "id": "103",
+          "title": "בנקאי.ת טלפוני.ת - מוקד ראשון לציון - החטיבה הבנקאית",
+          "location": "ישראל",
+          "url": "https://ehsb.fa.em2.oraclecloud.com/hcmUI/CandidateExperience/he/sites/CX_3001/job/103"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 4.53
+    },
+    {
+      "name": "Verint Careers Israel",
+      "kind": "official_careers",
+      "identifier": "verint",
+      "audit_reason": "pending",
+      "reported_israel": null,
+      "checked_at": "2026-09-26T22:50:47.244833+00:00",
+      "adapter": "oracle_cx",
+      "listing_url": "https://www.verint.com/careers/",
+      "effective_endpoint": "https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions",
+      "state": "partial",
+      "total_rows": 2,
+      "israel_rows": 2,
+      "blocked_count": 0,
+      "blocked_external_ids": [],
+      "snapshot_complete": false,
+      "complete_descriptions": 2,
+      "description_quality_counts": {
+        "complete": 2
+      },
+      "missing_location_rows": 0,
+      "quality_ok": true,
+      "samples": [
+        {
+          "id": "4111",
+          "title": "Human Resources Director – Israel",
+          "location": "Herzliya, Israel",
+          "url": "https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/4111"
+        },
+        {
+          "id": "4135",
+          "title": "Technical Writer",
+          "location": "Herzliya, Israel",
+          "url": "https://fa-epcb-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/4135"
+        }
+      ],
+      "non_israel_or_unrecognized_samples": [],
+      "missing_location_samples": [],
+      "note": "Counts describe the returned payload before ranking; quality_ok is a heuristic check, not live proof of completeness. An empty/foreign-only payload does not establish site-wide absence.",
+      "duration_seconds": 2.55
+    }
+  ]
+}

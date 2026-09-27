@@ -881,3 +881,122 @@ Real disposable PostgreSQL and SQLite exercise identity and control operations.
 No production bulk scan was initiated during this audit. Last user-reported Usage
 was 3.276 GB; current usage has not been verified. Check the current daily slope
 before explicitly triggering another production bulk scan or repair pass.
+
+## Final 60-source alternatives and exclusions — September 27, 2026
+
+The next audit investigated every remaining failed/unverified source, through
+public employer sites and their linked ATS boards. Nineteen recovered readers
+passed a combined live recheck. Forty-one baseline entries are operationally
+excluded (including two obsolete parent-company boards and one malformed duplicate).
+A separate exclusion covers CyberArk's pre-ATS legacy alias, if still installed.
+No source, job, application or migration receipt is deleted. No production scan,
+DB connection or Storage access was used by this audit.
+
+### Impact check
+
+The static exclusion predicate is added to existing source queries/aggregates,
+not evaluated by downloading jobs. It introduces **zero queries**, zero extra
+projected columns and zero startup/backfill passes. Recommended installation skips
+retired identities; the six newly verified pending adapters retain the existing
+one-time promotion behavior and respect explicit administrator disable overrides.
+No whole-catalog repair is added. The 14-day unverified-job expiry and independent
+source-alias verification remain unchanged.
+
+New/replaced public collectors have the following aggregate bounds per scan:
+
+| Reader group | Maximum logical HTTP requests | Maximum returned job rows |
+|---|---:|---:|
+| Osem-Nestlé and Tefen | 85 | 80 |
+| Dell, EY, SAP and PwC | 125 | 320 |
+| Meta full details | 12 + one existing isolated browser listing | 12 |
+| FOX, IEC, Clalit, Ichilov, HOT and Discount Bank | 87 | 880 |
+| Ness, Super-Pharm, SodaStream, StarkWare, CBC and Ministry of Defense | 126 | 560 |
+| Total | 435 + one browser listing | 1,852 |
+
+Each HTTP response is streamed with a 4,000,000-byte decompressed body ceiling.
+No redirect is followed by the new direct HTTP readers; Meta's existing detail
+client permits at most four redirects per detail (48 extra HTTP hops). Its
+existing rendered listing does **not** have a whole-browser asset byte ceiling;
+we do not claim one. At one hourly collection, the deliberately pessimistic
+body ceiling is 1.74 GB/scan, 41.76 GB/day, 1.2528 TB/30 days; HTTP calls are
+435/hour, 10,440/day, 313,200/30 days, plus up to 48 redirect hops/hour and one
+browser listing/hour. This is **employer-to-worker traffic, not Supabase egress**.
+Observed bodies are much smaller, and source/global deadlines further limit work.
+Detail concurrency is at most four per reader; audit concurrency was two boards.
+Oversized complete descriptions are withheld, not truncated past their requirements;
+accepted descriptions are at most 24,000 characters. All 19 snapshots are partial:
+missing jobs never authorize immediate closure.
+
+Downstream persistence still uses the existing bounded projections, 100-row lookup
+pages, 2,000 postings/source, 10,000 stored identities/source, 20,000 postings/scan,
+50,000 canonical jobs, and the shared **64 MiB/day** catalog/ranking reservation
+ledger. Its existing total ceiling remains 1.875 GiB/30 days, not an additional
+allowance for these sources. Actual source/global counts are checked before large
+reads; old descriptions are not downloaded for unchanged items. Polling, resume
+and Storage paths are unchanged. There are zero new direct Supabase requests from
+the adapters themselves. Removing 41 failed entries reduces operational source
+queries and retry attempts, but is not claimed to eliminate all egress.
+
+Regression coverage: `test_supabase_egress_optimization.py` checks SQL-only
+retirement predicates, verified source activation limits, and adapter body/row
+bounds. `test_source_retirements.py` and `test_source_retirement_integration.py`
+exercise SQLite/PostgreSQL exclusions, installation, admin display, targeted scans,
+scheduler timestamps and 14-day expiry with application-history preservation.
+Adapter tests cover bounded requests, exact identities, locations, requirements,
+blocked/partial preservation and oversized bodies. Final public results and all
+60 decisions are in `docs/audits/source_alternatives_2026-09-27.{json,html,md}`.
+
+Current production egress has not been checked since the user's 3.276 GB report.
+Before a bulk production scan after deployment, compare current Usage against the
+remaining quota and daily slope. This change does not bypass the shared budget or
+promise that all 219 retained sources can run hourly under the free quota.
+
+## Seven verified replacement employers — September 27, 2026
+
+Cognyte, Cellebrite, D-Fend Solutions, ScyllaDB, Classiq, Oligo Security and
+Quantum Machines are new employers, not aliases of existing catalog entries.
+Their official career pages/embeds were checked and the production collectors
+were exercised against the public feeds. The combined result was 93 Israeli
+vacancies before track classification and personal filters; see
+`docs/audits/source_replacements_2026-09-27.json`.
+
+Impact check: each added collector makes exactly **one public employer GET**,
+with a 25-second timeout, no redirects, at most 4,000,000 decompressed bytes,
+200 feed rows and 24,000 characters per accepted full description. Oversized
+bodies/feeds fail closed; oversized descriptions are withheld instead of cut.
+There are no browser sessions or individual-detail requests. All seven snapshots
+remain partial, so missing rows cannot immediately close historical postings.
+
+At one scan/hour, the added upper bound is 7 HTTP calls/hour, 168/day and
+5,040/30 days; 28 MB/hour, 672 MB/day and 20.16 GB/30 days of employer-to-worker
+traffic. Those body bounds are deliberately pessimistic and **are not Supabase
+egress**. The observed seven feed bodies total approximately 1.44 MB. A scan
+returns at most 1,400 rows from these feeds, including foreign rows discarded
+by the existing location gate before persistence.
+
+The adapters make zero Supabase/Storage requests. Initial recommended-source
+installation adds seven existing identity-existence SELECTs (at most one ID
+per call, allow 1 KiB/protocol response each), then inserts seven source rows.
+Once installed, reconciliation uses the existing source query and adds no
+per-employer SELECTs. The seven static source definitions contain less than
+1 KiB metadata each; allow 2 KiB per healthy Source row (14 KiB added to an
+existing catalog read). At 24 reads/day this is about 336 KiB/day or 9.85 MiB
+per 30 days, separate from the one-time <=7 KiB existence checks. This is an
+estimate for these source rows, not a new global database allowance.
+
+Persistence continues to use existing 100-row comparison pages, 2,000 postings
+per source, 10,000 stored identities per source, 20,000 postings per scan,
+50,000 canonical jobs and the shared **64 MiB/day** catalog/ranking egress
+reservation ledger (1.875 GiB/30 days). It can defer scans when that shared
+budget is insufficient. Existing old-job descriptions are not loaded just
+because these sources were added. No startup job repair, ranking pass,
+polling change or new Storage download is introduced.
+
+Regression gates: `test_verified_source_additions.py` checks exact identities,
+full requirements, country handling, malformed/empty/duplicate preservation,
+one shared installation and retained admin disable choices.
+`test_verified_replacement_feeds_use_one_bounded_response_each` in the egress
+suite checks all seven collector routes and their response/row/text bounds;
+the existing streaming-byte test checks early cancellation. No production DB
+or bulk scan was used. Production Usage still needs checking before an actual
+bulk scan; the last reported 3.276 GB is not a current measurement.

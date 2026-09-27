@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.orm import sessionmaker
 
 from app.collectors.base import NormalizedJob
@@ -21,6 +21,28 @@ from app.services.ranking.service import (
     profile_fingerprint,
 )
 import app.main as main_module
+
+
+def test_reviewed_source_exclusions_are_sql_only_without_catalog_reads():
+    from sqlalchemy.dialects import postgresql, sqlite
+    from app.services.source_retirements import available_source_condition
+    for dialect in (postgresql.dialect(), sqlite.dialect()):
+        statement = select(func.count()).select_from(Source).where(available_source_condition())
+        sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
+        assert 'not in' in sql and 'armissecurity' in sql
+        assert 'description' not in sql and 'metadata_json' not in sql and 'jobs' not in sql
+
+
+def test_new_alternative_collectors_keep_public_payload_bounds():
+    from app.collectors import global_recovery_final, israeli_recovery_final, nestle_tefen, tech_recovery_final
+    for module in (global_recovery_final, israeli_recovery_final, nestle_tefen, tech_recovery_final):
+        assert module.MAX_RESPONSE_BYTES == 4_000_000
+        assert module.MAX_DESCRIPTION_CHARS == 24_000
+    assert nestle_tefen.MAX_LISTING_PAGES == 4 and nestle_tefen.MAX_DETAILS == 40
+    assert israeli_recovery_final.MAX_JOBS == 200 and israeli_recovery_final.MAX_INPUT_ROWS == 1000
+    assert tech_recovery_final.MAX_RAW_ROWS == 400 and tech_recovery_final.MAX_INLINE_JOBS == 200
+    assert tech_recovery_final.MAX_DETAILS == 40 and tech_recovery_final.DETAIL_CONCURRENCY == 4
+    assert global_recovery_final.MAX_DETAILS == 40 and global_recovery_final.MAX_FEED_ROWS == 200
 
 
 def test_seniority_visibility_is_sql_only_without_description_reads():
@@ -387,7 +409,7 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
 
     # Generic links must be verified against bounded HTTP detail pages.
     # They still never launch Chromium or perform unbounded detail hydration.
-    assert len(IEM_RECOMMENDED_SOURCES) <= 104  # Four verified analyst boards added.
+    assert len(IEM_RECOMMENDED_SOURCES) <= 111  # Seven verified, single-response employer feeds added.
     for identifier, _company, _tracks in _REQUESTED_EMPLOYER_SOURCES:
         if identifier == "apple":  # Existing dynamic adapter, tested separately.
             continue
@@ -413,7 +435,7 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
 
     active = [item for item in EXPANDED_EMPLOYER_SOURCES if item["enabled"]]
     counts = Counter(item["track"] for item in active)
-    assert counts == {"cs": 59, "ee": 12, "iem": 8}
+    assert counts == {"cs": 61, "ee": 15, "iem": 9}
     assert {item["identifier"] for item in active} >= {"sapiens", "hadassah"}
     assert MAX_FEED_ROWS == 200
     assert MAX_RESPONSE_BYTES == 4_000_000
@@ -422,6 +444,7 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
     assert (MAX_ZIM_ROWS, MAX_IDE_CARDS, MAX_DESCRIPTION_CHARS) == (200, 40, 24_000)
     verified = {"cyera", "grip-security", "reco", "island", "global-e", "netafim", "priority-software", "stratasys", "mekorot", "electra-group", "amdocs", "hp", "boston-scientific", "zim", "ide-technologies", "sapiens", "hadassah"} | VERIFIED_ATS_IDENTIFIERS | EXPANSION_WORKDAY_IDENTIFIERS
     verified |= {"verint", "oracle", "bezeq", "ormat", "delta-galil", "loreal-israel", "snyk"}
+    verified |= {"starkware", "sap-israel", "dell", "sodastream", "hot", "iec"}
     assert all(item["kind"] != "official_careers" or item["identifier"] in verified for item in active)
     # Nineteen one-response ATS routes; Workday adds at most 43 employer calls
     # per board (discovery + two 20-row pages + 40 details), no database reads.
@@ -1139,12 +1162,14 @@ def test_recovered_oracle_country_feed_has_hard_paging_and_body_bounds(monkeypat
             offset = 25 if 'offset=25' in finder else 0
             return json.dumps({'items': [{'TotalJobsCount': 100000, 'requisitionList': [
                 {'Id': str(i + 1), 'PrimaryLocationCountry': 'IL'} for i in range(offset, offset + 25)]}]})
-        return json.dumps({'Id': url.rsplit('/', 1)[-1], 'Title': 'Software Engineer',
+        uid = url.rsplit('/', 1)[-1]
+        return json.dumps({'Id': uid, 'Title': 'Software Engineer',
             'PrimaryLocationCountry': 'IL', 'PrimaryLocation': 'Israel',
-            'ExternalDescriptionStr': 'Develop and test software. Requirements include a computer science degree and Python experience. ' * 400})
+            'ExternalDescriptionStr': 'Develop and test software. Requirements include a computer science degree and Python experience. ' * (400 if uid == '1' else 100)})
     monkeypatch.setattr(verint, 'bounded_public_get', fetch)
     rows = asyncio.run(oracle_employer.collect_oracle_employer())
-    assert len(rows) == 40 and len(calls) == 42 and not rows.complete
+    assert len(rows) == 39 and len(calls) == 42 and not rows.complete
+    assert rows.blocked_external_ids == ('1',)  # Oversized requirements are never silently truncated.
     assert all(len(job.description) <= 24000 for job in rows)
 
 
@@ -1199,3 +1224,37 @@ def test_explicit_rafael_repair_reads_projected_bounded_sources_not_jobs():
     assert "substr(" in selects[0]
     assert "jobs" not in selects[0] and "applications" not in selects[0]
     assert "last_error" not in selects[0]
+
+
+def test_verified_replacement_feeds_use_one_bounded_response_each(monkeypatch):
+    import asyncio
+    import json
+    from app.collectors import expansion_ats
+    from app.collectors.official import OfficialCareersCollector
+    from test_verified_source_additions import ADDITIONS, DESCRIPTION, lever_row
+
+    assert len(ADDITIONS) == 7
+    assert expansion_ats.MAX_RESPONSE_BYTES == 4_000_000
+    assert expansion_ats.MAX_FEED_ROWS == 200
+    assert expansion_ats.MAX_DESCRIPTION_CHARS == 24_000
+    for identifier in sorted(ADDITIONS):
+        calls = []
+        if identifier == 'd-fend-solutions':
+            body = json.dumps([lever_row()])
+        else:
+            slug, uid, token = expansion_ats.COMEET_ROUTES[identifier]
+            row = {'uid': 'AB.123', 'name': 'Software Engineer',
+                   'location': {'name': 'Tel Aviv', 'country': 'IL'},
+                   'url_comeet_hosted_page': f'https://www.comeet.com/jobs/{slug}/{uid}/engineer/AB.123',
+                   'details': [{'name': 'Requirements', 'value': DESCRIPTION}]}
+            body = json.dumps([row])
+            if not token:
+                body = '<script>var COMPANY_POSITIONS_DATA = ' + body + ';</script>'
+        async def get(url):
+            calls.append(url)
+            return body
+        monkeypatch.setattr(expansion_ats, 'bounded_public_get', get)
+        jobs = asyncio.run(OfficialCareersCollector().collect(identifier))
+        assert calls == [expansion_ats.endpoint_for(identifier)]
+        assert len(jobs) == 1 and jobs.complete is False
+        assert len(jobs[0].description) <= 24_000

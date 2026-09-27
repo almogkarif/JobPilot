@@ -93,7 +93,7 @@ def test_original_audit_cohort_remains_67_after_activating_verified_defaults():
     cohort = audit_cohort()
     assert len(cohort) == 67
     assert len({source["identifier"] for source in cohort}) == 67
-    assert sum(bool(source["enabled"]) for source in cohort) == 46
+    assert sum(bool(source["enabled"]) for source in cohort) == 52
     assert {source["identifier"] for source in cohort if source["enabled"]} >= {
         "sapiens", "hadassah", "oracle", "verint", "bezeq", "ormat",
         "delta-galil", "loreal-israel", "snyk", "astrix-security",

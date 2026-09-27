@@ -35,7 +35,8 @@ def test_career_track_api_exposes_one_active_search_agent_and_iem_catalog():
         switch(client, INDUSTRIAL_ENGINEERING)
         iem_sources = client.get("/api/sources").json()
         names = {source["company_name"] for source in iem_sources}
-        assert {"KLA", "Medtronic", "Applied Materials", "Elbit Systems", "Rafael"} <= names
+        assert {"KLA", "Medtronic", "Applied Materials", "Elbit Systems"} <= names
+        assert "Rafael" not in names  # Reviewed blocked board is operationally excluded.
         assert all(source["career_track"] == INDUSTRIAL_ENGINEERING for source in iem_sources)
 
         payload = client.get("/api/career-tracks").json()

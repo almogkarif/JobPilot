@@ -1,0 +1,1151 @@
+{
+  "generated_at": "2026-09-26T22:38:02.320040+00:00",
+  "scope": "14 remaining global-employer source alternatives; read-only public employer probes only",
+  "production_scan_run": false,
+  "database_or_storage_access": false,
+  "personal_browser_used": false,
+  "counts": {
+    "sources": 14,
+    "recovered": 5,
+    "retire": 9,
+    "verified_israel_jobs": 95
+  },
+  "limits": {
+    "response_bytes": 4000000,
+    "description_characters": 24000,
+    "dell": {
+      "max_requests": 42,
+      "max_jobs": 40
+    },
+    "ey-israel": {
+      "max_requests": 41,
+      "max_jobs": 40
+    },
+    "sap-israel": {
+      "max_requests": 41,
+      "max_jobs": 40
+    },
+    "pwc-israel": {
+      "max_requests": 1,
+      "max_jobs": 200
+    },
+    "meta": {
+      "max_browser_listing_pages": 1,
+      "max_detail_requests": 12,
+      "max_jobs": 12,
+      "browser_asset_bytes_bounded": false,
+      "max_redirect_hops_per_detail": 4,
+      "max_detail_network_hops": 48
+    },
+    "max_logical_http_calls": 137,
+    "max_http_hops_excluding_browser": 173,
+    "max_http_body_bytes_excluding_browser": 548000000
+  },
+  "verification": "76 tests passed:41 focused parser/transport/Meta production-hydration tests plus35 existing Oracle and recovery tests. No skipped tests. git diff --check passed. Full suite owned by root.",
+  "sources": [
+    {
+      "identifier": "analog-devices",
+      "name": "Analog Devices Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://careers.analog.com/",
+      "original_error": "PreserveExistingJobs: Analog Devices bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist",
+      "reason": "The existing bounded Workday reader was rechecked and again found no verified Israel details. The official analog.com careers page still links the same External Workday board; there is no verified alternative vacancy feed.",
+      "checked_urls": [
+        {
+          "url": "https://www.analog.com/en/careers.html",
+          "evidence": "Official web research confirms the External Workday board; direct HTTP request timed out."
+        },
+        {
+          "url": "https://analogdevices.wd1.myworkdayjobs.com/wday/cxs/analogdevices/External/jobs",
+          "evidence": "Bounded live collector: PreserveExistingJobs; no verified Israel detail, absence remains unproven."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "dell",
+      "name": "Dell Technologies Careers Israel",
+      "decision": "recovered",
+      "status": "verified_partial",
+      "original_url": "https://jobs.dell.com/",
+      "original_error": "PreserveExistingJobs: Dell Technologies did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "jobs.dell.com now redirects to the employer-owned Oracle CX site. Its Israel country facet exposes nine full jobs. The original generic landing-page reader was obsolete.",
+      "checked_urls": [
+        {
+          "url": "https://jobs.dell.com/",
+          "evidence": "Redirects to https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers."
+        },
+        {
+          "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers",
+          "evidence": "200; public configuration declares CX_1001."
+        },
+        {
+          "url": "https://enterpriseplatform.dell.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList&finder=findReqs;siteNumber=CX_1001,limit=25,offset=0,selectedLocationsFacet=300000000471047",
+          "evidence": "200; Israel facet 300000000471047 verified by the public locationsFacet;9 rows and 9 hydrated details."
+        }
+      ],
+      "verified_israel_count": 9,
+      "quality_ok": true,
+      "complete": false,
+      "no_jobs_claim": false,
+      "live_verification": {
+        "identifier": "dell",
+        "count": 9,
+        "quality_ok": true,
+        "complete": false,
+        "blocked": [],
+        "jobs": [
+          {
+            "id": "298815",
+            "title": "Software Senior Principal Engineer",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 4949,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/298815"
+          },
+          {
+            "id": "296146",
+            "title": "Software Senior Principal Engineer (Beer-Sheva)",
+            "location": "Israel",
+            "description_chars": 4457,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/296146"
+          },
+          {
+            "id": "292332",
+            "title": "ML Ops Engineer",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 4574,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/292332"
+          },
+          {
+            "id": "292462",
+            "title": "Product Manager- Data & ML",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 3145,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/292462"
+          },
+          {
+            "id": "295136",
+            "title": "Software Principal Engineer",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 4790,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/295136"
+          },
+          {
+            "id": "295139",
+            "title": "Software Principal Engineer",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 4790,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/295139"
+          },
+          {
+            "id": "296953",
+            "title": "Senior Advisor, Product Management — Cryptographic Security Solutions",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 3990,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/296953"
+          },
+          {
+            "id": "297912",
+            "title": "Technical Customer Success Manager",
+            "location": "Israel",
+            "description_chars": 2423,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/297912"
+          },
+          {
+            "id": "298224",
+            "title": "Technical Customer Success Manager",
+            "location": "Herzliya, Tel Aviv, Israel",
+            "description_chars": 2335,
+            "url": "https://enterpriseplatform.dell.com/hcmUI/CandidateExperience/en/sites/careers/job/298224"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "ericsson",
+      "name": "Ericsson Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://www.ericsson.com/en/careers",
+      "original_error": "PreserveExistingJobs: Ericsson did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The primary page was 403 in the earlier audit. Employer-specific public Eightfold careers page works, but its Israel search returns count 0. This does not establish no Israel vacancies and cannot justify enabling a new collector.",
+      "checked_urls": [
+        {
+          "url": "https://www.ericsson.com/en/careers",
+          "evidence": "Official web research links the careers board; prior direct HTTP 403."
+        },
+        {
+          "url": "https://jobs.ericsson.com/careers?domain=ericsson.com&location=Israel",
+          "evidence": "200 public employer-branded Eightfold page."
+        },
+        {
+          "url": "https://jobs.ericsson.com/api/pcsx/search?domain=ericsson.com&query=&location=Israel&start=0&hl=en",
+          "evidence": "200, count 0, positions[]. No empty-success reader added."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "ibm",
+      "name": "IBM Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+      "original_error": "PreserveExistingJobs: IBM did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The official country-filtered search renders 0 items and its current global location facets omit Israel. The employer-linked Avature alternative returned an empty 202 response. Neither supplies verified live vacancies.",
+      "checked_urls": [
+        {
+          "url": "https://www.ibm.com/careers/search?field_keyword_05[0]=Israel",
+          "evidence": "200 shell; one fresh isolated headless visit rendered0 Israel results and no Israel country facet."
+        },
+        {
+          "url": "https://careers.ibm.com/en_US/careers/SearchJobs/?522=Israel&522_format=1347",
+          "evidence": "202, zero bytes; no usable job detail."
+        },
+        {
+          "url": "https://www-api.ibm.com/search/api/v2",
+          "evidence": "Public search endpoint observed in the official page; no speculative adapter added."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "jabil-israel",
+      "name": "Jabil Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://careers.jabil.com/",
+      "original_error": "PreserveExistingJobs: Jabil bounded Workday search exposed no verified Israel details; this does not establish that no Israel vacancies exist",
+      "reason": "The bounded Workday reader was rechecked with the same failure. Official alternate jobs.jabil.com board is live but its global country filter has no Israel entry; no Israeli detail was verified.",
+      "checked_urls": [
+        {
+          "url": "https://jabil.wd5.myworkdayjobs.com/wday/cxs/jabil/Jabil_Careers/jobs",
+          "evidence": "Bounded live collector: PreserveExistingJobs, no verified Israel detail."
+        },
+        {
+          "url": "https://jobs.jabil.com/en/search-jobs",
+          "evidence": "200, 1,921,968 bytes; real global vacancy links, no Israel country label in fetched board."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "nokia",
+      "name": "Nokia Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://www.nokia.com/about-us/careers/",
+      "original_error": "PreserveExistingJobs: Nokia did not expose a reliable job payload; candidate_rows=7, rejected={'detail': 0, 'schema': 7, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The careers marketing pages return 403 directly. Official web research links jobs.nokia.com, whose public Oracle configuration and API are accessible. The Israel keyword search returns 0, leaving availability unverified.",
+      "checked_urls": [
+        {
+          "url": "https://www.nokia.com/careers/",
+          "evidence": "Direct HTTP 403; official web research links https://jobs.nokia.com/en/sites/CX_1/."
+        },
+        {
+          "url": "https://www.nokia.com/about-us/careers/",
+          "evidence": "Direct HTTP 403."
+        },
+        {
+          "url": "https://jobs.nokia.com/en/sites/CX_1/",
+          "evidence": "200; declares Oracle host fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com."
+        },
+        {
+          "url": "https://fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&expand=requisitionList,locationsFacet&finder=findReqs;siteNumber=CX_1,limit=25,offset=0,keyword=Israel",
+          "evidence": "200, TotalJobsCount 0; keyword absence is not whole-country absence."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "sap-israel",
+      "name": "SAP Careers Israel",
+      "decision": "recovered",
+      "status": "verified_partial",
+      "original_url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+      "original_error": "PreserveExistingJobs: SAP did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The new jobs.sap.com site returns 403, but SAP itself advertises its previous careers.sap.com site during migration. The old official Israel board exposes four full roles with canonical identities, hiringOrganization SAP and IL address fields.",
+      "checked_urls": [
+        {
+          "url": "https://jobs.sap.com/go/SAP-Jobs-in-Israel/851401/",
+          "evidence": "403."
+        },
+        {
+          "url": "https://jobs.sap.com/search/?q=&locationsearch=Israel",
+          "evidence": "403."
+        },
+        {
+          "url": "https://jobs.sap.com/en/?from=email",
+          "evidence": "Official web research says current opportunities remain on careers.sap.com during migration."
+        },
+        {
+          "url": "https://careers.sap.com/go/SAP-Jobs-in-Israel/851401/",
+          "evidence": "200; 4 listed vacancies, all 4 complete details validated."
+        }
+      ],
+      "verified_israel_count": 4,
+      "quality_ok": true,
+      "complete": false,
+      "no_jobs_claim": false,
+      "live_verification": {
+        "identifier": "sap-israel",
+        "count": 4,
+        "quality_ok": true,
+        "complete": false,
+        "blocked": [],
+        "jobs": [
+          {
+            "id": "1429741933",
+            "title": "Cloud Platform Engineer - Student (Java)",
+            "location": "Ra'anana, Israel",
+            "description_chars": 5126,
+            "url": "https://careers.sap.com/job/Ra'anana-Cloud-Platform-Engineer-Student-%28Java%29-4366202/1429741933/"
+          },
+          {
+            "id": "1276005301",
+            "title": "Student Developer - SAP BTP - CCS",
+            "location": "Ra'anana, Israel",
+            "description_chars": 4725,
+            "url": "https://careers.sap.com/job/Ra'anana-Student-Developer-SAP-BTP-CCS-4366202/1276005301/"
+          },
+          {
+            "id": "1436495733",
+            "title": "Max Success Plan Manager (SPM) - SAP IL",
+            "location": "Ra'anana, Israel",
+            "description_chars": 8008,
+            "url": "https://careers.sap.com/job/Ra'anana-Max-Success-Plan-Manager-%28SPM%29-SAP-IL-4366202/1436495733/"
+          },
+          {
+            "id": "1412195733",
+            "title": "Student DevOps Engineer- CxP Commercial Foundation Services",
+            "location": "Ra'anana, Israel",
+            "description_chars": 6177,
+            "url": "https://careers.sap.com/job/Ra'anana-Student-DevOps-Engineer-CxP-Commercial-Foundation-Services-4366202/1412195733/"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "dhl-israel",
+      "name": "DHL — CS Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://careers.dhl.com/global/en",
+      "original_error": "PreserveExistingJobs: DHL did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "Global search returned 0. The official local DHL article lists nine roles with descriptions and Israel locations, but applications use one email and no real per-vacancy IDs. Synthetic IDs or invented URLs were not created.",
+      "checked_urls": [
+        {
+          "url": "https://careers.dhl.com/global/en/search-results?keywords=Israel",
+          "evidence": "200; Phenom public embedded search has totalHits 0."
+        },
+        {
+          "url": "https://www.dhl.com/discover/en-il/Career-at-DHL/Career-at-DHL2",
+          "evidence": "Official article, published 2026-09-16, exposes 9 role descriptions but no stable vacancy IDs or unique application URLs."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "ups-israel",
+      "name": "UPS — CS Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://www.jobs-ups.com/",
+      "original_error": "PreserveExistingJobs: UPS did not expose a reliable job payload; candidate_rows=1, rejected={'detail': 0, 'schema': 1, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The original domain now redirects to a new Phenom career page. Its Israel search exposes no jobs, and official web research did not establish a usable domestic alternative.",
+      "checked_urls": [
+        {
+          "url": "https://www.jobs-ups.com/",
+          "evidence": "Redirects to https://www.jobs-ups.com/global/en,200."
+        },
+        {
+          "url": "https://www.jobs-ups.com/global/en/search-results?keywords=Israel",
+          "evidence": "200; totalHits 0 and no job identities."
+        },
+        {
+          "url": "https://www.upsjobs.com/",
+          "evidence": "Official alternative found in web research; same public career branding, no verified Israel vacancies."
+        },
+        {
+          "url": "https://upscareers.jobs/",
+          "evidence": "Official UPS-branded alternative found in web research; no verified Israel detail."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "unilever-israel",
+      "name": "Unilever Israel Careers Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://careers.unilever.com/en/israel",
+      "original_error": "PreserveExistingJobs: Unilever Israel did not expose a reliable job payload; candidate_rows=2, rejected={'detail': 0, 'schema': 2, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The official Israel marketing page links the global TalentBrew board and a Workday talent profile. Israel keyword and explicit country search pages contain no vacancies; that alone is not proof of company-wide absence.",
+      "checked_urls": [
+        {
+          "url": "https://careers.unilever.com/en/israel",
+          "evidence": "200; links global search and unilever.wd3.myworkdayjobs.com/Unilever_Experienced_Professionals/userHome."
+        },
+        {
+          "url": "https://careers.unilever.com/en/search-jobs/Israel",
+          "evidence": "200; no real job links."
+        },
+        {
+          "url": "https://careers.unilever.com/en/location/israel-jobs/34155/294640/2",
+          "evidence": "200, title Search Israel Jobs at Unilever; no real job links."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "pwc-israel",
+      "name": "PwC Israel — CS Israel",
+      "decision": "recovered",
+      "status": "verified_partial",
+      "original_url": "https://www.pwc.com/il/he/career.html",
+      "original_error": "PreserveExistingJobs: PwC Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The obsolete pwc.com career URL was 404. The current official PwC Israel homepage directly links the HunterHRMS board. Its public frontend defines a dedicated read-only get-jobs endpoint and an explicit domestic city mapping. The live feed has 51 rows;49 complete city-verified roles passed quality checks.",
+      "checked_urls": [
+        {
+          "url": "https://www.pwc.com/il/en/",
+          "evidence": "200; direct Careers link to https://pwc-careersite.hunterhrms.com/."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/",
+          "evidence": "200; PwC-branded app."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/_next/static/chunks/25-6ef4c5ee74605bb9.js",
+          "evidence": "Public code defines POST/actions-pwc-career with cmd:get-jobs and jobArea1/2/3/4 as Tel Aviv/Haifa/Jerusalem/Beer Sheva."
+        },
+        {
+          "url": "https://niloo-server.herokuapp.com/actions-pwc-career",
+          "evidence": "Public read-only POST {cmd:get-jobs}:200,149,953 bytes,51 rows. Reject763 (missing detail) and727 (missing city)."
+        },
+        {
+          "url": "https://pwc-careersite.hunterhrms.com/job?jid=766",
+          "evidence": "200; job frontend uses get-job with the same numeric jid and renders description plus requirements."
+        }
+      ],
+      "verified_israel_count": 49,
+      "quality_ok": true,
+      "complete": false,
+      "no_jobs_claim": false,
+      "live_verification": {
+        "identifier": "pwc-israel",
+        "count": 49,
+        "quality_ok": true,
+        "complete": false,
+        "blocked": [],
+        "jobs": [
+          {
+            "id": "766",
+            "title": "EDGE Team Lead",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2464,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=766"
+          },
+          {
+            "id": "760",
+            "title": "DevOps Tech Lead",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2864,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=760"
+          },
+          {
+            "id": "762",
+            "title": "AI Adoption & Implementation Consultant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3316,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=762"
+          },
+          {
+            "id": "764",
+            "title": "Software Engineering Team Lead",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2899,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=764"
+          },
+          {
+            "id": "695",
+            "title": "רפרנט/ית ניהול סיכונים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 715,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=695"
+          },
+          {
+            "id": "499",
+            "title": "מתמחה למחלקת הביקורת - מחזור 2027",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 933,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=499"
+          },
+          {
+            "id": "755",
+            "title": "Cybersecurity Architecture Specialist",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1366,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=755"
+          },
+          {
+            "id": "591",
+            "title": "רו\"ח/ עו\"ד למחלקת מיסוי ישראלי",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 752,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=591"
+          },
+          {
+            "id": "752",
+            "title": "Tax Manager",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 748,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=752"
+          },
+          {
+            "id": "753",
+            "title": "Risk and Compliance Advisor",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1431,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=753"
+          },
+          {
+            "id": "750",
+            "title": "Help Desk Specialist PwC Israel",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 625,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=750"
+          },
+          {
+            "id": "740",
+            "title": "סניור MA",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 687,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=740"
+          },
+          {
+            "id": "742",
+            "title": "מתמחים למחלקת M&A Advisory מיידי",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 589,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=742"
+          },
+          {
+            "id": "738",
+            "title": "AI Solution Architect",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2034,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=738"
+          },
+          {
+            "id": "744",
+            "title": "Technical Integration Lead",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2339,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=744"
+          },
+          {
+            "id": "745",
+            "title": "Data Scientist",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2731,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=745"
+          },
+          {
+            "id": "743",
+            "title": "מרכז החדשנות – Innovation & Technology Associate (משרה מלאה)",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1905,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=743"
+          },
+          {
+            "id": "739",
+            "title": "AI Engineer",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1733,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=739"
+          },
+          {
+            "id": "724",
+            "title": "טרום התמחות בחטיבת הביקורת - חיפה",
+            "location": "Haifa, Israel",
+            "description_chars": 411,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=724"
+          },
+          {
+            "id": "703",
+            "title": "מתמחה לחטיבת הביקורת - מחזור 2028",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 933,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=703"
+          },
+          {
+            "id": "737",
+            "title": "מתמחה לחטיבת הביקורת ירושלים - מחזור 2028",
+            "location": "Jerusalem, Israel",
+            "description_chars": 933,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=737"
+          },
+          {
+            "id": "735",
+            "title": "מתמחה לחטיבת הביקורת חיפה - מחזור 2028",
+            "location": "Haifa, Israel",
+            "description_chars": 933,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=735"
+          },
+          {
+            "id": "736",
+            "title": "מתמחה לחטיבת הביקורת באר שבע - מחזור 2028",
+            "location": "Beer Sheva, Israel",
+            "description_chars": 933,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=736"
+          },
+          {
+            "id": "586",
+            "title": "טרום התמחות בחטיבת הביקורת - משרת סטודנט",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 411,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=586"
+          },
+          {
+            "id": "733",
+            "title": "מעצב/ת גרפי/ת PwC Israel",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1496,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=733"
+          },
+          {
+            "id": "723",
+            "title": "מומחה/ית להערכות שווי",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1379,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=723"
+          },
+          {
+            "id": "730",
+            "title": "M&A Advisory Manager",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 864,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=730"
+          },
+          {
+            "id": "595",
+            "title": "International Tax Associate",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 963,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=595"
+          },
+          {
+            "id": "716",
+            "title": "Senior / Semi Senior לקבוצת הביקורת",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1026,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=716"
+          },
+          {
+            "id": "715",
+            "title": "מתמחה לקבוצת המסים - מחזור 2028",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 854,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=715"
+          },
+          {
+            "id": "698",
+            "title": "מתמחה למחלקה הכלכלית מחזור 2028",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 924,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=698"
+          },
+          {
+            "id": "569",
+            "title": "יועץ/ת מס - מחלקת מיסוי פרט",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 450,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=569"
+          },
+          {
+            "id": "674",
+            "title": "Transfer Pricing Consultant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 629,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=674"
+          },
+          {
+            "id": "697",
+            "title": "Tax Technology Specialist",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1042,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=697"
+          },
+          {
+            "id": "139",
+            "title": "US Desk Tax Accountant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 696,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=139"
+          },
+          {
+            "id": "631",
+            "title": "רו\"ח ועו\"ד לתחום האופציות ותגמול מבוסס מניות",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 874,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=631"
+          },
+          {
+            "id": "302",
+            "title": "State And Local Tax",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1209,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=302"
+          },
+          {
+            "id": "604",
+            "title": "Senior Tax Associate",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 770,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=604"
+          },
+          {
+            "id": "711",
+            "title": "AI Adoption & Consultant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2361,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=711"
+          },
+          {
+            "id": "714",
+            "title": "מזכיר/ת שותפים בכירים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 629,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=714"
+          },
+          {
+            "id": "694",
+            "title": "Senior Full Stack Developer – AI Platform",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2443,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=694"
+          },
+          {
+            "id": "704",
+            "title": "Financial Analyst- Strategic lead",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1161,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=704"
+          },
+          {
+            "id": "657",
+            "title": "רפרנט/ית גבייה לקבוצת המסים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 731,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=657"
+          },
+          {
+            "id": "663",
+            "title": "חשב/ת שכר",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 480,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=663"
+          },
+          {
+            "id": "670",
+            "title": "מנהל/ת חשבונות למח' הכספים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 504,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=670"
+          },
+          {
+            "id": "377",
+            "title": "סניור למחלקת הביקורת - PwC חיפה",
+            "location": "Haifa, Israel",
+            "description_chars": 910,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=377"
+          },
+          {
+            "id": "709",
+            "title": "מפתח.ת למידה ותפעול הדרכה מנוסה",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1348,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=709"
+          },
+          {
+            "id": "642",
+            "title": "מנהל/ת חשבונות ספקים לאזור שוהם",
+            "location": "Haifa, Israel",
+            "description_chars": 302,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=642"
+          },
+          {
+            "id": "514",
+            "title": "מנהל/ת חשבונות לאזור הקריות",
+            "location": "Haifa, Israel",
+            "description_chars": 222,
+            "url": "https://pwc-careersite.hunterhrms.com/job?jid=514"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "deloitte-israel",
+      "name": "Deloitte Israel — CS Israel",
+      "decision": "retire",
+      "status": "unavailable_unverified",
+      "original_url": "https://www.deloitte.com/il/en/careers.html",
+      "original_error": "PreserveExistingJobs: Deloitte Israel did not expose a reliable job payload; candidate_rows=4, rejected={'detail': 0, 'schema': 4, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The general global careers page is not the local job board. Official local careers.deloitte.co.il exposes 68 positions in web research, but both its landing and positions page returned 403 directly. No challenge was bypassed and no unverified reader was enabled.",
+      "checked_urls": [
+        {
+          "url": "https://www.deloitte.com/il/en/careers.html",
+          "evidence": "Original generic source was unverified in prior audit."
+        },
+        {
+          "url": "https://careers.deloitte.co.il/",
+          "evidence": "403 on direct public request; official employer careers site confirmed by web research."
+        },
+        {
+          "url": "https://careers.deloitte.co.il/positions/",
+          "evidence": "403 on direct request; indexed official page advertises 68 roles, so no-jobs inference would be false."
+        }
+      ],
+      "verified_israel_count": null,
+      "quality_ok": null,
+      "complete": false,
+      "no_jobs_claim": false
+    },
+    {
+      "identifier": "ey-israel",
+      "name": "EY Israel — CS Israel",
+      "decision": "recovered",
+      "status": "verified_partial",
+      "original_url": "https://www.ey.com/en_il/careers",
+      "original_error": "PreserveExistingJobs: EY Israel did not expose a reliable job payload; candidate_rows=0, rejected={'detail': 0, 'schema': 0, 'identity': 0, 'navigation': 0}; preserving the last successful snapshot",
+      "reason": "The old global country URL was 404; local ey.co.il/career returns 403. EY official SuccessFactors search exposes 25 live Israel vacancies on its first page, with full descriptions, canonical numeric IDs, hiringOrganization EY and explicit IL address fields.",
+      "checked_urls": [
+        {
+          "url": "https://www.ey.com/en_il/careers",
+          "evidence": "404 in prior audit."
+        },
+        {
+          "url": "https://ey.co.il/career/",
+          "evidence": "403 directly; official web research confirms local openings."
+        },
+        {
+          "url": "https://careers.ey.com/ey/?locale=he_IL",
+          "evidence": "Official Hebrew job-search portal found in web research."
+        },
+        {
+          "url": "https://careers.ey.com/search/?q=&locationsearch=Israel",
+          "evidence": "200; 25 roles on fetched page, 25 hydrated/quality-validated."
+        }
+      ],
+      "verified_israel_count": 25,
+      "quality_ok": true,
+      "complete": false,
+      "no_jobs_claim": false,
+      "live_verification": {
+        "identifier": "ey-israel",
+        "count": 25,
+        "quality_ok": true,
+        "complete": false,
+        "blocked": [],
+        "jobs": [
+          {
+            "id": "1117187801",
+            "title": "איש-ת אחזקה, מחלקת התפעול",
+            "location": "Haifa, Israel",
+            "description_chars": 386,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%90%D7%99%D7%A9-%D7%AA-%D7%90%D7%97%D7%96%D7%A7%D7%94%2C-%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%AA%D7%A4%D7%A2%D7%95%D7%9C-6706703/1117187801/"
+          },
+          {
+            "id": "1395205733",
+            "title": "יועץ-ת מוביל-ה לתחום ה-AI",
+            "location": "Haifa, Israel",
+            "description_chars": 1559,
+            "url": "https://careers.ey.com/ey/job/Haifa-%D7%99%D7%95%D7%A2%D7%A5-%D7%AA-%D7%9E%D7%95%D7%91%D7%99%D7%9C-%D7%94-%D7%9C%D7%AA%D7%97%D7%95%D7%9D-%D7%94-AI-3309502/1395205733/"
+          },
+          {
+            "id": "1416792033",
+            "title": "התמחות בחיפה",
+            "location": "Haifa, Israel",
+            "description_chars": 808,
+            "url": "https://careers.ey.com/ey/job/Haifa-%D7%94%D7%AA%D7%9E%D7%97%D7%95%D7%AA-%D7%91%D7%97%D7%99%D7%A4%D7%94-3309502/1416792033/"
+          },
+          {
+            "id": "1410371233",
+            "title": "מבקר-ת למערך הבקרה במחלקת המגזר הציבורי",
+            "location": "Jerusalem, Israel",
+            "description_chars": 693,
+            "url": "https://careers.ey.com/ey/job/Jerusalem-%D7%9E%D7%91%D7%A7%D7%A8-%D7%AA-%D7%9C%D7%9E%D7%A2%D7%A8%D7%9A-%D7%94%D7%91%D7%A7%D7%A8%D7%94-%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%9E%D7%92%D7%96%D7%A8-%D7%94%D7%A6%D7%99%D7%91%D7%95%D7%A8%D7%99-9777508/1410371233/"
+          },
+          {
+            "id": "1415727233",
+            "title": "אנליסט /ית מתחיל/ה לתחום שכר והטבות",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1124,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%90%D7%A0%D7%9C%D7%99%D7%A1%D7%98-%D7%99%D7%AA-%D7%9E%D7%AA%D7%97%D7%99%D7%9C%D7%94-%D7%9C%D7%AA%D7%97%D7%95%D7%9D-%D7%A9%D7%9B%D7%A8-%D7%95%D7%94%D7%98%D7%91%D7%95%D7%AA-6706703/1415727233/"
+          },
+          {
+            "id": "1247359701",
+            "title": "יועץ-ת לצוות ניהול סיכונים פיננסיים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 879,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%99%D7%95%D7%A2%D7%A5-%D7%AA-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-%D7%A0%D7%99%D7%94%D7%95%D7%9C-%D7%A1%D7%99%D7%9B%D7%95%D7%A0%D7%99%D7%9D-%D7%A4%D7%99%D7%A0%D7%A0%D7%A1%D7%99%D7%99%D7%9D-6706703/1247359701/"
+          },
+          {
+            "id": "1430760533",
+            "title": "Enterprise PLM Project Manager",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1604,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Enterprise-PLM-Project-Manager-6706703/1430760533/"
+          },
+          {
+            "id": "1430792833",
+            "title": "Data Scientist לצוות Industry Tech",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 935,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Data-Scientist-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-Industry-Tech-6706703/1430792833/"
+          },
+          {
+            "id": "1201402001",
+            "title": "Technology Risk Consultant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 637,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Technology-Risk-Consultant-6706703/1201402001/"
+          },
+          {
+            "id": "931503601",
+            "title": "מתמחה/סניור לאשכול הרב תחומי",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 837,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%9E%D7%AA%D7%9E%D7%97%D7%94%D7%A1%D7%A0%D7%99%D7%95%D7%A8-%D7%9C%D7%90%D7%A9%D7%9B%D7%95%D7%9C-%D7%94%D7%A8%D7%91-%D7%AA%D7%97%D7%95%D7%9E%D7%99-6706703/931503601/"
+          },
+          {
+            "id": "1262780301",
+            "title": "Senior Cybersecurity Consultant \\ Architect",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2274,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Senior-Cybersecurity-Consultant-Architect-6706703/1262780301/"
+          },
+          {
+            "id": "1159368301",
+            "title": "Financial Due Diligence דרוש-ה מתמחה/סניור/מנג'ר לצוות",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 916,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Financial-Due-Diligence-%D7%93%D7%A8%D7%95%D7%A9-%D7%94-%D7%9E%D7%AA%D7%9E%D7%97%D7%94%D7%A1%D7%A0%D7%99%D7%95%D7%A8%D7%9E%D7%A0%D7%92'%D7%A8-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-6706703/1159368301/"
+          },
+          {
+            "id": "1158120501",
+            "title": "בוגר-ת פכ\"מ לצוות ניהול סיכונים פיננסיים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 419,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%91%D7%95%D7%92%D7%A8-%D7%AA-%D7%A4%D7%9B%D7%9E-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-%D7%A0%D7%99%D7%94%D7%95%D7%9C-%D7%A1%D7%99%D7%9B%D7%95%D7%A0%D7%99%D7%9D-%D7%A4%D7%99%D7%A0%D7%A0%D7%A1%D7%99%D7%99%D7%9D-6706703/1158120501/"
+          },
+          {
+            "id": "1385264833",
+            "title": "יועץ-ת כלכלי-ת טכנולוגי-ת לצוות ניהול סיכונים בתאגידים פיננסיים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 759,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%99%D7%95%D7%A2%D7%A5-%D7%AA-%D7%9B%D7%9C%D7%9B%D7%9C%D7%99-%D7%AA-%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99-%D7%AA-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-%D7%A0%D7%99%D7%94%D7%95%D7%9C-%D7%A1%D7%99%D7%9B%D7%95%D7%A0%D7%99%D7%9D-%D7%91%D7%AA%D7%90%D7%92%D7%99%D7%93%D7%99%D7%9D-%D7%A4/1385264833/"
+          },
+          {
+            "id": "1260864201",
+            "title": "מתמחה למחלקת ניהול סיכוני IT באשכול ה-FSO",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 570,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%9E%D7%AA%D7%9E%D7%97%D7%94-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%A0%D7%99%D7%94%D7%95%D7%9C-%D7%A1%D7%99%D7%9B%D7%95%D7%A0%D7%99-IT-%D7%91%D7%90%D7%A9%D7%9B%D7%95%D7%9C-%D7%94-FSO-6706703/1260864201/"
+          },
+          {
+            "id": "966806801",
+            "title": "Risk Business Consultant- התמחות בחשבונאות במחלקת ניהול סיכונים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 728,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Risk-Business-Consultant-%D7%94%D7%AA%D7%9E%D7%97%D7%95%D7%AA-%D7%91%D7%97%D7%A9%D7%91%D7%95%D7%A0%D7%90%D7%95%D7%AA-%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%A0%D7%99%D7%94%D7%95%D7%9C-%D7%A1%D7%99%D7%9B%D7%95%D7%A0%D7%99%D7%9D-6706703/966806801/"
+          },
+          {
+            "id": "1270237401",
+            "title": "מתמחה למחלקת ביקורת נדלן",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 396,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%9E%D7%AA%D7%9E%D7%97%D7%94-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%AA-%D7%A0%D7%93%D7%9C%D7%9F-6706703/1270237401/"
+          },
+          {
+            "id": "1107930601",
+            "title": "חשב-ת שכר בכיר-ה עם ניסיון למחלקת המיסים",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 492,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%97%D7%A9%D7%91-%D7%AA-%D7%A9%D7%9B%D7%A8-%D7%91%D7%9B%D7%99%D7%A8-%D7%94-%D7%A2%D7%9D-%D7%A0%D7%99%D7%A1%D7%99%D7%95%D7%9F-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%9E%D7%99%D7%A1%D7%99%D7%9D-6706703/1107930601/"
+          },
+          {
+            "id": "1148154201",
+            "title": "מתמחה/ סניור לצוות ביקורת בבאר שבע",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 475,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%9E%D7%AA%D7%9E%D7%97%D7%94-%D7%A1%D7%A0%D7%99%D7%95%D7%A8-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-%D7%91%D7%99%D7%A7%D7%95%D7%A8%D7%AA-%D7%91%D7%91%D7%90%D7%A8-%D7%A9%D7%91%D7%A2-6706703/1148154201/"
+          },
+          {
+            "id": "1418058933",
+            "title": "דרוש-ה מפתח-ת RPA למחלקת ה- Consulting של EY",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1394,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%93%D7%A8%D7%95%D7%A9-%D7%94-%D7%9E%D7%A4%D7%AA%D7%97-%D7%AA-RPA-%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94-Consulting-%D7%A9%D7%9C-EY-6706703/1418058933/"
+          },
+          {
+            "id": "1171015501",
+            "title": "יועץ-ת מס",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 424,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%99%D7%95%D7%A2%D7%A5-%D7%AA-%D7%9E%D7%A1-6706703/1171015501/"
+          },
+          {
+            "id": "1168584701",
+            "title": "עו\"ד/ רו\"ח לצוות מיסוי עקיף",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 449,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%A2%D7%95%D7%93-%D7%A8%D7%95%D7%97-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-%D7%9E%D7%99%D7%A1%D7%95%D7%99-%D7%A2%D7%A7%D7%99%D7%A3-6706703/1168584701/"
+          },
+          {
+            "id": "1399238733",
+            "title": "יועץ-ת לפרויקטים בתחום הרגולציה במחלקת הייעוץ למגזר הציבורי",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 1098,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-%D7%99%D7%95%D7%A2%D7%A5-%D7%AA-%D7%9C%D7%A4%D7%A8%D7%95%D7%99%D7%A7%D7%98%D7%99%D7%9D-%D7%91%D7%AA%D7%97%D7%95%D7%9D-%D7%94%D7%A8%D7%92%D7%95%D7%9C%D7%A6%D7%99%D7%94-%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%AA-%D7%94%D7%99%D7%99%D7%A2%D7%95%D7%A5-%D7%9C%D7%9E%D7%92%D7%96%D7%A8-%D7%94%D7%A6%D7%99/1399238733/"
+          },
+          {
+            "id": "1429691933",
+            "title": "EYבמחלקה הכלכלית של EYP Execution &Strategy דרוש-ה מתמחה לצוות",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 735,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-EY%D7%91%D7%9E%D7%97%D7%9C%D7%A7%D7%94-%D7%94%D7%9B%D7%9C%D7%9B%D7%9C%D7%99%D7%AA-%D7%A9%D7%9C-EYP-Execution-&Strategy-%D7%93%D7%A8%D7%95%D7%A9-%D7%94-%D7%9E%D7%AA%D7%9E%D7%97%D7%94-%D7%9C%D7%A6%D7%95%D7%95%D7%AA-6706703/1429691933/"
+          },
+          {
+            "id": "1423329933",
+            "title": "Offensive Security Consultant",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3662,
+            "url": "https://careers.ey.com/ey/job/Tel-Aviv-Offensive-Security-Consultant-6706703/1423329933/"
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "meta",
+      "name": "Meta Careers Israel",
+      "decision": "recovered",
+      "status": "verified_partial",
+      "original_url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+      "original_error": "PreserveExistingJobs: Meta could not verify the official listing; preserving the last successful job snapshot",
+      "reason": "The public careers route moved from /jobs to /jobsearch and /profile/job_details. Ordinary isolated headless browsing exposes 8 Tel Aviv roles; default HTTP headers fetch full JSON-LD details. The old fake browser User-Agent caused 400, and was removed for Meta. No authentication/session token replay is used.",
+      "checked_urls": [
+        {
+          "url": "https://www.metacareers.com/jobs?offices[0]=Tel%20Aviv%2C%20Israel",
+          "evidence": "Redirects to /jobsearch; old /jobs/ selector misses current job links."
+        },
+        {
+          "url": "https://www.metacareers.com/jobsearch/?offices[0]=Tel%20Aviv%2C%20Israel",
+          "evidence": "One public browser page; 8 current numeric /profile/job_details/ links."
+        },
+        {
+          "url": "https://www.metacareers.com/profile/job_details/1063946209792967",
+          "evidence": "200 with default HTTP; complete JSON-LD includes description,responsibilities,qualifications,Meta employer,IL address,canonical numeric ID and expiry."
+        },
+        {
+          "url": "https://www.metacareers.com/graphql",
+          "evidence": "Minimal anonymous direct query returned400; abandoned. Production recovery uses the ordinary rendered listing, without token replay."
+        }
+      ],
+      "verified_israel_count": 8,
+      "quality_ok": true,
+      "complete": false,
+      "no_jobs_claim": false,
+      "live_verification": {
+        "identifier": "meta",
+        "count": 8,
+        "quality_ok": true,
+        "complete": false,
+        "blocked": [],
+        "jobs": [
+          {
+            "id": "2082780019279407",
+            "title": "Software Engineer, Systems",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 4003,
+            "url": "https://www.metacareers.com/profile/job_details/2082780019279407/"
+          },
+          {
+            "id": "1063946209792967",
+            "title": "Data Scientist, Product Analytics",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3510,
+            "url": "https://www.metacareers.com/profile/job_details/1063946209792967/"
+          },
+          {
+            "id": "2316600655751692",
+            "title": "Machine Learning Engineer",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 2756,
+            "url": "https://www.metacareers.com/profile/job_details/2316600655751692/"
+          },
+          {
+            "id": "1213291788544095",
+            "title": "Solutions Architect - (12 Month Contract)",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3596,
+            "url": "https://www.metacareers.com/profile/job_details/1213291788544095/"
+          },
+          {
+            "id": "1063563173314893",
+            "title": "Software Engineer, ML (Technical Leadership)",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3070,
+            "url": "https://www.metacareers.com/profile/job_details/1063563173314893/"
+          },
+          {
+            "id": "1739283197382239",
+            "title": "Product Manager, Central Products",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 5681,
+            "url": "https://www.metacareers.com/profile/job_details/1739283197382239/"
+          },
+          {
+            "id": "1589574595368459",
+            "title": "Client Solution Manager, Tech & Commerce, 12 Month Contract",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 4165,
+            "url": "https://www.metacareers.com/profile/job_details/1589574595368459/"
+          },
+          {
+            "id": "1494937544890619",
+            "title": "Creative Strategist, Israel & Gaming",
+            "location": "Tel Aviv, Israel",
+            "description_chars": 3615,
+            "url": "https://www.metacareers.com/profile/job_details/1494937544890619/"
+          }
+        ]
+      }
+    }
+  ]
+}

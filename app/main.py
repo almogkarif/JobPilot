@@ -97,6 +97,7 @@ from .services.github_actions import (dispatch_application_workflow,
 from .services.application_queue_recovery import queue_health, recover_stuck_auto_applications
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
+from .services.source_retirements import retirement_reason, available_source_condition
 from .services.user_job_state import attach_user_job_states, effective_status, set_job_status
 from .utils import dumps, loads
 from .auth import (AuthIdentity, application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
@@ -1228,7 +1229,8 @@ def developer_overview(request: Request, db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     track = active_track(profile)
     source_rows = db.execute(select(Source.enabled, Source.last_error, Source.health_score).where(
-        Source.canonical_source_id.is_(None) if unified_catalog_enabled() else Source.career_track == track
+        Source.canonical_source_id.is_(None) if unified_catalog_enabled() else Source.career_track == track,
+        available_source_condition(),
     )).all()
     devices = db.scalars(select(AgentDevice).order_by(desc(AgentDevice.last_seen_at))).all()
     scan = _effective_scan_status(db, user_id, track)
@@ -1276,7 +1278,7 @@ def developer_user_detail(user_id: str, request: Request, db: Session = Depends(
         return {"user": {"id": account.auth_user_id, "email": account.email, "role": account.role, "claimed_at": account.claimed_at, "last_login_at": account.last_login_at or account.claimed_at, "last_seen_at": account.last_seen_at},
                 "profile": {"track": track, "onboarding_version": int(profile.onboarding_version or 0) if profile else 0,
                             "skills": len(loads(profile.skills_json, [])) if profile else 0, "desired_titles": len(loads(profile.desired_titles_json, [])) if profile else 0},
-                "counts": {"jobs": tenant.scalar(select(func.count()).select_from(Job)) or 0, "sources": tenant.scalar(select(func.count()).select_from(Source)) or 0,
+                "counts": {"jobs": tenant.scalar(select(func.count()).select_from(Job)) or 0, "sources": tenant.scalar(select(func.count()).select_from(Source).where(available_source_condition())) or 0,
                            "applications": tenant.scalar(select(func.count()).select_from(Application)) or 0, "resumes": tenant.scalar(select(func.count()).select_from(ResumeProfile)) or 0}}
 
 
@@ -1297,7 +1299,7 @@ def developer_user_section(user_id: str, section: str, request: Request, db: Ses
         if section == "desired_titles":
             return {"title": "Desired titles", "items": [{"primary": value} for value in loads(profile.desired_titles_json, [])]}
         if section == "sources":
-            rows = tenant.scalars(select(Source).order_by(Source.career_track, Source.name)).all()
+            rows = tenant.scalars(select(Source).where(available_source_condition()).order_by(Source.career_track, Source.name)).all()
             return {"title": "Sources", "items": [{"primary": row.name, "secondary": f"{row.career_track} · {'פעיל' if row.enabled else 'כבוי'} · health {row.health_score}%"} for row in rows]}
         if section == "jobs":
             rows = tenant.scalars(select(Job).outerjoin(
@@ -1659,6 +1661,8 @@ def ranking_lab_rerank(request: Request, user_id: str | None = None, db: Session
 async def developer_test_source(source_id: int, request: Request, db: Session = Depends(get_db)):
     _require_developer(request)
     source = _active_source_or_404(db, source_id)
+    if reason := retirement_reason(source.kind, source.identifier):
+        raise HTTPException(400, reason)
     user_id = current_user_id(db)
     if _user_scan_lock(user_id).locked():
         return {"status": "already_running", "source_id": source_id, "career_track": source.career_track}
@@ -1761,7 +1765,7 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
         enabled_sources, source_errors = db.execute(select(
             func.sum(case((Source.enabled.is_(True) & (Source.kind != "demo"), 1), else_=0)),
             func.sum(case((Source.enabled.is_(True) & (Source.last_error != ""), 1), else_=0)),
-        ).where(Source.canonical_source_id.is_(None))).one()
+        ).where(Source.canonical_source_id.is_(None), available_source_condition())).one()
         for track_stats in stats.values():
             track_stats["enabled_sources"] = int(enabled_sources or 0)
             track_stats["source_errors"] = int(source_errors or 0)
@@ -1771,7 +1775,7 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
                 Source.career_track,
                 func.sum(case((Source.enabled.is_(True) & (Source.kind != "demo"), 1), else_=0)),
                 func.sum(case((Source.enabled.is_(True) & (Source.last_error != ""), 1), else_=0)),
-            ).group_by(Source.career_track)
+            ).where(available_source_condition()).group_by(Source.career_track)
         ).all()
         for track_key, enabled_sources, source_errors in source_rows:
             key = normalize_track(track_key)
@@ -2749,7 +2753,7 @@ def list_sources(db: Session = Depends(get_db)):
     profile = get_user_profile(db)
     track = active_track(profile)
     sources = unified_sources(db) if unified_catalog_enabled() else db.scalars(select(Source).where(
-        Source.career_track == track, Source.kind != "demo",
+        Source.career_track == track, Source.kind != "demo", available_source_condition(),
     ).order_by(Source.name)).all()
     visible = []
     for source in sources:
@@ -2792,6 +2796,8 @@ def add_source(payload: SourceCreate, request: Request, db: Session = Depends(ge
         raise HTTPException(403, "Source management is available to administrators only")
     if payload.kind not in {"greenhouse", "ashby", "lever", "google_careers", "workday", "official_careers", "smartrecruiters"}:
         raise HTTPException(400, "Supported source kind")
+    if retirement_reason(payload.kind, payload.identifier):
+        raise HTTPException(400, retirement_reason(payload.kind, payload.identifier))
     track = active_track(get_user_profile(db))
     duplicate = db.scalar(select(Source).where(
         Source.kind == payload.kind, Source.identifier == payload.identifier,
@@ -2824,6 +2830,8 @@ def edit_source(source_id: int, payload: SourceUpdate, request: Request, db: Ses
     if not _developer_tools_allowed(getattr(request.state, "identity", None)):
         raise HTTPException(403, "Source management is available to administrators only")
     source = _active_source_or_404(db, source_id)
+    if payload.enabled and retirement_reason(source.kind, source.identifier):
+        raise HTTPException(400, retirement_reason(source.kind, source.identifier))
     targets = source_siblings(db, source) if unified_catalog_enabled() else [source]
     for target in targets:
         for key, value in payload.model_dump(exclude_none=True).items():

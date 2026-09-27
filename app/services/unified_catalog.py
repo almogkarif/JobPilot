@@ -13,6 +13,7 @@ from ..models import Job, JobSourceIdentity, JobTrack, Source, JobRanking
 from ..utils import loads, dumps
 from .catalog_routing import unified_catalog_enabled
 from .source_catalog import _source_key
+from .source_retirements import retirement_reason, available_source_condition
 
 MAX_SCAN_POSTINGS = 20000
 MAX_SOURCE_IDENTITIES = 10000
@@ -57,7 +58,8 @@ def canonical_job_key(kind, identifier, external_id, url):
 
 
 def source_groups(db):
-    rows = db.scalars(select(Source).where(Source.kind != 'demo', Source.canonical_source_id.is_(None))
+    rows = db.scalars(select(Source).where(Source.kind != 'demo', Source.canonical_source_id.is_(None),
+                                         available_source_condition())
                       .order_by(Source.id).limit(2001)).all()
     if len(rows) > 2000:
         raise ValueError('Local unified catalog is limited to 2000 canonical sources')
@@ -103,6 +105,8 @@ def install_unified_sources(db):
     definitions = {}
     for catalog in RECOMMENDED_SOURCES_BY_TRACK.values():
         for item in catalog:
+            if retirement_reason(item['kind'], item['identifier']):
+                continue
             key = _source_key(item)
             if key not in definitions or item.get('enabled', True):
                 definitions[key] = item

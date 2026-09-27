@@ -212,6 +212,13 @@ PRESETS.update({
 # the employer also publishes relevant technical roles.
 PRESETS.update({
     "playtika": _bounded_official_board("https://www.playtika.com/careers/", "Playtika"),
+    "cognyte": _bounded_official_board("https://www.cognyte.com/careers/", "Cognyte"),
+    "cellebrite": _bounded_official_board("https://cellebrite.com/en/about/careers/", "Cellebrite"),
+    "d-fend-solutions": _bounded_official_board("https://d-fendsolutions.com/about-us/careers/", "D-Fend Solutions"),
+    "scylladb": _bounded_official_board("https://www.scylladb.com/company/careers/job-openings/", "ScyllaDB"),
+    "classiq": _bounded_official_board("https://www.classiq.io/careers-page", "Classiq"),
+    "oligo-security": _bounded_official_board("https://www.oligo.security/company/careers", "Oligo Security"),
+    "quantum-machines": _bounded_official_board("https://www.quantum-machines.co/careers/", "Quantum Machines"),
     "fiverr": _bounded_official_board("https://www.fiverr.com/jobs", "Fiverr"),
     "ministry-of-defense-il": _bounded_official_board("https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx", "משרד הביטחון", trusted_israel_feed=True),
     "tower-semiconductor": _bounded_official_board("https://towersemi.com/careers/", "Tower Semiconductor"),
@@ -279,6 +286,13 @@ for _key, _limit in (('retym', 40), ('speedata', 40), ('microsoft', 80), ('texas
                          require_complete_detail=True, detail_response_bytes=4_000_000)
 PRESETS['retym'].update(listing_response_bytes=4_000_000, listing_canonical_on_detail=True)
 PRESETS['speedata'].update(listing_card_location=True)
+PRESETS['meta'].update(
+    url='https://www.metacareers.com/jobsearch/?offices[0]=Tel%20Aviv%2C%20Israel',
+    selector='a[href*="/profile/job_details/"]', id_pattern=r'/profile/job_details/(\d{10,20})(?:/|$)',
+    hydrate_details=True, require_complete_detail=True, max_detail_jobs=12,
+    detail_response_bytes=4_000_000, goto_timeout_ms=25000, settle_ms=4000,
+    selector_timeout_ms=12000, dynamic_scroll=False,
+)
 PRESETS['texas-instruments'].update(
     detail_api_template='https://edbz.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails/{id}',
     network_id_keys=('Id',), network_id_pattern=r'\d+', network_title_keys=('Title',),
@@ -315,6 +329,18 @@ class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        from .global_recovery_final import GLOBAL_FINAL_ROUTES, collect_global_recovery
+        from .israeli_recovery_final import ISRAELI_FINAL_ROUTES, collect_israeli_final
+        from .tech_recovery_final import TECH_RECOVERY_FINAL_IDENTIFIERS, collect_tech_recovery_final
+        if identifier in GLOBAL_FINAL_ROUTES:
+            return await collect_global_recovery(identifier, company_name)
+        if identifier in ISRAELI_FINAL_ROUTES:
+            return await collect_israeli_final(identifier, company_name)
+        if identifier in TECH_RECOVERY_FINAL_IDENTIFIERS:
+            return await collect_tech_recovery_final(identifier, company_name)
+        if identifier in {"osem-nestle", "tefen"}:
+            from .nestle_tefen import collect_nestle_tefen
+            return await collect_nestle_tefen(identifier, company_name)
         if identifier == "verint":
             from .verint import collect_verint
             return await collect_verint(company_name or "Verint")
@@ -1259,6 +1285,9 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/150 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9,he;q=0.8",
     }
+    if preset.get("company") == "Meta":
+        # The public detail endpoint rejects the old hard-coded browser UA.
+        headers = {}
     async with httpx.AsyncClient(follow_redirects=True, timeout=10.0, headers=headers) as client:
         async def one(row: dict) -> dict:
             href, match = _resolve_row_href(row, preset)
@@ -1330,8 +1359,12 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
                 body = soup.select_one(body_selector) or soup.body
                 text = clean_job_text(str(body)) if body else ""
-                structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1))
-                if not structured_detail and preset.get("company") != "Retym":
+                if preset.get("company") == "Meta":
+                    from .global_recovery_final import meta_job_detail
+                    structured_detail = meta_job_detail(soup, match.group(1))
+                else:
+                    structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1))
+                if not structured_detail and preset.get("company") not in {"Retym", "Meta"}:
                     structured_detail = _job_posting_detail(soup)
                 if preset.get("require_complete_detail") and not structured_detail:
                     diagnostics.document(str(response.url), response.text, detail=True)

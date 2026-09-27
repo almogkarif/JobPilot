@@ -171,13 +171,17 @@ def test_new_comeet_routes_require_scoped_payload(monkeypatch, identifier, slug,
         assert target == f"https://www.comeet.com/jobs/{slug}/{board}"
         return "<script>var COMPANY_POSITIONS_DATA = " + json.dumps([row]) + ";</script>"
     monkeypatch.setattr(expansion_ats, "bounded_public_get", fetch)
-    jobs = run(official.OfficialCareersCollector().collect(identifier))
+    # StarkWare now dispatches to its verified native board. Retain identity
+    # coverage for its legacy Comeet reader without contacting that new board.
+    collect = (lambda: expansion_ats.collect_expansion_feed(identifier, "Fixture")) if identifier == "starkware" else (
+        lambda: official.OfficialCareersCollector().collect(identifier))
+    jobs = run(collect())
     assert len(jobs) == 1 and jobs[0].external_id == "AB.C12" and jobs[0].apply_url == url
     assert jobs.complete is False
     # A similarly shaped vacancy from a different employer is rejected.
     row["url_comeet_hosted_page"] = "https://www.comeet.com/jobs/other/12.345/engineer/AB.C12"
     with pytest.raises(PreserveExistingJobs):
-        run(official.OfficialCareersCollector().collect(identifier))
+        run(collect())
 
 
 @pytest.mark.parametrize("identifier", ["fiverr", "starkware"])

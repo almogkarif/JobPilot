@@ -21,6 +21,7 @@ from ..utils import html_to_text
 
 MAX_RESPONSE_BYTES = 4_000_000
 MAX_FEED_ROWS = 200
+MAX_DESCRIPTION_CHARS = 24_000
 
 # identifier: (Comeet slug, company UID, public embed token). Without a token,
 # use the board's embedded JSON; no browser, JavaScript execution or detail crawl.
@@ -57,12 +58,20 @@ COMEET_ROUTES = {
     "etoro": ("etoro", "41.009", ""),
     "atera": ("atera", "63.00B", ""),
     "kornit-digital": ("kornit", "11.00F", ""),
+    # New employers: official career pages confirm these public board identities.
+    "cognyte": ("cognyte", "F2.009", "2F9EDD2F92F911D61AC12F914CF11D62F9"),
+    "cellebrite": ("Cellebrite", "C3.00F", ""),
+    "scylladb": ("scylladb", "E4.006", "4E6187E1D64224A0013984E60187E"),
+    "classiq": ("classiq", "F7.008", "7F82FD01FE03FC037C87F87F82FD017E847B8"),
+    "oligo-security": ("oligosecurity", "5A.00B", "A5B487D296C487D01F1152D852D852D8487D"),
+    "quantum-machines": ("quantummachines", "D6.000", ""),
 }
 GREENHOUSE_ROUTES = {"tipalti": "tipaltisolutions"}
 HIBOB_ROUTES = {"hibob": "hibob-fa0ad69d0cb34a", "fundbox": "fundbox"}
+LEVER_ROUTES = {"d-fend-solutions": "d-fendsolutions"}
 # Retym remains a primary-HTML source; this board is fallback-only, not a
 # newly verified/default-enabled source.
-VERIFIED_ATS_IDENTIFIERS = (frozenset(COMEET_ROUTES) - {"retym"}) | frozenset(GREENHOUSE_ROUTES) | frozenset(HIBOB_ROUTES) | {"lemonade"}
+VERIFIED_ATS_IDENTIFIERS = (frozenset(COMEET_ROUTES) - {"retym"}) | frozenset(GREENHOUSE_ROUTES) | frozenset(HIBOB_ROUTES) | frozenset(LEVER_ROUTES) | {"lemonade"}
 
 
 def endpoint_for(identifier: str) -> str:
@@ -72,6 +81,8 @@ def endpoint_for(identifier: str) -> str:
         return f"https://{HIBOB_ROUTES[identifier]}.careers.hibob.com/api/job-ad"
     if identifier in GREENHOUSE_ROUTES:
         return f"https://boards-api.greenhouse.io/v1/boards/{GREENHOUSE_ROUTES[identifier]}/jobs?content=true"
+    if identifier in LEVER_ROUTES:
+        return f"https://api.lever.co/v0/postings/{LEVER_ROUTES[identifier]}?mode=json"
     slug, uid, token = COMEET_ROUTES[identifier]
     if token:
         return f"https://www.comeet.co/careers-api/2.0/company/{uid}/positions?token={token}&details=true"
@@ -101,12 +112,13 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
     greenhouse = identifier in GREENHOUSE_ROUTES
     hibob = identifier in HIBOB_ROUTES
     lemonade = identifier == "lemonade"
+    lever = identifier in LEVER_ROUTES
     try:
         if lemonade:
             script = BeautifulSoup(document, "html.parser").select_one("#__NEXT_DATA__")
             payload = json.loads(script.get_text() if script else "{}")
             payload = payload.get("props", {}).get("pageProps", {}).get("allRecipes")
-        elif not greenhouse and not hibob and not COMEET_ROUTES[identifier][2]:
+        elif not greenhouse and not hibob and not lever and not COMEET_ROUTES[identifier][2]:
             if identifier == "astrix-security":
                 company_marker = re.search(r"\bCOMPANY_DATA\s*=\s*", document)
                 if not company_marker:
@@ -149,10 +161,15 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
         if not isinstance(row, dict):
             rejections["non_object"] += 1
             continue
-        title = clean_job_text(row.get("title") if greenhouse or hibob or lemonade else row.get("name"))[:500]
-        external_id = str(row.get("postingId") if lemonade else row.get("id") if greenhouse or hibob else row.get("uid") or "")
+        title = clean_job_text(row.get("text") if lever else row.get("title") if greenhouse or hibob or lemonade else row.get("name"))[:500]
+        external_id = str(row.get("postingId") if lemonade else row.get("id") if greenhouse or hibob or lever else row.get("uid") or "")
+        categories = row.get("categories") if lever else None
+        if lever and not isinstance(categories, dict):
+            rejections["location_shape"] += 1
+            continue
         location_data = ({"name": ", ".join(str(row[key]) for key in ("site", "country") if row.get(key))}
-                         if hibob else {"name": row.get("location")} if lemonade else row.get("location") or {})
+                         if hibob else {"name": categories.get("location"), "country": row.get("country")}
+                         if lever else {"name": row.get("location")} if lemonade else row.get("location") or {})
         if not isinstance(location_data, dict):
             rejections["location_shape"] += 1
             continue
@@ -164,7 +181,22 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
         }:
             # This is the exact office field, not a company address in the body.
             location = "Ramat Gan, Israel"
-        if lemonade:
+        if lever:
+            valid_id = re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", external_id)
+            url = str(row.get("hostedUrl") or "")
+            parsed = urlparse(url)
+            valid_url = (parsed.scheme == "https" and parsed.hostname == "jobs.lever.co"
+                         and parsed.path == f"/{LEVER_ROUTES[identifier]}/{external_id}")
+            sections = row.get("lists") or []
+            if not isinstance(sections, list) or len(sections) > 30 or any(not isinstance(part, dict) for part in sections):
+                rejections["details_missing"] += 1
+                continue
+            description = clean_job_text("\n".join(
+                [html_to_text(row.get("description"))]
+                + [f"{clean_job_text(part.get('text'))}\n{html_to_text(part.get('content'))}" for part in sections]
+                + [html_to_text(row.get("additional"))]
+            ))
+        elif lemonade:
             valid_id = re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", external_id)
             url = str(row.get("link") or "")
             parsed = urlparse(url)
@@ -194,17 +226,16 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
                          and parsed.path.rstrip("/").split("/")[-1] == external_id)
             custom_fields = row.get("custom_fields")
             details = row.get("details") or (custom_fields.get("details") if isinstance(custom_fields, dict) else None)
-            if not isinstance(details, list):
+            if not isinstance(details, list) or len(details) > 30:
                 rejections["details_missing"] += 1
                 continue
             description = clean_job_text("\n".join(
                 f"{part.get('name', '')}\n{clean_job_text(part.get('value'))}"
-                for part in details[:30] if isinstance(part, dict) and part.get("value")
+                for part in details if isinstance(part, dict) and part.get("value")
             ))
-        description = description[:24000]
         reason = ("identity" if not valid_id else "url" if not valid_url else
                   "title" if not title or is_navigation_title(title) else
-                  "description" if job_text_quality(description) != "complete" else None)
+                  "description" if len(description) > MAX_DESCRIPTION_CHARS or job_text_quality(description) != "complete" else None)
         if reason:
             rejections[reason] += 1
             continue
@@ -212,7 +243,10 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
             raise PreserveExistingJobs("Public ATS returned duplicate vacancy identities")
         jobs[external_id] = NormalizedJob(
             external_id=external_id, title=title, company=company, location=location,
-            workplace="unknown", description=description, apply_url=url, source_url=url,
+            workplace=(str(row.get("workplaceType")).lower()
+                       if lever and str(row.get("workplaceType")).lower() in {"remote", "hybrid", "onsite"}
+                       else "unknown"),
+            description=description, apply_url=url, source_url=url,
         )
     diagnostics.record("ats_result", identifier=identifier, accepted=len(jobs), rejected=rejections)
     if not jobs:

@@ -182,6 +182,17 @@ def _adapter_details(source):
             recovered[identifier] = ('israeli_employer_board', ISRAELI_BOARD_ROUTES[identifier])
         if identifier in CONSUMER_EMPLOYER_ROUTES:
             recovered[identifier] = ('consumer_employer_details', CONSUMER_EMPLOYER_ROUTES[identifier])
+        from app.collectors.global_recovery_final import SUCCESSFACTORS_ROUTES, DELL_API, PWC_API
+        from app.collectors.israeli_recovery_final import ISRAELI_FINAL_ROUTES
+        from app.collectors.nestle_tefen import ALTERNATIVE_ROUTES
+        from app.collectors.tech_recovery_final import TECH_RECOVERY_FINAL_ROUTES
+        recovered.update({key: ('successfactors_details', route[0]) for key, route in SUCCESSFACTORS_ROUTES.items()})
+        recovered.update({key: ('verified_israeli_alternative', url) for key, url in ISRAELI_FINAL_ROUTES.items()})
+        recovered.update({key: ('verified_employer_alternative', url) for key, url in ALTERNATIVE_ROUTES.items()})
+        recovered.update({key: ('verified_tech_consumer_alternative', url) for key, url in TECH_RECOVERY_FINAL_ROUTES.items()})
+        recovered.update({'dell': ('oracle_cx_country_facet', DELL_API + 'recruitingCEJobRequisitions'),
+                          'pwc-israel': ('employer_linked_hunter_feed', PWC_API),
+                          'meta': ('rendered_listing_full_jsonld_details', PRESETS['meta']['url'])})
         if identifier in recovered:
             result['adapter'], endpoint = recovered[identifier]
             result['effective_endpoint'] = _safe_url(endpoint)

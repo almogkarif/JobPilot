@@ -1,0 +1,1113 @@
+{
+  "checked_at_utc": "2026-09-26T22:38:53.135206+00:00",
+  "source_count": 21,
+  "repaired_count": 6,
+  "retirement_recommendation_count": 15,
+  "verified_israel_rows": 462,
+  "method": "Bounded isolated HTTP plus primary-source web research. No user Chrome, production DB, .env, scanner, applications, commits or pushes. Latest parsers replayed captured live responses through OfficialCareersCollector and validate_source_payload.",
+  "limits": {
+    "maximum_public_requests_per_scan": 126,
+    "maximum_normalized_rows_per_scan": 560,
+    "maximum_bytes_per_response": 4000000,
+    "supabase_direct_requests": 0
+  },
+  "retirement_semantics": "Retire unavailable/unverified sources from future collection only; keep historical jobs/source records. No empty/blocked/partial result asserts job closure.",
+  "sources": [
+    {
+      "identifier": "deep-instinct",
+      "disposition": "retire_no_verified_israel_jobs",
+      "reason": "Current official Next.js page exposes five real open-role cards, all explicitly US regions or Japan. No Israel vacancy detail is published there. Do not turn this into an employer-wide zero-jobs claim.",
+      "urls_checked": [
+        {
+          "url": "https://www.deepinstinct.com/careers",
+          "status": 200,
+          "final_url": "https://www.deepinstinct.com/careers",
+          "bytes": 132089,
+          "title": "Careers | Deep Instinct"
+        }
+      ],
+      "observed_listing_rows": 5,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "elspec",
+      "disposition": "retire_blocked",
+      "reason": "Official careers returns HTTP 403. The accessible employer home page links that same careers route; web research found no verified public official ATS alternative. No challenge bypass attempted.",
+      "urls_checked": [
+        {
+          "url": "https://www.elspec-ltd.com/careers/",
+          "status": 403,
+          "final_url": "https://www.elspec-ltd.com/careers/",
+          "bytes": 52,
+          "title": ""
+        },
+        {
+          "url": "https://www.elspec-ltd.com/",
+          "status": 200,
+          "final_url": "https://www.elspec-ltd.com/",
+          "bytes": 226098,
+          "title": "Power Quality Analyzers & Power Quality Solutions | Elspec"
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "malam-team",
+      "disposition": "retire_blocked",
+      "reason": "Old /careers, new Hebrew career route discovered in indexed official results, and career.malamteam.com all return Cloudflare HTTP 403 challenges to this runtime. Jobs exist in indexed official pages, but no reliable fresh detail payload was obtained.",
+      "urls_checked": [
+        {
+          "url": "https://www.malamteam.com/careers/",
+          "status": 403,
+          "final_url": "https://www.malamteam.com/careers/",
+          "bytes": 5432,
+          "title": "Just a moment..."
+        },
+        {
+          "url": "https://www.malamteam.com/לובי-קריירה/",
+          "status": 403,
+          "final_url": "https://www.malamteam.com/%D7%9C%D7%95%D7%91%D7%99-%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94/",
+          "bytes": 5679,
+          "title": "Just a moment..."
+        },
+        {
+          "url": "https://career.malamteam.com/",
+          "status": 403,
+          "final_url": "https://career.malamteam.com/",
+          "bytes": 5411,
+          "title": "Just a moment..."
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "ness-israel",
+      "disposition": "repaired",
+      "reason": "Official Angular bundle publishes the Careers/GetOrderDetailsList endpoint and /careers/job/:id router. API returns 216 full records despite rows=40; enforce 400 received rows and 200 normalized jobs. Per-record Hebrew region is explicit. Update timestamps are not publication dates.",
+      "urls_checked": [
+        {
+          "url": "https://www.ness-tech.co.il/careers",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers",
+          "bytes": 182085,
+          "title": "NESS"
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/main-U7S4H6OE.js",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/main-U7S4H6OE.js",
+          "bytes": 1082838,
+          "title": ""
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/api/Careers/GetOrderDetailsList?profId=&areasId=&freeText=&isHot=false&rows=40&page=1",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/api/Careers/GetOrderDetailsList?profId=&areasId=&freeText=&isHot=false&rows=40&page=1",
+          "bytes": 325280,
+          "title": ""
+        },
+        {
+          "url": "https://www.ness-tech.co.il/careers/job/42814",
+          "status": 200,
+          "final_url": "https://www.ness-tech.co.il/careers/job/42814",
+          "bytes": 183075,
+          "title": "מיישמ/ת SAP SD"
+        }
+      ],
+      "observed_listing_rows": 216,
+      "verified_israel_rows": 200,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "ness-israel",
+        "accepted": 200,
+        "partial": true,
+        "blocked_ids": [
+          "42622"
+        ],
+        "quality_ok": true,
+        "sample_ids": [
+          "42814",
+          "42251",
+          "41065"
+        ],
+        "sample_urls": [
+          "https://www.ness-tech.co.il/careers/job/42814",
+          "https://www.ness-tech.co.il/careers/job/42251",
+          "https://www.ness-tech.co.il/careers/job/41065"
+        ],
+        "sample_titles": [
+          "מיישמ/ת SAP SD",
+          "מומחה/ית תקשורת",
+          "מפתח/ת אוטומציה בסייבר"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 1,
+        "received_rows": 400,
+        "normalized_rows": 200,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 0
+      },
+      "observed_public_requests": 1,
+      "observed_response_bytes": 325280
+    },
+    {
+      "identifier": "neuroblade",
+      "disposition": "retire_unavailable",
+      "reason": "Official /careers returns 403 in this recheck (previous audit 500). Indexed native job URLs expose gh_jid, but the corresponding public NeuroBlade Greenhouse board returns 404. No verified active official alternative.",
+      "urls_checked": [
+        {
+          "url": "https://www.neuroblade.com/careers/",
+          "status": 403,
+          "final_url": "https://www.neuroblade.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://boards-api.greenhouse.io/v1/boards/neuroblade/jobs?content=true",
+          "status": 404,
+          "final_url": "https://boards-api.greenhouse.io/v1/boards/neuroblade/jobs?content=true",
+          "bytes": 38,
+          "title": ""
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "niram-gitan",
+      "disposition": "retire_no_public_board",
+      "reason": "Old niramgitan.com and historical nggconsult.co.il fail DNS. Current official nggconsult.com identifies Niram Gitan and is accessible, but home/about expose consulting information and contact links, no official public job board. Jobnet listings were found but are not a verified official alternative.",
+      "urls_checked": [
+        {
+          "url": "https://www.niramgitan.com/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.nggconsult.co.il/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.nggconsult.com/he",
+          "status": 200,
+          "final_url": "https://www.nggconsult.com/he/",
+          "bytes": 9141,
+          "title": "NGG — ייעוץ אסטרטגי לעידן של הפרעה מתמשכת"
+        },
+        {
+          "url": "https://www.nggconsult.com/he/pages/about",
+          "status": 200,
+          "final_url": "https://www.nggconsult.com/he/pages/about",
+          "bytes": 28504,
+          "title": "אודות NGG — הצוות, הערכים והסיפור שלנו"
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "orcam",
+      "disposition": "retire_unavailable",
+      "reason": "Original official careers route redirects to the product home page. The home page explicitly links legacy.orcam.com/en/careers/, which returns 404. No complete fresh official job payload verified.",
+      "urls_checked": [
+        {
+          "url": "https://www.orcam.com/en-us/careers/",
+          "status": 200,
+          "final_url": "https://www.orcam.com/en-us/home",
+          "bytes": 288131,
+          "title": "Experience the Power of Assistive Technology with OrCam's AI Devices"
+        },
+        {
+          "url": "https://legacy.orcam.com/en/careers/",
+          "status": 404,
+          "final_url": "https://legacy.orcam.com/en/careers/",
+          "bytes": 40052,
+          "title": "Page not found - OrCam"
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "partner",
+      "disposition": "retire_unavailable",
+      "reason": "Original /n/career is 404. Official home and /u/career return small client/security-shell responses with no complete job records or verified linked ATS; third-party vacancies do not establish an official adapter.",
+      "urls_checked": [
+        {
+          "url": "https://www.partner.co.il/n/career",
+          "status": 404,
+          "final_url": "https://www.partner.co.il/n/career",
+          "bytes": 2032,
+          "title": "עמוד אינו זמין (404)  | Partner"
+        },
+        {
+          "url": "https://www.partner.co.il/",
+          "status": 200,
+          "final_url": "https://www.partner.co.il/",
+          "bytes": 6982,
+          "title": "Homepage"
+        },
+        {
+          "url": "https://www.partner.co.il/u/career/",
+          "status": 200,
+          "final_url": "https://www.partner.co.il/u/career/",
+          "bytes": 6342,
+          "title": ""
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "pliops",
+      "disposition": "retire_blocked",
+      "reason": "Official careers is 403. Employer home responds 503 and only links the same careers URL. No verified alternative official board was found.",
+      "urls_checked": [
+        {
+          "url": "https://pliops.com/careers/",
+          "status": 403,
+          "final_url": "https://pliops.com/careers/",
+          "bytes": 52,
+          "title": ""
+        },
+        {
+          "url": "https://pliops.com/",
+          "status": 503,
+          "final_url": "https://pliops.com/",
+          "bytes": 76707,
+          "title": "Pliops | Enabling Fast and Cost-Effective Data Center Storage"
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "rafael",
+      "disposition": "retire_blocked",
+      "reason": "Both official career.rafael.co.il/search/ and its root return status 247,457-byte access-control responses. Kept official-only as assigned; no Drushim fallback, private API, or bypass used.",
+      "urls_checked": [
+        {
+          "url": "https://career.rafael.co.il/search/",
+          "status": 247,
+          "final_url": "https://career.rafael.co.il/search/",
+          "bytes": 457,
+          "title": ""
+        },
+        {
+          "url": "https://career.rafael.co.il/",
+          "status": 247,
+          "final_url": "https://career.rafael.co.il/",
+          "bytes": 457,
+          "title": ""
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "scd",
+      "disposition": "retire_unverified_identity",
+      "reason": "Official listing contains 10 full accordion jobs and job-specific location evidence in several descriptions. However, all 10 hidden_job_num fields and application job_number values are empty and no per-job URL/record identity is exposed. Do not invent IDs from row positions or treat department links as jobs.",
+      "urls_checked": [
+        {
+          "url": "https://www.scd-infrared.com/find-a-job/",
+          "status": 200,
+          "final_url": "https://www.scd-infrared.com/find-a-job/",
+          "bytes": 280882,
+          "title": "Careers at SCD | Open Positions & Opportunities"
+        }
+      ],
+      "observed_listing_rows": 10,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "shufersal",
+      "disposition": "retire_unavailable",
+      "reason": "Current career.shufersal.co.il and the indexed alternate jobs.shufersal.co.il/Job-Search/Basic.aspx failed to provide a bounded usable response. No fresh complete official payload verified.",
+      "urls_checked": [
+        {
+          "url": "https://career.shufersal.co.il/",
+          "error": ""
+        },
+        {
+          "url": "https://jobs.shufersal.co.il/Job-Search/Basic.aspx",
+          "error": ""
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "sodastream",
+      "disposition": "repaired",
+      "reason": "Old Shopify careers 404 explicitly links PepsiCo SodaStream. Official PepsiCo public search returns 22 full Israel jobs with exact tags 5=sodastream and tags 6=Sodastream, PepsiCo organization, matching req_id/slug and real icims apply IDs. Both employer-published Hebrew and global icims hosts are verified; other PepsiCo subsidiaries are excluded.",
+      "urls_checked": [
+        {
+          "url": "https://sodastream.com/pages/careers",
+          "status": 404,
+          "final_url": "https://sodastream.com/pages/careers",
+          "bytes": 618554,
+          "title": "404 Not Found –\n    SodaStream"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/sodastream",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/sodastream",
+          "bytes": 1087436,
+          "title": "SodaStream – Join our team at PepsiCo"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/main/jobs?keywords=sodastream",
+          "bytes": 1102452,
+          "title": "PepsiCo Careers"
+        },
+        {
+          "url": "https://www.pepsicojobs.com/api/jobs?keywords=sodastream&country=Israel&limit=40&page=1",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/api/jobs?keywords=sodastream&country=Israel&limit=40&page=1",
+          "bytes": 233365,
+          "title": ""
+        },
+        {
+          "url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il",
+          "status": 200,
+          "final_url": "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il",
+          "bytes": 577679,
+          "title": "SodaStream:  Junior Global Procurement Buyer in Kefar Sava, Israel | PepsiCo"
+        }
+      ],
+      "observed_listing_rows": 22,
+      "verified_israel_rows": 22,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "sodastream",
+        "accepted": 22,
+        "partial": true,
+        "blocked_ids": [],
+        "quality_ok": true,
+        "sample_ids": [
+          "436942",
+          "469598",
+          "430939"
+        ],
+        "sample_urls": [
+          "https://www.pepsicojobs.com/main/jobs/436942?lang=he-il",
+          "https://www.pepsicojobs.com/main/jobs/469598?lang=he-il",
+          "https://www.pepsicojobs.com/main/jobs/430939?lang=he-il"
+        ],
+        "sample_titles": [
+          "SodaStream: Junior Global Procurement Buyer",
+          "Sodastream: Legal Counsel, Employment Law (Maternity Leave Cover)",
+          "SodaStream: Performance Marketing Campaign Lead"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 1,
+        "received_rows": 40,
+        "normalized_rows": 40,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 0
+      },
+      "observed_public_requests": 1,
+      "observed_response_bytes": 233365
+    },
+    {
+      "identifier": "starkware",
+      "disposition": "repaired",
+      "reason": "Old Comeet feed was empty in baseline. Current official careers HTML has one native /position/ vacancy beneath the explicitly labeled Israel tab. Native detail canonical URL/title match the listing and full responsibilities and requirements are present.",
+      "urls_checked": [
+        {
+          "url": "https://starkware.co/careers/",
+          "status": 200,
+          "final_url": "https://starkware.co/careers/",
+          "bytes": 95012,
+          "title": "Careers | Open Positions | StarkWare"
+        },
+        {
+          "url": "https://starkware.co/position/blockchain-security-researcher/",
+          "status": 200,
+          "final_url": "https://starkware.co/position/blockchain-security-researcher/",
+          "bytes": 81543,
+          "title": "Blockchain Security Researcher | StarkWare"
+        }
+      ],
+      "observed_listing_rows": 1,
+      "verified_israel_rows": 1,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "starkware",
+        "accepted": 1,
+        "partial": true,
+        "blocked_ids": [],
+        "quality_ok": true,
+        "sample_ids": [
+          "blockchain-security-researcher"
+        ],
+        "sample_urls": [
+          "https://starkware.co/position/blockchain-security-researcher/"
+        ],
+        "sample_titles": [
+          "Blockchain Security Researcher"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 41,
+        "received_rows": 400,
+        "normalized_rows": 40,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 4
+      },
+      "observed_public_requests": 2,
+      "observed_response_bytes": 176176
+    },
+    {
+      "identifier": "super-pharm",
+      "disposition": "repaired",
+      "reason": "Official Israel board contains 323 inline vacancy inputs job_id[], paired heading/collapse records and full per-job descriptions. Per-record city must match its published city taxonomy. Preserve actual collapse anchors and numeric IDs; output capped 200, received records capped 400.",
+      "urls_checked": [
+        {
+          "url": "https://jobs.super-pharm.co.il/careers/",
+          "status": 200,
+          "final_url": "https://jobs.super-pharm.co.il/careers/",
+          "bytes": 2753057,
+          "title": "משרות – דרושים בסופר-פארם"
+        }
+      ],
+      "observed_listing_rows": 323,
+      "verified_israel_rows": 200,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "super-pharm",
+        "accepted": 200,
+        "partial": true,
+        "blocked_ids": [],
+        "quality_ok": true,
+        "sample_ids": [
+          "16655",
+          "16654",
+          "16653"
+        ],
+        "sample_urls": [
+          "https://jobs.super-pharm.co.il/careers/#collapse-16655",
+          "https://jobs.super-pharm.co.il/careers/#collapse-16654",
+          "https://jobs.super-pharm.co.il/careers/#collapse-16653"
+        ],
+        "sample_titles": [
+          "אנשי צוות שירות",
+          "יועצ.ת ביוטי",
+          "יועצ.ת ביוטי"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 1,
+        "received_rows": 400,
+        "normalized_rows": 200,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 0
+      },
+      "observed_public_requests": 1,
+      "observed_response_bytes": 2753057
+    },
+    {
+      "identifier": "tnuva",
+      "disposition": "retire_blocked",
+      "reason": "Official /jobs, Hebrew career route and sitemap return short security/client shells rather than job content. Indexed jobs on outside services do not provide a verified official feed.",
+      "urls_checked": [
+        {
+          "url": "https://www.tnuva.co.il/jobs/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/jobs/",
+          "bytes": 212,
+          "title": ""
+        },
+        {
+          "url": "https://www.tnuva.co.il/מפת-האתר/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/%D7%9E%D7%A4%D7%AA-%D7%94%D7%90%D7%AA%D7%A8/",
+          "bytes": 949,
+          "title": ""
+        },
+        {
+          "url": "https://www.tnuva.co.il/קריירה/",
+          "status": 200,
+          "final_url": "https://www.tnuva.co.il/%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94/",
+          "bytes": 843,
+          "title": ""
+        }
+      ],
+      "observed_listing_rows": null,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "tower-semiconductor",
+      "disposition": "retire_detail_blocked",
+      "reason": "Old corporate and Japanese careers URLs are 403 in direct HTTP. Indexed official Japanese page links new careers.towersemi.com, whose Israel page returns 20 explicit ISR listing IDs. Its linked /job-description?job_id=9592 and /search-jobs return 403. No full detail payload verified; cards alone are not imported.",
+      "urls_checked": [
+        {
+          "url": "https://towersemi.com/careers/",
+          "status": 403,
+          "final_url": "https://towersemi.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://jp.towersemi.com/careers/",
+          "status": 403,
+          "final_url": "https://jp.towersemi.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://careers.towersemi.com/",
+          "status": 200,
+          "final_url": "https://careers.towersemi.com/",
+          "bytes": 88309,
+          "title": "Tower Semiconductor Career – Being part of great opporrtunities"
+        },
+        {
+          "url": "https://careers.towersemi.com/our-loactions/israel/",
+          "status": 200,
+          "final_url": "https://careers.towersemi.com/our-loactions/israel/",
+          "bytes": 108069,
+          "title": "Israel – Tower Semiconductor Career"
+        },
+        {
+          "url": "https://careers.towersemi.com/search-jobs/",
+          "status": 403,
+          "final_url": "https://careers.towersemi.com/search-jobs/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://careers.towersemi.com/job-description?job_id=9592",
+          "status": 403,
+          "final_url": "https://careers.towersemi.com/job-description?job_id=9592",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        }
+      ],
+      "observed_listing_rows": 20,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "vayyar",
+      "disposition": "retire_empty_unverified",
+      "reason": "Official /recruitment links /careers, which redirects to the employer Workable account. Its public widget payload confirms Vayyar identity but currently returns jobs=[]. Empty board is not evidence of employer-wide absence or a useful recovered source.",
+      "urls_checked": [
+        {
+          "url": "https://vayyar.com/recruitment/",
+          "status": 200,
+          "final_url": "https://vayyar.com/recruitment/",
+          "bytes": 348736,
+          "title": "Learn More About Us - Vayyar"
+        },
+        {
+          "url": "https://vayyar.com/careers",
+          "status": 200,
+          "final_url": "https://apply.workable.com/vayyar/",
+          "bytes": 5778,
+          "title": "Vayyar - Current Openings"
+        },
+        {
+          "url": "https://apply.workable.com/api/v1/widget/accounts/vayyar?details=true",
+          "status": 200,
+          "final_url": "https://apply.workable.com/api/v1/widget/accounts/vayyar?details=true",
+          "bytes": 1668,
+          "title": ""
+        }
+      ],
+      "observed_listing_rows": 0,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "xm-cyber",
+      "disposition": "retire_empty_unverified",
+      "reason": "Official careers is 403. Indexed employer Comeet board 15.005 returns correct XM Cyber COMPANY_DATA but COMPANY_POSITIONS_DATA=[]. No complete current Israel vacancy verified; do not infer that historical jobs closed.",
+      "urls_checked": [
+        {
+          "url": "https://xmcyber.com/careers/",
+          "status": 403,
+          "final_url": "https://xmcyber.com/careers/",
+          "bytes": 146,
+          "title": "403 Forbidden"
+        },
+        {
+          "url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "status": 200,
+          "final_url": "https://www.comeet.com/jobs/xmcyber/15.005",
+          "bytes": 117063,
+          "title": "Spark Hire Recruit Jobs | Spark Hire Recruit - Collaborative Recruiting"
+        }
+      ],
+      "observed_listing_rows": 0,
+      "verified_israel_rows": 0,
+      "production_payload_quality_ok": false,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only"
+    },
+    {
+      "identifier": "cocacola-israel",
+      "disposition": "repaired",
+      "reason": "Dead careers.cocacola.co.il replaced with employer-owned www.cbccom.com careers portal. Search publishes 129 numeric order_id/title records and 20 native detail links on the current page. Each detail binds numeric position_id, hidden job_title, title and share URL; full description plus job-specific region required. Optional employment-type field cannot discard real roles.",
+      "urls_checked": [
+        {
+          "url": "https://careers.cocacola.co.il/",
+          "error": "[Errno 8] nodename nor servname provided, or not known"
+        },
+        {
+          "url": "https://www.cbccom.com/career.html/",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/career.html/",
+          "bytes": 167814,
+          "title": "הטעם מתחיל באנשים - קריירה - החברה המרכזית למשקאות"
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%AA%20%D7%9E%D7%91%D7%A0%D7%99%D7%9D",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%AA%20%D7%9E%D7%91%D7%A0%D7%99%D7%9D",
+          "bytes": 42871,
+          "title": "עובד/ת אחזקת מבנים"
+        },
+        {
+          "url": "https://www.cbccom.com/on/demandware.static/Sites-CBC-Site/-/default/v1790243753976/js/page-jobsLobby.js",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/on/demandware.static/Sites-CBC-Site/-/default/v1790243753976/js/page-jobsLobby.js",
+          "bytes": 11839,
+          "title": ""
+        },
+        {
+          "url": "https://www.cbccom.com/משרות",
+          "status": 200,
+          "final_url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+          "bytes": 256251,
+          "title": "חיפוש משרה"
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%95%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 256251
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%97%D7%A6%D7%A8-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43362
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%94%D7%A0%D7%93%D7%A1%2F%D7%AA%20%D7%90%D7%A8%D7%92%D7%95%D7%9F%20%D7%95%D7%A9%D7%99%D7%98%D7%95%D7%AA%20%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA%20%D7%90%D7%A4%D7%A7%D7%98%D7%99%D7%91%D7%99%D7%95%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%D7%AA-%20%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 44617
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%2F%D7%AA%20-%20%D7%97%D7%99%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 43314
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C.%D7%AA%20%D7%97%D7%A9%D7%91%D7%95%D7%A0%D7%95%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 43593
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%98%D7%9B%D7%A0%D7%99%2F%D7%AA%20-%20%D7%A6%D7%A8%D7%99%D7%A4%D7%99%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43331
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%9E%D7%A9%D7%A7%20%D7%95%D7%9C%D7%95%D7%92%D7%99%D7%A1%D7%98%D7%99%D7%A7%D7%94%20-%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%9E%D7%95%D7%A0%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 43835
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%91%D7%A7%D7%A8%2F%D7%99%D7%AA%20%D7%9E%D7%97%D7%A1%D7%9F-%20%D7%90%D7%99%D7%9C%D7%AA",
+          "result": "HTTP success and captured response",
+          "bytes": 43249
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%95%D7%91%D7%99%D7%9C%2F%D7%AA%20%D7%A6%D7%99%D7%95%D7%93%20-%20%D7%A6%D7%A8%D7%99%D7%A4%D7%99%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43405
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%9C%D7%92%D7%96%D7%9F%2F%D7%99%D7%AA-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 42809
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C%2F%D7%AA%20%D7%A6%D7%95%D7%95%D7%AA%20%D7%9C%D7%9E%D7%A2%D7%91%D7%93%D7%94%20-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43890
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A8%D7%9B%D7%96%2F%D7%AA%20%D7%90%D7%93%D7%9E%D7%99%D7%A0%D7%99%D7%A1%D7%98%D7%A8%D7%A6%D7%99%D7%94%20%D7%95%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%91%D7%AA%D7%97%D7%95%D7%9D%20%D7%94%D7%A8%D7%9B%D7%91%20-%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94",
+          "result": "HTTP success and captured response",
+          "bytes": 44593
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A0%D7%94%D7%92%2F%D7%AA%20%D7%9E%D7%97%D7%A1%D7%9F-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43079
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%91%D7%A7%D7%A8%2F%D7%99%D7%AA%20%D7%9C%D7%95%D7%92%D7%99%D7%A1%D7%98%D7%99%2F%D7%AA-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43924
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A1%D7%95%20%D7%A9%D7%A3%2F%D7%99%D7%AA%20%D7%90%D7%96%D7%95%D7%A8%D7%99%2F%D7%AA%20-%20%D7%90%D7%96%D7%95%D7%A8%20%D7%94%D7%9E%D7%A8%D7%9B%D7%96%20",
+          "result": "HTTP success and captured response",
+          "bytes": 44495
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9C%D7%91%D7%95%D7%A8%D7%A0%D7%98%2F%D7%99%D7%AA-%20%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 44472
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%97%D7%A9%D7%9E%D7%9C%D7%90%D7%99%2F%D7%AA%20%D7%90%D7%97%D7%96%D7%A7%D7%94%20-%D7%90%D7%A9%D7%A7%D7%9C%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 43807
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%A0%D7%94%D7%9C%2F%D7%AA%20%D7%AA%D7%97%D7%95%D7%9D%20%D7%9E%D7%9B%D7%99%D7%A8%D7%95%D7%AA%20%D7%9E%D7%A7%D7%A6%D7%95%D7%A2%D7%99%20%D7%97%D7%9C%D7%91-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7",
+          "result": "HTTP success and captured response",
+          "bytes": 44193
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%99%D7%95%D7%A2%D7%A5%2F%D7%AA%20SAP%20IBP%20%D7%9E%D7%A0%D7%95%D7%A1%D7%94%20%D7%9C%D7%94%D7%95%D7%91%D7%9C%D7%AA%20%D7%A4%D7%A8%D7%95%D7%99%D7%A7%D7%98%D7%99%20%D7%A9%D7%A8%D7%A9%D7%A8%D7%AA%20%D7%90%D7%A1%D7%A4%D7%A7%D7%94-%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F",
+          "result": "HTTP success and captured response",
+          "bytes": 45243
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A7%D7%A0%D7%99%D7%99%D7%9F%2F%D7%99%D7%AA%20%D7%A8%D7%9B%D7%A9%20",
+          "result": "HTTP success and captured response",
+          "bytes": 43404
+        },
+        {
+          "url": "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A0%D7%A6%D7%99%D7%92%2F%D7%AA%20%D7%A1%D7%99%D7%93%D7%95%D7%A8%20%D7%A1%D7%97%D7%95%D7%A8%D7%94%20%D7%91%D7%A9%D7%98%D7%97-%20%D7%90%D7%96%D7%95%D7%A8%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F-%20%D7%94%D7%97%D7%9C%D7%A4%D7%94%20%D7%9C%D7%97%D7%9C%22%D7%93",
+          "result": "HTTP success and captured response",
+          "bytes": 43850
+        }
+      ],
+      "observed_listing_rows": 129,
+      "verified_israel_rows": 20,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "cocacola-israel",
+        "accepted": 20,
+        "partial": true,
+        "blocked_ids": [],
+        "quality_ok": true,
+        "sample_ids": [
+          "17903",
+          "17902",
+          "17900"
+        ],
+        "sample_urls": [
+          "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%A2%D7%95%D7%91%D7%93%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%20%D7%97%D7%A6%D7%A8-%20%D7%91%D7%A0%D7%99%20%D7%91%D7%A8%D7%A7%20",
+          "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%94%D7%A0%D7%93%D7%A1%2F%D7%AA%20%D7%90%D7%A8%D7%92%D7%95%D7%9F%20%D7%95%D7%A9%D7%99%D7%98%D7%95%D7%AA%20%D7%9C%D7%9E%D7%97%D7%9C%D7%A7%D7%AA%20%D7%90%D7%A4%D7%A7%D7%98%D7%99%D7%91%D7%99%D7%95%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%D7%AA-%20%20%D7%A7%D7%A8%D7%99%D7%99%D7%AA%20%D7%A9%D7%93%D7%94%20%D7%94%D7%AA%D7%A2%D7%95%D7%A4%D7%94",
+          "https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94?id=%D7%9E%D7%97%D7%A1%D7%A0%D7%90%D7%99%2F%D7%AA%20%D7%AA%D7%A4%D7%A2%D7%95%D7%9C%D7%99%2F%D7%AA%20-%20%D7%97%D7%99%D7%A4%D7%94"
+        ],
+        "sample_titles": [
+          "עובד/ת תפעול חצר- בני ברק",
+          "מהנדס/ת ארגון ושיטות למחלקת אפקטיביות תפעולית- קריית שדה התעופה",
+          "מחסנאי/ת תפעולי/ת - חיפה"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 41,
+        "received_rows": 400,
+        "normalized_rows": 40,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 4
+      },
+      "observed_public_requests": 21,
+      "observed_response_bytes": 1132716
+    },
+    {
+      "identifier": "ministry-of-defense-il",
+      "disposition": "repaired",
+      "reason": "Old SharePoint URL 500 replaced with /קריירה, explicitly linking jobs.mod.gov.il. Public anonymous POST returns 20 tenders; published-detail GET provides full HtmlContentPublish and matching tender/job IDs. Confirmation/publication flags, location, publication date, and unexpired deadline required. One title conflict remains blocked. API offset-free deadline 20:59:59 corresponds to official 23:59 Israel display and is interpreted UTC.",
+      "urls_checked": [
+        {
+          "url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+          "status": 500,
+          "final_url": "https://www.mod.gov.il/Citizen_Service/Pages/jobs.aspx",
+          "bytes": 52289,
+          "title": "undefined | דף הבית "
+        },
+        {
+          "url": "https://www.mod.gov.il/קריירה",
+          "status": 200,
+          "final_url": "https://www.mod.gov.il/%D7%A7%D7%A8%D7%99%D7%99%D7%A8%D7%94",
+          "bytes": 125562,
+          "title": "קריירה | דף הבית "
+        },
+        {
+          "url": "https://jobs.mod.gov.il/",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/",
+          "bytes": 9032,
+          "title": "מערכת איוש משרות. משרד הביטחון"
+        },
+        {
+          "url": "https://jobs.mod.gov.il/hrJobsGreen.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/hrJobsGreen.js",
+          "bytes": 233,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Main/directives/tenders/tenders.controller.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Main/directives/tenders/tenders.controller.js",
+          "bytes": 18320,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Services/TendersPost.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Services/TendersPost.js",
+          "bytes": 3487,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Site.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Site.js",
+          "bytes": 281,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Main/Main.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Main/Main.js",
+          "bytes": 84204,
+          "title": "Export HTML to word Document"
+        },
+        {
+          "url": "https://jobs.mod.gov.il/app.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/app.js",
+          "bytes": 9891,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/Services/Post.js",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/Services/Post.js",
+          "bytes": 15993,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34928",
+          "status": 200,
+          "final_url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34928",
+          "bytes": 128868,
+          "title": ""
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetAllPublished",
+          "method": "POST",
+          "anonymous_search_body": {},
+          "status": 200,
+          "bytes": 65989
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34930",
+          "result": "HTTP success and captured response",
+          "bytes": 127746
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34937",
+          "result": "HTTP success and captured response",
+          "bytes": 135599
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34939",
+          "result": "HTTP success and captured response",
+          "bytes": 133782
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34940",
+          "result": "HTTP success and captured response",
+          "bytes": 131280
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34941",
+          "result": "HTTP success and captured response",
+          "bytes": 132284
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34890",
+          "result": "HTTP success and captured response",
+          "bytes": 131420
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34934",
+          "result": "HTTP success and captured response",
+          "bytes": 135045
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34935",
+          "result": "HTTP success and captured response",
+          "bytes": 135347
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34936",
+          "result": "HTTP success and captured response",
+          "bytes": 134620
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34907",
+          "result": "HTTP success and captured response",
+          "bytes": 129679
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34911",
+          "result": "HTTP success and captured response",
+          "bytes": 130057
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34912",
+          "result": "HTTP success and captured response",
+          "bytes": 129689
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34915",
+          "result": "HTTP success and captured response",
+          "bytes": 129734
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34917",
+          "result": "HTTP success and captured response",
+          "bytes": 129722
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34920",
+          "result": "HTTP success and captured response",
+          "bytes": 131707
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34922",
+          "result": "HTTP success and captured response",
+          "bytes": 125114
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34893",
+          "result": "HTTP success and captured response",
+          "bytes": 133241
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34895",
+          "result": "HTTP success and captured response",
+          "bytes": 143704
+        },
+        {
+          "url": "https://jobs.mod.gov.il/api/TenderPublish/GetTenderPublishById/34874",
+          "result": "HTTP success and captured response",
+          "bytes": 130269
+        }
+      ],
+      "observed_listing_rows": 20,
+      "verified_israel_rows": 19,
+      "production_payload_quality_ok": true,
+      "snapshot_complete": false,
+      "scope": "official public pages and employer-confirmed ATS only",
+      "verification": {
+        "identifier": "ministry-of-defense-il",
+        "accepted": 19,
+        "partial": true,
+        "blocked_ids": [
+          "34890"
+        ],
+        "quality_ok": true,
+        "sample_ids": [
+          "34928",
+          "34930",
+          "34937"
+        ],
+        "sample_urls": [
+          "https://jobs.mod.gov.il/#/Tenders/34928",
+          "https://jobs.mod.gov.il/#/Tenders/34930",
+          "https://jobs.mod.gov.il/#/Tenders/34937"
+        ],
+        "sample_titles": [
+          "ע' לניהול",
+          "ר' תחום פרויקטים",
+          "ע' בכיר לשירות"
+        ]
+      },
+      "limits": {
+        "public_requests_per_scan": 41,
+        "received_rows": 400,
+        "normalized_rows": 40,
+        "bytes_per_response": 4000000,
+        "description_characters": 24000,
+        "detail_concurrency": 4
+      },
+      "observed_public_requests": 21,
+      "observed_response_bytes": 2704896
+    }
+  ]
+}

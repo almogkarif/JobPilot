@@ -75,6 +75,42 @@ def test_quality_treats_query_job_ids_as_distinct_application_links():
     validate_source_payload("Elbit", elbit)
 
 
+@pytest.mark.parametrize('base,parameter', [
+    ('https://jobs.clalitapps.co.il/clalit/redmatch-apply/redmatch.apply.html', 'compPositionID'),
+    ('https://jobs.tasmc.org.il/Positions/redmatch-apply/redmatch.apply.html', 'compPositionID'),
+    ('https://www.cbccom.com/%D7%9E%D7%A9%D7%A8%D7%94', 'id'),
+])
+def test_recovered_query_boards_keep_vacancy_identity_and_reject_tracking_only(base, parameter):
+    validate_source_payload('Recovered board', [_job(i, url=f'{base}?{parameter}={i}') for i in range(12)])
+    with pytest.raises(SourceDataQualityError, match='distinct application links'):
+        validate_source_payload('Repeated link', [_job(i, url=f'{base}?{parameter}=same&utm_source={i}') for i in range(12)])
+    with pytest.raises(SourceDataQualityError, match='distinct application links'):
+        validate_source_payload('Unverified board', [_job(i, url=f'https://example.com/apply?{parameter}={i}') for i in range(12)])
+
+
+@pytest.mark.parametrize('identifier,host,url_template,id_template', [
+    ('hot', 'www.hot.net.il', 'https://www.hot.net.il/heb/careersearch/', 'JB-{i}'),
+    ('super-pharm', 'jobs.super-pharm.co.il', 'https://jobs.super-pharm.co.il/careers/#collapse-{i}', '{i}'),
+    ('ministry-of-defense-il', 'jobs.mod.gov.il', 'https://jobs.mod.gov.il/#/Tenders/{i}', '{i}'),
+])
+def test_recovered_inline_boards_require_complete_identity_bound_payloads(identifier, host, url_template, id_template):
+    from app.services.unified_catalog import canonical_job_key
+    rows = []
+    for i in range(12):
+        job = _job(i, url=url_template.format(i=i))
+        job.source_url = job.apply_url
+        job.external_id = id_template.format(i=i)
+        job.description = f'Build system {i}. Requirements: develop software in Python and SQL. ' + ('Design reliable systems, review code and maintain tests. ' * 4)
+        job.metadata = {'verified_inline_board': host, 'employer_record_id': job.external_id}
+        rows.append(job)
+    validate_source_payload('Verified inline board', rows)
+    assert len({canonical_job_key('official_careers', identifier, row.external_id, row.apply_url) for row in rows}) == 12
+    for row in rows:
+        row.metadata['employer_record_id'] = 'wrong'
+    with pytest.raises(SourceDataQualityError, match='distinct application links'):
+        validate_source_payload('Mismatched inline IDs', rows)
+
+
 def test_quality_treats_proteantecs_pi_as_distinct_application_link():
     jobs = [
         _job(i, url=f"https://www.proteantecs.com/careerinfo?pi=F1.365-{i}")
