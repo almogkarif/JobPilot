@@ -3741,10 +3741,23 @@ def _hosted_ats_submission_response_result(
             return "", "", f"Comeet rejected the application (HTTP {code})"
         return "", "", ""
     if host == "niloo-server.herokuapp.com":
+        # The live Elbit form returns a JSON-encoded Hunter HRMS message ID
+        # with HTTP 201. This acknowledges delivery, not an ATS application ID.
+        # Other strings, error objects and ordinary 2xx bodies remain unknown.
+        message_receipt = False
+        if code == 201:
+            try:
+                payload = json.loads(str(text or ""))
+            except (ValueError, TypeError):
+                payload = None
+            message_receipt = isinstance(payload, str) and bool(re.fullmatch(
+                r"<[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}@hunterhrms\.com>",
+                payload, flags=re.IGNORECASE,
+            ))
         explicit_success = compact in {"true", "1", '"true"'} or any(token in compact for token in (
             '"success":true', '"submitted":true', '"status":"success"',
         ))
-        if 200 <= code < 300 and (explicit_success or evidence_term):
+        if 200 <= code < 300 and (explicit_success or evidence_term or message_receipt):
             return "Elbit accepted the application", "", ""
         if code >= 400 or compact in {"false", "0", '"false"'}:
             return "", "", f"Elbit rejected the application (HTTP {code})"

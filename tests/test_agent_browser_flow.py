@@ -189,6 +189,72 @@ def test_elbit_submission_endpoint_and_confirmation_are_recognized():
         "Elbit accepted the application", "", ""
     )
 
+
+def test_elbit_created_message_receipt_is_not_an_application_id():
+    endpoint = "https://niloo-server.herokuapp.com/actions-elbit"
+    receipt = '"<11111111-2222-3333-4444-555555555555@hunterhrms.com>"'
+    assert _hosted_ats_submission_response_result(endpoint, 201, receipt) == (
+        "Elbit accepted the application", "", ""
+    )
+    assert _hosted_ats_submission_response_result(endpoint, 200, receipt) == ("", "", "")
+    assert _hosted_ats_submission_response_result(endpoint, 500, receipt) == (
+        "", "", "Elbit rejected the application (HTTP 500)"
+    )
+    assert _hosted_ats_submission_response_result(
+        "https://niloo-server.herokuapp.com/another-action", 201, receipt,
+    ) == ("", "", "")
+
+
+def test_elbit_created_response_requires_the_exact_receipt_shape():
+    endpoint = "https://niloo-server.herokuapp.com/actions-elbit"
+    for body in (
+        "", "{}", '"OK"', '"candidate@hunterhrms.com"',
+        '<11111111-2222-3333-4444-555555555555@hunterhrms.com>',
+        '"<11111111-2222-3333-4444-555555555555@other.example>"',
+        '"<11111111-2222-3333-4444-555555555555@hunterhrms.com.evil.example>"',
+        '"error: <11111111-2222-3333-4444-555555555555@hunterhrms.com>"',
+        '{"error":"<11111111-2222-3333-4444-555555555555@hunterhrms.com>"}',
+    ):
+        assert _hosted_ats_submission_response_result(endpoint, 201, body) == ("", "", ""), body
+
+
+def test_elbit_submission_uses_network_receipt_without_a_visible_success_toast():
+    endpoint = "https://niloo-server.herokuapp.com/actions-elbit"
+    posts = []
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        page.route("**/*", lambda route: route.abort())
+        page.route("https://elbitsystemscareer.com/job/**", lambda route: route.fulfill(
+            content_type="text/html", body=f"""
+              <form onsubmit="event.preventDefault(); fetch('{endpoint}', {{method:'POST', body:new FormData(this)}})">
+                <label>Email<input type="email" name="email" required></label>
+                <button type="submit">Submit application</button>
+              </form>
+            """,
+        ))
+
+        def accept(route):
+            posts.append(route.request.method)
+            route.fulfill(status=201, content_type="application/json",
+                          headers={"Access-Control-Allow-Origin": "*"},
+                          body='"<11111111-2222-3333-4444-555555555555@hunterhrms.com>"')
+
+        page.route(endpoint, accept)
+        try:
+            result = fill_application(page, {
+                "job": {"apply_url": "https://elbitsystemscareer.com/job/?jid=123"},
+                "profile": {"email": "candidate@example.com"},
+            }, auto_submit=True)
+            assert result["submitted"] is True
+            assert result["confirmation_text"] == "Elbit accepted the application"
+            assert result["evidence"][0]["type"] == "ats_submission_response"
+            assert result["external_application_id"] == ""
+            assert posts == ["POST"]
+        finally:
+            browser.close()
+
+
 def test_cybersecurity_job_description_is_not_mistaken_for_captcha():
     description = (
         "Staff Cyber Defense Engineer. Own complex security challenges and "
