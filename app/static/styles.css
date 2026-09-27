@@ -823,6 +823,8 @@ body.theme-dark .source-logo-tile {
   box-shadow: inset 0 1px rgba(255,255,255,.92), 0 6px 16px rgba(0,7,13,.28);
 }
 body.theme-dark .source-logo-fallback { color: #285b7c; }
+/* The official G-STAT wordmark is white in both themes. */
+.source-logo-tile[data-logo-domain="g-stat.com"] { background: #283b4b !important; }
 
 .source-detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; border: 1px solid var(--line); border-radius: 13px; padding: 15px; margin-top: 14px; background: #f8fbfe; }
 .source-detail-grid span { color: var(--muted); font-size: 12px; }
@@ -4378,12 +4380,12 @@ body.track-industrial-engineering #app-shell .profile-section-index {
   border-color:var(--accent-border) !important;
   color:var(--accent-text) !important;
 }
-body.track-industrial-engineering #app-shell :where(.language-row,.source-logo-tile) {
+body.track-industrial-engineering #app-shell :where(.language-row) {
   background:var(--control-bg) !important;
   border-color:var(--control-border) !important;
   color:var(--ink) !important;
 }
-body.theme-dark.track-industrial-engineering #app-shell :where(.language-row,.source-logo-tile) {
+body.theme-dark.track-industrial-engineering #app-shell :where(.language-row) {
   background:var(--control-bg) !important;
   border-color:var(--control-border) !important;
   color:var(--ink) !important;

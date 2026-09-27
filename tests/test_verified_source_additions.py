@@ -34,6 +34,9 @@ def lever_row(**updates):
 
 
 def test_new_lever_route_reads_full_requirements_and_real_country(monkeypatch):
+    # Load the collector's lazy dependencies before patching their shared transport;
+    # otherwise they retain this test's mock after monkeypatch restores the module.
+    from app.collectors import global_recovery_final, israeli_recovery_final, tech_recovery_final  # noqa: F401
     foreign = lever_row(id='77f9829b-92e2-46da-b8d1-18cde1f11d7a', country='GB',
                         categories={'location': 'London'}, description=DESCRIPTION + ' Headquarters in Israel.')
     foreign['hostedUrl'] = 'https://jobs.lever.co/d-fendsolutions/' + foreign['id']

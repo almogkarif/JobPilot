@@ -45,6 +45,7 @@ def test_health_and_dashboard():
         assert "ranking_pending_jobs" in dashboard
         assert dashboard["ranking_refresh"] == {
             "running": False, "message": "", "phase": "", "completed": 0,
+            "checked": 0, "eligible": 0, "filtered": 0,
             "total": 0, "eta_seconds": None, "failed": 0,
         }
         assert set(dashboard["readiness"]) >= {

@@ -224,8 +224,12 @@ def _posting_identity_index(db, source, items):
 
 
 async def scan_unified_catalog(db, source_ids, progress_callback, career_track, catalog_only):
+    from contextlib import nullcontext
     from ..collectors import COLLECTORS
-    from ..collectors.base import PreserveExistingJobs
+    from ..collectors.base import JobCollection, PreserveExistingJobs
+    from ..collectors.incremental import (
+        CHECKPOINT_KEY, INCREMENTAL_SOURCES, clean_checkpoint, collection_window,
+    )
     from .scanner import SOURCE_SCAN_CONCURRENCY, SOURCE_SCAN_TIMEOUT_SECONDS, _record_source_scan_state
     from .source_quality import validate_source_payload
     from .job_text import clean_job_text
@@ -253,17 +257,29 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
 
     async def collect(source):
         async with semaphore:
+            window = None
+            collector_finished = False
             try:
                 timeout = 90 if source.kind == 'official_careers' and source.identifier == 'iai' else SOURCE_SCAN_TIMEOUT_SECONDS
-                items = await asyncio.wait_for(COLLECTORS[source.kind]().collect(source.identifier, source.company_name), timeout)
+                metadata = loads(source.metadata_json, {})
+                incremental = source.kind == 'official_careers' and source.identifier in INCREMENTAL_SOURCES
+                with (collection_window(metadata.get(CHECKPOINT_KEY) if isinstance(metadata, dict) else None, timeout)
+                      if incremental else nullcontext()) as window:
+                    items = await asyncio.wait_for(COLLECTORS[source.kind]().collect(source.identifier, source.company_name), timeout)
+                collector_finished = True
+                if window and window.details_used:
+                    # Even a wrapped cursor is not a complete instantaneous board
+                    # snapshot and must never deactivate unvisited vacancies.
+                    items = JobCollection(items, complete=False,
+                                          blocked_external_ids=getattr(items, 'blocked_external_ids', ()))
                 if len(items) > 2000:
                     raise PreserveExistingJobs('Source exceeded the 2000-posting local scan bound')
                 for item in items:
                     item.description = clean_job_text(item.description)
                 validate_source_payload(source.name, items)
-                return source, items, None
+                return source, items, None, window
             except Exception as exc:
-                return source, None, exc
+                return source, None, exc, window if isinstance(exc, PreserveExistingJobs) and not collector_finished else None
 
     totals = dict(sources=len(sources), collected=0, found=0, new=0, updated=0, unchanged=0, israel_found=0, removed=0,
                   filtered_foreign=0, filtered_mismatch=0, duplicates_merged=0, auto_queued=0,
@@ -285,7 +301,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
     tasks = [asyncio.create_task(collect(row)) for row in sources]
     try:
         for completed, task in enumerate(asyncio.as_completed(tasks), start=1):
-            source, items, error = await task
+            source, items, error, window = await task
             source.last_scanned_at = now
             if error is None:
                 if transfer_budget_exhausted:
@@ -317,6 +333,15 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 source.consecutive_failures += not deferred
                 source.health_score = min(source.health_score, 50)
                 _record_source_scan_state(source, 'deferred' if deferred else 'failed')
+                # A verified listing whose attempted detail batch was entirely
+                # blocked must still rotate. Budget/validation failures must not
+                # advance past valid records that were never committed.
+                if items is None and deferred and window and window.details_used and window.batch_attempted:
+                    metadata = loads(source.metadata_json, {})
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata[CHECKPOINT_KEY] = clean_checkpoint(window.checkpoint)
+                    source.metadata_json = dumps(metadata)
                 record_observations(db, source.kind, source.identifier,
                                     blocked_ids=getattr(error, 'blocked_external_ids', ()))
                 errors.append({'source': source.name, 'error': source.last_error})
@@ -428,6 +453,15 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     db.connection().execute(JobRanking.__table__.update().where(JobRanking.job_id.in_(changed)).values(stale=True))
                 source.last_error, source.consecutive_failures, source.health_score = '', 0, 100
                 _record_source_scan_state(source, 'complete' if complete else 'partial')
+                batch = {}
+                if window and window.details_used:
+                    metadata = loads(source.metadata_json, {})
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata[CHECKPOINT_KEY] = clean_checkpoint(window.checkpoint)
+                    source.metadata_json = dumps(metadata)
+                    batch = {'batch_attempted': window.batch_attempted, 'batch_pending': window.batch_pending,
+                             'batch_interrupted': window.interrupted}
                 totals['successful_sources' if complete else 'partial_sources'] += 1
                 totals['collected'] += len(seen)
                 totals['found'] += source_found
@@ -438,7 +472,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 totals['unchanged'] += source_unchanged
                 db.commit()
                 per_source.append({'source': source.name, 'collected': len(seen), 'israel_found': source_israel, 'found': source_found,
-                                   'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete, 'error': ''})
+                                   'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete, 'error': '', **batch})
             if progress_callback:
                 progress_callback({'phase': 'scanning', 'current': completed, 'completed': completed,
                                    'total': len(sources), 'current_source': source.name,

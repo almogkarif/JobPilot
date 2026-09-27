@@ -1,0 +1,273 @@
+{
+  "scope": "public employer GETs only; no database or Chrome access",
+  "oracle_batches": [
+    {
+      "attempt": 1,
+      "seconds": 6.49,
+      "returned": 20,
+      "ids": [
+        "341595",
+        "341080",
+        "341596",
+        "340767",
+        "340865",
+        "341593",
+        "340769",
+        "341583",
+        "340878",
+        "341585",
+        "340867",
+        "340868",
+        "341599",
+        "341590",
+        "341591",
+        "340880",
+        "341597",
+        "340873",
+        "340766",
+        "342287"
+      ],
+      "complete": false,
+      "blocked": [],
+      "checkpoint": {
+        "page": 0,
+        "v": 1,
+        "scope": "oracle-cx:9cf26fd1841b61142c2a60ca:0:2",
+        "cursor": "ca266de976885e97300cab44d3090c31edc9f5005182ffa9079a29982ac07ad7",
+        "retry": []
+      },
+      "interrupted": false,
+      "calls": [
+        {
+          "kind": "list",
+          "seconds": 1.38,
+          "ok": true
+        },
+        {
+          "kind": "list",
+          "seconds": 1.1,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.82,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.82,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.83,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.76,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.81,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.79,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.76,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.79,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "attempt": 2,
+      "seconds": 5.48,
+      "returned": 13,
+      "ids": [
+        "341588",
+        "345982",
+        "341580",
+        "341604",
+        "338821",
+        "337210",
+        "341582",
+        "340756",
+        "340772",
+        "340771",
+        "340776",
+        "340882",
+        "340762"
+      ],
+      "complete": false,
+      "blocked": [],
+      "checkpoint": {
+        "v": 1,
+        "scope": "oracle-cx:9cf26fd1841b61142c2a60ca:0:2",
+        "cursor": "",
+        "retry": [],
+        "page": 0
+      },
+      "interrupted": false,
+      "calls": [
+        {
+          "kind": "list",
+          "seconds": 1.39,
+          "ok": true
+        },
+        {
+          "kind": "list",
+          "seconds": 1.02,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.75,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.8,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.79,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.77,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.78,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 1.38,
+          "ok": true
+        },
+        {
+          "kind": "detail",
+          "seconds": 0.76,
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "html_detail_probes": [
+    {
+      "company": "NextSilicon",
+      "url": "https://www.nextsilicon.com/careers/emulation-engineer/",
+      "complete_description_chars": 3466
+    },
+    {
+      "company": "Palo Alto",
+      "url": "https://jobs.paloaltonetworks.com/en/job/tel-aviv/senior-linux-detection-researcher-cortex/47263/99101926288",
+      "complete_description_chars": 4342
+    }
+  ]
+}

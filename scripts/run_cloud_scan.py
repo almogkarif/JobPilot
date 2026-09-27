@@ -258,6 +258,9 @@ def print_source_summary(result: dict) -> None:
             f"new={int(item.get('new') or 0)} "
             f"updated={int(item.get('updated') or 0)} "
             f"unchanged={int(item.get('unchanged') or 0)} "
+            f"partial={bool(item.get('partial'))} "
+            f"batch_attempted={int(item.get('batch_attempted') or 0)} "
+            f"batch_pending={int(item.get('batch_pending') or 0)} "
             f"deferred={bool(item.get('deferred'))} "
             f"error={str(item.get('error') or '')[:240]}",
             flush=True,

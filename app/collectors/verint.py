@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 import re
 from urllib.parse import urlencode
@@ -11,6 +12,7 @@ import httpx
 
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from .expansion_ats import bounded_public_get, MAX_RESPONSE_BYTES
+from .incremental import collect_detail_batch, current_window
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.location_filter import is_israel_location
 from ..services.source_quality import is_navigation_title
@@ -22,6 +24,7 @@ PAGE_SIZE = 25
 MAX_DETAILS = 40
 DETAIL_CONCURRENCY = 4
 MAX_DESCRIPTION_CHARS = 24_000
+MAX_RESUMABLE_LIST_ROWS = 2_000
 
 
 def _json(document):
@@ -64,28 +67,99 @@ async def collect_verint(company=''):
     return await collect_oracle_cx(API, 'CX', BASE + '/hcmUI/CandidateExperience/en/sites/CX/job/', company or 'Verint')
 
 
+async def _search_page(api, site, page, company, country_facet):
+    finder = f'findReqs;siteNumber={site},limit={PAGE_SIZE},offset={page * PAGE_SIZE}'
+    if country_facet:
+        finder += f',selectedLocationsFacet={country_facet}'
+    url = api + 'recruitingCEJobRequisitions?' + urlencode({'onlyData': 'true', 'expand': 'requisitionList', 'finder': finder})
+    try:
+        payload = _json(await bounded_public_get(url))
+    except httpx.HTTPError as exc:
+        raise PreserveExistingJobs(f'{company} public search is unavailable') from exc
+    items = payload.get('items')
+    if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
+        raise PreserveExistingJobs(f'{company} returned no recognized search envelope')
+    data = items[0]
+    total, rows = data.get('TotalJobsCount'), data.get('requisitionList')
+    if (not isinstance(total, int) or isinstance(total, bool) or total < 0
+            or not isinstance(rows, list) or len(rows) > PAGE_SIZE or not all(isinstance(r, dict) for r in rows)):
+        raise PreserveExistingJobs(f'{company} returned invalid search rows')
+    if not rows and page * PAGE_SIZE < total:
+        raise PreserveExistingJobs(f'{company} search ended before its advertised total')
+    return rows, total
+
+
+async def _collect_oracle_window(api, site, public_job_base, company, country_facet, window):
+    if window.remaining() <= 0:
+        return JobCollection(complete=False)
+    # List offsets and detail cursors belong to this exact employer/site/filter.
+    identity = sha256(f'{api}\n{site}\n{country_facet or ""}'.encode()).hexdigest()[:24]
+    prefix = f'oracle-cx:{identity}:'
+    start = window.previous.get('page', 0)
+    if (not str(window.previous.get('scope', '')).startswith(prefix)
+            or not isinstance(start, int) or isinstance(start, bool)
+            or not 0 <= start < MAX_RESUMABLE_LIST_ROWS // PAGE_SIZE):
+        start = 0
+    window.checkpoint['page'] = start
+    candidates = {}
+    next_page = start
+    total = 0
+    for page in range(start, min(start + MAX_LIST_PAGES, MAX_RESUMABLE_LIST_ROWS // PAGE_SIZE)):
+        if window.remaining() <= 0:
+            break
+        try:
+            # Reserve time to hydrate already listed jobs if the next page stalls.
+            rows, total = await asyncio.wait_for(
+                _search_page(api, site, page, company, country_facet),
+                timeout=min(25, window.remaining() * 0.6),
+            )
+        except TimeoutError as exc:
+            if next_page == start:
+                raise PreserveExistingJobs(f'{company} public search did not finish within its collection window') from exc
+            break
+        except PreserveExistingJobs:
+            if next_page == start:
+                raise
+            break
+        next_page = page + 1
+        for row in rows:
+            external_id = str(row.get('Id') or '')
+            if re.fullmatch(r'[1-9]\d{0,19}', external_id) and (
+                    row.get('PrimaryLocationCountry') == 'IL' or is_israel_location(str(row.get('PrimaryLocation') or ''))):
+                candidates.setdefault(external_id, row)
+        if next_page * PAGE_SIZE >= total:
+            break
+
+    blocked = []
+    async def detail(external_id):
+        try:
+            row = _json(await bounded_public_get(api + 'recruitingCEJobRequisitionDetails/' + external_id))
+            job = parse_detail(external_id, row, company, public_job_base=public_job_base)
+            if job is None:
+                blocked.append(external_id)
+            return job
+        except (httpx.HTTPError, PreserveExistingJobs):
+            blocked.append(external_id)
+            return None
+
+    jobs = await collect_detail_batch(candidates, detail, key=lambda value: value,
+                                     scope=f'{prefix}{start}:{next_page}', concurrency=DETAIL_CONCURRENCY)
+    if window.details_complete and next_page > start:
+        window.checkpoint['page'] = (0 if next_page * PAGE_SIZE >= min(total, MAX_RESUMABLE_LIST_ROWS)
+                                     else next_page)
+    # Each run covers only a slice. Absence must never imply a closed vacancy,
+    # even when this slice was empty or all its details were temporarily blocked.
+    return JobCollection(jobs, complete=False, blocked_external_ids=blocked)
+
+
 async def collect_oracle_cx(api, site, public_job_base, company, *, country_facet=None):
     """Shared bounded reader; callers supply only verified employer configurations."""
+    window = current_window()
+    if window is not None:
+        return await _collect_oracle_window(api, site, public_job_base, company, country_facet, window)
     candidates = {}
     for page in range(MAX_LIST_PAGES):
-        finder = f'findReqs;siteNumber={site},limit={PAGE_SIZE},offset={page * PAGE_SIZE}'
-        if country_facet:
-            finder += f',selectedLocationsFacet={country_facet}'
-        url = api + 'recruitingCEJobRequisitions?' + urlencode({'onlyData': 'true', 'expand': 'requisitionList', 'finder': finder})
-        try:
-            payload = _json(await bounded_public_get(url))
-        except httpx.HTTPError as exc:
-            raise PreserveExistingJobs(f'{company} public search is unavailable') from exc
-        items = payload.get('items')
-        if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
-            raise PreserveExistingJobs(f'{company} returned no recognized search envelope')
-        data = items[0]
-        total, rows = data.get('TotalJobsCount'), data.get('requisitionList')
-        if (not isinstance(total, int) or isinstance(total, bool) or total < 0
-                or not isinstance(rows, list) or len(rows) > PAGE_SIZE or not all(isinstance(r, dict) for r in rows)):
-            raise PreserveExistingJobs(f'{company} returned invalid search rows')
-        if not rows and page * PAGE_SIZE < total:
-            raise PreserveExistingJobs(f'{company} search ended before its advertised total')
+        rows, total = await _search_page(api, site, page, company, country_facet)
         for row in rows:
             external_id = str(row.get('Id') or '')
             if re.fullmatch(r'[1-9]\d{0,19}', external_id) and (

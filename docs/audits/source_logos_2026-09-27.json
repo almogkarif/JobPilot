@@ -1,0 +1,1900 @@
+{
+  "checked_at": "2026-09-27",
+  "definition_rows": 396,
+  "canonical_sources": 266,
+  "operational_sources": 226,
+  "company_only_mappings_added": 103,
+  "initial_primary_failures": 8,
+  "assets": [
+    {
+      "domain": "4manalytics.com",
+      "file": "4manalytics.com-64223a2d0da8.png",
+      "sha256": "64223a2d0da826dcbf16889f63ef58d2e9d27c5fe7b5dddc17569786779ccc87",
+      "bytes": 1233,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2F4manalytics.com&sz=128"
+    },
+    {
+      "domain": "accessibe.com",
+      "file": "accessibe.com-54e19a71c051.png",
+      "sha256": "54e19a71c05124087975127feb1673985f001dbfcf329b763363e9ba65f25f5b",
+      "bytes": 4242,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faccessibe.com&sz=128"
+    },
+    {
+      "domain": "aidoc.com",
+      "file": "aidoc.com-d5ed7c6b7274.png",
+      "sha256": "d5ed7c6b7274329b41db9e979882f9425e5ce54198cfc87332d5249b8aa6057e",
+      "bytes": 2353,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faidoc.com&sz=128"
+    },
+    {
+      "domain": "amazon.com",
+      "file": "amazon.com-7e67fb8e6c43.png",
+      "sha256": "7e67fb8e6c43002e09c7d363f3b158a716dc09f4043cc058bcc01b206bbd097d",
+      "bytes": 658,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Famazon.com&sz=128"
+    },
+    {
+      "domain": "amdocs.com",
+      "file": "amdocs.com-c7bd498078fd.png",
+      "sha256": "c7bd498078fd0b624c733dc1b164bd244277873322a23f98c2d3f03859bfccc9",
+      "bytes": 1906,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Famdocs.com&sz=128"
+    },
+    {
+      "domain": "analog.com",
+      "file": "analog.com-22cd2c92cb14.png",
+      "sha256": "22cd2c92cb14f0a3f2fe79ecbfb8d306d24f1aa43f3ab40288662b7bfa4ec0ad",
+      "bytes": 688,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fanalog.com&sz=128"
+    },
+    {
+      "domain": "apiiro.com",
+      "file": "apiiro.com-4ea1502d336c.png",
+      "sha256": "4ea1502d336ca3f29617eeecd96ac4ec54bb5245e161054c1b991e7b566dc5bd",
+      "bytes": 1062,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fapiiro.com&sz=128"
+    },
+    {
+      "domain": "apple.com",
+      "file": "apple.com-eb7f4b32c3d7.png",
+      "sha256": "eb7f4b32c3d7492e9a0f47a27743924428009dc41d3605a0c59a98a154fc52ad",
+      "bytes": 2468,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fapple.com&sz=128"
+    },
+    {
+      "domain": "appliedmaterials.com",
+      "file": "appliedmaterials.com-982575c3d95d.png",
+      "sha256": "982575c3d95db7a9fa11a7436a7595f8dadc6ee86b1167d72972f574f5d5f9e2",
+      "bytes": 1810,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fappliedmaterials.com&sz=128"
+    },
+    {
+      "domain": "appsflyer.com",
+      "file": "appsflyer.com-de00e776c25f.png",
+      "sha256": "de00e776c25f4d755bafdfb0bd8c33ef4be937d537404e39c73eb3249ea54e63",
+      "bytes": 1362,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fappsflyer.com&sz=128"
+    },
+    {
+      "domain": "aquasec.com",
+      "file": "aquasec.com-3209364f1005.png",
+      "sha256": "3209364f10057a5d19bd71f113d08bcdb66a1de3b466c0e88d23c2198f27eccf",
+      "bytes": 1385,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faquasec.com&sz=128"
+    },
+    {
+      "domain": "arberobotics.com",
+      "file": "arberobotics.com-fc2224eb90c8.jpg",
+      "sha256": "fc2224eb90c809ea269b36fa80a06ed79af1f9868007546ec918f1d256a2b236",
+      "bytes": 4796,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Farberobotics.com&sz=128"
+    },
+    {
+      "domain": "arm.com",
+      "file": "arm.com-91149de75292.png",
+      "sha256": "91149de7529299c30ebf00eef2b96e157c7eedccd345e6a6c821eedfcca416c3",
+      "bytes": 1744,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Farm.com&sz=128"
+    },
+    {
+      "domain": "armis.com",
+      "file": "armis.com-ecc93052627e.jpg",
+      "sha256": "ecc93052627ea014555e50f471b3608590e99d1b204d36dcce32d5ba756a71e7",
+      "bytes": 1403,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Farmis.com&sz=128"
+    },
+    {
+      "domain": "ashdodport.co.il",
+      "file": "ashdodport.co.il-76018df6fe2f.png",
+      "sha256": "76018df6fe2fe2d6d9b437c602bb89b23a6b820957873defd01ed9f4ebbdc9a4",
+      "bytes": 767,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.ashdodport.co.il&sz=128"
+    },
+    {
+      "domain": "ashleyfurniture.com",
+      "file": "ashleyfurniture.com-2b37bee36138.png",
+      "sha256": "2b37bee36138fb0e5c5808e36ac191d90f06895b594ddb34d7d3926458e21c86",
+      "bytes": 618,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fashleyfurniture.com&sz=128"
+    },
+    {
+      "domain": "assuta.co.il",
+      "file": "assuta.co.il-2eabd942eac2.png",
+      "sha256": "2eabd942eac203ab7ab49fdd774abd9b944c0e5497013d6f5fc6c985fca52a25",
+      "bytes": 2452,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fassuta.co.il&sz=128"
+    },
+    {
+      "domain": "astrix.security",
+      "file": "astrix.security-e2ca42aee8c3.png",
+      "sha256": "e2ca42aee8c37c06d082d650eaa2da25088b3407dac20cce2606586c8a0662d5",
+      "bytes": 1111,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fastrix.security&sz=128"
+    },
+    {
+      "domain": "at-bay.com",
+      "file": "at-bay.com-3b8e95bd1db5.png",
+      "sha256": "3b8e95bd1db5e2bff57c9d7dc17a0ebe8c25e25caaf036980cf994e0d2f1c630",
+      "bytes": 950,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fat-bay.com&sz=128"
+    },
+    {
+      "domain": "atera.com",
+      "file": "atera.com-e8ce70b667ea.png",
+      "sha256": "e8ce70b667ea061626f5fe2385f80598de7e7aea38c0d44f58ee2e5543ab5094",
+      "bytes": 1337,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fatera.com&sz=128"
+    },
+    {
+      "domain": "augury.com",
+      "file": "augury.com-d81eeefb8141.png",
+      "sha256": "d81eeefb814186947a69073c7a8ddb7e322037f6e8a8fae21e2366ed0f9957c4",
+      "bytes": 1140,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faugury.com&sz=128"
+    },
+    {
+      "domain": "autods.com",
+      "file": "autods.com-b4f2d8a66573.png",
+      "sha256": "b4f2d8a665730d8e458e6cf4694172d99e89e12181ee963d18a78062ec941e64",
+      "bytes": 1837,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fautods.com&sz=128"
+    },
+    {
+      "domain": "axon.com",
+      "file": "axon.com-77cfc94079fc.png",
+      "sha256": "77cfc94079fc835789f6b0a5e25092f78c88271739e2c16195e379d6576f6fe1",
+      "bytes": 957,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faxon.com&sz=128"
+    },
+    {
+      "domain": "axonius.com",
+      "file": "axonius.com-c3abee652788.png",
+      "sha256": "c3abee652788829b2220165d6eddcb2d875ca8f40989ba3a154f76a382780cc1",
+      "bytes": 1083,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faxonius.com&sz=128"
+    },
+    {
+      "domain": "bankhapoalim.co.il",
+      "file": "bankhapoalim.co.il-1040ae58a954.png",
+      "sha256": "1040ae58a954710d38cdbd79f7233a9b46d694efac5bc8f031139c65a817f302",
+      "bytes": 967,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbankhapoalim.co.il&sz=128"
+    },
+    {
+      "domain": "beamup.ai",
+      "file": "beamup.ai-b5e4bd41a112.png",
+      "sha256": "b5e4bd41a11295d4f7583d6872d8bf3fee29ca5284373cfb1d9a804c07c2aa85",
+      "bytes": 1975,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbeamup.ai&sz=128"
+    },
+    {
+      "domain": "bezeq.co.il",
+      "file": "bezeq.co.il-0d99f27a1c2e.png",
+      "sha256": "0d99f27a1c2e4848f9a75ab1c3cd8c64287e5f47a3ac86be082ebfbe6bb680b9",
+      "bytes": 1192,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbezeq.co.il&sz=128"
+    },
+    {
+      "domain": "bigid.com",
+      "file": "bigid.com-33a4b7a46ccf.png",
+      "sha256": "33a4b7a46ccfa1d078479a12383e688c2082592e44948a486786da24b442bd28",
+      "bytes": 4390,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbigid.com&sz=128"
+    },
+    {
+      "domain": "bluevine.com",
+      "file": "bluevine.com-182254263b29.png",
+      "sha256": "182254263b29f824881227b898a11af814f6cbee0c75c9f4cccef9063d0aec90",
+      "bytes": 1107,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbluevine.com&sz=128"
+    },
+    {
+      "domain": "bostonscientific.com",
+      "file": "bostonscientific.com-bf7af61f9066.png",
+      "sha256": "bf7af61f906623a7afe761531e65a8242d25008ea51b96dbada930e5eb5c8ab9",
+      "bytes": 1716,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbostonscientific.com&sz=128"
+    },
+    {
+      "domain": "broadcom.com",
+      "file": "broadcom.com-1e4749d06fde.png",
+      "sha256": "1e4749d06fdeed496504df47d6b0ee6d35f1cc245c38e6423ab75643eedd9ec9",
+      "bytes": 4730,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fbroadcom.com&sz=128"
+    },
+    {
+      "domain": "cadence.com",
+      "file": "cadence.com-187d70abde01.png",
+      "sha256": "187d70abde01e71f5e6764be74bb8a33cdd3b23f3262b4783c5a8ae1aa0e91f1",
+      "bytes": 142,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcadence.com&sz=128"
+    },
+    {
+      "domain": "cal-online.co.il",
+      "file": "cal-online.co.il-23d94a454af6.png",
+      "sha256": "23d94a454af6375cddb90f39395e351b72c4ab47575d3a67bf0e4a8053a3a114",
+      "bytes": 287,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcal-online.co.il&sz=128"
+    },
+    {
+      "domain": "camtek.com",
+      "file": "camtek.com-0c1fc62b07c2.png",
+      "sha256": "0c1fc62b07c253664ef0c6be8eff4730ef935e56e69e270b9930c53bcc490dd6",
+      "bytes": 798,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.camtek.com&sz=128"
+    },
+    {
+      "domain": "catonetworks.com",
+      "file": "catonetworks.com-0d393643c2ed.png",
+      "sha256": "0d393643c2ed26f55255f95f228b5caae31a02341ba9b1e3429388a5d3039524",
+      "bytes": 1906,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcatonetworks.com&sz=128"
+    },
+    {
+      "domain": "cellcom.co.il",
+      "file": "cellcom.co.il-73da2c74ff2e.png",
+      "sha256": "73da2c74ff2eaf93056bf2eab324d7280cb17e0d792887798a86a991226e2647",
+      "bytes": 2541,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcellcom.co.il&sz=128"
+    },
+    {
+      "domain": "cellebrite.com",
+      "file": "cellebrite.com-5163eb97c19a.png",
+      "sha256": "5163eb97c19abf87968259edf76ff718f60e7d56eb6e8434e36e1c03db8ca263",
+      "bytes": 917,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcellebrite.com&sz=128"
+    },
+    {
+      "domain": "chain-reaction.io",
+      "file": "chain-reaction.io-1ad3b190086d.png",
+      "sha256": "1ad3b190086d45ac1fe2b857ac19b89e9b398a8a06ad4ba0ed0e3c234b2d3aaa",
+      "bytes": 1220,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fchain-reaction.io&sz=128"
+    },
+    {
+      "domain": "chainalysis.com",
+      "file": "chainalysis.com-de3201b92dfe.png",
+      "sha256": "de3201b92dfea1c8b4bad8a5a89a1ab895f127af9c24de6fe6145c13eaa35cbe",
+      "bytes": 3581,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fchainalysis.com&sz=128"
+    },
+    {
+      "domain": "checkpoint.com",
+      "file": "checkpoint.com-322d752f09ca.png",
+      "sha256": "322d752f09caa7e83f14a9d778cb52543a6f561c448c25159f32754627a32d95",
+      "bytes": 1525,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcheckpoint.com&sz=128"
+    },
+    {
+      "domain": "cisco.com",
+      "file": "cisco.com-b8464a59f392.png",
+      "sha256": "b8464a59f392de55d1c105f7b26670dc660baecfcccf81c5511b4abadf2dcd66",
+      "bytes": 201,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcisco.com&sz=128"
+    },
+    {
+      "domain": "clalit.co.il",
+      "file": "clalit.co.il-0d4e04530ebd.png",
+      "sha256": "0d4e04530ebd4ee9fb6b3386e3e051b3f2246c12f6592f528c077c6aad8501e4",
+      "bytes": 424,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fclalit.co.il&sz=128"
+    },
+    {
+      "domain": "claroty.com",
+      "file": "claroty.com-cdd3b8071a6c.png",
+      "sha256": "cdd3b8071a6c135dc9394127ac276ef7da720cad2c2662c0732477bf562f9e18",
+      "bytes": 2085,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fclaroty.com&sz=128"
+    },
+    {
+      "domain": "classiq.io",
+      "file": "classiq.io-97a0fb95c98d.png",
+      "sha256": "97a0fb95c98da3030b70b0ae8e0cf032e72bfedc53cbca3d475b6e1ae6c91fb8",
+      "bytes": 1124,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fclassiq.io&sz=128"
+    },
+    {
+      "domain": "cloudinary.com",
+      "file": "cloudinary.com-20c6093074ea.png",
+      "sha256": "20c6093074ea94b9608dd02e942f731196e80667b33964d375c4969b951235ce",
+      "bytes": 1786,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcloudinary.com&sz=128"
+    },
+    {
+      "domain": "cocacola.co.il",
+      "file": "cocacola.co.il-9eff2d5d67b2.png",
+      "sha256": "9eff2d5d67b2af3a2220f15d0b5e3237236e35812d8b66859d92bcd1d99b2470",
+      "bytes": 1781,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcocacola.co.il&sz=128"
+    },
+    {
+      "domain": "cognyte.com",
+      "file": "cognyte.com-6711f0655463.png",
+      "sha256": "6711f06554636b6fb3364a18ccedb55afd228ff44a4a84d0196b61fdd40ccf13",
+      "bytes": 3134,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcognyte.com&sz=128"
+    },
+    {
+      "domain": "connecteam.com",
+      "file": "connecteam.com-4bcbdf468838.png",
+      "sha256": "4bcbdf4688386244550cc3751acd5da049759054c8f58859799c9ab372924de7",
+      "bytes": 1258,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fconnecteam.com&sz=128"
+    },
+    {
+      "domain": "controlup.com",
+      "file": "controlup.com-6f7d614a7d58.png",
+      "sha256": "6f7d614a7d587675bb7ce7b54382e99e63243589ba9386e0bd11d19e1637da2e",
+      "bytes": 685,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcontrolup.com&sz=128"
+    },
+    {
+      "domain": "coralogix.com",
+      "file": "coralogix.com-8d0bdb356194.png",
+      "sha256": "8d0bdb35619476e33178a116017b6d51314b7be5e749d3fd70efa974a5f861a0",
+      "bytes": 1009,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcoralogix.com&sz=128"
+    },
+    {
+      "domain": "cyberark.com",
+      "file": "cyberark.com-0a84d512511d.png",
+      "sha256": "0a84d512511dd41f5987a9fa431a1262406186c8edeb8d6a00e8b029b114a9e8",
+      "bytes": 874,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcyberark.com&sz=128"
+    },
+    {
+      "domain": "cyera.io",
+      "file": "cyera.io-061999b9841e.png",
+      "sha256": "061999b9841e4c930060d08903850d92d3ff11ea893b9447e96e329a4cbd155a",
+      "bytes": 1493,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcyera.io&sz=128"
+    },
+    {
+      "domain": "cymulate.com",
+      "file": "cymulate.com-3636bc85172e.png",
+      "sha256": "3636bc85172ea55f5f3ef8d1bc8fe3ece5bd5efb8de3a558a3f1ca47de471101",
+      "bytes": 2278,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fcymulate.com&sz=128"
+    },
+    {
+      "domain": "d-fendsolutions.com",
+      "file": "d-fendsolutions.com-a87f10079fc4.png",
+      "sha256": "a87f10079fc468875f7a32951eaf3bd16e671279375b95b4090a7613e967247e",
+      "bytes": 1211,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fd-fendsolutions.com&sz=128"
+    },
+    {
+      "domain": "datadoghq.com",
+      "file": "datadoghq.com-10d1c58d2fd6.png",
+      "sha256": "10d1c58d2fd63806d013242cde0a6b536437bd715377410808d9ef853bcbf68d",
+      "bytes": 3672,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdatadoghq.com&sz=128"
+    },
+    {
+      "domain": "datarails.com",
+      "file": "datarails.com-528cf1bb5669.png",
+      "sha256": "528cf1bb5669e913556adcf7215f75e424863cbb2d4d04040450fbff13425be7",
+      "bytes": 1104,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdatarails.com&sz=128"
+    },
+    {
+      "domain": "daylight.ai",
+      "file": "daylight.ai-2c7c6144f8bb.png",
+      "sha256": "2c7c6144f8bbba14e8cbd64e3ec1b241e6cc7a871886d46d482404bb2cb23f40",
+      "bytes": 624,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdaylight.ai&sz=128"
+    },
+    {
+      "domain": "deepinstinct.com",
+      "file": "deepinstinct.com-f091c4880bf7.png",
+      "sha256": "f091c4880bf7da534c0c61eb9dbb16d5480cc5aa7986a82f3b8cd21639f9cad9",
+      "bytes": 823,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdeepinstinct.com&sz=128"
+    },
+    {
+      "domain": "dell.com",
+      "file": "dell.com-cd0171d04e2c.png",
+      "sha256": "cd0171d04e2cc3af3320f96c78f6516e09a6757b67f417345e69ca82c24ac1b6",
+      "bytes": 388,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdell.com&sz=128"
+    },
+    {
+      "domain": "deloitte.com",
+      "file": "deloitte.com-0af55ad48696.png",
+      "sha256": "0af55ad48696b709ca9723f9f0f4219d33741e9a9f499c87024d78e273bbe541",
+      "bytes": 553,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdeloitte.com&sz=128"
+    },
+    {
+      "domain": "deltagalil.com",
+      "file": "deltagalil.com-82cef3864b13.png",
+      "sha256": "82cef3864b135fa3a070361c21fb257872671dda659a055e4f00f803c5b9d9b7",
+      "bytes": 1090,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdeltagalil.com&sz=128"
+    },
+    {
+      "domain": "descope.com",
+      "file": "descope.com-f2d9251a7628.png",
+      "sha256": "f2d9251a76284d3c16999b42478ed9b96d33dbaa42b64dac193326843d3c7aa5",
+      "bytes": 1814,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdescope.com&sz=128"
+    },
+    {
+      "domain": "dhl.com",
+      "file": "dhl.com-a9e6fc0f96c0.png",
+      "sha256": "a9e6fc0f96c0145a239b88e73cfa8be0a46427be5e30645b6caeb317f1760a12",
+      "bytes": 250,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdhl.com&sz=128"
+    },
+    {
+      "domain": "discountbank.co.il",
+      "file": "discountbank.co.il-6768293b80de.png",
+      "sha256": "6768293b80de1b5f602d9957dd5433b99bac9e1962b0f785da8a041047f5ef38",
+      "bytes": 705,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdiscountbank.co.il&sz=128"
+    },
+    {
+      "domain": "doit.com",
+      "file": "doit.com-a9be49caabc6.png",
+      "sha256": "a9be49caabc67ce8c0009836d55961a57d346839f04b0af319564e6aa07c64c2",
+      "bytes": 848,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdoit.com&sz=128"
+    },
+    {
+      "domain": "dustphotonics.com",
+      "file": "dustphotonics.com-80f5f86b6567.png",
+      "sha256": "80f5f86b656771d7bdc5f952eda07146c319cdae66f901dc3c2e1dcd4d1c3597",
+      "bytes": 1727,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fdustphotonics.com&sz=128"
+    },
+    {
+      "domain": "earnix.com",
+      "file": "earnix.com-df9d9bee6b11.png",
+      "sha256": "df9d9bee6b114174ff601e50bdf8cd3fac2fa729259c30d0632e84eb4800aba4",
+      "bytes": 1166,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fearnix.com&sz=128"
+    },
+    {
+      "domain": "eladsoft.com",
+      "file": "eladsoft.com-a7f432f6a24e.png",
+      "sha256": "a7f432f6a24e6757e7449e32bd3a12cf1d1f2b9ef2aefe3b8facd8e392cc6d12",
+      "bytes": 1652,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Feladsoft.com&sz=128"
+    },
+    {
+      "domain": "elastic.co",
+      "file": "elastic.co-5e7832c23638.png",
+      "sha256": "5e7832c2363858db660d153020ffe4c018ad3041735d97ab5e05c837031f6c8d",
+      "bytes": 2570,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Felastic.co&sz=128"
+    },
+    {
+      "domain": "elbitsystems.com",
+      "file": "elbitsystems.com-aa87246a2fb6.png",
+      "sha256": "aa87246a2fb6959db2e1ab50ce33da258615086b132ad51a8ada5db42727695c",
+      "bytes": 680,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Felbitsystems.com&sz=128"
+    },
+    {
+      "domain": "electra.co.il",
+      "file": "electra.co.il-3ccd78297a48.png",
+      "sha256": "3ccd78297a48e95694795691561408b10933064569985b4e66deb4b7f5e751b5",
+      "bytes": 1691,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Felectra.co.il&sz=128"
+    },
+    {
+      "domain": "eleos.health",
+      "file": "eleos.health-9a7ed778c418.png",
+      "sha256": "9a7ed778c4187f531facbd479b1fb83347255ca96dba0c5d3edee6885e5fb65a",
+      "bytes": 1146,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Feleos.health&sz=128"
+    },
+    {
+      "domain": "elspec-ltd.com",
+      "file": "elspec-ltd.com-0f37a1c8f185.png",
+      "sha256": "0f37a1c8f1851aa31914500f70d3d37b12c863365e3f68921f9e52dfcd66f781",
+      "bytes": 2782,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Felspec-ltd.com&sz=128"
+    },
+    {
+      "domain": "ericsson.com",
+      "file": "ericsson.com-5f61e546d78c.png",
+      "sha256": "5f61e546d78c1a4adc8561d281ce1c013eb1b0550eba22872784d0658b9c41c4",
+      "bytes": 2142,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fericsson.com&sz=128"
+    },
+    {
+      "domain": "etoro.com",
+      "file": "etoro.com-c4f8f94be387.png",
+      "sha256": "c4f8f94be387ed6d14c9a79a76add5e332edf24ec4498c14d930c2261caa5a84",
+      "bytes": 1139,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fetoro.com&sz=128"
+    },
+    {
+      "domain": "exodigo.com",
+      "file": "exodigo.com-ff8fc1187b73.jpg",
+      "sha256": "ff8fc1187b733349334241b399b6006e43bce8e232f36e0b4161ef29757488fc",
+      "bytes": 1923,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fexodigo.com&sz=128"
+    },
+    {
+      "domain": "ey.com",
+      "file": "ey.com-251dfdb3a6cf.png",
+      "sha256": "251dfdb3a6cf88fd96a48fe00c300c3a0ac57858495bd702cb87fa139013ac2b",
+      "bytes": 346,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fey.com&sz=128"
+    },
+    {
+      "domain": "figma.com",
+      "file": "figma.com-f072e59a9c0f.png",
+      "sha256": "f072e59a9c0fc36b5005ed541c0eb7d2f94ad9f3ef8204f8fe62f55cd01eaa98",
+      "bytes": 1002,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffigma.com&sz=128"
+    },
+    {
+      "domain": "fireblocks.com",
+      "file": "fireblocks.com-040addf31c03.png",
+      "sha256": "040addf31c03a3a9c6baae6f2a424694953d6c6f80c860d28035e4e8d90c08f3",
+      "bytes": 721,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffireblocks.com&sz=128"
+    },
+    {
+      "domain": "fiverr.com",
+      "file": "fiverr.com-7171d2a293b5.png",
+      "sha256": "7171d2a293b5bfb42c70a22d7dbd862bd6ab3d0041b254562a1476ae1c10be60",
+      "bytes": 1621,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffiverr.com&sz=128"
+    },
+    {
+      "domain": "flex.com",
+      "file": "flex.com-1c31bf905a99.png",
+      "sha256": "1c31bf905a993f9d63fa8e06c651a09b54f76601ee9c3456deecc243366e016e",
+      "bytes": 2447,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fflex.com&sz=128"
+    },
+    {
+      "domain": "fnx.co.il",
+      "file": "fnx.co.il-373925a86974.png",
+      "sha256": "373925a8697444270d5d2ed0e7a26d54c551b6dac396d5c233de18d103eb985f",
+      "bytes": 2209,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffnx.co.il&sz=128"
+    },
+    {
+      "domain": "forter.com",
+      "file": "forter.com-0bcea3ecfc4c.png",
+      "sha256": "0bcea3ecfc4c210cfdf2290e270a5655f93531ee5509607b101c9ca4eed17992",
+      "bytes": 2001,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fforter.com&sz=128"
+    },
+    {
+      "domain": "fox.co.il",
+      "file": "fox.co.il-8b2f8d79dca0.jpg",
+      "sha256": "8b2f8d79dca0c4454b23fa4215cb4092c9136897d018f231298725a4016ace68",
+      "bytes": 897,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffox.co.il&sz=128"
+    },
+    {
+      "domain": "fridenson.co.il",
+      "file": "fridenson.co.il-41d8ad42a661.png",
+      "sha256": "41d8ad42a6617803320b406c11df88d0ad0756659d0233679f6e35b4eda32059",
+      "bytes": 255,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffridenson.co.il&sz=128"
+    },
+    {
+      "domain": "fundbox.com",
+      "file": "fundbox.com-94efb92cb9fe.png",
+      "sha256": "94efb92cb9feb26ff7a7a9be3c5e8a21517e5089e0c83bf328666f53024f151b",
+      "bytes": 328,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ffundbox.com&sz=128"
+    },
+    {
+      "domain": "g-stat.com",
+      "file": "g-stat.com-ba668898dc78.png",
+      "sha256": "ba668898dc782e31a3f994d3e9fa9bea1fa6612bdb070a44ec5b07772556bbbe",
+      "bytes": 3196,
+      "source_url": "https://g-stat.com/wp-content/uploads/2019/04/white_logo.png"
+    },
+    {
+      "domain": "gehealthcare.com",
+      "file": "gehealthcare.com-d1ec68f66365.png",
+      "sha256": "d1ec68f6636597b34f7b1a3d99d674749becb2b9c99f2eb53ca4edf3593e1b4c",
+      "bytes": 3241,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgehealthcare.com&sz=128"
+    },
+    {
+      "domain": "gitlab.com",
+      "file": "gitlab.com-85e85e66a46a.png",
+      "sha256": "85e85e66a46a1df46bd442782daf43567e5ce548103646c9ea5a7c4c953e9418",
+      "bytes": 1203,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgitlab.com&sz=128"
+    },
+    {
+      "domain": "gloat.com",
+      "file": "gloat.com-d6c78edf6b5c.png",
+      "sha256": "d6c78edf6b5c9d1f97defb7d93b204e5c827efc596c7b9bcebd9a0f36f479f77",
+      "bytes": 854,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgloat.com&sz=128"
+    },
+    {
+      "domain": "global-e.com",
+      "file": "global-e.com-985d3b7ac4a1.png",
+      "sha256": "985d3b7ac4a1d2f4ae15f2af1e58ad3ba9dd9d853d2fa3ff8716b5aa95f61747",
+      "bytes": 1318,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fglobal-e.com&sz=128"
+    },
+    {
+      "domain": "gong.io",
+      "file": "gong.io-9ffbe6c771e1.png",
+      "sha256": "9ffbe6c771e16fbb6fc121cea0b8669d1d75b9b01d6dcdadb9beeef971c7077e",
+      "bytes": 1558,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgong.io&sz=128"
+    },
+    {
+      "domain": "gonift.com",
+      "file": "gonift.com-2b817c8de7a0.png",
+      "sha256": "2b817c8de7a0b9dbcd8823a2de6152895f7464726fbe41f7d23fc11eb8720169",
+      "bytes": 2846,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgonift.com&sz=128"
+    },
+    {
+      "domain": "google.com",
+      "file": "google.com-07e659b8dad5.png",
+      "sha256": "07e659b8dad50a8dcd5cedea1f521c94530286826207524937337fb47f337085",
+      "bytes": 2326,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgoogle.com&sz=128"
+    },
+    {
+      "domain": "grip.security",
+      "file": "grip.security-49e6e5a881d6.jpg",
+      "sha256": "49e6e5a881d6338a692cf7cde1cbe58096f50bc51bdb84c4a3de8573ce84a3d0",
+      "bytes": 2309,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fgrip.security&sz=128"
+    },
+    {
+      "domain": "guardz.com",
+      "file": "guardz.com-59c1629a5106.png",
+      "sha256": "59c1629a5106be431d2ee6a77a344db26787cc1bd92a7b38593da93553a8064d",
+      "bytes": 1295,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fguardz.com&sz=128"
+    },
+    {
+      "domain": "guesty.com",
+      "file": "guesty.com-53b46a85d3de.png",
+      "sha256": "53b46a85d3dedcbc8fafba11fe11c0b3b0bfa2aa07811e2782c4c53f698e4fe1",
+      "bytes": 827,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fguesty.com&sz=128"
+    },
+    {
+      "domain": "guidde.com",
+      "file": "guidde.com-d09dbec197b3.png",
+      "sha256": "d09dbec197b32d36b70eb534683102bbb02074439c7aacab0f21ba709c316024",
+      "bytes": 1575,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fguidde.com&sz=128"
+    },
+    {
+      "domain": "hadassah.org.il",
+      "file": "hadassah.org.il-3caaa0fa71cb.png",
+      "sha256": "3caaa0fa71cbba4e977c8e7b3cd4c83bb7ca8be729ca04a86b545f73f06a6609",
+      "bytes": 1535,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.hadassah.org.il&sz=128"
+    },
+    {
+      "domain": "haifaport.co.il",
+      "file": "haifaport.co.il-fd5c54359c40.jpg",
+      "sha256": "fd5c54359c400e3ba0a85b8c21963696a01a445ecce1b76a968a61607f29d530",
+      "bytes": 4557,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fhaifaport.co.il&sz=128"
+    },
+    {
+      "domain": "hailo.ai",
+      "file": "hailo.ai-02330f7454da.png",
+      "sha256": "02330f7454daa1526552cd3cf91415a1f6e9ae319e31554bc3c468be9fdc7834",
+      "bytes": 1007,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fhailo.ai&sz=128"
+    },
+    {
+      "domain": "harel-group.co.il",
+      "file": "harel-group.co.il-7a10727a68e7.png",
+      "sha256": "7a10727a68e7446847f3a4f24a657199e0c4c0f1d341637337005639247cbee7",
+      "bytes": 1808,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fharel-group.co.il&sz=128"
+    },
+    {
+      "domain": "hibob.com",
+      "file": "hibob.com-a90a437f6cb9.png",
+      "sha256": "a90a437f6cb9efefa987a95ca3ac5ec598614cec321ff1f02ee4f6cd72f75eac",
+      "bytes": 1381,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fhibob.com&sz=128"
+    },
+    {
+      "domain": "hot.net.il",
+      "file": "hot.net.il-bf3ec55a3627.png",
+      "sha256": "bf3ec55a36271a120afe9d7ce2d6bf74f1e033f7516fe39b88b9c7a592605450",
+      "bytes": 261,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fhot.net.il&sz=128"
+    },
+    {
+      "domain": "hp.com",
+      "file": "hp.com-62ca988466f9.png",
+      "sha256": "62ca988466f98f0b28c2483ac46448b36ea10e1d939c5baedef1b77345ed5258",
+      "bytes": 1166,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fhp.com&sz=128"
+    },
+    {
+      "domain": "iai.co.il",
+      "file": "iai.co.il-fc323418f735.png",
+      "sha256": "fc323418f735e2588b8843d28dc22e720e8320545d7c15b4773029b176c6f851",
+      "bytes": 1757,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fiai.co.il&sz=128"
+    },
+    {
+      "domain": "ibm.com",
+      "file": "ibm.com-002bf16e498f.png",
+      "sha256": "002bf16e498f94efaf9a53d59ab1796fda6662675b7e1ee20e4681449babbd67",
+      "bytes": 1567,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fibm.com&sz=128"
+    },
+    {
+      "domain": "icl-group.com",
+      "file": "icl-group.com-c84b768dd9e4.png",
+      "sha256": "c84b768dd9e487a7f649f7200994bc8d978825359f73895cdadae7552f7af946",
+      "bytes": 3463,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ficl-group.com&sz=128"
+    },
+    {
+      "domain": "ide-tech.com",
+      "file": "ide-tech.com-4e2f8ab13b41.png",
+      "sha256": "4e2f8ab13b417f4135ead57208974827d990e70ef0d4c4018989c7dce35df3dc",
+      "bytes": 3959,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fide-tech.com&sz=128"
+    },
+    {
+      "domain": "iec.co.il",
+      "file": "iec.co.il-dee04cb59a06.png",
+      "sha256": "dee04cb59a06066247e0acb6299a835ac8ef6e4cbb3f5d4d4c9e83bd6b9aaf36",
+      "bytes": 853,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fiec.co.il&sz=128"
+    },
+    {
+      "domain": "innoviz.tech",
+      "file": "innoviz.tech-85675b129db4.png",
+      "sha256": "85675b129db4b67671f61e68415786e4cb4095a557114fa487bb03f84642a683",
+      "bytes": 1899,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Finnoviz.tech&sz=128"
+    },
+    {
+      "domain": "intel.com",
+      "file": "intel.com-980a86e68556.png",
+      "sha256": "980a86e685569b5a066eb2e04d453841a15778647d8e84d27c26eeaa3017c254",
+      "bytes": 728,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fintel.com&sz=128"
+    },
+    {
+      "domain": "island.io",
+      "file": "island.io-27a6f6feb2c5.png",
+      "sha256": "27a6f6feb2c5c6b67c427f4c1880eb7824bc0d3fd2f5c5551c033c355db95c1f",
+      "bytes": 2467,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fisland.io&sz=128"
+    },
+    {
+      "domain": "isracard.co.il",
+      "file": "isracard.co.il-dd7ca265e76f.png",
+      "sha256": "dd7ca265e76fe48f7395f1d8bb69a49423678baad7629444c4949516eae115e6",
+      "bytes": 1814,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fisracard.co.il&sz=128"
+    },
+    {
+      "domain": "israelpost.co.il",
+      "file": "israelpost.co.il-69c8aafcac3d.png",
+      "sha256": "69c8aafcac3d78a6eb02f4dad35c3f49284f17c92127b1b263dac7a2d309ef05",
+      "bytes": 370,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fisraelpost.co.il&sz=128"
+    },
+    {
+      "domain": "jabil.com",
+      "file": "jabil.com-92a97c0096af.png",
+      "sha256": "92a97c0096af1904262d06644f78a30755b02c05159aa31203de2dc795951792",
+      "bytes": 508,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fjabil.com&sz=128"
+    },
+    {
+      "domain": "jfrog.com",
+      "file": "jfrog.com-91b10346c866.png",
+      "sha256": "91b10346c8661d2456a7036472f7034eee4b66203e02c3036b51d8a5aafcf197",
+      "bytes": 3713,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fjfrog.com&sz=128"
+    },
+    {
+      "domain": "jnj.com",
+      "file": "jnj.com-f46c6d6663ab.png",
+      "sha256": "f46c6d6663ab759a6be5dd7c37c5d573e59c7e31bd1c00c545882c556777410d",
+      "bytes": 942,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fjnj.com&sz=128"
+    },
+    {
+      "domain": "kaltura.com",
+      "file": "kaltura.com-7286cce49c03.png",
+      "sha256": "7286cce49c03b90553c47a72edc48851179068a052d3f47c1a4eee25daa9ff17",
+      "bytes": 1724,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fkaltura.com&sz=128"
+    },
+    {
+      "domain": "kla.com",
+      "file": "kla.com-cc60d400ff79.png",
+      "sha256": "cc60d400ff79c24cf36eec1718f4c4dbdede5dfe589e1a54d1746051dc7a2da1",
+      "bytes": 270,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fkla.com&sz=128"
+    },
+    {
+      "domain": "kornit.com",
+      "file": "kornit.com-aef315e3a4a6.png",
+      "sha256": "aef315e3a4a6aa070efbcfa4269568b40885cac0a530639fc58143b737f0b220",
+      "bytes": 1865,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fkornit.com&sz=128"
+    },
+    {
+      "domain": "kpmg.com",
+      "file": "kpmg.com-86e6861b19ba.png",
+      "sha256": "86e6861b19baba34bdab996b73136bf5b572420102f6145b57a0fc474bf3591f",
+      "bytes": 1741,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fkpmg.com&sz=128"
+    },
+    {
+      "domain": "legitsecurity.com",
+      "file": "legitsecurity.com-a99e3f8b28d2.png",
+      "sha256": "a99e3f8b28d27424afe5ce1c84da53e9a3ab6b599dc4eb41991530fd438f402f",
+      "bytes": 1813,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Flegitsecurity.com&sz=128"
+    },
+    {
+      "domain": "lemonade.com",
+      "file": "lemonade.com-21db4ba4a85a.png",
+      "sha256": "21db4ba4a85aeaf1674ca6c9a8a48e9c337e3270b73fb017ec437085345e8aae",
+      "bytes": 821,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Flemonade.com&sz=128"
+    },
+    {
+      "domain": "lendbuzz.com",
+      "file": "lendbuzz.com-5e50591059ba.png",
+      "sha256": "5e50591059ba8bc7c11730578c85ddb7f55e9f4b57091e22853cb92f0c487385",
+      "bytes": 642,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Flendbuzz.com&sz=128"
+    },
+    {
+      "domain": "leumi.co.il",
+      "file": "leumi.co.il-52518e3a4f65.png",
+      "sha256": "52518e3a4f6510c4c6bf5f832d15cbf158f2cded5c29fa784cdd905062832fcf",
+      "bytes": 1076,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fleumi.co.il&sz=128"
+    },
+    {
+      "domain": "lightricks.com",
+      "file": "lightricks.com-694c1ece2719.png",
+      "sha256": "694c1ece27197c0dc9c776d329c6069ae4f8c4216f41457dcb97ae88e4dab6c2",
+      "bytes": 2493,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Flightricks.com&sz=128"
+    },
+    {
+      "domain": "logz.io",
+      "file": "logz.io-7ca7d38ccc26.png",
+      "sha256": "7ca7d38ccc2638d51fa919cc133cda2eeaeeaf7fd94d6938faf3243b8dcc22b8",
+      "bytes": 1551,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Flogz.io&sz=128"
+    },
+    {
+      "domain": "loreal.com",
+      "file": "loreal.com-b2c02ae809ea.png",
+      "sha256": "b2c02ae809ea88a46585a20f7b352248002babaf298fc66574eeddcdd5c522cf",
+      "bytes": 376,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Floreal.com&sz=128"
+    },
+    {
+      "domain": "maccabi4u.co.il",
+      "file": "maccabi4u.co.il-1c352676998a.jpg",
+      "sha256": "1c352676998a7c5f4164c5862f8f6d6f8b799613b5c3f8e78a63a8571293e535",
+      "bytes": 2878,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmaccabi4u.co.il&sz=128"
+    },
+    {
+      "domain": "malamteam.com",
+      "file": "malamteam.com-6b570f3341e3.png",
+      "sha256": "6b570f3341e315215d08958962d5b8a9f48cce9e86fff943d2467a36e263f160",
+      "bytes": 111293,
+      "source_url": "https://awsmp-logos.s3.amazonaws.com/ac28e2c6-9441-4c2c-bed7-424320af1eff/c5c48b5a0579f3a06e1c833dc26907c5.png"
+    },
+    {
+      "domain": "marvell.com",
+      "file": "marvell.com-f06011f1d6dc.png",
+      "sha256": "f06011f1d6dc6bc629ba8fdd2d83c0c4e4ed9b0ab81840d0b42fa2a964b50e51",
+      "bytes": 805,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmarvell.com&sz=128"
+    },
+    {
+      "domain": "matrix.co.il",
+      "file": "matrix.co.il-89d625701f28.png",
+      "sha256": "89d625701f28f9f1c7dc9328a6d8b657f650c4b30a040a2a149dc90d2afe5620",
+      "bytes": 3380,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmatrix.co.il&sz=128"
+    },
+    {
+      "domain": "max.co.il",
+      "file": "max.co.il-599a3ac5de12.png",
+      "sha256": "599a3ac5de12ae05470c15b2b1777d21ee287a6fbb010513b91be83f3a8ddca2",
+      "bytes": 1502,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmax.co.il&sz=128"
+    },
+    {
+      "domain": "medtronic.com",
+      "file": "medtronic.com-aa733ae0b7ac.png",
+      "sha256": "aa733ae0b7ac609f914e6c9da289c0011fac4d4c45feca664191c3add8936a5b",
+      "bytes": 1714,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmedtronic.com&sz=128"
+    },
+    {
+      "domain": "mekorot.co.il",
+      "file": "mekorot.co.il-6812a7be66fb.png",
+      "sha256": "6812a7be66fbcc5766d50491c4feb2675515351dc494ad3ba5d53409ac6aaea7",
+      "bytes": 10117,
+      "source_url": "https://careers.mekorot.co.il/wp-content/uploads/2025/08/cropped-favicon-300x300-1-192x192.png"
+    },
+    {
+      "domain": "melio.com",
+      "file": "melio.com-6f786ba55e41.png",
+      "sha256": "6f786ba55e4190927bedbe43fe852a9b2a2aaa6d13f91a0c0e81d7c972511dc1",
+      "bytes": 1166,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmelio.com&sz=128"
+    },
+    {
+      "domain": "meliopayments.com",
+      "file": "meliopayments.com-6f786ba55e41.png",
+      "sha256": "6f786ba55e4190927bedbe43fe852a9b2a2aaa6d13f91a0c0e81d7c972511dc1",
+      "bytes": 1166,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmeliopayments.com&sz=128"
+    },
+    {
+      "domain": "meta.com",
+      "file": "meta.com-0ee32bcff917.jpg",
+      "sha256": "0ee32bcff9179915f842e12c3d4351b4c8d5de63a96a9c1fbc0ef992f20c7498",
+      "bytes": 2319,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmeta.com&sz=128"
+    },
+    {
+      "domain": "meuhedet.co.il",
+      "file": "meuhedet.co.il-aa1e720a922a.jpg",
+      "sha256": "aa1e720a922ab7619391a19c4999aa5b2e111a555a2269c89185b17c12c0d390",
+      "bytes": 2272,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmeuhedet.co.il&sz=128"
+    },
+    {
+      "domain": "microsoft.com",
+      "file": "microsoft.com-b6ba5811173d.png",
+      "sha256": "b6ba5811173dc31f3b64c874651217571d9ac7f7e5f2533db85eb8ee9ef33b35",
+      "bytes": 426,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmicrosoft.com&sz=128"
+    },
+    {
+      "domain": "migdal.co.il",
+      "file": "migdal.co.il-383186c03a24.png",
+      "sha256": "383186c03a24072cfcddd86f7d0f4362f94a135bad2c93d2e733b883b3e4d19d",
+      "bytes": 1682,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmigdal.co.il&sz=128"
+    },
+    {
+      "domain": "mobileye.com",
+      "file": "mobileye.com-3957b721a57f.png",
+      "sha256": "3957b721a57fe2f22e74b48e748b919c3e555673d3d7f5b8278a74b5badfe4d4",
+      "bytes": 672,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmobileye.com&sz=128"
+    },
+    {
+      "domain": "mod.gov.il",
+      "file": "mod.gov.il-cfe353cbd2f3.png",
+      "sha256": "cfe353cbd2f3fa1a00c7f068fdfde7fc7c72c6af4cf0c5185943e361e9ebc4b6",
+      "bytes": 1003,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmod.gov.il&sz=128"
+    },
+    {
+      "domain": "monday.com",
+      "file": "monday.com-8ca03d4a0403.png",
+      "sha256": "8ca03d4a0403f8992654bc84d06c4ee44d678061fc0f2e1ee68357b2adeca29c",
+      "bytes": 1258,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmonday.com&sz=128"
+    },
+    {
+      "domain": "mongodb.com",
+      "file": "mongodb.com-8476bc88b13f.png",
+      "sha256": "8476bc88b13f4161da7aea5e538cbff0d793ad55c02af6f941fcd1f263dfdb6d",
+      "bytes": 3191,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmongodb.com&sz=128"
+    },
+    {
+      "domain": "moonactive.com",
+      "file": "moonactive.com-644914fb27c3.png",
+      "sha256": "644914fb27c3a51b374e94a3bf92848643ce24830c884d447817c72f3486aa23",
+      "bytes": 2061,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmoonactive.com&sz=128"
+    },
+    {
+      "domain": "motorolasolutions.com",
+      "file": "motorolasolutions.com-b5cf733802e9.png",
+      "sha256": "b5cf733802e9c529365ed98eafeec044c41559ea5f03cd605cb24efe41b61c05",
+      "bytes": 1311,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fmotorolasolutions.com&sz=128"
+    },
+    {
+      "domain": "naturalint.com",
+      "file": "naturalint.com-6a8858dbe728.png",
+      "sha256": "6a8858dbe7280237506b6cf6a7583c1cc3b5a05d374115c9464b226522095a3b",
+      "bytes": 1944,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnaturalint.com&sz=128"
+    },
+    {
+      "domain": "nayax.com",
+      "file": "nayax.com-1eaacc778079.png",
+      "sha256": "1eaacc7780797f43f3ccd0f4d37cd09fa20df2618b312ebd39d2263eccfb0b12",
+      "bytes": 962,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnayax.com&sz=128"
+    },
+    {
+      "domain": "neo.ai",
+      "file": "neo.ai-4e525ec6d3ef.png",
+      "sha256": "4e525ec6d3efa9e59c729567c09e6f1684ab362b0d8bd4cb208af79771fb4d43",
+      "bytes": 1230,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fneo.ai&sz=128"
+    },
+    {
+      "domain": "ness-tech.co.il",
+      "file": "ness-tech.co.il-485167537d8c.png",
+      "sha256": "485167537d8c83674191eb556c4f460362dc6e8d877a5cd07c438d541ce85978",
+      "bytes": 391,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fness-tech.co.il&sz=128"
+    },
+    {
+      "domain": "netafim.com",
+      "file": "netafim.com-bceef605f1a3.png",
+      "sha256": "bceef605f1a34efae4fb8e10c76ea29d5c1d81a86c2c96d91c7680a50cb2a8e0",
+      "bytes": 1011,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnetafim.com&sz=128"
+    },
+    {
+      "domain": "neuroblade.com",
+      "file": "neuroblade.com-ecad406413cc.png",
+      "sha256": "ecad406413cc8e8ee2926f81a0c0fe4ea59cb462fbd5848bc5dc7821e220a46b",
+      "bytes": 3974,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fneuroblade.com&sz=128"
+    },
+    {
+      "domain": "nextsilicon.com",
+      "file": "nextsilicon.com-5b83e04cb55b.png",
+      "sha256": "5b83e04cb55bb8e014681583e056acfa4cb842628e01e8cc142def63d4ba0fff",
+      "bytes": 1349,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnextsilicon.com&sz=128"
+    },
+    {
+      "domain": "nexxen.com",
+      "file": "nexxen.com-db9d283c2361.png",
+      "sha256": "db9d283c2361b029b35323fc60601b8f263773bf6c5a5dda5dc143b30a4e6c2d",
+      "bytes": 531,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnexxen.com&sz=128"
+    },
+    {
+      "domain": "nggconsult.com",
+      "file": "nggconsult.com-db5f692a13d5.png",
+      "sha256": "db5f692a13d57bcf33c371a3ca5fcfd6e4573814ba18c55b807e97c622496e29",
+      "bytes": 9964,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.nggconsult.com&sz=128"
+    },
+    {
+      "domain": "nice.com",
+      "file": "nice.com-08a1cc17f782.png",
+      "sha256": "08a1cc17f7827b216eac8a017c5d97cb6ebeaa737f88fd9fe03e29f84325e843",
+      "bytes": 1288,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnice.com&sz=128"
+    },
+    {
+      "domain": "nokia.com",
+      "file": "nokia.com-e7b17b610208.png",
+      "sha256": "e7b17b610208aa86faf8bcfb038472dded0e6d801734222b57d9cd7ccf159a8b",
+      "bytes": 1129,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnokia.com&sz=128"
+    },
+    {
+      "domain": "novami.com",
+      "file": "novami.com-c4ea99a682ff.png",
+      "sha256": "c4ea99a682ffef2eba37475ffa4aed1636f495873a43f40b2f3aecb63067ed7d",
+      "bytes": 843,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnovami.com&sz=128"
+    },
+    {
+      "domain": "nvidia.com",
+      "file": "nvidia.com-24c21375cca3.png",
+      "sha256": "24c21375cca347d2f3e86b9bd27d7fdf4774ca7bd5d59482251723cb6dea82b0",
+      "bytes": 1607,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fnvidia.com&sz=128"
+    },
+    {
+      "domain": "okta.com",
+      "file": "okta.com-ef93cff20091.png",
+      "sha256": "ef93cff20091aea6854ddd6a2f4176693728c28c4bce9757f45581a18f83d5c1",
+      "bytes": 3534,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fokta.com&sz=128"
+    },
+    {
+      "domain": "oligo.security",
+      "file": "oligo.security-916525a012b4.png",
+      "sha256": "916525a012b416faced28645fd165f2f4707e78b8df5f586a3197918115a2720",
+      "bytes": 850,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Foligo.security&sz=128"
+    },
+    {
+      "domain": "one1.co.il",
+      "file": "one1.co.il-e4e0be5c78cb.png",
+      "sha256": "e4e0be5c78cb4f2015b35d9053aaec7be3bde59796775eae78dc978a2bdf5d25",
+      "bytes": 968,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fone1.co.il&sz=128"
+    },
+    {
+      "domain": "optimove.com",
+      "file": "optimove.com-2a89ffe2e5a4.png",
+      "sha256": "2a89ffe2e5a40b0a1ed45706384b602ad89196b3da4064ad5837fb78635fef14",
+      "bytes": 769,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Foptimove.com&sz=128"
+    },
+    {
+      "domain": "oracle.com",
+      "file": "oracle.com-c20c4ae2ebd3.png",
+      "sha256": "c20c4ae2ebd375a3262e14609f3cc9de36ea5ff0481b7c3fd5b9ebb0983a2460",
+      "bytes": 1243,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Foracle.com&sz=128"
+    },
+    {
+      "domain": "orca.security",
+      "file": "orca.security-dd9fb634289e.png",
+      "sha256": "dd9fb634289ecd546501fa47aa6aa91f7e1b6d0dd5cec9bfe5fd6ecb6908082d",
+      "bytes": 1734,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Forca.security&sz=128"
+    },
+    {
+      "domain": "orcam.com",
+      "file": "orcam.com-d9790e1843bd.png",
+      "sha256": "d9790e1843bd8cd19f86f2749be1126aa68bae7c910b6d14bc4a1211b40cb974",
+      "bytes": 473,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Forcam.com&sz=128"
+    },
+    {
+      "domain": "ormat.com",
+      "file": "ormat.com-e53a022df9e2.png",
+      "sha256": "e53a022df9e2b075aace24159f314ce9b12ac609e9efc53523fa8389798f04b5",
+      "bytes": 1246,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Format.com&sz=128"
+    },
+    {
+      "domain": "osem-nestle.co.il",
+      "file": "osem-nestle.co.il-2987cb93e47b.png",
+      "sha256": "2987cb93e47b261132171b5b57eba32f56b6571a514283b9e48d02ca5cd4d975",
+      "bytes": 2995,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fosem-nestle.co.il&sz=128"
+    },
+    {
+      "domain": "outbrain.com",
+      "file": "outbrain.com-a4eb4dda3dc7.png",
+      "sha256": "a4eb4dda3dc74b5f740ad1c4e9cefde37c7069157f141ed7c10f69300e0a7f99",
+      "bytes": 3917,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Foutbrain.com&sz=128"
+    },
+    {
+      "domain": "pagaya.com",
+      "file": "pagaya.com-522252786eaf.png",
+      "sha256": "522252786eaff4b1e249b6aeccaba884683d20b53eb5a36615bed34b401137eb",
+      "bytes": 914,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpagaya.com&sz=128"
+    },
+    {
+      "domain": "palantir.com",
+      "file": "palantir.com-4635852d01b7.png",
+      "sha256": "4635852d01b7e2ad0d2b6f5a6cce543a61ee8efe3acb9151b443bf451b9ec766",
+      "bytes": 388,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpalantir.com&sz=128"
+    },
+    {
+      "domain": "paloaltonetworks.com",
+      "file": "paloaltonetworks.com-0a84d512511d.png",
+      "sha256": "0a84d512511dd41f5987a9fa431a1262406186c8edeb8d6a00e8b029b114a9e8",
+      "bytes": 874,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpaloaltonetworks.com&sz=128"
+    },
+    {
+      "domain": "papayaglobal.com",
+      "file": "papayaglobal.com-7e4bd3fcba7f.png",
+      "sha256": "7e4bd3fcba7f0e4fc2d2397f63b0ede06b597e92adf0065b2d10b3d1c1156252",
+      "bytes": 958,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpapayaglobal.com&sz=128"
+    },
+    {
+      "domain": "paragonsec.com",
+      "file": "paragonsec.com-e4d48fe6bfd9.png",
+      "sha256": "e4d48fe6bfd9d58efcad93e7c16652cdd707608038ab7004e4769577c0851941",
+      "bytes": 2276,
+      "source_url": "https://www.comeet.co/pub/paragon/76.006/logo?size=small&last-modified=1618396829"
+    },
+    {
+      "domain": "partner.co.il",
+      "file": "partner.co.il-971f55ba754a.png",
+      "sha256": "971f55ba754aea7e37f8498bc87710d67d3fb8a954a8418356a9aad837399008",
+      "bytes": 3614,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpartner.co.il&sz=128"
+    },
+    {
+      "domain": "payoneer.com",
+      "file": "payoneer.com-4c2f5a283a94.png",
+      "sha256": "4c2f5a283a9464bc87eb0b9f137c7847d056670fa63b2fd6e2fe77837e49d1c3",
+      "bytes": 3467,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpayoneer.com&sz=128"
+    },
+    {
+      "domain": "pendo.io",
+      "file": "pendo.io-86374371dd7e.png",
+      "sha256": "86374371dd7e96d7798ec9db07c7e721058bab5c0a02cc70be1fbbd32d41c12d",
+      "bytes": 894,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpendo.io&sz=128"
+    },
+    {
+      "domain": "pentera.io",
+      "file": "pentera.io-36622812c7b9.png",
+      "sha256": "36622812c7b9673d39a6f7219e350b5b5a5a05085178962be656c3b4f6f9a763",
+      "bytes": 681,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpentera.io&sz=128"
+    },
+    {
+      "domain": "personetics.com",
+      "file": "personetics.com-f54d6b6820b4.png",
+      "sha256": "f54d6b6820b41c0def16ddf8a62975df04af4f7f964733880b3ddbd82fba390a",
+      "bytes": 1048,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpersonetics.com&sz=128"
+    },
+    {
+      "domain": "pg.com",
+      "file": "pg.com-be051767020e.jpg",
+      "sha256": "be051767020e0e1debcb8bcab7d527a3fe18402b44d94fdc24ec7553c3d2171a",
+      "bytes": 3385,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpg.com&sz=128"
+    },
+    {
+      "domain": "philips.com",
+      "file": "philips.com-ce1fc2b757a7.png",
+      "sha256": "ce1fc2b757a78fd0d1f0cb233251f776a8525e7e7c9a65b445f67db41c2fe353",
+      "bytes": 5991,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fphilips.com&sz=128"
+    },
+    {
+      "domain": "playtika.com",
+      "file": "playtika.com-accd566ac94e.png",
+      "sha256": "accd566ac94e2848acb8615f47e14e8806000b372331a2d211bd98b00fd52562",
+      "bytes": 1379,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fplaytika.com&sz=128"
+    },
+    {
+      "domain": "pliops.com",
+      "file": "pliops.com-604cf4556bb4.png",
+      "sha256": "604cf4556bb4daea531c1ad41844a0974d0417c09dfc44108d70976f47bc26e5",
+      "bytes": 1796,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpliops.com&sz=128"
+    },
+    {
+      "domain": "priority-software.com",
+      "file": "priority-software.com-49f08b592c3b.png",
+      "sha256": "49f08b592c3b3a743eadef978ddfa05be34039cd59b4fd822a78cb72cea3f159",
+      "bytes": 1222,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpriority-software.com&sz=128"
+    },
+    {
+      "domain": "proteantecs.com",
+      "file": "proteantecs.com-19b44e6d3a64.png",
+      "sha256": "19b44e6d3a640e57f6f462407b7a292c403191fb61fa4819d4026e0da0b857c6",
+      "bytes": 1264,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fproteantecs.com&sz=128"
+    },
+    {
+      "domain": "pwc.com",
+      "file": "pwc.com-4602db1373b5.png",
+      "sha256": "4602db1373b51cd390c7bada02a790a15610aa8f9f730a34137945d5c7e2209e",
+      "bytes": 1005,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fpwc.com&sz=128"
+    },
+    {
+      "domain": "qualcomm.com",
+      "file": "qualcomm.com-bdb62f2bd318.png",
+      "sha256": "bdb62f2bd31838c6714c20d8fd24a8e3255582c0443658578a566c89ae5df0a0",
+      "bytes": 832,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fqualcomm.com&sz=128"
+    },
+    {
+      "domain": "quanthealth.ai",
+      "file": "quanthealth.ai-88d6866f07cf.png",
+      "sha256": "88d6866f07cfc6e0c2530a8e13fd3752c267d383b102dff599d279b57d9cad59",
+      "bytes": 1660,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fquanthealth.ai&sz=128"
+    },
+    {
+      "domain": "quantum-machines.co",
+      "file": "quantum-machines.co-0dc15429ea6d.jpg",
+      "sha256": "0dc15429ea6dc5f7b8198731415fc451fe8ce2085c1eb2b2bd8165044db0e983",
+      "bytes": 1925,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fquantum-machines.co&sz=128"
+    },
+    {
+      "domain": "rafael.co.il",
+      "file": "rafael.co.il-42fa48afb268.png",
+      "sha256": "42fa48afb2685a7da9fa532f3701f68b2f5e147d75fefe6a952a2f50e97a8558",
+      "bytes": 218,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Frafael.co.il&sz=128"
+    },
+    {
+      "domain": "rail.co.il",
+      "file": "rail.co.il-142286d0c3f4.png",
+      "sha256": "142286d0c3f4a4ecf1b36b14f997a4f0455ef99cec08a140c53aceb18b586f2a",
+      "bytes": 3281,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Frail.co.il&sz=128"
+    },
+    {
+      "domain": "rambam.org.il",
+      "file": "rambam.org.il-b7c217645e2f.png",
+      "sha256": "b7c217645e2f0bf380ebf397f629830bcfdee858cd3bdc00924791fe7de750f9",
+      "bytes": 3935,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Frambam.org.il&sz=128"
+    },
+    {
+      "domain": "rapyd.net",
+      "file": "rapyd.net-d9e1db90e661.png",
+      "sha256": "d9e1db90e661589b9d0114ab5f884663dcf1916692b5e7531846bad33e8a323f",
+      "bytes": 1121,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Frapyd.net&sz=128"
+    },
+    {
+      "domain": "reco.ai",
+      "file": "reco.ai-4a82858f7843.png",
+      "sha256": "4a82858f7843e3363c12ba8491d86f883870775b2e82031b3bd73898161ce758",
+      "bytes": 1394,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Freco.ai&sz=128"
+    },
+    {
+      "domain": "redis.io",
+      "file": "redis.io-6011d5bc2d36.png",
+      "sha256": "6011d5bc2d363bc2fbe1e057aefca7ee9e6820aec48404a26569c5e9940d8269",
+      "bytes": 1701,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fredis.io&sz=128"
+    },
+    {
+      "domain": "reindeer.ai",
+      "file": "reindeer.ai-ab4c3c30df0c.png",
+      "sha256": "ab4c3c30df0cf30035dad2cafbb3123c80ec99f0dff45795c655a27374bab245",
+      "bytes": 2127,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Freindeer.ai&sz=128"
+    },
+    {
+      "domain": "retym.com",
+      "file": "retym.com-40cd5b9c9235.png",
+      "sha256": "40cd5b9c9235b05223ce3d7738213297013c096a43d2fc5e2994ef93fa130999",
+      "bytes": 1189,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fretym.com&sz=128"
+    },
+    {
+      "domain": "ridewithvia.com",
+      "file": "ridewithvia.com-5b983af84875.png",
+      "sha256": "5b983af848756bbdf35c73fff53559abaa42ac5b91d7c9257e3151f32ed95b74",
+      "bytes": 664,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fridewithvia.com&sz=128"
+    },
+    {
+      "domain": "riskified.com",
+      "file": "riskified.com-b857601adf9d.png",
+      "sha256": "b857601adf9d1e6721c2a94e80c77660028b0c720e3ef383e8de38ec5aa93506",
+      "bytes": 754,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Friskified.com&sz=128"
+    },
+    {
+      "domain": "rubrik.com",
+      "file": "rubrik.com-70c8d3b98500.png",
+      "sha256": "70c8d3b98500d2f3a169771cfd53e2cc65b2b7152fa11cae342c8d3fe1d4c8e4",
+      "bytes": 2091,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Frubrik.com&sz=128"
+    },
+    {
+      "domain": "safebreach.com",
+      "file": "safebreach.com-427f3e5ece3b.png",
+      "sha256": "427f3e5ece3b3c2ace5148bee0f8ba9e2b67903d44cafdfe36c592d19f4f38e1",
+      "bytes": 1259,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsafebreach.com&sz=128"
+    },
+    {
+      "domain": "salesforce.com",
+      "file": "salesforce.com-abcc0840c906.png",
+      "sha256": "abcc0840c906aef643ba63da8d2d3f1487a8324ccc6ea7f122dd06168099e586",
+      "bytes": 652,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsalesforce.com&sz=128"
+    },
+    {
+      "domain": "salt.security",
+      "file": "salt.security-5b5f6f2c9ef0.png",
+      "sha256": "5b5f6f2c9ef0792aaf9d1e7fdce14b9761728d845be2d50606a07117825d0f15",
+      "bytes": 679,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsalt.security&sz=128"
+    },
+    {
+      "domain": "samsung.com",
+      "file": "samsung.com-9008937ffd47.png",
+      "sha256": "9008937ffd4715e61b054a031f1bc264eb782842acfc1bb5c438f4d6bde3f891",
+      "bytes": 1521,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsamsung.com&sz=128"
+    },
+    {
+      "domain": "sap.com",
+      "file": "sap.com-2fd3f284317b.png",
+      "sha256": "2fd3f284317be5d92d502cae235f3b1118702d77cc84525f85497106274add55",
+      "bytes": 390,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsap.com&sz=128"
+    },
+    {
+      "domain": "sapiens.com",
+      "file": "sapiens.com-e8af9d6b3430.jpg",
+      "sha256": "e8af9d6b3430731d735e2660bc73bfaf44e695609c3e6c7b36de37b4ddef4e61",
+      "bytes": 2244,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsapiens.com&sz=128"
+    },
+    {
+      "domain": "scaleops.com",
+      "file": "scaleops.com-4958fa41d789.png",
+      "sha256": "4958fa41d789084a47da1682dc1983286a83566c6fcf4796a9c9136b10961c74",
+      "bytes": 1739,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fscaleops.com&sz=128"
+    },
+    {
+      "domain": "scd-infrared.com",
+      "file": "scd-infrared.com-2ff674a85490.png",
+      "sha256": "2ff674a854900d6d998e77946aaf6a52b27caa4e30d5bbd73d7fae2507a098b7",
+      "bytes": 2464,
+      "source_url": "https://www.scd-infrared.com/wp-content/uploads/2023/01/cropped-logo-SCD-512x512px-192x192.png"
+    },
+    {
+      "domain": "scylladb.com",
+      "file": "scylladb.com-6b33b6f64f5a.png",
+      "sha256": "6b33b6f64f5ad1e74a40fc0762ff71e978a306626ab3b6193fe4f7a4f4d3b279",
+      "bytes": 2965,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fscylladb.com&sz=128"
+    },
+    {
+      "domain": "sentinelone.com",
+      "file": "sentinelone.com-c60fdc405f01.png",
+      "sha256": "c60fdc405f010b661830432c08702e044542279f887f5e024cffa25180263cfd",
+      "bytes": 1392,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsentinelone.com&sz=128"
+    },
+    {
+      "domain": "servicenow.com",
+      "file": "servicenow.com-fbcbb7c98b23.png",
+      "sha256": "fbcbb7c98b23ce172ea7db8e04ccc35d7a3e04b23ffda0d133cf345825041511",
+      "bytes": 2916,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fservicenow.com&sz=128"
+    },
+    {
+      "domain": "sheba.co.il",
+      "file": "sheba.co.il-0f7988926176.png",
+      "sha256": "0f79889261765c18b78c0d69e7c04e0e3cbc7089b6ecb7a6bff83a119f43365f",
+      "bytes": 3106,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsheba.co.il&sz=128"
+    },
+    {
+      "domain": "shufersal.co.il",
+      "file": "shufersal.co.il-8fdeaf2d3c86.png",
+      "sha256": "8fdeaf2d3c86b4fdb8ce644563cdfa1d7b3631fadc13c540876c57b3d14c1be1",
+      "bytes": 551,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fshufersal.co.il&sz=128"
+    },
+    {
+      "domain": "siemens.com",
+      "file": "siemens.com-887034c1f791.png",
+      "sha256": "887034c1f7919d11f486b274695193fa6ddd2125e9db119426883f6beed420d5",
+      "bytes": 1127,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsiemens.com&sz=128"
+    },
+    {
+      "domain": "silverfort.com",
+      "file": "silverfort.com-33985a589ba4.png",
+      "sha256": "33985a589ba4612e5171b5da6076b6e0b9a06df03c122ce4da7bd6a98f2d4425",
+      "bytes": 773,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsilverfort.com&sz=128"
+    },
+    {
+      "domain": "similarweb.com",
+      "file": "similarweb.com-a4cc47fff1d2.png",
+      "sha256": "a4cc47fff1d29604114cbccb7254738011c08f420075f21370540715f9a7d89e",
+      "bytes": 1698,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsimilarweb.com&sz=128"
+    },
+    {
+      "domain": "snyk.io",
+      "file": "snyk.io-448fd7503f6b.png",
+      "sha256": "448fd7503f6b1e0e9d76a4e210115f725b16843d7269899b0ea801c3c6511d2c",
+      "bytes": 903,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsnyk.io&sz=128"
+    },
+    {
+      "domain": "sodastream.com",
+      "file": "sodastream.com-8ee81225a7e1.png",
+      "sha256": "8ee81225a7e1964a085aa93bd2f677ed7d3c22273b49063b09701e9af02fb1d6",
+      "bytes": 1670,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsodastream.com&sz=128"
+    },
+    {
+      "domain": "solaredge.com",
+      "file": "solaredge.com-a34215e181f7.png",
+      "sha256": "a34215e181f70d4fb792afadfa198cb890f14bb306c06b85c1576b67aded264e",
+      "bytes": 392,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsolaredge.com&sz=128"
+    },
+    {
+      "domain": "speechify.com",
+      "file": "speechify.com-192ef6115239.png",
+      "sha256": "192ef611523968a64f641f5b75147011f5e02a0c403b62fb2260166456ec3c0b",
+      "bytes": 5058,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fspeechify.com&sz=128"
+    },
+    {
+      "domain": "speedata.io",
+      "file": "speedata.io-0600437a64c0.png",
+      "sha256": "0600437a64c001d387caba838c62d836307609976b00a57a2ca8f74899f737ce",
+      "bytes": 580,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fspeedata.io&sz=128"
+    },
+    {
+      "domain": "starkware.co",
+      "file": "starkware.co-a1cfab6a1f0f.png",
+      "sha256": "a1cfab6a1f0fcfcdc83469ae4279327e40eebaaf49e235d18809d2bd1ab0558e",
+      "bytes": 644,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fstarkware.co&sz=128"
+    },
+    {
+      "domain": "stratasys.com",
+      "file": "stratasys.com-c1d9dc1550ed.png",
+      "sha256": "c1d9dc1550ed9125f94b3f5ed6b614e47c36d9886a46c5a7e844db20c12afd51",
+      "bytes": 659,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fstratasys.com&sz=128"
+    },
+    {
+      "domain": "strauss-group.com",
+      "file": "strauss-group.com-9d6a30e0d6a8.png",
+      "sha256": "9d6a30e0d6a84798ecaeda404d981242c79456bc1c89036569c61201a633fdf0",
+      "bytes": 2312,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fstrauss-group.com&sz=128"
+    },
+    {
+      "domain": "stripe.com",
+      "file": "stripe.com-9bfd1838ae92.png",
+      "sha256": "9bfd1838ae9214d0f553ffb9bc703486529f747daaf8590f2741bc8ee76e8caa",
+      "bytes": 580,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fstripe.com&sz=128"
+    },
+    {
+      "domain": "sunfltd.com",
+      "file": "sunfltd.com-5333d218ac6c.png",
+      "sha256": "5333d218ac6ca93ef2317f66804a5a8468a7587d4e26e33a8843f2472004d30b",
+      "bytes": 13486,
+      "source_url": "https://static.wixstatic.com/media/f06faf_4e88b11da7554d439a9ea36c01c7ff52~mv2.png/v1/crop/x_46,y_154,w_915,h_692/fill/w_132,h_99,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/sunflower-logo-final.png"
+    },
+    {
+      "domain": "super-pharm.co.il",
+      "file": "super-pharm.co.il-e9cc35f87b35.jpg",
+      "sha256": "e9cc35f87b352b4e7cbffe00f0c02ba4d4f9e8c91940236e9a88f17b302bca6a",
+      "bytes": 3905,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsuper-pharm.co.il&sz=128"
+    },
+    {
+      "domain": "sweet.security",
+      "file": "sweet.security-845d42ff5a12.png",
+      "sha256": "845d42ff5a1203ae71d264e8eeca1e775d870b650a876dd10cbd6670a2f99c79",
+      "bytes": 1317,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsweet.security&sz=128"
+    },
+    {
+      "domain": "synopsys.com",
+      "file": "synopsys.com-7790902b56ad.png",
+      "sha256": "7790902b56ad7178868f683c26fd962f6dc73078cfe0a07c737b551d8273e459",
+      "bytes": 841,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fsynopsys.com&sz=128"
+    },
+    {
+      "domain": "taboola.com",
+      "file": "taboola.com-4577180faef1.png",
+      "sha256": "4577180faef11cc70cfb080a70c0d1ee885f56924915783222fe39efb221833f",
+      "bytes": 1300,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftaboola.com&sz=128"
+    },
+    {
+      "domain": "tasmc.org.il",
+      "file": "tasmc.org.il-b9947ac65a2a.png",
+      "sha256": "b9947ac65a2ac49b5f7258028911c2742a486582080ee8b63d6857105faa5eb1",
+      "bytes": 779,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftasmc.org.il&sz=128"
+    },
+    {
+      "domain": "tavily.com",
+      "file": "tavily.com-5b02f222f8af.png",
+      "sha256": "5b02f222f8afbe114b9068137f76984d23df761f94fa802988b86681cd845cc0",
+      "bytes": 1116,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftavily.com&sz=128"
+    },
+    {
+      "domain": "tefen.co.il",
+      "file": "tefen.co.il-1ae44e4d756c.png",
+      "sha256": "1ae44e4d756cd643217da1cc1044ec4a38aeed719707065c5d40a5b5bb56523a",
+      "bytes": 1914,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.tefen.co.il&sz=128"
+    },
+    {
+      "domain": "tenable.com",
+      "file": "tenable.com-343b912b1a58.png",
+      "sha256": "343b912b1a58bd6a5022db13ce01081a4f8d849a494092b3233fba1fdc0fdebb",
+      "bytes": 2875,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftenable.com&sz=128"
+    },
+    {
+      "domain": "tevapharm.com",
+      "file": "tevapharm.com-b1986ec07047.png",
+      "sha256": "b1986ec07047469bdb3c703f0ffbd43b226e07a361e2a843836a48b7d18b609c",
+      "bytes": 886,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwww.tevapharm.com&sz=128"
+    },
+    {
+      "domain": "ti.com",
+      "file": "ti.com-133bdea65db3.png",
+      "sha256": "133bdea65db335ba143a9cab82a3adf5d7f6937f0adfc7887218443dfcea7d6e",
+      "bytes": 1346,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fti.com&sz=128"
+    },
+    {
+      "domain": "tipalti.com",
+      "file": "tipalti.com-f423afc45338.png",
+      "sha256": "f423afc45338721e086f923154c02ca0a0c2b47ad3b56fd5eecbb3d798166090",
+      "bytes": 1494,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftipalti.com&sz=128"
+    },
+    {
+      "domain": "tnuva.co.il",
+      "file": "tnuva.co.il-9f0b0cfbbaae.png",
+      "sha256": "9f0b0cfbbaae2d3862e066b78804bf7606df5c5ac913afb920e1e73513030c46",
+      "bytes": 2417,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftnuva.co.il&sz=128"
+    },
+    {
+      "domain": "tonkean.com",
+      "file": "tonkean.com-d32efca6601b.png",
+      "sha256": "d32efca6601baa9e1fc849ffaf2298a8447ad0cb121018374bcd94dc7dcefb8a",
+      "bytes": 1363,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftonkean.com&sz=128"
+    },
+    {
+      "domain": "torq.io",
+      "file": "torq.io-dbc1e219be86.png",
+      "sha256": "dbc1e219be86141c6d769becfb3b53f6cf8716750a39e7f4ab4182ba99290be9",
+      "bytes": 338,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftorq.io&sz=128"
+    },
+    {
+      "domain": "towersemi.com",
+      "file": "towersemi.com-a35c2401ab43.png",
+      "sha256": "a35c2401ab434e28fe4a0902edb8568039c988661082a5cb705c6a2af208799b",
+      "bytes": 3007,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftowersemi.com&sz=128"
+    },
+    {
+      "domain": "traildsoftware.com",
+      "file": "traildsoftware.com-963be08ed2b8.png",
+      "sha256": "963be08ed2b83d6f07fa4943ca148b8e0aebb2d75efb92688786d108039610a3",
+      "bytes": 1609,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftraildsoftware.com&sz=128"
+    },
+    {
+      "domain": "transmitsecurity.com",
+      "file": "transmitsecurity.com-0ec22a986191.png",
+      "sha256": "0ec22a98619179a8bde64ab5970699334e984a932a350eaf1439178904196d37",
+      "bytes": 982,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftransmitsecurity.com&sz=128"
+    },
+    {
+      "domain": "trieye.tech",
+      "file": "trieye.tech-a099b91c5686.png",
+      "sha256": "a099b91c56867621b3582a270f4903125d152398a6d1bc6ec7a8404dc6e8f154",
+      "bytes": 1880,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Ftrieye.tech&sz=128"
+    },
+    {
+      "domain": "unframe.ai",
+      "file": "unframe.ai-05b1150b3ea3.png",
+      "sha256": "05b1150b3ea3b7465c4ffb31280ecaa81f48203789e4109fe9c5ac2493f1128e",
+      "bytes": 1826,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Funframe.ai&sz=128"
+    },
+    {
+      "domain": "unilever.com",
+      "file": "unilever.com-41ecc95accc4.png",
+      "sha256": "41ecc95accc41ee435c44f6b7b44288150ee3b7fd5f84808a1feb555ac956ed8",
+      "bytes": 2674,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Funilever.com&sz=128"
+    },
+    {
+      "domain": "unity.com",
+      "file": "unity.com-2eb3bf64c614.png",
+      "sha256": "2eb3bf64c6140c2b01a677402597e2ab57bacc7a6a45d261a7d6ea9234ea7480",
+      "bytes": 1401,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Funity.com&sz=128"
+    },
+    {
+      "domain": "ups.com",
+      "file": "ups.com-46f41339c898.png",
+      "sha256": "46f41339c8987ef9e965dba904505675bd52773decc2ac420c300225971d7793",
+      "bytes": 770,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fups.com&sz=128"
+    },
+    {
+      "domain": "upwind.io",
+      "file": "upwind.io-841ac9074322.png",
+      "sha256": "841ac90743225ec130595a245cb0262cce76cfd2203b81c7d89f5fb566483da4",
+      "bytes": 1528,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fupwind.io&sz=128"
+    },
+    {
+      "domain": "valens.com",
+      "file": "valens.com-8fe830f69170.png",
+      "sha256": "8fe830f691704d28d8ee70e93f97668a1cbdf5573c5431b2fbcefc8dc5388e76",
+      "bytes": 1335,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fvalens.com&sz=128"
+    },
+    {
+      "domain": "vastdata.com",
+      "file": "vastdata.com-09307e1e78e0.png",
+      "sha256": "09307e1e78e0ca1adfd1d864fba9821e13a8ae73e9b30d2dc3aab318d5a19210",
+      "bytes": 1152,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fvastdata.com&sz=128"
+    },
+    {
+      "domain": "vayyar.com",
+      "file": "vayyar.com-b16be3106450.png",
+      "sha256": "b16be3106450d2b253e7f492739d1838ad19df0c8b6fd38f53c837cfe045141e",
+      "bytes": 4072,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fvayyar.com&sz=128"
+    },
+    {
+      "domain": "verint.com",
+      "file": "verint.com-e41dd3a63abb.png",
+      "sha256": "e41dd3a63abbda57b7dd7163f5a6670d88946c2abacc183e02649fa441da6b6a",
+      "bytes": 1561,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fverint.com&sz=128"
+    },
+    {
+      "domain": "voyantis.ai",
+      "file": "voyantis.ai-4dcd12aa3729.png",
+      "sha256": "4dcd12aa37291ccd3b62a5250af090e9265438487f35002e862a4f976e194771",
+      "bytes": 1543,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fvoyantis.ai&sz=128"
+    },
+    {
+      "domain": "walkme.com",
+      "file": "walkme.com-a35018f3f00b.png",
+      "sha256": "a35018f3f00bf9bad9856f59600c8186f0cbd28e763ffdd618571e167f4a037b",
+      "bytes": 1242,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwalkme.com&sz=128"
+    },
+    {
+      "domain": "westerndigital.com",
+      "file": "westerndigital.com-b061ab36a65c.png",
+      "sha256": "b061ab36a65c9e9c77791f73b5e98a80b515ce943eef6346a98c48a360657b02",
+      "bytes": 782,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwesterndigital.com&sz=128"
+    },
+    {
+      "domain": "wiliot.com",
+      "file": "wiliot.com-35cd1d6bff72.png",
+      "sha256": "35cd1d6bff72fecd2066fd7c61e8da785344fea9ab256531b9eeb18cda6455c0",
+      "bytes": 1304,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwiliot.com&sz=128"
+    },
+    {
+      "domain": "wix.com",
+      "file": "wix.com-5271f9e54cf1.png",
+      "sha256": "5271f9e54cf1768d83ebab84f56e2a6b66e1aa3c9d13485d6b106da8eafa1c04",
+      "bytes": 939,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwix.com&sz=128"
+    },
+    {
+      "domain": "wiz.io",
+      "file": "wiz.io-c8135242ea0a.png",
+      "sha256": "c8135242ea0a2d0202568d63008735203df3fe1156cb0f3337b9db9ce59482c3",
+      "bytes": 2019,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwiz.io&sz=128"
+    },
+    {
+      "domain": "wolt.com",
+      "file": "wolt.com-57b915d581a6.jpg",
+      "sha256": "57b915d581a668e926695740caead7d0c04a6182b2cb12a756734bd453150e42",
+      "bytes": 2472,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fwolt.com&sz=128"
+    },
+    {
+      "domain": "xmcyber.com",
+      "file": "xmcyber.com-37353b0c77c3.png",
+      "sha256": "37353b0c77c31cb8428b6f591f36f537a46829b96ed086a58435442dd0de372a",
+      "bytes": 1607,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fxmcyber.com&sz=128"
+    },
+    {
+      "domain": "yotpo.com",
+      "file": "yotpo.com-972f33c8106f.png",
+      "sha256": "972f33c8106f54f07a45dc3aae3d9a098bc1daf99d1dc73b3844aa68c47b3bca",
+      "bytes": 1324,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fyotpo.com&sz=128"
+    },
+    {
+      "domain": "zadara.com",
+      "file": "zadara.com-32bda1872477.png",
+      "sha256": "32bda1872477e5812aaabf220b3e85c84986e62bab0938607e291ed7af158619",
+      "bytes": 797,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fzadara.com&sz=128"
+    },
+    {
+      "domain": "zim.com",
+      "file": "zim.com-f08c143c3890.png",
+      "sha256": "f08c143c3890b4b4662fafb4d20a969a81509f5766e05876ce5c90ce68b69e20",
+      "bytes": 3187,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fzim.com&sz=128"
+    },
+    {
+      "domain": "zscaler.com",
+      "file": "zscaler.com-3518c7f94b5f.png",
+      "sha256": "3518c7f94b5fc2e05fc9125915a2444ba8cff05d02ec782479f35f87925541a8",
+      "bytes": 928,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Fzscaler.com&sz=128"
+    }
+  ],
+  "replaced_unrelated_icons": [
+    "Teva",
+    "Paragon",
+    "SCD - SemiConductor Devices",
+    "Malam Team"
+  ],
+  "domain_aliases": {
+    "tefen.com": "tefen.co.il",
+    "niramgitan.com": "nggconsult.com",
+    "teva.com": "tevapharm.com",
+    "scd.co.il": "scd-infrared.com"
+  },
+  "new_employers": [
+    "Cognyte",
+    "Cellebrite",
+    "D-Fend Solutions",
+    "ScyllaDB",
+    "Classiq",
+    "Oligo Security",
+    "Quantum Machines"
+  ]
+}

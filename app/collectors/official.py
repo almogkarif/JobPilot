@@ -20,6 +20,7 @@ from .microsoft_detail import microsoft_position_detail
 from .mobileye_detail import mobileye_job_detail, mobileye_job_closed
 from .rafael_detail import is_rafael_access_challenge
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from .incremental import collect_detail_batch, current_window
 from . import audit_diagnostics as diagnostics
 from .expansion_ats import VERIFIED_ATS_IDENTIFIERS, collect_expansion_feed
 from .eightfold import EIGHTFOLD_ROUTES, collect_eightfold
@@ -72,7 +73,7 @@ PRESETS = {
     # Electrical-engineering expansion. These presets intentionally use each
     # employer's own careers surface; the track filter later keeps Israel/EE roles.
     "valens": {"url": "https://www.valens.com/positions/", "selector": 'a[href*="/position/"]', "id_pattern": r"/position/([^/?#]+)/?", "company": "Valens Semiconductor", "prefer_link_text": True, "http_first": True},
-    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80},
+    "nextsilicon": {"url": "https://www.nextsilicon.com/careers/", "selector": 'a[href*="/careers/"]', "id_pattern": r"/careers/([^/?#]+)/?", "company": "NextSilicon", "prefer_link_text": True, "http_first": True, "hydrate_details": True, "max_detail_jobs": 80, "detail_body_selector": ".career"},
     "retym": {"url": "https://retym.com/careers-2/", "selector": 'a.comeet-position[href]', "id_pattern": r"/careers-2/co/[^/?#]+/([A-Za-z0-9]{2,3}\.[A-Za-z0-9]{3})/", "company": "Retym", "prefer_link_text": True, "http_first": True},
     "hailo": {"url": "https://hailo.ai/company-overview/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Hailo", "prefer_link_text": True, "http_first": True, "allow_empty": True},
     "pliops": {"url": "https://pliops.com/careers/", "selector": 'a[href*="job"], a[href*="position"], a[href*="careers/"]', "id_pattern": r"(?:jobs?|positions?|careers)/([^/?#]+)", "company": "Pliops", "prefer_link_text": True, "http_first": True, "static_only": True, "allow_empty": True,
@@ -1279,7 +1280,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
     rows = _dedupe_rows(rows, preset)
     structured = [row for row in rows if row.get("_structured_description") and job_text_quality(row.get("text")) == "complete"]
     pending = [row for row in rows if not (row.get("_structured_description") and job_text_quality(row.get("text")) == "complete")]
-    rows = structured + pending[: int(preset.get("max_detail_jobs", 80))]
+    window = current_window()
+    rows = structured + pending if window else structured + pending[: int(preset.get("max_detail_jobs", 80))]
     semaphore = asyncio.Semaphore(8)
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/150 Safari/537.36",
@@ -1301,7 +1303,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 async with semaphore:
                     response = await _bounded_detail_get(client,
                         str(preset["detail_api_template"]).format(id=match.group(1))
-                        if preset.get("detail_api_template") else href, preset.get("detail_response_bytes")
+                        if preset.get("detail_api_template") else href,
+                        preset.get("detail_response_bytes") or (4_000_000 if window else None),
                     )
                 if diagnostics.enabled():
                     diagnostics.record("official_detail_response", id=match.group(1),
@@ -1340,7 +1343,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                                  and _resolve_row_href(detail, preset)[1].group(1) == match.group(1)
                                  and job_text_quality(detail.get("text")) == "complete"), row)
                 final_href = str(response.url)
-                if preset.get("require_complete_detail"):
+                if preset.get("require_complete_detail") or window:
                     final_match = re.search(str(preset["id_pattern"]), final_href)
                     if not final_match or final_match.group(1) != match.group(1):
                         diagnostics.document(str(response.url), response.text, detail=True)
@@ -1357,7 +1360,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 heading = soup.select_one(str(preset.get("detail_title_selector") or "h1, main h2, article h2, [role='main'] h2"))
                 title = heading.get_text(" ", strip=True) if heading else ""
                 body_selector = str(preset.get("detail_body_selector") or "main, article, [role='main']")
-                body = soup.select_one(body_selector) or soup.body
+                scoped_body = soup.select_one(body_selector)
+                body = scoped_body or soup.body
                 text = clean_job_text(str(body)) if body else ""
                 if preset.get("company") == "Meta":
                     from .global_recovery_final import meta_job_detail
@@ -1366,6 +1370,8 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                     structured_detail = (mobileye_job_detail(soup) if preset.get("company") == "Mobileye" else None) or employer_job_detail(soup, str(preset.get("company")), external_id=match.group(1))
                 if not structured_detail and preset.get("company") not in {"Retym", "Meta"}:
                     structured_detail = _job_posting_detail(soup)
+                if window and not structured_detail and (not scoped_body or not title or is_navigation_title(title)):
+                    return {**row, "_detail_status": "job_body_missing"}
                 if preset.get("require_complete_detail") and not structured_detail:
                     diagnostics.document(str(response.url), response.text, detail=True)
                     return {**row, "_detail_status": "identity_bound_schema_missing"}
@@ -1393,7 +1399,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 # into an unusable row during detail hydration.
                 hydrated_href = canonical_href or final_href
                 hydrated_match = re.search(str(preset["id_pattern"]), hydrated_href)
-                if preset.get("require_complete_detail") and canonical_href and (not hydrated_match or unquote(hydrated_match.group(1)) != unquote(match.group(1))):
+                if (preset.get("require_complete_detail") or window) and canonical_href and (not hydrated_match or unquote(hydrated_match.group(1)) != unquote(match.group(1))):
                     diagnostics.document(str(response.url), response.text, detail=True)
                     return {**row, "_detail_status": "canonical_identity_mismatch"}
                 hydrated_title = title.strip()
@@ -1402,6 +1408,7 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                 result = dict(row)
                 result["_verified_job"] = bool(structured_detail)
                 result["_detail_complete"] = bool(structured_detail) and job_text_quality(text) == "complete"
+                result["_detail_fetched"] = True
                 if not result["_detail_complete"]:
                     diagnostics.document(str(response.url), response.text, detail=True)
                 if structured_detail:
@@ -1412,12 +1419,38 @@ async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavail
                     "linkText": hydrated_title if hydrated_title and not title_is_template else row.get("linkText") or "",
                     "text": text if not title_is_template and job_text_quality(text) != "missing" and (result["_detail_complete"] or len(text) > len(str(row.get("text") or ""))) else row.get("text") or "",
                 })
+                if window:
+                    # A verbose listing summary must not stand in for a short
+                    # or invalid fetched detail when determining batch success.
+                    result["text"] = text if not title_is_template else ""
                 return result
             except Exception as exc:
                 return {**row, "_detail_status": "fetch_error", "_detail_error": type(exc).__name__}
-        hydrated = await asyncio.gather(*(one(row) for row in rows))
+        if window:
+            unavailable = []
+
+            async def verified_detail(row):
+                result = await one(row)
+                if result.get("_detail_blocked") or result.get("_invalid_detail"):
+                    unavailable.append(result)
+                    return None
+                # A returned listing card is not a successful detail download.
+                # NextSilicon has full scoped HTML but no JobPosting JSON, so
+                # retain it only after a successful identity-bound detail read.
+                if (result.get("_detail_fetched") and job_text_quality(result.get("text")) == "complete"
+                        and len(str(result.get("text") or "")) <= 24_000):
+                    return result
+                return None
+
+            details = await collect_detail_batch(
+                pending, verified_detail, key=lambda row: _resolve_row_href(row, preset)[0],
+                scope="official-details-" + hashlib.sha256(str(preset["url"]).encode()).hexdigest(),
+            )
+            hydrated = structured + details + unavailable
+        else:
+            hydrated = await asyncio.gather(*(one(row) for row in rows))
         if diagnostics.enabled():
-            diagnostics.record("official_hydration", attempted=len(rows),
+            diagnostics.record("official_hydration", attempted=window.batch_attempted if window else len(rows),
                                complete=sum(bool(row.get("_detail_complete")) for row in hydrated),
                                dropped=[{"id": match.group(1), "status": row.get("_detail_status"),
                                          "http_status": row.get("_http_status")}

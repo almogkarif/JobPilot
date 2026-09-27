@@ -11,11 +11,13 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from .expansion_ats import bounded_public_get, MAX_RESPONSE_BYTES
+from .incremental import collect_detail_batch, current_window
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
 from ..services.location_filter import is_israel_location
 
 MAX_DETAILS = 40
+MAX_INVENTORY = 1000
 MAX_FEED_ROWS = 200
 MAX_DESCRIPTION_CHARS = 24_000
 MAX_CONCURRENT_DETAILS = 4
@@ -105,7 +107,7 @@ def _detail_id(identifier, url):
     return match[1] if p.scheme == 'https' and p.netloc == host and not p.query and not p.fragment and match else None
 
 
-def detail_urls(identifier, document):
+def detail_urls(identifier, document, *, limit=MAX_DETAILS):
     soup = _soup(document)
     urls = []
     if identifier == 'elspec':
@@ -127,7 +129,7 @@ def detail_urls(identifier, document):
         url = urljoin(RECOVERY_ROUTES[identifier], link['href'])
         if _detail_id(identifier, url) and url not in urls:
             urls.append(url)
-    return urls[:MAX_DETAILS]
+    return urls[:limit]
 
 
 def parse_detail(identifier, url, document, company='', *, now=None):
@@ -241,7 +243,9 @@ async def collect_source_recovery(identifier, company=''):
     document = await bounded_public_get(RECOVERY_ROUTES[identifier])
     if identifier == 'playtika':
         return parse_playtika(document, company or 'Playtika')
-    urls = detail_urls(identifier, document)
+    # The public listing request is unchanged; only the bounded in-memory
+    # inventory grows so successive batches can reach links after the old cap.
+    urls = detail_urls(identifier, document, limit=MAX_INVENTORY if current_window() else MAX_DETAILS)
     if not urls:
         raise PreserveExistingJobs('Employer exposed no identity-bound vacancy links')
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_DETAILS)
@@ -252,7 +256,9 @@ async def collect_source_recovery(identifier, company=''):
             except Exception:
                 # A failed/changed detail must not erase the previous snapshot.
                 return None
-    jobs = [job for job in await asyncio.gather(*(one(url) for url in urls)) if job]
+    jobs = await collect_detail_batch(urls, one, key=lambda url: _detail_id(identifier, url),
+                                      scope=f"recovery-{identifier}-details-v1",
+                                      concurrency=MAX_CONCURRENT_DETAILS)
     if not jobs:
         raise PreserveExistingJobs('Employer exposed no complete verified details')
     if len({j.external_id for j in jobs}) != len(jobs):

@@ -16,6 +16,7 @@ from . import audit_diagnostics as diagnostics
 from ..services.location_filter import is_israel_location
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
 from .expansion_ats import MAX_RESPONSE_BYTES, bounded_public_get
+from .incremental import collect_detail_batch, current_window
 from ..services.job_text import clean_job_text, job_text_quality
 from ..services.source_quality import is_navigation_title
 
@@ -23,6 +24,7 @@ ELAD_LISTING_URL = "https://careers.eladsoft.com/jobs/"
 HOST = "careers.eladsoft.com"
 MAX_PAGES = 4
 MAX_DETAILS = 40
+MAX_INVENTORY = 1000
 MAX_CONCURRENT_DETAILS = 4
 MAX_DESCRIPTION_CHARS = 24_000
 # Area labels belong to this domestic employer portal, not arbitrary page text.
@@ -54,7 +56,7 @@ def detail_id(url: str) -> str | None:
     return match[1] if match else None
 
 
-def listing_links(document: str, page_url: str = ELAD_LISTING_URL) -> tuple[list[str], list[str]]:
+def listing_links(document: str, page_url: str = ELAD_LISTING_URL, *, limit: int = MAX_DETAILS) -> tuple[list[str], list[str]]:
     """Follow only observed same-site numeric roles and bounded ?pg= links."""
     details, pages = [], []
     for anchor in _soup(document).select("a[href]")[:10_000]:
@@ -76,7 +78,7 @@ def listing_links(document: str, page_url: str = ELAD_LISTING_URL) -> tuple[list
             canonical = f"{ELAD_LISTING_URL}?pg={number}"
             if canonical not in pages:
                 pages.append(canonical)
-    return details[:MAX_DETAILS], pages
+    return details[:limit], pages
 
 
 def parse_detail(url: str, document: str, company: str = "Elad Systems") -> NormalizedJob | None:
@@ -182,26 +184,40 @@ def parse_detail(url: str, document: str, company: str = "Elad Systems") -> Norm
 
 
 async def collect_elad(company: str = "Elad Systems") -> JobCollection:
+    # Read the same bounded listing pages, but rotate through their inventory
+    # instead of permanently restricting every scan to the first forty roles.
+    window = current_window()
+    inventory_limit = MAX_INVENTORY if window else MAX_DETAILS
+    detail_reserve = min(5.0, window.remaining() / 4) if window else 0.0
     pending = [ELAD_LISTING_URL]
     visited: set[str] = set()
     urls: list[str] = []
     listing_error: Exception | None = None
-    while pending and len(visited) < MAX_PAGES and len(urls) < MAX_DETAILS:
+    while pending and len(visited) < MAX_PAGES and len(urls) < inventory_limit:
+        if window and urls and window.remaining() <= detail_reserve:
+            break
         page_url = pending.pop(0)
         if page_url in visited:
             continue
         visited.add(page_url)
         try:
-            document = await bounded_public_get(page_url)
+            if window:
+                # A slow later listing page must not consume the detail budget
+                # or discard links already collected from earlier pages.
+                document = await asyncio.wait_for(
+                    bounded_public_get(page_url), timeout=min(12.0, window.remaining() * 0.5),
+                )
+            else:
+                document = await bounded_public_get(page_url)
             diagnostics.document(page_url, document)
-            details, pages = listing_links(document, page_url)
+            details, pages = listing_links(document, page_url, limit=inventory_limit)
         except Exception as exc:
             if page_url == ELAD_LISTING_URL:
                 raise PreserveExistingJobs("Elad current listing could not be read") from exc
             listing_error = exc
             break
         for url in details:
-            if url not in urls and len(urls) < MAX_DETAILS:
+            if url not in urls and len(urls) < inventory_limit:
                 urls.append(url)
         pending.extend(url for url in pages if url not in visited and url not in pending)
     diagnostics.record("elad_listing", pages=len(visited), vacancy_links=len(urls), detail_cap=MAX_DETAILS)
@@ -225,7 +241,8 @@ async def collect_elad(company: str = "Elad Systems") -> JobCollection:
             blocked.add(detail_id(url) or url)
             return None
 
-    jobs = [job for job in await asyncio.gather(*(one(url) for url in urls)) if job is not None]
+    jobs = await collect_detail_batch(urls, one, key=detail_id, scope="elad-details-v1",
+                                      concurrency=MAX_CONCURRENT_DETAILS)
     if not jobs:
         raise PreserveExistingJobs(
             "Elad exposed no identity-bound complete details; preserving previous jobs",

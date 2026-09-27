@@ -4,6 +4,79 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Resumable detail batches — September 27, 2026
+
+The shared scanner opts in seven existing official sources: Oracle, Ormat, Elad,
+Fox, ICL, NextSilicon and Palo Alto. No source is enabled, no schedule/poll interval
+is changed, and no migration/backfill or production scan is triggered by this
+change. Each scan processes at most 20 detail candidates with concurrency four;
+completed, validated records return before the existing hard deadline. Cursor
+wrap is always partial and never authorizes closing unvisited jobs. The 14-day
+per-posting expiry and existing fingerprint/ranking invalidation rules remain.
+
+Progress is a versioned allowlisted object in the source metadata already loaded
+by the scanner: scope <=160 characters, one SHA256 cursor, <=4 SHA256 retry IDs,
+and Oracle page 0..79. No job bodies, URLs, profile data or cached files are stored.
+The serialized checkpoint is tested below 2 KiB. It commits with job changes;
+an entirely blocked attempted batch may advance in the existing deferred-source
+commit, but a database budget denial or invalid payload never advances it.
+
+Added queries/Storage requests: **zero**. Two existing source-list reads in a scan
+can each download at most 7 × 2 KiB = 14 KiB of additional metadata: <=28 KiB/scan,
+672 KiB/day at hourly scanning, 19.69 MiB/30 days. Source installation/repair and
+explicit source-list reads may also read that metadata, bounded by 14 KiB per
+full source projection (70 KiB allowing five such reads per worker invocation,
+1.64 MiB/day or 49.22 MiB/30 days). A source-list request adds at most 14 KiB;
+100 explicit opens/day would add <=1.37 MiB/day or 41.02 MiB/30 days. These are
+incremental projected-body bounds, not measured protocol traffic or an unlimited
+user allowance. No new polling or result-body reads are introduced.
+
+Job reads keep the existing 100-row identity/fingerprint projections and shared
+64 MiB/day reservation guard. HTTP detail bodies are <=4,000,000 bytes each.
+Seven sources together attempt <=140 details/scan (3,360/day; 100,800/30 days at
+hourly scanning): <=560 MB body traffic/scan from employers, **not Supabase**.
+Oracle/Ormat retain <=2 listing requests each; Elad <=4; ICL/Fox one each. These
+ten listing responses add <=40 MB/scan. The two existing official rendered
+listing paths retain their earlier limits; no new browser session is introduced.
+Their detail clients allow at most four same-origin HTTP attempts per detail,
+with redirect bodies not downloaded (up to 120 additional redirect hops/scan).
+Oracle visits at most 2,000 listing rows before wrapping; Elad/ICL/Fox detail
+inventories cap at 1,000. These are explicit partial-coverage limits.
+
+Regression: `test_incremental_checkpoint_reuses_source_rows_without_catalog_body_reads`
+checks two bounded source SELECTs, no profile/resume/description SELECT, bounded
+checkpoint bytes, and partial status. Integration tests on disposable SQLite
+and PostgreSQL cover durable resume, unchanged identities, no false closure and
+no advancement after an egress denial. Public Oracle validation made 37 requests
+over two batches, returned 20 + 13 distinct complete jobs, and used no database.
+Production usage must still be checked before manually launching bulk scans.
+
+## Bundled source logos — September 27, 2026
+
+Known employer logos are served directly from `app/static/source-logos`, without
+database/Auth/Storage requests. Added Supabase calls, rows and bytes are **zero
+per hour, day and billing cycle**, regardless of catalog size or visitors. Source
+and dashboard API projections, polling and scanning are unchanged. The one-time
+audit fetched bounded public image/homepage responses; it is not a startup task.
+
+The current 267 image files total 566,498 bytes (largest 111,293 bytes). Regression
+tests cap any image at 128 KiB and the entire bundle at 1 MiB. A cold browser that
+displays the whole catalog makes at most 267 first-party image requests for the
+known assets, under 1 MiB body traffic, with lazy loading. Successful content-hashed
+URLs use `public, max-age=31536000, immutable`; updates change the URL. Unchanged
+images therefore require no body download from Render while the browser cache is
+retained. Ten cold full-catalog loads/day are bounded below 10 MiB/day (300 MiB per
+30 days) **from Render, not Supabase**. Browser cache eviction can repeat that
+traffic. Missing local files retain at most two external image fallbacks, then an
+initial; custom sources retain their existing external fallback. These image
+requests never touch Supabase.
+
+Only successful hashed logo responses are cached; missing files, HTML and the
+application JavaScript keep the existing no-store policy. No personal data is
+cached. `test_bundled_source_logos_are_public_cached_and_need_no_database` verifies
+this through the real ASGI routes with database access forbidden. The logo tests
+also verify hashes, file sizes, full catalog coverage and offline image decoding.
+
 ## Ranking progress labels — September 27, 2026
 
 Progress distinguishes jobs checked for eligibility, jobs filtered out, and jobs

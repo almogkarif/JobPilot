@@ -700,7 +700,12 @@ def favicon():
 async def disable_frontend_cache(request: Request, call_next):
     """Always serve the newest local UI and attach baseline browser security headers."""
     response = await call_next(request)
-    if request.url.path == "/" or request.url.path.startswith("/static/"):
+    if response.status_code in {200, 304} and re.fullmatch(
+        r"/static/source-logos/[a-z0-9.-]+-[0-9a-f]{12}\.(?:png|jpg)", request.url.path,
+    ):
+        # Content hashes change the URL when a logo changes; no user data is cached.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.url.path == "/" or request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"

@@ -233,6 +233,45 @@ def test_unified_scan_stops_budget_probes_after_first_denial(monkeypatch):
     engine.dispose()
 
 
+def test_incremental_checkpoint_reuses_source_rows_without_catalog_body_reads(monkeypatch):
+    import json
+    from sqlalchemy import event
+    from app.config import settings
+    from app.collectors.base import JobCollection
+    from app.collectors.incremental import (
+        CHECKPOINT_KEY, MAX_CHECKPOINT_BYTES, collect_detail_batch,
+    )
+    from app.services import catalog_egress, unified_catalog
+    from app.utils import loads
+    engine, Session = _isolated_session_factory()
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'database_url', 'sqlite://')
+    monkeypatch.setattr(settings, 'unified_catalog_preview', True)
+    monkeypatch.setattr(catalog_egress, 'reserve_catalog_egress', lambda *_: True)
+    class Collector:
+        async def collect(self, *_args):
+            async def unavailable(_): return None
+            await collect_detail_batch(range(30), unavailable, key=str, scope='egress')
+            return JobCollection([], complete=False)
+    monkeypatch.setitem(scanner.COLLECTORS, 'official_careers', Collector)
+    queries = []
+    with Session() as db:
+        set_user_scope(db, SHARED_CATALOG_USER_ID)
+        source = Source(name='Oracle', kind='official_careers', identifier='oracle')
+        db.add(source); db.commit()
+        event.listen(engine, 'before_cursor_execute',
+                     lambda _c, _cu, statement, *_args: queries.append(statement.lower()))
+        result = asyncio.run(unified_catalog.scan_unified_catalog(db, None, None, 'computer_science', True))
+        assert result['partial_sources'] == 1
+        checkpoint = loads(source.metadata_json, {})[CHECKPOINT_KEY]
+        assert len(json.dumps(checkpoint).encode()) <= MAX_CHECKPOINT_BYTES
+        selects = [q for q in queries if q.lstrip().startswith('select')]
+        assert len([q for q in selects if 'from sources' in q]) == 2
+        assert not any('jobs.description' in q or 'from profiles' in q or 'from resume_profiles' in q for q in selects)
+        assert all('limit' in q or 'count(' in q for q in selects)
+    engine.dispose()
+
+
 @pytest.mark.parametrize("complete", [True, False])
 def test_catalog_rescan_does_not_select_persisted_job_descriptions(monkeypatch, complete):
     stable_published = datetime(2026, 8, 20, 10, 0, tzinfo=timezone.utc)
@@ -426,6 +465,36 @@ def test_ranking_progress_uses_memory_and_two_scalar_aggregates(monkeypatch):
         assert all('count(' in sql and 'group by' not in sql for sql in statements)
         assert all('description' not in sql and 'result_json' not in sql for sql in statements)
     engine.dispose()
+
+
+def test_bundled_source_logos_are_public_cached_and_need_no_database(monkeypatch):
+    import httpx
+    monkeypatch.setattr(main_module.settings, 'auth_mode', 'supabase')
+    def forbidden_db():
+        raise AssertionError('Static logos must never read Supabase')
+    monkeypatch.setattr(main_module, 'SessionLocal', forbidden_db)
+    folder = main_module.STATIC_DIR / 'source-logos'
+    paths = list(folder.iterdir())
+    assert paths and sum(path.stat().st_size for path in paths) < 1024 * 1024
+
+    async def check():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main_module.app), base_url='http://test') as client:
+            logo = await client.get('/static/source-logos/' + paths[0].name)
+            assert logo.status_code == 200
+            assert logo.content == paths[0].read_bytes()
+            assert 'immutable' in logo.headers['cache-control']
+            assert logo.headers['x-content-type-options'] == 'nosniff'
+            cached = await client.get('/static/source-logos/' + paths[0].name,
+                                      headers={'If-None-Match': logo.headers['etag']})
+            assert cached.status_code == 304
+            assert 'immutable' in cached.headers['cache-control']
+            assert not cached.content
+            missing = await client.get('/static/source-logos/missing-000000000000.png')
+            assert missing.status_code == 404
+            assert 'no-store' in missing.headers['cache-control']
+            script = await client.get('/static/app.js')
+            assert script.status_code == 200 and 'no-store' in script.headers['cache-control']
+    asyncio.run(check())
 
 
 def test_requested_employer_expansion_is_bounded_and_static_only():

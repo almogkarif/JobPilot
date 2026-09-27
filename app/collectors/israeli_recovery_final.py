@@ -12,6 +12,7 @@ import httpx
 
 from .base import JobCollection, PreserveExistingJobs
 from .expansion_ats import MAX_RESPONSE_BYTES, bounded_public_get
+from .incremental import collect_detail_batch, current_window
 from .israeli_boards import _job
 from .verint import collect_oracle_cx
 from ..services.job_text import clean_job_text
@@ -220,7 +221,7 @@ def parse_iec(document, company='Israel Electric Corporation', *, today=None):
     return _collection(jobs, blocked)
 
 
-def fox_links(document):
+def fox_links(document, *, limit=MAX_DETAILS):
     soup = BeautifulSoup(_document(document), 'html.parser')
     urls = []
     for card in soup.select('a.careers__career-row[href]'):
@@ -232,7 +233,7 @@ def fox_links(document):
                 and not parsed.query and not parsed.fragment and identity
                 and identity.get_text(strip=True) == uid.group(1) and url not in urls):
             urls.append(url)
-    return urls[:MAX_DETAILS]
+    return urls[:limit]
 
 
 def parse_fox_detail(url, document, company='Fox Group'):
@@ -275,7 +276,7 @@ async def collect_israeli_final(identifier, company=''):
     document = await bounded_public_get(ISRAELI_FINAL_ROUTES[identifier])
     if identifier == 'iec':
         return parse_iec(document, company or 'Israel Electric Corporation')
-    urls = fox_links(document)
+    urls = fox_links(document, limit=MAX_INPUT_ROWS if current_window() else MAX_DETAILS)
     semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
     blocked = []
     async def detail(url):
@@ -287,5 +288,6 @@ async def collect_israeli_final(identifier, company=''):
             if job is None:
                 blocked.append(url.rsplit('/', 1)[-1])
             return job
-    jobs = [job for job in await asyncio.gather(*(detail(url) for url in urls)) if job]
+    jobs = await collect_detail_batch(urls, detail, key=lambda url: url.rsplit('/', 1)[-1],
+                                      scope='fox-details-v1', concurrency=DETAIL_CONCURRENCY)
     return _collection(jobs, blocked)
