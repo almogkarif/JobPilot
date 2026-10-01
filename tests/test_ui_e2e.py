@@ -308,6 +308,34 @@ def test_dashboard_jobs_metrics_sources_and_application_rows_are_clickable(brows
     assert page.locator(".source-detail-grid").is_visible()
 
 
+def test_smart_search_finds_job_by_number_and_copied_id(browser_page):
+    page, _ = browser_page
+    imported = page.request.post(page.url.rstrip('/') + '/api/jobs/import', data={
+        'title': 'Job ID Search Software Engineer', 'company': 'ID Search Fixture',
+        'location': 'Tel Aviv, Israel',
+        'description': 'Develop Python software. BSc in Computer Science. 0-2 years experience.',
+        'apply_url': 'https://jobs.ui-test-fixture.invalid/id-search',
+    })
+    assert imported.ok
+    job_id = imported.json()['id']
+    page.locator('#nav button[data-view="jobs"]').click()
+    search = page.locator('#job-search')
+    assert 'ID' in search.get_attribute('placeholder')
+    for query in (str(job_id), f'#{job_id}'):
+        with page.expect_response(lambda response: '/api/jobs?' in response.url
+                                  and parse_qs(urlparse(response.url).query).get('query') == [query]) as result:
+            search.fill(query)
+        assert [row['id'] for row in result.value.json()['items']] == [job_id], json.dumps(
+            page.request.get(page.url.rstrip('/') + f'/api/jobs/{job_id}').json().get('eligibility'), ensure_ascii=False)
+        page.wait_for_function('id => state.jobs.length === 1 && state.jobs[0].id === id', arg=job_id)
+        card = page.locator(f'#jobs-list .job-card[data-job-id="{job_id}"]')
+        card.wait_for(state='visible')
+        assert page.locator('#jobs-list .job-card').count() == 1
+    card.locator('h3').click()
+    page.locator('#modal.open').wait_for(state='visible')
+    assert f'#{job_id}' in page.locator('#modal-content').inner_text()
+
+
 def test_job_card_reveals_one_third_with_mouse_and_closes_with_touch(browser_page):
     page, _ = browser_page
     job = page.evaluate("""async()=>await (await fetch('/api/jobs/import', {

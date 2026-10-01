@@ -21,6 +21,31 @@ from app.services.ranking.service import (
     profile_fingerprint,
 )
 import app.main as main_module
+from tests.test_job_id_search import job_search_catalog
+
+
+def test_exact_job_id_search_keeps_bounded_sql_reads_without_descriptions(job_search_catalog):
+    client, engine, _ = job_search_catalog
+    statements = []
+
+    def capture(_conn, _cursor, statement, parameters, _context, _many):
+        if statement.lstrip().upper().startswith('SELECT') and 'FROM jobs' in statement:
+            statements.append((statement.lower(), parameters))
+
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        result = client.get('/api/jobs', params={'query': '#2398', 'paginated': True, 'page_size': 20})
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert result.status_code == 200
+    assert result.json()['total'] == 1
+    assert len(statements) == 2  # Existing location/count aggregate and paginated rows.
+    for sql, parameters in statements:
+        assert 'jobs.id = ?' in sql and 2398 in parameters
+        assert 'jobs.description' not in sql and ' like ' not in sql
+    assert any('count(jobs.id)' in sql and 'group by jobs.location' in sql for sql, _ in statements)
+    assert any('limit ? offset ?' in sql for sql, _ in statements)
+    assert 'SearchBodyToken' not in result.text
 
 
 def test_application_metrics_are_two_bounded_aggregate_queries_without_payloads():

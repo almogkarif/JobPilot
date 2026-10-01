@@ -4,6 +4,23 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Exact job ID search — October 1, 2026
+
+Numeric searches, with or without `#`, use `Job.id = :id` in the existing list
+query and location/count aggregate. They return at most one job and one location
+aggregate row, while preserving the existing pagination, user and track filters.
+Descriptions stay deferred and are not searched for ID queries. Invalid oversized
+IDs return no jobs rather than causing an integer overflow or a catalog fallback.
+
+The change adds no queries, projected columns, Storage calls, ranking work,
+startup tasks or polling. Relative to the existing search request, the additional
+budget is 0 requests and 0 row/file bytes per call, hour, day or billing cycle;
+existing job/ranking metadata sizes are unchanged, with the result count narrowed
+to one. For N deliberate ID searches, the catalog reads are the existing 2N
+SELECTs, returning at most N job rows and N location aggregates instead of full
+pages. The regression test exercises both legacy and unified routing, verifies
+the exact SQL filter and limit, and forbids description reads.
+
 ## Verified Yael application support — October 1, 2026
 
 The Yael adapter uses the already-claimed job/profile and selected CV, with zero

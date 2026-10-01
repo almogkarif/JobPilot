@@ -3139,8 +3139,16 @@ def list_jobs(
             statement = statement.where(func.coalesce(UserJobState.status, "new") == status)
             location_count_statement = location_count_statement.where(func.coalesce(UserJobState.status, "new") == status)
         if query:
-            pattern = f"%{query}%"
-            query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
+            id_match = re.fullmatch(r"#?\s*([0-9]+)", query.strip())
+            if id_match:
+                # Match the displayed ID exactly, without searching numeric text
+                # in descriptions. Bound the integer before binding it to SQL.
+                digits = id_match.group(1).lstrip("0") or "0"
+                job_id = int(digits) if len(digits) <= 19 else 0
+                query_filter = Job.id == job_id if 0 < job_id <= 2**63 - 1 else literal(False)
+            else:
+                pattern = f"%{query}%"
+                query_filter = (Job.title.ilike(pattern)) | (Job.company.ilike(pattern)) | (Job.description.ilike(pattern))
             statement = statement.where(query_filter)
             location_count_statement = location_count_statement.where(query_filter)
         if automatic_only:

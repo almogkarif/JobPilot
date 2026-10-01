@@ -25,7 +25,7 @@ const CAREER_TRACK_UI = Object.freeze({
     key: 'computer_science', symbol: 'CS', label: 'מדעי המחשב', shortLabel: 'מדמ״ח', themeClass: 'track-computer-science',
     description: 'פיתוח תוכנה, אלגוריתמים, תשתיות, AI ומחקר',
     eyebrow: 'סוכן חיפוש · מדעי המחשב', tagline: 'חיפוש משרות · מדעי המחשב',
-    searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה', skillsLegend: 'טכנולוגיות וכישורים',
+    searchPlaceholder: 'חיפוש תפקיד, חברה, טכנולוגיה או ID', skillsLegend: 'טכנולוגיות וכישורים',
     desiredTitles: [
       ['software engineer','Software Engineer'], ['backend','Backend'], ['frontend','Frontend'], ['full stack','Full Stack'],
       ['automation','Automation'], ['devops','DevOps'], ['data engineer','Data Engineer'], ['embedded','Embedded'], ['qa','QA'],
@@ -40,7 +40,7 @@ const CAREER_TRACK_UI = Object.freeze({
     key: 'industrial_engineering', symbol: 'IE', label: 'תעשייה וניהול', shortLabel: 'תעו״נ', themeClass: 'track-industrial-engineering',
     description: 'תפעול, שרשרת אספקה, אנליזה, BI, פרויקטים ותהליכים',
     eyebrow: 'סוכן חיפוש · תעשייה וניהול', tagline: 'חיפוש משרות · תעשייה וניהול',
-    searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה', skillsLegend: 'טכנולוגיות וכישורים',
+    searchPlaceholder: 'חיפוש תפקיד, חברה, טכנולוגיה או ID', skillsLegend: 'טכנולוגיות וכישורים',
     desiredTitles: [
       ['industrial engineer','Industrial Engineer'], ['business analyst','Business Analyst'], ['data analyst','Data Analyst'], ['bi analyst','BI Analyst'],
       ['operations analyst','Operations Analyst'], ['business operations','Business Operations'], ['supply chain','Supply Chain'],
@@ -56,7 +56,7 @@ const CAREER_TRACK_UI = Object.freeze({
     key: 'electrical_engineering', symbol: 'EE', label: 'הנדסת חשמל', shortLabel: 'חשמל', themeClass: 'track-electrical-engineering',
     description: 'חומרה, שבבים, FPGA, Embedded, Verification, RF ומערכות',
     eyebrow: 'סוכן חיפוש · הנדסת חשמל', tagline: 'חיפוש משרות · הנדסת חשמל',
-    searchPlaceholder: 'חיפוש חומרה, שבבים, FPGA, Embedded או חברה', skillsLegend: 'טכנולוגיות וכישורי חשמל וחומרה',
+    searchPlaceholder: 'חיפוש חומרה, שבבים, FPGA, Embedded, חברה או ID', skillsLegend: 'טכנולוגיות וכישורי חשמל וחומרה',
     desiredTitles: [
       ['electrical engineer','Electrical Engineer'],['hardware engineer','Hardware Engineer'],['fpga engineer','FPGA Engineer'],['asic','ASIC / VLSI'],
       ['verification engineer','Verification Engineer'],['embedded engineer','Embedded Engineer'],['firmware engineer','Firmware Engineer'],

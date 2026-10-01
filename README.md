@@ -10,7 +10,7 @@ The interface is in **Hebrew, with RTL support**, light and dark themes, and des
 
 ![JobPilot dashboard in light mode, showing match statistics and recommended jobs](docs/screenshots/dashboard-light.png)
 
-*Screenshots use fictional jobs and a demonstration profile in an isolated local database. Company names, scores and counts are illustrative; they are not live vacancies or production metrics.*
+*Screenshots refreshed on 1 October 2026 from the current local UI. Company names and logos come from the source catalog; job details, profiles, scores and counts are demonstration data from an isolated local database, not live vacancies or production metrics.*
 
 ## What you can do
 
@@ -35,6 +35,8 @@ A summary of the job catalog, personal matches, applications and pending actions
 
 Search, location filters, sorting and pagination keep the list manageable. Each job has a stable ID with a copy button, individual eligibility indicators, score components and the original description. Long descriptions and explanations scroll inside compact panels.
 
+![Dashboard job recommendations with company logos and match scores](docs/screenshots/job-recommendations.png)
+
 ![Jobs view with search controls and ranked cards](docs/screenshots/jobs.png)
 
 ![Job details showing eligibility, job ID and an explanation of the score](docs/screenshots/job-details.png)
@@ -51,7 +53,7 @@ One seniority selection controls visibility: checked levels are included, unchec
 
 Inspect source state, enable or disable boards, and add supported sources. Collectors normalize listings into a common job model. Incomplete or blocked feeds preserve existing jobs rather than treating missing results as proof that every vacancy has closed.
 
-![Source management and collection status](docs/screenshots/sources.png)
+![Source management with company logos and collection status](docs/screenshots/sources.png)
 
 ## How ranking works
 
