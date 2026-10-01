@@ -148,9 +148,9 @@ def prepare_resume(task: dict) -> str:
 
 
 def prepare_grade_sheet(task: dict) -> str:
-    # Elad's verified form accepts only the CV. New required fields stop its
-    # adapter for review, so downloading a grade sheet here cannot help.
-    if (task.get("submission_adapter") or {}).get("key") == "elad":
+    # These verified forms accept only the CV. New fields stop their adapters
+    # for review, so downloading a grade sheet here cannot help.
+    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael"}:
         return ""
     application = task.get("application") or {}
     application_id = application.get("id")

@@ -5913,6 +5913,34 @@ let developerUsersCache=[];
 const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
 const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
 function developerMetric(label,value,detail='',tone='') { return `<article class="developer-health ${tone}"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(detail)}</span></article>`; }
+const developerApplicationOutcomes=[['verified','קבלה אושרה'],['help','דורשות עזרה'],['blocked','נחסמו'],['uncertain','ללא אישור'],['pending','בתהליך'],['failed','נכשלו']];
+let developerApplicationsPage=0,developerApplicationsRequest=0;
+async function loadDeveloperApplicationMetrics(page=0){
+  const root=$('#developer-applications-results');
+  if(!root||state.activeView!=='developer')return;
+  const request=++developerApplicationsRequest;
+  const refresh=$('#developer-applications-refresh'),prev=$('#developer-applications-prev'),next=$('#developer-applications-next');
+  [refresh,prev,next].forEach(button=>{if(button)button.disabled=true});
+  root.setAttribute('aria-busy','true');
+  root.innerHTML='<div class="empty-state">טוען תוצאות…</div>';
+  $('#developer-applications-summary').textContent='';$('#developer-applications-page').textContent='';
+  try{
+    const data=await api(`/api/admin/developer/application-metrics?page=${page}`);
+    if(request!==developerApplicationsRequest)return;
+    developerApplicationsPage=data.page;
+    const totals=data.totals||{},companies=data.companies||[];
+    $('#developer-applications-summary').innerHTML=`<span><b>${esc(totals.total||0)}</b> מועמדויות מתועדות</span>`+developerApplicationOutcomes.map(([key,label])=>`<span class="outcome-${key}"><b>${esc(totals[key]||0)}</b> ${label}</span>`).join('');
+    root.innerHTML=companies.length?`<table><thead><tr><th scope="col">חברה</th>${developerApplicationOutcomes.map(([,label])=>`<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${companies.map(row=>`<tr><th scope="row">${esc(row.company)}</th>${developerApplicationOutcomes.map(([key])=>`<td class="${Number(row[key])?`outcome-${key}`:'is-zero'}">${esc(row[key]||0)}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div class="empty-state">אין עדיין תוצאות של הגשות אוטומטיות להצגה.</div>';
+    root.scrollTop=0;
+    $('#developer-applications-page').textContent=totals.companies?`עמוד ${data.page+1} מתוך ${Math.ceil(totals.companies/data.page_size)} · ${totals.companies} חברות`:'';
+    prev.disabled=data.page===0;next.disabled=!data.has_more;
+  }catch(error){
+    if(request!==developerApplicationsRequest)return;
+    root.innerHTML=`<div class="empty-state" role="alert">לא ניתן לטעון את הנתונים: ${esc(error.message)}</div>`;
+  }finally{
+    if(request===developerApplicationsRequest){refresh.disabled=false;root.removeAttribute('aria-busy')}
+  }
+}
 async function loadDeveloperOverview(){
   const grid=$('#developer-health-grid'),details=$('#developer-system-details'); if(!grid||!details)return;
   try{
@@ -5970,11 +5998,14 @@ async function loadDeveloperSources(){const root=$('#developer-sources-list');if
 async function loadDeveloperAudit(){const root=$('#developer-audit-list');if(!root)return;try{const rows=await api('/api/admin/developer/audit?limit=30');root.innerHTML=rows.map(r=>`<article><span><strong>${esc(r.event_type)}</strong><small>${esc(r.entity_type||'system')} ${r.entity_id?`#${esc(r.entity_id)}`:''}</small></span><time>${esc(developerDate(r.created_at))}</time>${r.message?`<p>${esc(r.message.slice(0,180))}</p>`:''}</article>`).join('')||'<div class="empty-state">אין אירועים</div>'}catch(e){root.innerHTML=`<div class="empty-state">${esc(e.message)}</div>`}}
 function renderDeveloperThemeLab(){const root=$('#developer-theme-lab');if(!root)return;root.innerHTML=Object.values(CAREER_TRACK_UI).map(t=>`<div><strong>${esc(t.label)}</strong><button type="button" data-theme-preview="${t.key}:light">יום</button><button type="button" data-theme-preview="${t.key}:dark">לילה</button></div>`).join('');$$('[data-theme-preview]',root).forEach(b=>b.onclick=()=>{const [track,mode]=b.dataset.themePreview.split(':');Object.values(CAREER_TRACK_UI).forEach(t=>document.body.classList.remove(t.themeClass));document.body.classList.add(CAREER_TRACK_UI[track].themeClass);document.body.classList.toggle('theme-dark',mode==='dark');document.body.classList.toggle('theme-light',mode==='light');auditDeveloperColors();toast(`תצוגת QA: ${developerTrackLabel(track)} · ${mode==='dark'?'לילה':'יום'}`)})}
 function auditDeveloperColors(){const root=$('#developer-color-audit');if(!root)return;const track=document.body.classList.contains('track-electrical-engineering')?'electrical_engineering':document.body.classList.contains('track-industrial-engineering')?'industrial_engineering':'computer_science';const suspicious=[];if(track!=='computer_science'){const blue=/rgb\((?:0|1?\d?\d|2[0-4]\d|25[0-5]),\s*(?:8\d|9\d|1[0-9]\d),\s*(?:1[4-9]\d|2[0-5]\d)\)/;$$('button,input,select,textarea,.panel,.metric,.option-grid label,.check-row label').slice(0,500).forEach(el=>{const c=getComputedStyle(el);if(blue.test(c.borderColor)||blue.test(c.backgroundColor)||blue.test(c.color))suspicious.push(el)})}root.textContent=track==='computer_science'?'Color audit: כחול הוא צבע המסלול ולכן אינו נחשב זליגה.':suspicious.length?`Color audit: נמצאו ${suspicious.length} אלמנטים חשודים לבדיקה.`:'Color audit: לא נמצאה זליגה כחולה במדגם האינטראקטיבי.';root.classList.toggle('warn',suspicious.length>0)}
-async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit()]);renderDeveloperThemeLab();auditDeveloperColors()}
+async function loadDeveloperCenter(){await Promise.all([loadDeveloperOverview(),loadDeveloperUsers(),loadDeveloperSources(),loadDeveloperAudit(),loadDeveloperApplicationMetrics()]);renderDeveloperThemeLab();auditDeveloperColors()}
 $('#developer-preview-onboarding').onclick=async()=>{try{await api('/api/admin/onboarding/preview',{method:'POST'});await openOnboarding(true)}catch(e){toast(e.message)}};
 $('#developer-preview-non-admin').onclick=enterNonAdminPreview;$('#admin-preview-exit').onclick=exitNonAdminPreview;
 $('#developer-user-search').oninput=renderDeveloperUsers;
 $('#developer-refresh-all').onclick=loadDeveloperCenter;
+$('#developer-applications-refresh').onclick=()=>loadDeveloperApplicationMetrics();
+$('#developer-applications-prev').onclick=()=>loadDeveloperApplicationMetrics(Math.max(0,developerApplicationsPage-1));
+$('#developer-applications-next').onclick=()=>loadDeveloperApplicationMetrics(developerApplicationsPage+1);
 $('#developer-rerank').onclick=async()=>{try{await api('/api/admin/developer/rerank',{method:'POST'});toast('Re-rank נכנס לתור');loadDeveloperOverview()}catch(e){toast(e.message)}};
 $('#developer-reset-scan-runtime').onclick=async()=>{if(!confirm('לאפס את מצב הסריקה המקומי?'))return;try{await api('/api/admin/developer/scan-runtime/reset',{method:'POST'});toast('מצב הסריקה אופס');loadDeveloperOverview()}catch(e){toast(e.message)}};
 $('#developer-reset-onboarding').onclick=async()=>{if(!confirm('לאפס את ה-Onboarding שלך כדי שיופיע מחדש?'))return;try{await api('/api/admin/developer/onboarding/reset',{method:'POST'});toast('ה-Onboarding אופס')}catch(e){toast(e.message)}};

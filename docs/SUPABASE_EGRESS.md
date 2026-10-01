@@ -4,6 +4,47 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Verified Yael application support — October 1, 2026
+
+The Yael adapter uses the already-claimed job/profile and selected CV, with zero
+additional database queries, catalog rows, model calls, startup work, polling or
+backfills. Eligibility uses the existing SQL URL projection and pagination.
+It never downloads a grade sheet. Each explicitly approved attempt uses the
+existing single resume delivery (10 MiB Storage bucket ceiling): N attempts cost
+at most N Storage reads / 10N MiB of existing file-body egress, not new quota.
+At ten attempts/day that is at most 100 MiB/day or 3,000 MiB/30 days; a bulk
+campaign still requires a current production Usage check. No campaign is started
+by this change, and no new scheduled source collector is installed.
+
+One ordinary browser POST is allowed per form attempt, with at most 10 MiB CV +
+64 KiB multipart overhead to the employer. The adapter verifies the actual file
+hash and job/contact fields, retains at most 8 KiB of receipt text and never retries
+after a send. The XHR observer records the site's existing response without an
+extra HTTP request. Browser page/assets have no new global byte ceiling; they are
+employer traffic, not Supabase egress. Live validation used explicit local SQLite
+and local files only. Regression gates cover bounded SQL eligibility, no unused
+file download, exact queue ownership and refusal to retry uncertain/blocked sends.
+
+## Developer application outcomes — October 1, 2026
+
+The developer-only metrics endpoint aggregates the current account's automatic
+applications across tracks inside SQL, using only the latest worker attempt per
+canonical application. It issues two SELECTs per explicit open, refresh or page:
+one totals row and at most 26 employer aggregate rows (25 displayed, one lookahead).
+Company labels are bounded to 200 characters in SQL; all remaining returned fields
+are counts. No descriptions, CVs, evidence/answer JSON, event messages, or whole
+application objects leave the database. There are zero Storage/model requests,
+startup changes, backfills, recurring polls, or requests while this view is closed.
+
+Allow 1 KiB per aggregate row plus 8 KiB protocol overhead: <35 KiB per refresh.
+At ten deliberate refreshes/hour this is 20 queries/hour and <350 KiB/hour;
+240 refreshes/day would be <8.21 MiB/day or <247 MiB/30 days per active account.
+This is an explicit-usage estimate, not an additional global quota allowance.
+Results are read-only; opening the panel never queues or retries applications.
+Regression coverage checks two bounded aggregate queries in SQLite/PostgreSQL,
+tenant isolation, no payload projection, and the absence of hidden-view requests.
+Validation uses synthetic local databases only; no production scan or DB read.
+
 ## Verified Elad application support — September 27, 2026
 
 Elad's adapter uses the already-claimed job/profile and already-selected local CV.
@@ -35,7 +76,7 @@ used local files/SQLite: zero Supabase egress. Check current daily usage before
 launching any bulk production campaign.
 
 Regression gates: `test_verified_application_sources_use_existing_bounded_sql_metadata`
-checks SQLite/PostgreSQL projections and pagination; `test_elad_worker_does_not_download_unused_grade_sheet`
+checks SQLite/PostgreSQL projections and pagination; `test_verified_cv_only_worker_does_not_download_unused_grade_sheet`
 forbids the unused download. Queue tests verify a single exact claim and no
 requeue after uncertainty, rejection, or an anti-automation block.
 

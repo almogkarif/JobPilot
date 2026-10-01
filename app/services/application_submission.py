@@ -26,6 +26,7 @@ class ATSAdapter:
 
 
 ADAPTERS = {
+    "yael": ATSAdapter("yael", "Yael Group", notes="טופס מועמדות ייעודי למשרה; ההגשה מאושרת רק לאחר תשובת קבלה מפורשת מהשרת."),
     "elad": ATSAdapter("elad", "Elad Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש התואם למשרה."),
     "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
     "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
@@ -187,12 +188,23 @@ def elad_job_id(url: str) -> str:
     return match[1] if match else ""
 
 
+def yael_job_id(url: str) -> str:
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme != "https" or parsed.netloc.casefold() != "yaelgroup.com" or parsed.query or parsed.fragment:
+        return ""
+    # Korn order forms use a different recipient/flow and have not been verified.
+    match = re.fullmatch(r"/jobs/order/([1-9][0-9]{0,11})/?", parsed.path)
+    return match[1] if match else ""
+
+
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     value = str(url or "").strip()
     host = urlparse(value).netloc.casefold()
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if yael_job_id(value):
+        return ADAPTERS["yael"]
     if elad_job_id(value):
         return ADAPTERS["elad"]
     if is_gstat_application_url(value):

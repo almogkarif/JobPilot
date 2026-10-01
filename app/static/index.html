@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>JobPilot — חיפוש והגשת משרות חכמה</title>
   <link rel="icon" type="image/svg+xml" href="/static/jobpilot-mark.svg?v=17" />
-    <link rel="stylesheet" href="/static/styles.css?v=0.52.26" />
+    <link rel="stylesheet" href="/static/styles.css?v=0.52.27" />
 </head>
 <body>
   <section id="auth-gate" class="auth-gate" hidden aria-live="polite">
@@ -278,6 +278,13 @@
         <div class="developer-center">
           <article class="panel developer-hero"><div><span class="kicker">Admin only · Control Center</span><h2>מרכז המפתחים</h2><p>בריאות המערכת, משתמשים, סריקות, מקורות, תורים, תצוגות ו־QA במקום אחד.</p><p id="developer-runtime-status" class="preference-help"></p></div><div class="developer-actions"><button class="btn primary" id="developer-refresh-all" type="button">רענן הכל</button><button class="btn secondary" id="developer-preview-non-admin" type="button">תצוגת משתמש</button><button class="btn secondary" id="developer-preview-onboarding" type="button">Onboarding</button></div></article>
           <section id="developer-health-grid" class="developer-health-grid"><div class="empty-state">טוען מצב מערכת…</div></section>
+          <article class="panel developer-card developer-application-metrics">
+            <div class="panel-head"><div><span class="kicker">הגשות אוטומטיות</span><h3>תוצאות לפי חברה</h3></div><button id="developer-applications-refresh" class="btn secondary" type="button">רענן</button></div>
+            <p class="preference-help">החשבון שלך · כל המסלולים · מועמדויות שהמגיש האוטומטי התחיל לטפל בהן, פעם אחת לפי המצב האחרון. אישור קבלה אינו קבלה לעבודה; סימון ידני ובדיקות מילוי אינם נחשבים הגשה שאושרה.</p>
+            <div id="developer-applications-summary" class="developer-application-summary" aria-live="polite"></div>
+            <div id="developer-applications-results" class="developer-application-results" tabindex="0" role="region" aria-label="תוצאות הגשה לפי חברה — ניתן לגלול"><div class="empty-state">טוען תוצאות…</div></div>
+            <div class="developer-application-pagination"><button id="developer-applications-prev" class="btn secondary" type="button" disabled>הקודם</button><span id="developer-applications-page" aria-live="polite"></span><button id="developer-applications-next" class="btn secondary" type="button" disabled>הבא</button></div>
+          </article>
           <div class="developer-grid">
             <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Runtime</span><h3>System Health</h3></div><span id="developer-health-badge" class="developer-status-dot">—</span></div><div id="developer-system-details" class="developer-kv"></div><div class="developer-actions"><button class="btn secondary" id="developer-rerank" type="button">הכנס Re-rank לתור</button><button class="btn secondary" id="developer-reset-scan-runtime" type="button">אפס מצב סריקה</button></div></article>
             <article class="panel developer-card"><div class="panel-head"><div><span class="kicker">Theme QA</span><h3>Theme Lab</h3></div></div><p class="preference-help">בדיקה מיידית של כל מקצוע ומצב תצוגה בלי לשנות את נתוני המשתמש.</p><div id="developer-theme-lab" class="developer-theme-lab"></div><div id="developer-color-audit" class="developer-color-audit"></div></article>
@@ -489,6 +496,6 @@
   <button id="admin-preview-exit" class="admin-preview-exit" type="button" hidden>חזרה למצב Admin</button>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js?v=0.31.38"></script>
+    <script src="/static/app.js?v=0.31.39"></script>
 </body>
 </html>

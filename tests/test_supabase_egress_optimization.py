@@ -23,6 +23,33 @@ from app.services.ranking.service import (
 import app.main as main_module
 
 
+def test_application_metrics_are_two_bounded_aggregate_queries_without_payloads():
+    from sqlalchemy.dialects import postgresql, sqlite
+    from app.services.application_metrics import application_metrics
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    statements = []
+    with sessionmaker(bind=engine)() as db:
+        set_user_scope(db, 'metrics-owner')
+        def record(state):
+            if state.is_select:
+                statements.append(state.statement)
+        event.listen(db, 'do_orm_execute', record)
+        assert application_metrics(db, page=2)['totals']['total'] == 0
+    assert len(statements) == 2
+    for dialect in (postgresql.dialect(), sqlite.dialect()):
+        sql = [str(q.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
+               for q in statements]
+        assert 'limit 26' in sql[1] and 'offset 50' in sql[1]
+        assert 'substr(' in sql[1] and '200' in sql[1]
+        for query in sql:
+            assert 'count(' in query and 'metrics-owner' in query
+            assert not any(field in query for field in (
+                'description', 'evidence_json', 'answers_json', 'confirmation_text',
+                'resume_path', 'details_json', 'select jobs.*'))
+    engine.dispose()
+
+
 def test_reviewed_source_exclusions_are_sql_only_without_catalog_reads():
     from sqlalchemy.dialects import postgresql, sqlite
     from app.services.source_retirements import available_source_condition
@@ -602,18 +629,20 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
     for dialect in (postgresql.dialect(), sqlite.dialect()):
         sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
         assert 'careers.eladsoft.com/jobs/' in sql and 'g-stat.com/jobs/' in sql
+        assert 'yaelgroup.com/jobs/order/' in sql
         assert 'kaltura' in sql and 'limit 50' in sql
         assert 'description' not in sql and 'metadata_json' not in sql
         assert 'resume_profiles' not in sql and 'application_events' not in sql
 
 
-def test_elad_worker_does_not_download_unused_grade_sheet(monkeypatch):
+@pytest.mark.parametrize('adapter', ['elad', 'yael'])
+def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatch, adapter):
     from agent import run_agent
     def unexpected_download(*args, **kwargs):
-        raise AssertionError('Elad only needs the selected CV, not a grade-sheet Storage read')
+        raise AssertionError('This form only needs the selected CV, not a grade-sheet Storage read')
     monkeypatch.setattr(run_agent.httpx, 'get', unexpected_download)
     task = {
-        'submission_adapter': {'key': 'elad'}, 'application': {'id': 42},
+        'submission_adapter': {'key': adapter}, 'application': {'id': 42},
         'profile': {'grade_sheet_path': 'supabase://private/unused.pdf'},
     }
     assert run_agent.prepare_grade_sheet(task) == ''
