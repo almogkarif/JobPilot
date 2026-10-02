@@ -21,6 +21,24 @@ diagnostic, not scheduled polling. Synthetic SQLite and PostgreSQL tests cover
 projection bounds, ownership and the enforced read-only transaction; the egress
 suite verifies one bounded metadata SELECT without file or catalog reads.
 
+## Explicit missing-attachment recovery — October 2, 2026
+
+The versioned October 2 recovery is manual, with preview as its default. It locks
+one selected-resume metadata row and five exact application/job rows, and reads
+at most five compact repair markers. Paths are compared and copied inside SQL;
+no file, profile text, catalog or description is downloaded. Apply changes only
+the four reviewed attachment references and inserts four audit events in one
+transaction. It does not change status, answers, attempts or dispatch work. Owned
+control and expected-state checks reject changed records; repeat runs are no-ops.
+
+There are three bounded SELECTs, at most four UPDATE and four INSERT
+acknowledgments, with 5-second statement / 1-second lock timeouts. Reserve 64 KiB
+per explicit preview/apply, <=128 KiB for the planned pair, and 0 idle bytes per
+hour/day. Ten operator runs/day would be <=640 KiB/day or 18.75 MiB/30 days.
+Regression tests verify scoped mutation, rollback, idempotency, PostgreSQL row
+locking, compact projections and unchanged unrelated data. File delivery and any
+later authorized worker retry keep their existing per-attempt file budget.
+
 ## Aman source collection — October 2, 2026
 
 The new source reads at most 40 public listing pages (10 jobs/page, <=400 current

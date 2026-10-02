@@ -26,6 +26,37 @@ from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
 from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
 from tests.test_application_resume_metadata import resume_metadata_db
+from tests.test_application_resume_recovery import resume_recovery_engine
+
+
+def test_fixed_resume_recovery_only_reads_bounded_metadata_and_writes_four_links(resume_recovery_engine):
+    from scripts.repair_application_resume_links_20261002 import repair
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        statements.append((' '.join(sql.lower().split()), parameters))
+    event.listen(resume_recovery_engine, 'before_cursor_execute', capture)
+    try:
+        with resume_recovery_engine.begin() as db:
+            report = repair(db, apply=True)
+    finally:
+        event.remove(resume_recovery_engine, 'before_cursor_execute', capture)
+    assert len(report['applications']) == 4
+    reads = [sql for sql, _ in statements if sql.startswith('select ')]
+    assert len(reads) == 3 and all('limit ' in sql for sql in reads)
+    assert 'limit 1' in reads[0] and 'limit 5' in reads[1] and 'limit 5' in reads[2]
+    assert 'a.id in (' in reads[1] and 'r.user_id = a.user_id' in reads[1]
+    assert 'user_id = ?' in reads[2] and 'event_type = ?' in reads[2]
+    updates = [sql for sql, _ in statements if sql.startswith('update ')]
+    inserts = [sql for sql, _ in statements if sql.startswith('insert ')]
+    assert len(updates) == len(inserts) == 4 and len(statements) == 11
+    for sql in updates:
+        assert sql.startswith('update applications set resume_id = ?, resume_path = (select path')
+        assert "status = 'failed'" in sql and 'where id = ? and user_id = ?' in sql
+    assert all(sql.startswith('insert into application_events') for sql in inserts)
+    assert not any(field in sql for sql, _ in statements for field in (
+        'description', 'extracted_text', 'answers_json', 'last_error', 'attempt_count', 'from profiles', 'select *',
+    ))
+    assert len(json.dumps(report).encode()) < 2048
 
 
 def test_explicit_resume_metadata_diagnostic_is_one_bounded_projection(resume_metadata_db):

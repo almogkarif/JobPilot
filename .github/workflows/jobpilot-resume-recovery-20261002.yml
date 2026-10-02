@@ -1,0 +1,43 @@
+name: JobPilot one-time attachment recovery 2026-10-02
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Fixed apps 33,71,148,150 only; no retries or submissions'
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - apply
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobpilot-resume-recovery-20261002
+  cancel-in-progress: false
+
+jobs:
+  recover-attachments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install metadata dependencies
+        run: python -m pip install sqlalchemy==2.0.50 'psycopg[binary]==3.2.9'
+      - name: Preview or apply the reviewed attachment repair
+        env:
+          JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
+          REPAIR_MODE: ${{ inputs.mode }}
+        run: |
+          case "$REPAIR_MODE" in
+            preview) python scripts/repair_application_resume_links_20261002.py ;;
+            apply) python scripts/repair_application_resume_links_20261002.py --apply ;;
+            *) echo 'Unsupported repair mode' >&2; exit 1 ;;
+          esac
