@@ -55,13 +55,18 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
     assert initial_height == pytest.approx(64, abs=1)
     assert button.locator('.nav-icon').evaluate('(icon) => parseFloat(getComputedStyle(icon).width)') == 46
     button.hover()
-    page.wait_for_timeout(650)
+    # The inherited dock-label transition can keep retargeting the icon transform
+    # beyond 650 ms. Measure the settled layout, including on a slower CI runner.
+    page.wait_for_function('''button => button.classList.contains('is-dock-focus') &&
+      !button.getAnimations({subtree:true}).some(animation => animation.pending || animation.playState === 'running')
+    ''', arg=button.element_handle())
     result = button.evaluate('''button => {
       const rect=button.getBoundingClientRect(), icon=button.querySelector('.nav-icon').getBoundingClientRect();
       const label=button.querySelector('.nav-label');
       return {fits:icon.top>=rect.top-1 && icon.bottom<=rect.bottom+1,
         labelVisible:getComputedStyle(label).display!=='none' && Number(getComputedStyle(label).opacity)>.5,
         separated:label.getBoundingClientRect().top >= button.querySelector('svg').getBoundingClientRect().bottom,
+        gap:label.getBoundingClientRect().top - button.querySelector('svg').getBoundingClientRect().bottom,
         height:rect.height,title:button.title,
         overflow:document.documentElement.scrollWidth>innerWidth};
     }''')
@@ -69,7 +74,7 @@ def test_short_screen_dock_has_no_overlapping_icons_or_labels(browser_page, size
     if size[1] <= 840:
         assert result['fits'] is True
         assert result['labelVisible'] is True
-        assert result['separated'] is True
+        assert result['separated'] is True, result
         assert result['height'] > initial_height + 10
         assert not result['title']
     page.locator('#nav [data-view="settings"]').scroll_into_view_if_needed()
