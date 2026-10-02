@@ -2783,7 +2783,7 @@ body.theme-dark.track-industrial-engineering :where(
    not a compressed desktop canvas. */
 .mobile-tab-dock,.mobile-nav-backdrop { display:none; }
 
-@media (max-width:760px) {
+@media (max-width:760px), (max-width:1000px) and (max-height:500px) and (pointer:coarse) {
   :root { --mobile-safe-bottom:max(10px,env(safe-area-inset-bottom)); }
   html,body { min-height:100%; overflow-x:hidden; }
   body { padding-bottom:0; }
@@ -2996,7 +2996,7 @@ body.guest-mode .job-status-control { display:none !important; }
 
 
 /* v0.3.2 — simple mobile dock: fixed, opaque, no popovers and no content overlap. */
-@media (max-width:760px) {
+@media (max-width:760px), (max-width:1000px) and (max-height:500px) and (pointer:coarse) {
   :root { --mobile-dock-space: calc(82px + env(safe-area-inset-bottom)); }
   body { padding-bottom: var(--mobile-dock-space) !important; }
   main { padding-bottom: calc(var(--mobile-dock-space) + 18px) !important; }
@@ -3039,7 +3039,7 @@ body.guest-mode .job-status-control { display:none !important; }
 }
 
 /* v0.3.2 — mobile dock reliability: viewport-owned bottom dock with neutral active light. */
-@media (max-width:760px) {
+@media (max-width:760px), (max-width:1000px) and (max-height:500px) and (pointer:coarse) {
   :root { --mobile-dock-clearance: calc(104px + env(safe-area-inset-bottom)); }
   body { padding-bottom:0 !important; }
   main { padding-bottom:var(--mobile-dock-clearance) !important; }

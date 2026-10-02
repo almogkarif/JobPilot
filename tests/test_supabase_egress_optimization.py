@@ -519,6 +519,22 @@ def test_ranking_progress_uses_memory_and_two_scalar_aggregates(monkeypatch):
     engine.dispose()
 
 
+def test_mobile_stylesheet_is_a_bounded_public_asset_without_database_reads(monkeypatch):
+    import httpx
+    monkeypatch.setattr(main_module.settings, 'auth_mode', 'supabase')
+    def forbidden_db():
+        raise AssertionError('Mobile styles must not access Supabase')
+    monkeypatch.setattr(main_module, 'SessionLocal', forbidden_db)
+    async def check():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=main_module.app), base_url='http://test') as client:
+            response = await client.get('/static/mobile.css')
+            assert response.status_code == 200
+            assert response.content == (main_module.STATIC_DIR / 'mobile.css').read_bytes()
+            assert len(response.content) < 20 * 1024
+            assert 'text/css' in response.headers['content-type']
+    asyncio.run(check())
+
+
 def test_bundled_source_logos_are_public_cached_and_need_no_database(monkeypatch):
     import httpx
     monkeypatch.setattr(main_module.settings, 'auth_mode', 'supabase')
@@ -869,6 +885,8 @@ def test_reusing_score_components_needs_no_additional_database_reads():
     p = profile()
     j = job('Software Engineer', 'Develop Python software applications. At least 3 years experience.')
     j.id = 7
+    # This tests cache reuse, not expiry of the ranking fixture's August date.
+    j.published_at = j.updated_at = datetime.now(timezone.utc)
     row = JobRanking(job_id=7, engine='v2', engine_version=0)
     settings = SimpleNamespace(config_version=1, config_json='{}')
     service.persist_v2_result(NoReadDB(), j, p, settings, existing_row=row)

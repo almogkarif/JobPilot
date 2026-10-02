@@ -1,0 +1,169 @@
+/* Phone layouts share the desktop components and application behavior. */
+.jobs-filter-toggle { display:none; }
+.jobs-filter-panel { display:contents; }
+.resume-selected-file { display:none; }
+
+@media (max-width:760px), (max-width:1000px) and (max-height:500px) and (pointer:coarse) {
+  .app-shell, main, .view, .panel, .application-pane, .application-pane > * {
+    min-width:0;
+    max-width:100%;
+  }
+  .application-pane.active { grid-template-columns:minmax(0,1fr); }
+  .sidebar { position:relative !important; }
+  .sidebar .dock-utility { position:absolute !important; inset:10px auto auto 14px !important; }
+  .topbar { gap:12px; padding:14px; }
+  .page-context { font-size:12px; line-height:1.5; }
+  .career-track-copy small { font-size:10px; }
+  .career-track-copy strong { font-size:13px; }
+  .scan-status { flex:1 1 190px; min-height:46px; }
+  .scan-status b { font-size:12px; }
+  .scan-status small { font-size:10px; }
+  .top-actions #scan-btn { order:4; flex:0 0 auto; min-height:46px; padding-inline:12px; font-size:13px; }
+  .panel-head h2 { font-size:18px; line-height:1.4; }
+  .kicker { font-size:11px; }
+
+  /* Keep the results visible; the full filter deck opens only on demand. */
+  #view-jobs .jobs-toolbar { position:relative; top:auto; display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+  .jobs-filter-toggle {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:12px; background:var(--surface-soft); color:var(--ink); font:inherit; font-weight:750; cursor:pointer;
+  }
+  .jobs-filter-toggle[aria-expanded="true"] > :last-child { transform:rotate(180deg); }
+  .jobs-filter-panel { display:none; }
+  .filters-open .jobs-filter-panel { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; min-width:0; }
+  .jobs-filter-panel .filter-control { min-width:0; width:100%; }
+  .jobs-filter-panel > .source-toggle, .jobs-filter-panel #import-job-btn { grid-column:1 / -1; min-height:44px; }
+  .job-search-field { min-width:0; }
+  .job-search-field input { min-width:0; width:100%; font-size:16px; }
+  .job-search-field > small { display:none; }
+  .filter-control > span { font-size:11px; }
+  .filter-control :is(select, .location-filter-trigger) { font-size:14px; }
+  .location-filter-options { min-width:0; max-width:calc(100vw - 48px); }
+  .results-summary { font-size:12px; line-height:1.5; }
+  .job-card .company, .job-meta span, .reason { font-size:12px; }
+  .job-card .card-actions > * { min-height:44px; font-size:12px; }
+  .job-card .skills { flex-wrap:wrap; }
+  .job-card h3 { overflow-wrap:anywhere; }
+
+  #view-dashboard .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:4px; overflow:visible; }
+  #view-dashboard .metric { min-width:0; min-height:72px; padding:10px; gap:8px; border:0; }
+  #view-dashboard .metric-copy b { font-size:12px; }
+  #view-dashboard .metric-copy small { font-size:10px; }
+  #view-dashboard .dashboard-job-title { font-size:15px; }
+  #view-dashboard .dashboard-job-meta { font-size:12px; }
+  #view-dashboard .dashboard-job-action .auto-submit-badge { font-size:11px; }
+
+  /* Phone history is grouped into populated status sections. Tables scroll locally. */
+  #applications-list { min-width:0; max-width:100%; overscroll-behavior-inline:contain; }
+  .kanban-board { grid-template-columns:minmax(0,1fr); min-width:0; }
+  .kanban-column { min-width:0; min-height:0; }
+  .kanban-column:not(:has(.kanban-card)) { display:none; }
+  .kanban-card { overflow-wrap:anywhere; }
+  .kanban-card button { min-height:44px; }
+  .application-pane[data-application-pane="queue"] > .application-automation-panel { order:1; }
+  .application-pane[data-application-pane="queue"] > .data-tools { order:2; }
+  .application-section-nav, .profile-section-nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; }
+  .application-section-nav button, .profile-section-nav button { min-width:0; width:100%; grid-template-columns:28px minmax(0,1fr); padding:10px 8px; }
+  .application-section-nav button strong, .profile-section-nav button strong { font-size:13px; }
+  .application-section-nav button small, .profile-section-nav button small { font-size:11px; }
+  .automation-controls > *, .campaign-controls > *, .resume-selector { min-width:0; }
+  .campaign-actions { flex-wrap:wrap; }
+  .campaign-actions > .btn { min-width:0; min-height:44px; }
+  .data-tools .card-actions { display:grid; grid-template-columns:minmax(0,1fr); }
+  .data-tools .btn { min-height:44px; }
+
+  /* A fixed close control stays reachable while the sheet's content scrolls. */
+  html:has(#modal.open) { overflow:hidden; }
+  #modal { padding:0; align-items:end; }
+  #modal .modal-card {
+    display:flex; flex-direction:column; gap:8px; width:100%; max-width:100%;
+    max-height:calc(100dvh - max(12px, env(safe-area-inset-top))); overflow:hidden;
+    padding:10px 16px max(16px, env(safe-area-inset-bottom)); border-radius:24px 24px 0 0;
+  }
+  #modal .modal-close {
+    position:static; align-self:flex-end; flex:0 0 44px; width:44px; height:44px;
+    margin:0; font-size:26px; background:var(--surface-soft); color:var(--ink);
+    border:1px solid var(--line); box-shadow:none; transform:none;
+  }
+  #modal-content { min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; overflow-wrap:anywhere; padding-bottom:4px; }
+  #modal-content > h2 { font-size:22px; line-height:1.35; margin-top:4px; }
+  #modal-content > h3 { font-size:18px; }
+  .ranking-eligibility-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .ranking-filter { min-width:0; }
+  .ranking-filter > span, .ranking-filter > strong { font-size:12px; }
+  .ranking-filter > small { font-size:13px; }
+  .ranking-filter .job-id-value { font-size:24px; }
+  .ranking-filter .job-id-copy { width:36px; height:36px; }
+  .ranking-v2-header { flex-direction:row; align-items:center; }
+  .ranking-v2-header > span { min-width:0; }
+  .ranking-v2-header small { font-size:11px; }
+  .ranking-section-title { gap:4px; }
+  .job-description-scroll { max-height:260px; padding-inline:14px; font-size:15px; line-height:1.7; }
+  .resume-choice-head p { font-size:13px; line-height:1.65; }
+  /* Bound both the grid track and WebKit's native selected-option painting. */
+  .resume-selector { grid-template-columns:minmax(0,1fr); font-size:14px; }
+  .resume-selector select { width:100%; min-width:0; max-width:100%; min-height:48px; font-size:16px; overflow:hidden; text-overflow:ellipsis; }
+  .resume-selected-file { display:block; color:var(--muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .resume-fit { max-height:260px; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+  .resume-fit-score { flex-wrap:wrap; }
+  .resume-fit-score strong { font-size:15px; }
+  .resume-fit-group { grid-template-columns:minmax(0,1fr); gap:4px; font-size:13px; }
+  .application-options { gap:12px; }
+  .application-option { min-width:0; grid-template-columns:36px minmax(0,1fr) 16px; padding:14px 12px; }
+  .application-option-icon { width:36px; height:36px; }
+  .application-option-copy strong { font-size:16px; }
+  .application-option-copy small, .application-option-copy > span { font-size:12px; line-height:1.6; }
+  .application-option-auto { order:-1; border:2px solid var(--accent); }
+  .modal-actions .btn { min-width:0; min-height:44px; white-space:normal; }
+  .submission-preview-summary b { overflow-wrap:anywhere; }
+
+  /* Live progress and questions stay above the dock, including the keyboard viewport. */
+  #notification-center {
+    inset:12px 10px auto; width:auto; max-width:none;
+    max-height:calc(100dvh - var(--mobile-dock-clearance) - 24px); transform-origin:top center;
+  }
+  .notification-head { position:sticky; top:0; z-index:4; background:var(--panel); }
+  #notification-close { min-width:44px; min-height:44px; }
+  .application-live-head b { font-size:16px; }
+  .application-live-head small, .application-live-tracker li small { font-size:12px; overflow-wrap:anywhere; }
+  .application-live-tracker :is(input, select), .auto-queue-inline-answer :is(input, select) { min-width:0; width:100%; font-size:16px; min-height:44px; }
+  .application-live-tracker button, .auto-queue-row-actions .btn, .blocker-choice-button { min-height:44px; }
+  .application-tracker-navigator { grid-template-columns:44px minmax(0,1fr) 44px 44px; gap:4px; }
+  .application-tracker-navigator button { width:44px; height:44px; }
+  .application-tracker-navigator strong { font-size:12px; }
+  .blocker-card { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+  .blocker-card > div { min-width:0; }
+  .blocker-title-line h3 { font-size:17px; line-height:1.5; overflow-wrap:anywhere; }
+  .blocker-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  .blocker-actions .btn { flex:1 1 120px; min-height:44px; white-space:normal; text-decoration:none; }
+  .blocker-choice-options { display:flex; flex-wrap:wrap; gap:8px; }
+  .blocker-choice-options .btn { flex:1 1 auto; min-height:44px; font-size:14px; }
+  .blocker-card:has(.blocker-choice-options, .blocker-choice-select) > div > .skills { display:none; }
+  .auto-apply-queue-list article { grid-template-columns:28px minmax(0,1fr); }
+  .auto-apply-queue-list article > span { min-width:0; overflow-wrap:anywhere; }
+  .auto-apply-queue-list article em { white-space:normal; }
+  .auto-queue-inline-answer, .application-live-text-answer { min-width:0; }
+  .auto-queue-row-actions { grid-column:1/-1; }
+
+  /* Prevent iOS focus zoom and keep touch controls legible. */
+  .form-grid :is(input, select, textarea), .form-stack :is(input, select, textarea),
+  .campaign-controls :is(input, select, textarea), .onboarding-content :is(input, select, textarea) { font-size:16px; }
+  .form-grid > label, .form-stack > label { min-width:0; font-size:13px; }
+  .source-toggle, .source-item-controls .btn { min-height:44px; }
+  .source-toggle-copy strong { font-size:12px; }
+  .source-health-label { font-size:11px; }
+  .source-health { flex-wrap:wrap; gap:4px; }
+  .source-health strong { font-size:11px; }
+  .onboarding-shell { display:flex; flex-direction:column; overflow:hidden; padding:16px 14px max(16px,env(safe-area-inset-bottom)); }
+  .onboarding-head, .onboarding-progress, .onboarding-actions { flex-shrink:0; }
+  .onboarding-progress { margin:12px 0 16px; }
+  .onboarding-content { min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding-bottom:16px; }
+  .onboarding-actions { padding-top:12px; }
+  .onboarding-actions .btn { min-height:44px; }
+  #mobile-tab-dock.mobile-tab-dock > button { flex-basis:72px; min-width:72px; }
+  #mobile-tab-dock.mobile-tab-dock > button > strong { font-size:11px; }
+  #mobile-tab-dock.mobile-tab-dock > button > span { font-size:21px; }
+  #mobile-tab-dock.mobile-tab-dock > button > em { position:absolute; inset:4px auto auto 5px; min-width:18px; height:18px; padding:2px 4px; border-radius:9px; background:var(--danger); color:#fff; font-size:10px; font-style:normal; line-height:14px; }
+  #toast { max-width:calc(100vw - 24px); bottom:var(--mobile-dock-clearance); overflow-wrap:anywhere; }
+}

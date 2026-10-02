@@ -39,7 +39,7 @@ def test_cloud_profile_changes_defer_expensive_derived_refresh_until_after_respo
 
 
 def test_iem_uses_same_generic_tab_copy_as_cs():
-    assert JS.count("searchPlaceholder: 'חיפוש תפקיד, חברה או טכנולוגיה'") == 2
+    assert JS.count("searchPlaceholder: 'חיפוש תפקיד, חברה, טכנולוגיה או ID'") == 2
     assert JS.count("skillsLegend: 'טכנולוגיות וכישורים'") == 2
     assert JS.count("desiredPlaceholder: 'למשל: Developer Tools, Integration'") == 2
     assert JS.count("skillsPlaceholder: 'מופרדים בפסיקים'") == 3

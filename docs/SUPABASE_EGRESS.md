@@ -4,6 +4,23 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Mobile layout and visual verification — October 2, 2026
+
+Phone layout changes add one public, first-party stylesheet, bounded by a 20 KiB
+regression check. At N page loads it adds at most N Render asset requests / 20N
+KiB, not Supabase traffic. No database query, projection, polling interval, scan,
+Storage download, ranking operation or worker dispatch behavior is changed.
+Additional Supabase calls, rows and bytes are zero per load, hour, day and cycle.
+Collapsed filters preserve the same existing SQL search and eligibility rules.
+
+Visual and touch-flow checks use disposable SQLite databases, synthetic profiles
+and resumes, local storage, disabled schedulers and disabled startup tasks.
+External browser/server connections and real worker dispatch are blocked. The
+actual preview-token, resume-selection, queue and blocker-answer API paths are
+exercised locally. No employer receives a test application and no production
+catalog or private document is downloaded. Static-serving regression checks
+forbid database access even when the application is configured for Supabase auth.
+
 ## Exact job ID search — October 1, 2026
 
 Numeric searches, with or without `#`, use `Job.id = :id` in the existing list

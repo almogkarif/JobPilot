@@ -1492,6 +1492,7 @@ function modal(html) {
   modal.filterScrollObserver?.disconnect();
   modal.previousFocus = document.activeElement;
   $('#modal-content').innerHTML = html;
+  $('#modal-content').scrollTop = 0;
   $('#modal').classList.add('open');
   $('#modal').setAttribute('aria-hidden', 'false');
   const filterDetails = $$('.ranking-filter>small', $('#modal-content'));
@@ -1602,7 +1603,7 @@ $$('[data-view]').forEach((button) => {
 
 function updateMobileTabDock(view) {
   const active = document.querySelector(`[data-mobile-view="${view}"]`);
-  if (!active || window.innerWidth > 760) return;
+  if (!active || !window.matchMedia('(max-width:760px), (max-width:1000px) and (max-height:500px) and (pointer:coarse)').matches) return;
   // Keep the selected destination visible in the horizontally scrollable dock.
   requestAnimationFrame(() => active.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'center'}));
 }
@@ -2838,6 +2839,12 @@ const applyDensity = (compact) => {
 densityButton.onclick = () => applyDensity(!document.body.classList.contains('density-compact'));
 applyDensity(localStorage.getItem('jobpilot-density') === 'compact');
 
+$('#jobs-filter-toggle').onclick = () => {
+  const expanded = $('#jobs-filter-toggle').getAttribute('aria-expanded') !== 'true';
+  $('#jobs-filter-toggle').setAttribute('aria-expanded', String(expanded));
+  $('.jobs-toolbar').classList.toggle('filters-open', expanded);
+};
+
 async function queueJob(id, mode = 'review', resumeId = null) {
   if (!applicationAgentAllowed()) {
     toast('סוכן ההגשות האוטומטי פעיל כרגע רק בחשבון הראשי. אפשר לפתוח את המשרה ולהגיש ידנית.');
@@ -3285,10 +3292,12 @@ function resumeChoiceMarkup(resumes, selectedResumeId) {
   // The API orders mandatory coverage first; sorting by the displayed weighted
   // percentage alone can undo that rule. An attached/manual choice takes priority.
   const selected=resumes.find(resume=>resume.id===selectedResumeId)||resumes.find(resume=>resume.fit?.recommended)||resumes.find(resume=>resume.is_default)||resumes[0];
-  return `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>ההמלצה נותנת עדיפות לכיסוי כישורי חובה, ואחריהם לכישורי יתרון. אפשר לבחור גרסה אחרת לפני ההגשה.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.map(resume=>`<option value="${resume.id}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.id===selected.id?'selected':''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${Number.isFinite(resume.fit?.score)?`${resume.fit.score}% כיסוי כישורים`:'אין מספיק מידע לחישוב'}</option>`).join('')}</select></label><div class="resume-fit" id="resume-fit" aria-live="polite"></div>`;
+  return `<div class="resume-choice-head"><h3>איזה קובץ יישלח?</h3><p>ההמלצה נותנת עדיפות לכיסוי כישורי חובה, ואחריהם לכישורי יתרון. אפשר לבחור גרסה אחרת לפני ההגשה.</p></div><label class="resume-selector">גרסת קורות חיים<select id="job-resume-select" onchange="updateResumeFit(this)">${resumes.map(resume=>`<option value="${resume.id}" data-filename="${esc(resume.filename||resume.label)}" data-fit='${esc(JSON.stringify(resume.fit||{}))}' ${resume.id===selected.id?'selected':''}>${resume.fit?.recommended?'מומלץ · ':''}${esc(resume.label)} · ${Number.isFinite(resume.fit?.score)?`${resume.fit.score}% כיסוי כישורים`:'אין מספיק מידע לחישוב'}</option>`).join('')}</select><small id="job-resume-filename" class="resume-selected-file" dir="auto" aria-live="polite"></small></label><div class="resume-fit" id="resume-fit" aria-live="polite"></div>`;
 }
 
 function updateResumeFit(select) {
+  const filename = $('#job-resume-filename');
+  if (filename) filename.textContent = select.selectedOptions[0]?.dataset.filename || '';
   let fit={};try{fit=JSON.parse(select.selectedOptions[0]?.dataset.fit||'{}')}catch{}
   const known=Number.isFinite(fit.score),groups=fit.groups||{};
   const labels={required:'חובה',preferred:'יתרון',supporting:'אזכורים נוספים'};
