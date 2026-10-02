@@ -1197,7 +1197,7 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
     identity = getattr(request.state, "identity", None)
     if not _developer_tools_allowed(identity):
         raise HTTPException(403, "Admin access required")
-    accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_login_at), desc(AppIdentity.last_seen_at), AppIdentity.id)).all()
+    accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_seen_at).nullslast(), AppIdentity.id)).all()
     return {
         "count": len(accounts),
         "max_users": max(1, int(settings.max_users or 10)),

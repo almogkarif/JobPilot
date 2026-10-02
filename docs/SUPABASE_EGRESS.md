@@ -4,6 +4,21 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Phone onboarding and developer activity ordering — October 2, 2026
+
+Onboarding changes are CSS and a scroll-position reset. Visual tests use the
+isolated phone fixture, synthetic resumes and blocked external traffic; ranking
+requests are stubbed. No production account or onboarding state is reset.
+The stylesheet stays below the existing 20 KiB static-asset ceiling.
+
+Developer users are ordered by last_seen_at descending, with missing timestamps
+last and ID as a stable tie breaker. This changes only ORDER BY in the existing
+single identity query: same account rows/columns and manual refresh frequency,
+no additional query, polling, catalog, Storage or model access. Incremental calls,
+rows and bytes per refresh/hour/day/cycle are zero. The regression test checks
+one identity SELECT and SQL ordering for both SQLite and PostgreSQL. No bulk
+scan/retry or production database read is performed for validation.
+
 ## Phone queue feedback and live application visibility — October 2, 2026
 
 Mobile background approval reuses the existing compact queue/tracker requests,

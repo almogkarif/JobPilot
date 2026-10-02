@@ -5858,6 +5858,7 @@ function onboardingSetStep(index){
     $('#onboarding-enter-now').onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()};
     onboardingStartRanking();
   }
+  content.scrollTop=0;
 }
 async function onboardingResume(event,droppedFile=null){
   const file=droppedFile||event.target.files?.[0]; if(!file)return;

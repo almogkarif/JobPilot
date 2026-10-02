@@ -167,15 +167,87 @@
   .source-health-label { font-size:11px; }
   .source-health { flex-wrap:wrap; gap:4px; }
   .source-health strong { font-size:11px; }
-  .onboarding-shell { display:flex; flex-direction:column; overflow:hidden; padding:16px 14px max(16px,env(safe-area-inset-bottom)); }
+  /* One full-height sheet, one content scroller, and a persistent navigation row. */
+  html:has(#onboarding-gate:not([hidden])) { overflow:hidden; }
+  .onboarding-gate { padding:0; }
+  .onboarding-shell {
+    display:flex; flex-direction:column; width:100%; height:100dvh; max-height:100dvh;
+    overflow:hidden; border:0; border-radius:0;
+    padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  }
   .onboarding-head, .onboarding-progress, .onboarding-actions { flex-shrink:0; }
+  .onboarding-head { gap:12px; }
+  .onboarding-head > span { white-space:nowrap; font-size:12px; }
+  .onboarding-brand.brand { min-width:0; min-height:40px; gap:8px; }
+  .onboarding-brand .onboarding-brand-mark { width:40px; height:40px; flex-basis:40px; }
+  .onboarding-brand .onboarding-wordmark { font-size:22px; }
   .onboarding-progress { margin:12px 0 16px; }
-  .onboarding-content { min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding-bottom:16px; }
-  .onboarding-actions { padding-top:12px; }
-  .onboarding-actions .btn { min-height:44px; }
+  .onboarding-content {
+    flex:1; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain;
+    scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; padding:4px 0 24px;
+    overflow-wrap:anywhere; scroll-padding-block:12px;
+  }
+  .onboarding-content h1 { font-size:26px; line-height:1.3; margin:10px 0 12px; }
+  .onboarding-content > p, .onboarding-hero > p, .onboarding-scan-stage > p { font-size:14px; line-height:1.7; margin:0 0 18px; }
+  .onboarding-hero.compact { padding:0; }
+  .onboarding-track-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .onboarding-track-card { grid-template-columns:40px minmax(0,1fr) auto; gap:10px; padding:14px 12px; border-radius:16px; }
+  .onboarding-track-symbol { width:40px; height:40px; border-radius:12px; font-size:15px; }
+  .onboarding-track-card strong { font-size:16px; }
+  .onboarding-track-card small { font-size:13px; }
+  .onboarding-upload { padding:24px 16px; margin-bottom:0; min-height:200px; }
+  .onboarding-upload input { width:1px; height:1px; }
+  .onboarding-upload strong { min-width:0; max-width:100%; font-size:16px; line-height:1.5; }
+  .onboarding-upload small { font-size:12px; }
+  .onboarding-skill-checks, .onboarding-choice-grid, .onboarding-choice-grid.compact, .onboarding-choice-grid.locations {
+    grid-template-columns:repeat(2,minmax(0,1fr)); max-height:none; overflow:visible;
+  }
+  .onboarding-skill-check { min-width:0; gap:8px; padding:10px; }
+  .onboarding-skill-check .checkmark { flex:0 0 23px; }
+  .onboarding-skill-check strong, .onboarding-choice strong { min-width:0; font-size:14px; line-height:1.4; }
+  .onboarding-choice { min-width:0; padding:10px 8px; }
+  .onboarding-chip { min-height:44px; font-size:14px; }
+  .onboarding-form, #onboarding-profile-review .form-grid { grid-template-columns:minmax(0,1fr); gap:14px; }
+  .onboarding-content :is(fieldset, legend, label) { min-width:0; max-width:100%; }
+  .onboarding-content :is(input, select, textarea) { min-width:0; max-width:100%; min-height:46px; }
+  .onboarding-field-heading { flex-wrap:wrap; gap:2px 8px; color:var(--muted); }
+  .onboarding-step-resume-review fieldset { padding:14px 12px; }
+  .onboarding-step-resume-review legend { font-size:15px; font-weight:750; padding-inline:4px; }
+  .onboarding-step-resume-review .employment-entry { padding:12px; }
+  .onboarding-step-resume-review .preference-help { padding:12px; border-radius:12px; background:var(--panel-2); font-size:13px; }
+  .onboarding-ready { width:100%; margin:0; gap:12px; }
+  .ready-eyebrow > span:last-child { padding:0; border:0; background:none; border-radius:0; }
+  .ready-spotlight { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; padding:16px; border-radius:18px; }
+  .ready-spotlight-main { align-items:flex-start; gap:10px; }
+  .ready-spotlight-main .onboarding-track-symbol { flex:0 0 40px; padding:0; border:0; border-radius:12px; background:var(--brand); color:#fff; }
+  .ready-pulse { position:static; justify-self:start; padding:6px 10px; }
+  .ready-pulse span { padding:0; border:0; background:none; font-size:12px; }
+  .ready-facts { margin:0; gap:8px; }
+  .ready-facts article { min-width:0; padding:12px 10px; gap:8px; }
+  .ready-facts article > span { flex:0 0 26px; width:26px; height:26px; }
+  .ready-facts article > div { min-width:0; }
+  .ready-facts article:last-child:nth-child(odd) { grid-column:1 / -1; }
+  .ready-facts small, .ready-next p { font-size:12px !important; }
+  .ready-facts strong, .ready-next strong { font-size:14px; }
+  .ready-next { margin:0; padding:14px 12px; }
+  .ready-next-icon { flex:0 0 34px; }
+  .onboarding-ranking-actions { display:grid; grid-template-columns:minmax(0,1fr); }
+  .onboarding-ranking-actions .btn { width:100%; min-width:0; min-height:48px; margin:0; white-space:normal; }
+  .onboarding-actions { position:static; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding-top:12px; }
+  .onboarding-actions:not(:has(button:not([hidden]))) { display:none; }
+  .onboarding-actions .btn { min-width:0; min-height:48px; font-size:16px; }
+  .onboarding-actions #onboarding-back { grid-column:1; grid-row:1; }
+  .onboarding-actions #onboarding-next { grid-column:2; grid-row:1; margin:0; }
+  .onboarding-actions #onboarding-skip { grid-column:1 / -1; min-height:44px; font-size:13px; color:var(--muted); }
   #mobile-tab-dock.mobile-tab-dock > button { flex-basis:72px; min-width:72px; }
   #mobile-tab-dock.mobile-tab-dock > button > strong { font-size:11px; }
   #mobile-tab-dock.mobile-tab-dock > button > span { font-size:21px; }
   #mobile-tab-dock.mobile-tab-dock > button > em { position:absolute; inset:4px auto auto 5px; min-width:18px; height:18px; padding:2px 4px; border-radius:9px; background:var(--danger); color:#fff; font-size:10px; font-style:normal; line-height:14px; }
   #toast { max-width:calc(100vw - 24px); bottom:var(--mobile-dock-clearance); overflow-wrap:anywhere; }
+}
+
+@media (max-width:1000px) and (max-height:500px) and (pointer:coarse) {
+  .onboarding-actions { grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr); }
+  .onboarding-actions #onboarding-next { grid-column:3; }
+  .onboarding-actions #onboarding-skip { grid-column:2; grid-row:1; }
 }

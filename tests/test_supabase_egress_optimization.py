@@ -22,6 +22,29 @@ from app.services.ranking.service import (
 )
 import app.main as main_module
 from tests.test_job_id_search import job_search_catalog
+from tests.test_developer_login_activity_ui import activity_roster
+
+
+def test_developer_activity_sort_reuses_one_identity_query(activity_roster):
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql, sqlite
+    from app.auth import AuthIdentity
+    statements = []
+    def record(state):
+        if state.is_select:
+            statements.append(state.statement)
+    event.listen(activity_roster, 'do_orm_execute', record)
+    request = SimpleNamespace(state=SimpleNamespace(identity=AuthIdentity('owner', 'owner@example.com', role='admin')))
+    try:
+        payload = main_module.admin_users(request, activity_roster)
+    finally:
+        event.remove(activity_roster, 'do_orm_execute', record)
+    assert payload['count'] == 4 and len(statements) == 1
+    for dialect in (postgresql.dialect(), sqlite.dialect()):
+        sql = str(statements[0].compile(dialect=dialect)).lower()
+        assert 'order by app_identity.last_seen_at desc nulls last, app_identity.id' in sql
+        assert 'join' not in sql and 'from app_identity' in sql
+        assert 'description' not in sql and 'profile' not in sql
 
 
 def test_exact_job_id_search_keeps_bounded_sql_reads_without_descriptions(job_search_catalog):
