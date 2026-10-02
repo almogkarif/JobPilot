@@ -30,6 +30,8 @@ SELECT and one SELECT/UPDATE pair per missing job; only statement acknowledgment
 cross the database connection. The existing per-source 8 KiB framing reservation
 and 64 MiB/day catalog transfer guard cover these bounded writes. Budgets and
 source/identity cardinality limits remain enforced before reconciliation.
+If no active identity is deactivated, the affected-row count skips the Job UPDATE
+entirely; unchanged scans do not issue per-source job writes or invalidate scores.
 
 Five additional cursors are <=2 KiB/source, or <=20 KiB for the scanner's two
 source reads per run: <=480 KiB/day and 14.1 MiB/30 days at hourly scans. Explicit

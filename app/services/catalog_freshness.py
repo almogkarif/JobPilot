@@ -30,8 +30,11 @@ def reconcile_source_availability(db, source_id: int, *, listed_external_ids=Non
     else:
         absent = JobSourceIdentity.external_id.in_(closed_external_ids)
     target = (JobSourceIdentity.source_id == source_id, absent)
-    db.execute(update(JobSourceIdentity).where(*target).values(is_active=False)
-               .execution_options(synchronize_session=False))
+    deactivated = db.execute(update(JobSourceIdentity).where(
+        *target, JobSourceIdentity.is_active.is_(True),
+    ).values(is_active=False).execution_options(synchronize_session=False))
+    if deactivated.rowcount == 0:
+        return 0
     closed_jobs = select(JobSourceIdentity.job_id).where(*target)
     live_identity = select(JobSourceIdentity.job_id).where(
         JobSourceIdentity.job_id == Job.id, JobSourceIdentity.is_active.is_(True),

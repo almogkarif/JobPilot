@@ -1627,7 +1627,8 @@ def test_live_application_visibility_reuses_compact_queries_without_descriptions
 
 
 @pytest.mark.parametrize('inventory', [None, (), ('still-open',)])
-def test_availability_reconciliation_returns_no_catalog_payload(inventory):
+@pytest.mark.parametrize('identity_changed', [False, True])
+def test_availability_reconciliation_returns_no_catalog_payload(inventory, identity_changed):
     from types import SimpleNamespace
     from sqlalchemy.dialects import postgresql
     from app.services.catalog_freshness import reconcile_source_availability
@@ -1635,13 +1636,16 @@ def test_availability_reconciliation_returns_no_catalog_payload(inventory):
     class DB:
         def execute(self, statement):
             statements.append(statement)
-            return SimpleNamespace(rowcount=1)
+            return SimpleNamespace(rowcount=int(identity_changed))
     assert reconcile_source_availability(DB(), 7, listed_external_ids=inventory,
-        closed_external_ids=('closed',), now=datetime.now(timezone.utc)) == 1
-    assert len(statements)==(2 if inventory is None else 3)
+        closed_external_ids=('closed',), now=datetime.now(timezone.utc)) == int(identity_changed)
+    assert len(statements)==(1 if inventory is None else 2) + int(identity_changed)
     for statement in statements:
         sql=str(statement.compile(dialect=postgresql.dialect())).lower()
         assert sql.startswith('update ')
         assert 'returning' not in sql and 'description' not in sql and 'select *' not in sql
         assert statement.get_execution_options()['synchronize_session'] is False
-    assert 'not (exists' in str(statements[-1].compile(dialect=postgresql.dialect())).lower()
+    if identity_changed:
+        assert 'not (exists' in str(statements[-1].compile(dialect=postgresql.dialect())).lower()
+    else:
+        assert all(statement.table.name == 'job_source_identities' for statement in statements)
