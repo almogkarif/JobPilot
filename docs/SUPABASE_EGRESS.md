@@ -21,6 +21,25 @@ diagnostic, not scheduled polling. Synthetic SQLite and PostgreSQL tests cover
 projection bounds, ownership and the enforced read-only transaction; the egress
 suite verifies one bounded metadata SELECT without file or catalog reads.
 
+## Explicit reconciliation of two accepted receipts — October 2, 2026
+
+The manual receipt workflow only covers the two observed ONE/Aman submissions.
+Its default preview is a read-only transaction. It reads one migration marker,
+one owned control anchor and at most three candidate jobs/owned applications for
+each exact posting: six projected SELECTs in the normal case. Titles, companies
+and states are SQL-capped; canonical aliases are bounded to four hops and three
+matches trigger rejection. No descriptions, applicant documents or Storage files
+leave the database. Preview does not import jobs, scan or submit anything.
+
+Explicit apply requires the unchanged preview digest, a serializable transaction
+and row/advisory locks. Per posting it writes at most one Application, one private
+UserJobState and one audit event, returning one new ID if needed. No worker attempt
+is fabricated and the sent local CV is not replaced with an unrelated cloud link.
+Conflicts, live workers or missing postings stop before mutation. Repeated runs
+preserve already-submitted history. Reserve 128 KiB per explicit invocation,
+<=1.25 MiB/day at ten runs/day, <=37.5 MiB/30 days; idle egress is zero. The egress
+regression uses large synthetic documents and verifies bounded metadata-only SQL.
+
 ## Explicit missing-attachment recovery — October 2, 2026
 
 The versioned October 2 recovery is manual, with preview as its default. It locks

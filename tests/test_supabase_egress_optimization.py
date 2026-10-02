@@ -59,6 +59,33 @@ def test_fixed_resume_recovery_only_reads_bounded_metadata_and_writes_four_links
     assert len(json.dumps(report).encode()) < 2048
 
 
+def test_receipt_reconciliation_keeps_catalog_and_applicant_documents_inside_db():
+    from scripts.reconcile_verified_local_submissions import reconcile
+    from tests.test_local_receipt_reconciliation import seed
+    from sqlalchemy import text
+    engine = create_engine('sqlite://')
+    seed(engine)
+    with engine.begin() as db:
+        db.execute(text("UPDATE jobs SET description=:large WHERE id IN (201,202)"),
+                   {'large': 'Long employer payload ' * 100_000})
+    statements = []
+    def capture(_c, _cu, statement, _p, _co, _many):
+        statements.append(' '.join(statement.lower().split()))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        with engine.connect() as db:
+            report = reconcile(db)
+        assert len(statements) == 6 and report['ready']
+        assert all(query.startswith('select ') and 'limit ' in query for query in statements)
+        assert not any(field in query for query in statements for field in (
+            'description', 'extracted_text', 'analysis_json', 'answers_json', 'select *',
+        ))
+        assert len(json.dumps(report).encode()) < 8192
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+        engine.dispose()
+
+
 def test_explicit_resume_metadata_diagnostic_is_one_bounded_projection(resume_metadata_db):
     from sqlalchemy import text
     from scripts.diagnose_application_resumes import read_report

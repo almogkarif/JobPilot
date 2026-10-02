@@ -1,0 +1,53 @@
+name: JobPilot reconcile verified local receipts
+
+on:
+  workflow_dispatch:
+    inputs:
+      employer:
+        description: 'Known receipt to inspect (only ONE 3568 and Aman 59694)'
+        required: true
+        type: choice
+        default: all
+        options: [all, one, aman]
+      apply:
+        description: 'Apply the exact preview; does not submit, scan, import jobs or download files'
+        required: true
+        type: boolean
+        default: false
+      expected_plan:
+        description: 'Exact plan_digest from a current preview (required when apply=true)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobpilot-reconcile-local-receipts
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install bounded maintenance dependencies
+        run: python -m pip install sqlalchemy==2.0.50 'psycopg[binary]==3.2.9'
+      - name: Preview or reconcile the known receipts
+        env:
+          JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
+          EMPLOYER: ${{ inputs.employer }}
+          APPLY_RECEIPTS: ${{ inputs.apply }}
+          EXPECTED_PLAN: ${{ inputs.expected_plan }}
+        run: |
+          args=(--employer "$EMPLOYER")
+          if [[ "$APPLY_RECEIPTS" == "true" ]]; then
+            args+=(--apply --expected-plan "$EXPECTED_PLAN")
+          fi
+          python scripts/reconcile_verified_local_submissions.py "${args[@]}"
