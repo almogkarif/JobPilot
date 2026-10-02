@@ -134,7 +134,14 @@ def prepare_resume(task: dict) -> str:
         if exc.response.status_code == 404:
             message = "קובץ קורות החיים שנבחר למועמדות אינו זמין. יש לבחור מחדש או להעלות את הקובץ לפני ניסיון נוסף. לא בוצעה שליחה."
         else:
-            message = f"השרת לא הצליח לספק את קובץ קורות החיים שנבחר (HTTP {exc.response.status_code}). לא בוצעה שליחה."
+            reason = exc.response.headers.get("X-JobPilot-File-Error", "")
+            known_reasons = {
+                "quota": "שירות האחסון חסם את הורדת הקו״ח בגלל מכסת השימוש או החיוב. נדרש טיפול של מנהל האתר לפני ניסיון נוסף.",
+                "access_denied": "לשרת אין הרשאה לקרוא את קובץ הקו״ח. נדרש טיפול בהרשאות האחסון לפני ניסיון נוסף.",
+                "configuration": "הגדרות האחסון של קובץ הקו״ח אינן תקינות. נדרש טיפול של מנהל האתר לפני ניסיון נוסף.",
+            }
+            detail = known_reasons.get(reason, f"השרת לא הצליח לספק את קובץ קורות החיים שנבחר (HTTP {exc.response.status_code}).")
+            message = f"{detail} לא בוצעה שליחה."
         raise RuntimeError(message) from exc
     except httpx.RequestError as exc:
         raise RuntimeError("הורדת קורות החיים נכשלה עקב תקלה בחיבור לשרת. לא בוצעה שליחה.") from exc

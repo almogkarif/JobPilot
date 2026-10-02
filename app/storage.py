@@ -112,6 +112,44 @@ def read_bytes(ref: str) -> bytes:
     return Path(ref).read_bytes()
 
 
+def file_read_error_kind(error: Exception) -> str:
+    """Classify an existing read failure without another request or private text."""
+    if isinstance(error, FileNotFoundError):
+        return "missing"
+    if isinstance(error, PermissionError):
+        return "access_denied"
+    if not isinstance(error, httpx.HTTPStatusError):
+        return "unavailable"
+    response = error.response
+    status = response.status_code
+    if status == 402:
+        return "quota"
+    if status in {401, 403}:
+        return "access_denied"
+    if status == 404:
+        return "missing"
+    if status == 400 and len(response.content) <= 8192:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        if isinstance(payload, dict):
+            code = payload.get("code") or payload.get("error")
+            code = code if isinstance(code, str) else ""
+            message = payload.get("message")
+            message = message if isinstance(message, str) else ""
+            if code == "NoSuchKey" or (
+                str(payload.get("statusCode")) == "404"
+                and message in {"Object not found", "The resource was not found"}
+            ):
+                return "missing"
+            if code in {"NoSuchBucket", "Bucket not found", "InvalidBucketName", "InvalidKey"}:
+                return "configuration"
+            if code in {"InvalidJWT", "AccessDenied", "InvalidSignature"}:
+                return "access_denied"
+    return "unavailable"
+
+
 def delete_ref(ref: str) -> None:
     if not ref:
         return

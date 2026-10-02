@@ -204,3 +204,60 @@ def test_resume_download_failure_stops_before_employer_form(
     assert expected_message in message and "לא בוצעה שליחה" in message
     assert "private-token" not in message
     assert page.closed
+
+
+@pytest.mark.parametrize('status,payload,expected_status,reason', [
+    (400, {'statusCode':'404','error':'not_found','message':'Object not found'}, 404, 'missing'),
+    (400, {'code':'NoSuchKey','message':'private-object-key'}, 404, 'missing'),
+    (400, {'code':'NoSuchBucket','message':'private-bucket'}, 503, 'configuration'),
+    (400, {'error':'InvalidJWT','message':'private-token'}, 503, 'access_denied'),
+    (402, {}, 503, 'quota'),
+    (403, {}, 503, 'access_denied'),
+    (500, {'message':'private-internal-error'}, 503, 'unavailable'),
+])
+def test_resume_storage_failures_are_actionable_without_exposing_private_details(
+    resume_delivery_db, monkeypatch, caplog, status, payload, expected_status, reason,
+):
+    db, application = resume_delivery_db
+    application.resume_path = 'supabase://private-bucket/private-cv.pdf'
+    db.commit()
+    calls = []
+    def fail(path):
+        calls.append(path)
+        httpx.Response(status, json=payload, request=httpx.Request(
+            'GET', 'https://storage.invalid/private-object?token=private-token',
+        )).raise_for_status()
+    monkeypatch.setattr(main_module, 'read_bytes', fail)
+    with pytest.raises(HTTPException) as error:
+        download_resume(db, application)
+    assert error.value.status_code == expected_status
+    assert error.value.headers['X-JobPilot-File-Error'] == reason
+    assert len(calls) == 1
+    assert 'private-' not in caplog.text + str(error.value.detail) + str(error.value.headers)
+    assert f'reason={reason}' in caplog.text
+
+
+@pytest.mark.parametrize('reason,fragment', [
+    ('quota', 'מכסת'), ('access_denied', 'הרשאה'), ('configuration', 'הגדרות'),
+    ('unavailable', 'HTTP 503'), ('untrusted-private-text', 'HTTP 503'),
+])
+def test_worker_reports_only_allowlisted_storage_reasons(monkeypatch, tmp_path, reason, fragment):
+    monkeypatch.setattr(run_agent, 'AGENT_CACHE_DIR', tmp_path)
+    monkeypatch.setattr(run_agent.httpx, 'get', lambda url, **_: httpx.Response(
+        503, headers={'X-JobPilot-File-Error':reason},
+        json={'detail':'private-object-key'}, request=httpx.Request('GET', url),
+    ))
+    with pytest.raises(RuntimeError) as error:
+        run_agent.prepare_resume({'application':{'id':33,'resume_path':'/selected.pdf'}})
+    assert fragment in str(error.value)
+    assert 'private' not in str(error.value)
+
+
+@pytest.mark.parametrize('body', [b'invalid JSON', b'[]', b'{"code":[],"error":{},"message":{}}',
+    b'{"code":"NoSuchKey","padding":"' + b'x'*8192 + b'"}'])
+def test_malformed_storage_errors_remain_generic(body):
+    response = httpx.Response(400, content=body, request=httpx.Request('GET','https://storage.invalid/file'))
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        assert storage_module.file_read_error_kind(error) == 'unavailable'

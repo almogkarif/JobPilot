@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import io
 import json
+import logging
 import mimetypes
 import re
 import secrets
@@ -104,7 +105,7 @@ from .services.user_job_state import attach_user_job_states, effective_status, s
 from .utils import dumps, loads
 from .auth import (AuthIdentity, application_agent_allowed, auth_public_config, authorize_web_request, authenticate_agent,
                    create_agent_device, device_dict, require_application_agent_owner)
-from .storage import cloud_storage_enabled, delete_ref, ensure_cloud_bucket, materialized_file, read_bytes, save_bytes
+from .storage import cloud_storage_enabled, delete_ref, ensure_cloud_bucket, file_read_error_kind, materialized_file, read_bytes, save_bytes
 from .security import credential_encryption_available, decrypt_credential, encrypt_credential
 
 STATIC_DIR = BASE_DIR / "app" / "static"
@@ -6125,14 +6126,16 @@ def agent_resume_file(application_id: int, request: Request, token: str = "", ag
         raise HTTPException(404, "Resume not found")
     try:
         content = read_bytes(resume_path)
-    except FileNotFoundError as exc:
-        raise HTTPException(404, "Resume not found") from exc
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
-            raise HTTPException(404, "Resume not found") from exc
-        raise HTTPException(503, "Resume storage unavailable") from exc
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(503, "Resume storage unavailable") from exc
+        reason = file_read_error_kind(exc)
+        logging.getLogger(__name__).warning(
+            "resume_delivery_failed application_id=%s reason=%s upstream_status=%s",
+            application.id, reason,
+            exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None,
+        )
+        status = 404 if reason == "missing" else 503
+        raise HTTPException(status, "Resume not found" if status == 404 else "Resume storage unavailable",
+                            headers={"X-JobPilot-File-Error": reason}) from exc
     filename = (resume.filename if resume else Path(resume_path).name) or "resume.pdf"
     safe_filename = Path(filename.replace("\r", "").replace("\n", "")).name or "resume.pdf"
     suffix = Path(safe_filename).suffix.lower()

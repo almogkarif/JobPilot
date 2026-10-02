@@ -1094,8 +1094,10 @@ def test_resume_delete_does_not_download_file_or_read_job_catalog():
     assert "read_bytes" not in request
 
 
-def test_worker_resume_delivery_reads_only_selected_metadata_and_one_file(monkeypatch):
-    from fastapi import Request
+@pytest.mark.parametrize('storage_status', [None, 400, 402, 503])
+def test_worker_resume_delivery_reads_only_selected_metadata_and_one_file(monkeypatch, storage_status):
+    import httpx
+    from fastapi import HTTPException, Request
     from app.config import settings
     from app.models import Application, ResumeProfile
     monkeypatch.setattr(settings, 'auth_mode', 'local')
@@ -1111,13 +1113,23 @@ def test_worker_resume_delivery_reads_only_selected_metadata_and_one_file(monkey
         db.add(application); db.commit(); db.expunge_all()
         monkeypatch.setattr(main_module, '_check_agent_token', lambda *_args, **_kwargs: None)
         reads = []
-        monkeypatch.setattr(main_module, 'read_bytes', lambda path: reads.append(path) or b'synthetic-resume')
+        def read_file(path):
+            reads.append(path)
+            if storage_status:
+                httpx.Response(storage_status, json={'code':'NoSuchKey'},
+                    request=httpx.Request('GET','https://storage.invalid/file')).raise_for_status()
+            return b'synthetic-resume'
+        monkeypatch.setattr(main_module, 'read_bytes', read_file)
         queries = []
         event.listen(engine, 'before_cursor_execute', lambda _c, _u, sql, *_args: queries.append(sql.lower()))
 
-        response = main_module.agent_resume_file(application.id, Request({'type': 'http', 'headers': []}), db=db)
-
-        assert response.body == b'synthetic-resume'
+        if storage_status:
+            with pytest.raises(HTTPException) as error:
+                main_module.agent_resume_file(application.id, Request({'type': 'http', 'headers': []}), db=db)
+            assert error.value.status_code == (404 if storage_status == 400 else 503)
+        else:
+            response = main_module.agent_resume_file(application.id, Request({'type': 'http', 'headers': []}), db=db)
+            assert response.body == b'synthetic-resume'
         assert reads == ['/current.pdf']
         metadata = [sql for sql in queries if 'from resume_profiles' in sql]
         assert len(metadata) == 1

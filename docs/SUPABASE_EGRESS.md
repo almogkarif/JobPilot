@@ -183,6 +183,26 @@ Validation uses isolated SQLite and synthetic documents with employer traffic
 blocked. Regression gates include test_live_application_visibility_reuses_compact_queries_without_descriptions,
 application live-visibility API tests, and Chromium/WebKit phone clipboard/queue tests.
 
+## Resume storage failure classification — October 2, 2026
+
+Worker file delivery now classifies the existing failed response without fetching
+it again. Supabase's legacy HTTP 400/object-not-found payload maps to a missing
+file; quota, access and configuration failures have separate allowlisted reason
+codes. Error payload inspection is limited to 8 KiB. Logs contain the application
+ID, fixed reason and upstream status only, never document references or tokens.
+The worker keeps its one-request, stop-before-employer behavior, and never
+substitutes a different CV or automatically retries the read.
+
+Added database/Storage requests and rows: zero per hour/day/30-day cycle. The
+existing bound remains one selected-file read (10 MiB maximum) and one compact
+version lookup per explicit attempt, as below. Only failed web responses gain a
+fixed header of under 64 bytes, not Supabase egress. The egress regression
+`test_worker_resume_delivery_reads_only_selected_metadata_and_one_file` now
+covers successful, missing, quota and unavailable outcomes with the same query
+and single-read bounds. `test_agent_resume_delivery.py` verifies classification,
+redaction and worker errors. This improves diagnosis; it does not establish which
+storage failure occurred in production or repair a deleted production file.
+
 ## Selected resume delivery recovery — October 2, 2026
 
 Worker delivery resolves the current path of the application's already selected
