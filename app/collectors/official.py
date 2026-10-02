@@ -241,6 +241,7 @@ PRESETS.update({
     "matrix-israel": _bounded_official_board("https://www.matrix.co.il/jobs/", "Matrix", trusted_israel_feed=True),
     "malam-team": _bounded_official_board("https://www.malamteam.com/careers/", "Malam Team", trusted_israel_feed=True),
     "one-technologies": {**_bounded_official_board("https://www.one1.co.il/careers/", "ONE Technologies", trusted_israel_feed=True), "inline_accordion": True, "id_pattern": r"[?&]share_job_id=(\d+)", "hydrate_details": False, "require_job_schema": False},
+    "aman": {"url": "https://www.aman.co.il/careers/all/", "company": "Aman"},
     "elad-systems": _bounded_official_board("https://www.eladsoft.com/careers/", "Elad Systems", trusted_israel_feed=True),
     "israel-post": _bounded_official_board("https://israelpost.co.il/%D7%90%D7%95%D7%93%D7%95%D7%AA/%D7%93%D7%A8%D7%95%D7%A9%D7%99%D7%9D/", "Israel Post", trusted_israel_feed=True),
     "ups-israel": _bounded_official_board("https://www.jobs-ups.com/", "UPS"),
@@ -334,6 +335,9 @@ class OfficialCareersCollector:
     """Reads verified, rendered official careers search pages."""
 
     async def collect(self, identifier: str, company_name: str = "") -> list[NormalizedJob]:
+        if identifier == "aman":
+            from .aman import collect_aman
+            return await collect_aman(company_name or "Aman")
         from .global_recovery_final import GLOBAL_FINAL_ROUTES, collect_global_recovery
         from .israeli_recovery_final import ISRAELI_FINAL_ROUTES, collect_israeli_final
         from .tech_recovery_final import TECH_RECOVERY_FINAL_IDENTIFIERS, collect_tech_recovery_final

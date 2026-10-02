@@ -235,6 +235,7 @@ _REQUESTED_EMPLOYER_SOURCES: tuple[tuple[str, str, str], ...] = (
     ("matrix-israel", "Matrix", "iem,cs,ee"),
     ("malam-team", "Malam Team", "iem,cs,ee"),
     ("one-technologies", "ONE Technologies", "iem,cs,ee"),
+    ("aman", "Aman", "iem,cs"),
     ("elad-systems", "Elad Systems", "iem,cs"),
     ("israel-post", "Israel Post", "iem,cs"),
     ("ups-israel", "UPS", "iem,cs"),

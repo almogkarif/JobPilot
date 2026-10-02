@@ -20,7 +20,7 @@ MAX_BATCH = 20
 MAX_CANDIDATES = 2000
 MAX_CHECKPOINT_BYTES = 2048
 INCREMENTAL_SOURCES = frozenset({
-    'oracle', 'ormat', 'elad-systems', 'fox-group', 'icl', 'nextsilicon', 'paloalto',
+    'oracle', 'ormat', 'elad-systems', 'fox-group', 'icl', 'nextsilicon', 'paloalto', 'aman',
 })
 _CURRENT = ContextVar('collector_window', default=None)
 

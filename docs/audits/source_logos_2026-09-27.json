@@ -28,6 +28,14 @@
       "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faidoc.com&sz=128"
     },
     {
+      "domain": "aman.co.il",
+      "file": "aman.co.il-52305cca772a.png",
+      "sha256": "52305cca772afdaf6a7bf26d3f7894a6210a47b70fb0f7d15caaaf266c99a503",
+      "bytes": 2026,
+      "source_url": "https://www.google.com/s2/favicons?domain_url=https%3A%2F%2Faman.co.il&sz=128",
+      "checked_at": "2026-10-02"
+    },
+    {
       "domain": "amazon.com",
       "file": "amazon.com-7e67fb8e6c43.png",
       "sha256": "7e67fb8e6c43002e09c7d363f3b158a716dc09f4043cc058bcc01b206bbd097d",
@@ -1895,6 +1903,7 @@
     "ScyllaDB",
     "Classiq",
     "Oligo Security",
-    "Quantum Machines"
+    "Quantum Machines",
+    "Aman"
   ]
 }

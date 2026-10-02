@@ -712,11 +712,15 @@ def test_requested_employer_expansion_is_bounded_and_static_only():
 
     # Generic links must be verified against bounded HTTP detail pages.
     # They still never launch Chromium or perform unbounded detail hydration.
-    assert len(IEM_RECOMMENDED_SOURCES) <= 111  # Seven verified, single-response employer feeds added.
+    assert len(IEM_RECOMMENDED_SOURCES) <= 112  # Adds one bounded, separately tested Aman reader.
     for identifier, _company, _tracks in _REQUESTED_EMPLOYER_SOURCES:
         if identifier == "apple":  # Existing dynamic adapter, tested separately.
             continue
         preset = PRESETS[identifier]
+        if identifier == "aman":  # Dedicated read-only browser adapter, bounded below.
+            from app.collectors.aman import BOARD
+            assert preset['url'] == BOARD
+            continue
         assert preset["http_first"] is True
         assert preset["static_only"] is True
         if identifier == "teva":
@@ -1788,3 +1792,19 @@ def test_cyera_inventory_reuses_one_bounded_public_board_request(monkeypatch):
     with pytest.raises(PreserveExistingJobs):
         asyncio.run(official.OfficialCareersCollector().collect('cyera'))
     assert calls == [BOARD]
+
+
+def test_aman_source_bounds_inventory_details_and_persistent_checkpoint(monkeypatch):
+    from app.collectors import aman
+    from app.collectors.incremental import clean_checkpoint, collection_window
+    from tests.test_aman_collector import mock_reader
+    calls = mock_reader(monkeypatch, total=400)
+    with collection_window(timeout=60) as window:
+        jobs = asyncio.run(aman.collect_aman())
+    assert len(calls) == 40 + 20 and len(jobs) == 20
+    assert len(jobs.listed_external_ids) == 400
+    checkpoint = clean_checkpoint(window.checkpoint)
+    assert len(json.dumps(checkpoint)) <= 2048
+    assert set(checkpoint) <= {'v', 'scope', 'cursor', 'retry', 'page'}
+    assert all(len(job.description) <= 24000 for job in jobs)
+    assert aman.MAX_HTML_BYTES == 512 * 1024

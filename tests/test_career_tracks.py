@@ -362,7 +362,11 @@ def test_requested_employers_are_track_scoped_and_have_bounded_collectors():
     }
     for identifier, _company, tracks in _REQUESTED_EMPLOYER_SOURCES:
         assert identifier in OFFICIAL_PRESETS
-        if identifier not in {"apple"}:
+        if identifier == "aman":
+            from app.collectors.aman import BOARD, MAX_DETAILS, MAX_PAGES
+            assert OFFICIAL_PRESETS[identifier]['url'] == BOARD
+            assert MAX_DETAILS == 20 and MAX_PAGES == 40
+        elif identifier != "apple":
             assert OFFICIAL_PRESETS[identifier]["static_only"] is True
             assert OFFICIAL_PRESETS[identifier]["http_first"] is True
         for track in tracks.split(","):

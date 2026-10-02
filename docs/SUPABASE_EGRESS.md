@@ -21,6 +21,41 @@ diagnostic, not scheduled polling. Synthetic SQLite and PostgreSQL tests cover
 projection bounds, ownership and the enforced read-only transaction; the egress
 suite verifies one bounded metadata SELECT without file or catalog reads.
 
+## Aman source collection — October 2, 2026
+
+The new source reads at most 40 public listing pages (10 jobs/page, <=400 current
+IDs) and 20 full descriptions per explicit/hourly scan. Ordinary isolated Chromium
+runs with JavaScript and service workers disabled; only same-site GET document
+navigations are allowed, with no scripts, images, forms, authentication or POSTs.
+Each navigation has a 12-second timeout; the existing 45-second source deadline
+and a reserved detail interval bound each scan. The parser rejects HTML over
+512 KiB after the browser has loaded it; this is a parsing bound, not a promise
+that Chromium stops a remote response at exactly that byte. The verified samples
+were 130,177/130,947 bytes for two listing pages and 83,609 bytes for one detail.
+All employer traffic is external to Supabase.
+
+The existing 20-detail cursor and a bounded page ordinal rotate incomplete scans.
+Only a same-run complete inventory with consistent totals, pages and unique IDs
+authorizes absence-based closure; partial/blocked pages preserve unseen jobs.
+The inventory is transient. At most 24,000 characters per accepted description
+enter the existing scanner; unchanged jobs still use compact comparisons, never
+description downloads. No new query implementation, polling schedule or Storage
+read is introduced. One catalog definition is added (CS/IEM; one shared source
+after consolidation); normal initialization remains idempotent.
+
+The existing egress reservation charges this source before persistence: with
+400 historical identities and 20 details, allow 160 KiB/scan (<=3.75 MiB/day at
+hourly scans), including up to 1,020 UTF-8 bytes for the catalog's longest existing
+255-character external ID. At the existing 10,000-identity historical ceiling,
+allow 640 KiB per scan (<=15 MiB/day, 450 MiB/30 days), within the unchanged aggregate 64 MiB/day
+catalog guard. The source's <=2 KiB checkpoint adds <=4 KiB to its two scanner
+source reads, <=96 KiB/day or 2.82 MiB/30 days. Existing source-list/startup reads
+gain one small source row; reserve <=4 KiB/read (100 deliberate reads/restarts
+per day: <=400 KiB/day). The logo is a bundled 2,026-byte static image, never a
+Supabase object. No scheduled scan or production installation was run for this
+validation. Tests verify the 40+20 request ceiling, <=2 KiB checkpoint, cursor
+rotation, partial/empty inventories, identity binding and blocked POSTs.
+
 ## Dashboard company diversity — October 2, 2026
 
 The existing top-five SELECT now uses an SQL window to favour different companies
