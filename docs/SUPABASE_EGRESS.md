@@ -4,6 +4,23 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Explicit resume metadata diagnosis — October 2, 2026
+
+The manual diagnostic workflow accepts 1–10 explicit application IDs. A separate
+script opens a PostgreSQL read-only transaction, with 5-second statement and
+1-second lock timeouts, and executes one projected SELECT returning at most ten
+rows. Owned resume lookups have LIMIT 1; filenames are SQL-clipped to 300 characters
+and status/track to 40. Paths are compared only inside SQL and are never returned.
+There are no descriptions, profile documents, Storage downloads, startup hooks,
+scans, repairs or retries. Missing applications are reported without a second read.
+
+Incremental idle egress is 0 bytes/hour/day. Allow a conservative 64 KiB including
+connection and protocol overhead per deliberate run; ten runs/hour or day are at
+most 640 KiB, and ten runs/day for 30 days are at most 18.75 MiB. This is an operator
+diagnostic, not scheduled polling. Synthetic SQLite and PostgreSQL tests cover
+projection bounds, ownership and the enforced read-only transaction; the egress
+suite verifies one bounded metadata SELECT without file or catalog reads.
+
 ## Dashboard company diversity — October 2, 2026
 
 The existing top-five SELECT now uses an SQL window to favour different companies

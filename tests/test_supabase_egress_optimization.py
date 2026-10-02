@@ -25,6 +25,37 @@ from tests.test_job_id_search import job_search_catalog
 from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
 from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
+from tests.test_application_resume_metadata import resume_metadata_db
+
+
+def test_explicit_resume_metadata_diagnostic_is_one_bounded_projection(resume_metadata_db):
+    from sqlalchemy import text
+    from scripts.diagnose_application_resumes import read_report
+    db = resume_metadata_db
+    # Many unrelated rows must not leave the database, nor may long text payloads.
+    db.execute(text("INSERT INTO applications (id,user_id,job_id,status,originating_track,resume_path) "
+                    "VALUES (:id,'unrequested-owner',1,'failed','','/private/unused.pdf')"),
+               [{'id': value} for value in range(1000, 1200)])
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        statements.append((' '.join(sql.lower().split()), parameters))
+    event.listen(db, 'before_cursor_execute', capture)
+    try:
+        report = read_report(db, list(range(1, 11)))
+    finally:
+        event.remove(db, 'before_cursor_execute', capture)
+    assert len(statements) == 1 and len(report['applications']) == 8
+    sql, parameters = statements[0]
+    assert sql.startswith('select ') and 'where a.id in (' in sql and 'limit ?' in sql
+    assert parameters == (*range(1, 11), 10)
+    assert sql.count('limit 1') == 2  # At most one same-path candidate and one owned track default.
+    assert 's.user_id = a.user_id' in sql and sql.count('r.user_id = a.user_id') == 2
+    assert 'substr(' in sql and not any(field in sql for field in (
+        'description', 'extracted_text', 'answers_json', 'analysis_json', 'select *', 'from profiles',
+    ))
+    for row in report['applications']:
+        assert not any(name in row for name in ('path', 'resume_path', 'user_id'))
+    assert len(json.dumps(report).encode()) < 16 * 1024
 
 
 def test_dashboard_company_diversity_stays_in_one_five_row_query(dashboard_diversity_catalog):
