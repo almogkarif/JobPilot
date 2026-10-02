@@ -170,6 +170,38 @@ def test_phone_screens_fit_and_navigation_remains_reachable(phone, width, theme)
     page.locator('#notification-close').tap()
 
 
+@pytest.mark.parametrize('width,height', [(320,700), (390,844), (844,390)])
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_notification_header_stays_separate_from_scrolling_progress(phone, width, height, theme):
+    page, work = phone
+    page.set_viewport_size({'width':width,'height':height})
+    page.evaluate('theme=>applyTheme(theme)', theme)
+    page.evaluate('startApplicationTracking(105,true,true)')
+    expect(page.locator('#notification-center .application-live-tracker')).to_be_visible()
+    center = page.locator('#notification-center')
+    head = page.locator('.notification-head')
+    content = page.locator('#notification-list')
+    close = page.locator('#notification-close')
+    page.wait_for_timeout(250)
+    initial = head.bounding_box()
+    assert content.evaluate('el=>el.scrollHeight>el.clientHeight')
+    for end in (False, True):
+        content.evaluate('(el,end)=>el.scrollTop=end?el.scrollHeight:300', end)
+        page.wait_for_timeout(100)
+        assert content.evaluate('el=>el.scrollTop') > 0
+        panel, header, body = center.bounding_box(), head.bounding_box(), content.bounding_box()
+        assert header['y'] == pytest.approx(initial['y'], abs=1)
+        assert body['y'] >= header['y'] + header['height'] - 1
+        assert body['y'] + body['height'] <= panel['y'] + panel['height'] + 1
+        assert panel['y'] + panel['height'] <= page.locator('#mobile-tab-dock').bounding_box()['y']
+        assert close.evaluate('el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}')
+        fits_viewport(page.locator('#notification-center, .notification-head, #notification-list'), width)
+        if not end:
+            page.screenshot(path=str(work/f'notification-header-{theme}-{width}.png'))
+    close.tap()
+    expect(center).not_to_have_class('notification-center open')
+
+
 def test_phone_search_filters_collapse_without_losing_selection(phone):
     page, _ = phone
     page.locator('[data-mobile-view="jobs"]').tap()
