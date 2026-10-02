@@ -340,7 +340,7 @@ def test_generic_career_links_require_job_posting_evidence(monkeypatch):
     row = {'href':'https://example.com/careers/software', 'title':'Software Engineering',
            'linkText':'Software Engineering', 'text':'A department, not an open job. ' * 20}
     async def static(preset): return [row]
-    async def hydrate(rows, preset): return rows
+    async def hydrate(rows, preset, *, retain_unavailable=False): return rows
     monkeypatch.setattr(official, '_collect_static_rows', static)
     monkeypatch.setattr(official, '_hydrate_detail_rows', hydrate)
     monkeypatch.setitem(official.PRESETS, 'qa-generic', official._bounded_official_board('https://example.com/careers', 'QA'))

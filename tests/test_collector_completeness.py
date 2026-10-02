@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import asynccontextmanager
+import httpx
 from types import SimpleNamespace
 
 import pytest
@@ -13,19 +15,23 @@ def test_workday_cap_or_early_empty_page_is_not_a_complete_snapshot(monkeypatch,
         def __init__(self, **kwargs): pass
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            yield await getattr(self, method.lower())(url, **kwargs)
         async def post(self, url, *, json):
             offset = json['offset']
             pages.append(offset)
             rows = [{'externalPath': f'/job/Israel-Haifa/Engineer_{i}', 'title': f'Engineer {i}'}
                     for i in range(offset, min(offset + 20, stop_at))]
-            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {'total': total, 'jobPostings':rows})
+            return httpx.Response(200, json={'total': total, 'jobPostings':rows}, request=httpx.Request('POST',url))
         async def get(self, url):
-            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {'jobPostingInfo':{'jobDescription':'Build and test reliable software services.'}})
+            return httpx.Response(200, json={'jobPostingInfo':{'jobDescription':'Build and test reliable software services.'}}, request=httpx.Request('GET',url))
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
     rows = asyncio.run(workday.WorkdayCollector().collect('intel'))
     assert rows.complete is expected_complete
     assert len(rows) == min(stop_at,100)
-    assert len(pages) <= 5
+    assert len(pages) <= max(1, (min(total,workday.MAX_INVENTORY_RESULTS)+19)//20)
+    assert rows.listed_external_ids == (tuple(str(i) for i in range(total)) if stop_at>=total else None)
 
 
 def test_workday_location_facets_use_israel_and_not_illinois():
@@ -47,8 +53,11 @@ def test_success_http_with_missing_job_list_is_not_verified_empty(monkeypatch, p
         def __init__(self, **kwargs): pass
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            yield await getattr(self, method.lower())(url, **kwargs)
         async def post(self, *args, **kwargs):
-            return SimpleNamespace(raise_for_status=lambda:None, json=lambda:payload)
+            return httpx.Response(200,json=payload,request=httpx.Request('GET',args[0]))
         get = post
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
     collector = {'workday':workday.WorkdayCollector, 'smartrecruiters':smartrecruiters.SmartRecruitersCollector,
@@ -65,6 +74,9 @@ def test_verified_empty_public_feed_remains_valid(monkeypatch, provider, payload
         def __init__(self, **kwargs): pass
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            yield await getattr(self, method.lower())(url, **kwargs)
         async def get(self, *args, **kwargs):
             return SimpleNamespace(raise_for_status=lambda:None, json=lambda:payload)
     monkeypatch.setattr(workday.httpx, 'AsyncClient', Client)
@@ -81,6 +93,9 @@ def test_detail_access_block_reports_identity_and_never_claims_complete(provider
         def __init__(self,**kwargs):pass
         async def __aenter__(self):return self
         async def __aexit__(self,*args):pass
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            yield await getattr(self, method.lower())(url, **kwargs)
         async def post(self,url,**kwargs):
             return httpx.Response(200,json={'total':1,'jobPostings':[{'externalPath':'/job/Israel-Haifa/Engineer_123','bulletFields':['123'],'title':'Software Engineer'}]},request=httpx.Request('POST',url))
         async def get(self,url,**kwargs):

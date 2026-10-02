@@ -214,7 +214,8 @@ def fallback_job(uid, *, location="Ramat Gan, Israel"):
 
 def install_primary(monkeypatch, rows):
     async def listing(_preset): return rows
-    async def hydrate(given, _preset): return [r for r in given if not r.get("_invalid_detail")]
+    async def hydrate(given, _preset, *, retain_unavailable=False):
+        return given if retain_unavailable else [r for r in given if not r.get("_invalid_detail")]
     monkeypatch.setattr(official, "_collect_static_rows", listing)
     monkeypatch.setattr(official, "_hydrate_detail_rows", hydrate)
 
@@ -231,6 +232,7 @@ def test_retym_scoped_fallback_does_not_replace_or_revive_or_change_links(monkey
     assert jobs[0].title == "Primary Engineer" and jobs[1].title == "Fallback Engineer"
     assert jobs[1].source_url == primary_row("01.ABC")["href"] == jobs[1].apply_url
     assert not jobs.blocked_external_ids and not jobs.complete and len(calls) == 1
+    assert jobs.closed_external_ids == ("02.ABC",)
     validate_source_payload("Retym", jobs)
 
 

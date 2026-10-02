@@ -75,7 +75,7 @@ def current_window():
     return _CURRENT.get()
 
 
-async def collect_detail_batch(candidates, fetch_one, *, key, scope, concurrency=4):
+async def collect_detail_batch(candidates, fetch_one, *, key, scope, concurrency=4, batch_size=MAX_BATCH):
     """Return completed details; keep slow/failed items eligible for later runs.
 
     IDs are ordered by stable hashes, so insertion/reordering cannot invalidate
@@ -106,7 +106,8 @@ async def collect_detail_batch(candidates, fetch_one, *, key, scope, concurrency
     if not forward:
         cursor, forward = '', ordered
     retry_selection = retries[:2]
-    fresh = [token for token in forward if token not in retry_selection][:MAX_BATCH - len(retry_selection)]
+    batch_size = max(2, min(120, int(batch_size)))
+    fresh = [token for token in forward if token not in retry_selection][:batch_size - len(retry_selection)]
     selected = retry_selection + fresh
     semaphore = asyncio.Semaphore(max(1, min(4, concurrency)))
 

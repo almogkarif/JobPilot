@@ -23,6 +23,28 @@ from app.services.ranking.service import (
 import app.main as main_module
 from tests.test_job_id_search import job_search_catalog
 from tests.test_developer_login_activity_ui import activity_roster
+from tests.test_application_tracking_access import personal_tracking
+
+
+def test_personal_tracking_is_two_bounded_metadata_queries(personal_tracking):
+    client,_,engine=personal_tracking
+    statements=[]
+    def capture(_conn,_cursor,statement,parameters,_context,_many):
+        if statement.lstrip().upper().startswith('SELECT'):
+            statements.append((statement.lower(),parameters))
+    event.listen(engine,'before_cursor_execute',capture)
+    try:
+        response=client.get('/api/applications/tracking-list',headers={'Authorization':'alpha'})
+    finally:
+        event.remove(engine,'before_cursor_execute',capture)
+    assert response.status_code==200 and len(response.json())==5
+    assert len(statements)==2
+    assert 'profiles.active_career_track' in statements[0][0] and 'limit' in statements[0][0]
+    sql,params=statements[1]
+    assert 'limit' in sql and 100 in params and 'alpha' in params
+    assert 'substr(jobs.title' in sql and 'substr(jobs.company' in sql
+    for sql,_ in statements:
+        assert not any(field in sql for field in ('description','application_profile_json','extracted_text','evidence_json','answers_json'))
 
 
 def test_developer_activity_sort_reuses_one_identity_query(activity_roster):
@@ -192,7 +214,7 @@ def test_interactive_live_view_polling_is_bounded_and_payload_is_tiny():
 
 def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history():
     javascript = (main_module.STATIC_DIR / "app.js").read_text(encoding="utf-8")
-    assert "if(!applicationsWorkspaceAllowed())return trackingApplications" in javascript
+    assert "if(!applicationTrackingAllowed())return trackingApplications" in javascript
     assert "if(!applicationsWorkspaceAllowed())return setAutoApplyQueue(state.autoApplyQueue)" in javascript
     assert "APPLICATION_TRACKING_MAX_MS=15*60*1000" in javascript
     assert "APPLICATION_TIMELINE_MAX_FETCHES=12" in javascript
@@ -636,7 +658,9 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
     # per board (discovery + two 20-row pages + 40 details), no database reads.
     from app.collectors import workday
     body = Path(workday.__file__).read_text()
-    assert "max_results = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS" in body
+    assert "detail_limit = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS" in body
+    assert "max_results = MAX_INVENTORY_RESULTS if full_inventory else detail_limit" in body
+    assert not workday.FULL_INVENTORY_IDENTIFIERS.intersection(EXPANSION_WORKDAY_IDENTIFIERS)
     from app.collectors.official import PRESETS
     from app.collectors.eightfold import MAX_LIST_PAGES, MAX_DETAILS
     assert (MAX_LIST_PAGES, MAX_DETAILS) == (2, 40)
@@ -1590,6 +1614,9 @@ def test_live_application_visibility_reuses_compact_queries_without_descriptions
     assert '.limit(100)' in diagnostics
     assert 'Job.is_active.is_(True), _application_in_track(career_track)' in dashboard
     javascript = (main_module.STATIC_DIR / 'app.js').read_text()
+    trigger = javascript[javascript.index("$('#notification-trigger').onclick"):javascript.index("$('#notification-close').onclick")]
+    assert 'openNotifications()' in trigger and 'closeNotifications()' in trigger
+    assert 'setInterval' not in trigger
     queue = javascript[javascript.index('async function confirmApplicationPreview'):javascript.index('window.confirmApplicationPreview')]
     mobile = queue[queue.index('if (phoneBackground)'):queue.index('} else {')]
     assert 'loadDashboard' not in mobile and 'loadJobs' not in mobile
@@ -1597,3 +1624,24 @@ def test_live_application_visibility_reuses_compact_queries_without_descriptions
     copy = javascript[javascript.index('async function copyApplicationFailureDiagnostics'):javascript.index('window.moveTrackedApplication')]
     assert 'refreshTrackingApplications' not in copy
     assert 'application_ids=' not in copy
+
+
+@pytest.mark.parametrize('inventory', [None, (), ('still-open',)])
+def test_availability_reconciliation_returns_no_catalog_payload(inventory):
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql
+    from app.services.catalog_freshness import reconcile_source_availability
+    statements=[]
+    class DB:
+        def execute(self, statement):
+            statements.append(statement)
+            return SimpleNamespace(rowcount=1)
+    assert reconcile_source_availability(DB(), 7, listed_external_ids=inventory,
+        closed_external_ids=('closed',), now=datetime.now(timezone.utc)) == 1
+    assert len(statements)==(2 if inventory is None else 3)
+    for statement in statements:
+        sql=str(statement.compile(dialect=postgresql.dialect())).lower()
+        assert sql.startswith('update ')
+        assert 'returning' not in sql and 'description' not in sql and 'select *' not in sql
+        assert statement.get_execution_options()['synchronize_session'] is False
+    assert 'not (exists' in str(statements[-1].compile(dialect=postgresql.dialect())).lower()

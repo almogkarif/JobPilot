@@ -451,13 +451,17 @@ class OfficialCareersCollector:
             raise rendered_error from static_error
 
         if preset.get("hydrate_details") and rows:
-            rows = await _hydrate_detail_rows(rows, preset)
+            rows = await _hydrate_detail_rows(rows, preset, retain_unavailable=True)
 
-        blocked_ids = tuple(str(row.get("_external_id") or match.group(1)) for row in rows if row.get("_detail_blocked")
+        blocked_ids = tuple(str(row.get("_external_id") or match.group(1)) for row in rows if row.get("_detail_blocked") and not row.get("_invalid_detail")
                             and (match := _resolve_row_href(row, preset)[1]))
+        closed_ids = tuple(str(row.get("_external_id") or match.group(1)) for row in rows if row.get("_invalid_detail")
+                           and (match := _resolve_row_href(row, preset)[1]))
         results: dict[str, NormalizedJob] = {}
         rejected = {"detail": 0, "schema": 0, "identity": 0, "navigation": 0}
         for row in rows:
+            if row.get("_invalid_detail"):
+                continue
             if row.get("_detail_blocked"):
                 rejected["detail"] += 1
                 continue
@@ -552,13 +556,14 @@ class OfficialCareersCollector:
                 diagnostics.record("retym_fallback", requested=sorted(missing),
                                    recovered=sorted(recovered), remaining=sorted(missing - recovered))
         normalized = list(results.values())
-        if not normalized:
+        if not normalized and not closed_ids:
             raise PreserveExistingJobs(
                 f"{preset['company']} did not expose a reliable job payload; "
                 f"candidate_rows={len(rows)}, rejected={rejected}; preserving the last successful snapshot",
                 blocked_external_ids=blocked_ids
             ) from (static_error or rendered_error)
-        return JobCollection(normalized, complete=False, blocked_external_ids=blocked_ids)
+        return JobCollection(normalized, complete=False, blocked_external_ids=blocked_ids,
+                             closed_external_ids=closed_ids)
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:

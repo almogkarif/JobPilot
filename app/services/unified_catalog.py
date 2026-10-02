@@ -230,6 +230,7 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
     from ..collectors.incremental import (
         CHECKPOINT_KEY, INCREMENTAL_SOURCES, clean_checkpoint, collection_window,
     )
+    from ..collectors.workday import FULL_INVENTORY_IDENTIFIERS
     from .scanner import SOURCE_SCAN_CONCURRENCY, SOURCE_SCAN_TIMEOUT_SECONDS, _record_source_scan_state
     from .source_quality import validate_source_payload
     from .job_text import clean_job_text
@@ -262,7 +263,8 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
             try:
                 timeout = 90 if source.kind == 'official_careers' and source.identifier == 'iai' else SOURCE_SCAN_TIMEOUT_SECONDS
                 metadata = loads(source.metadata_json, {})
-                incremental = source.kind == 'official_careers' and source.identifier in INCREMENTAL_SOURCES
+                incremental = ((source.kind == 'official_careers' and source.identifier in INCREMENTAL_SOURCES)
+                               or (source.kind == 'workday' and source.identifier in FULL_INVENTORY_IDENTIFIERS))
                 with (collection_window(metadata.get(CHECKPOINT_KEY) if isinstance(metadata, dict) else None, timeout)
                       if incremental else nullcontext()) as window:
                     items = await asyncio.wait_for(COLLECTORS[source.kind]().collect(source.identifier, source.company_name), timeout)
@@ -271,9 +273,13 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     # Even a wrapped cursor is not a complete instantaneous board
                     # snapshot and must never deactivate unvisited vacancies.
                     items = JobCollection(items, complete=False,
-                                          blocked_external_ids=getattr(items, 'blocked_external_ids', ()))
-                if len(items) > 2000:
+                                          blocked_external_ids=getattr(items, 'blocked_external_ids', ()),
+                                          closed_external_ids=getattr(items, 'closed_external_ids', ()),
+                                          listed_external_ids=getattr(items, 'listed_external_ids', None))
+                if len(items) + len(getattr(items, 'closed_external_ids', ())) > 2000:
                     raise PreserveExistingJobs('Source exceeded the 2000-posting local scan bound')
+                if len(getattr(items, 'listed_external_ids', None) or ()) > 2000:
+                    raise PreserveExistingJobs('Source inventory exceeded the 2000-posting scan bound')
                 for item in items:
                     item.description = clean_job_text(item.description)
                 validate_source_payload(source.name, items)
@@ -435,19 +441,14 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                     # Synchronous persistence must not starve in-flight HTTP/browser
                     # collectors or their timeout callbacks for an entire source.
                     await asyncio.sleep(0)
-                if complete:
-                    absent = list(db.scalars(select(JobSourceIdentity.job_id).where(
-                        JobSourceIdentity.source_id == source.id, JobSourceIdentity.is_active.is_(True),
-                        JobSourceIdentity.external_id.not_in(israel_seen or [''])).limit(MAX_SOURCE_IDENTITIES + 1)))
-                    if len(absent) > MAX_SOURCE_IDENTITIES:
-                        raise RuntimeError('Concurrent source identity growth exceeded reconciliation budget')
-                    db.execute(update(JobSourceIdentity).where(JobSourceIdentity.source_id == source.id,
-                        JobSourceIdentity.external_id.not_in(israel_seen or [''])).values(is_active=False))
-                    for job_id in set(absent):
-                        if not db.scalar(select(JobSourceIdentity.job_id).where(JobSourceIdentity.job_id == job_id,
-                            JobSourceIdentity.is_active.is_(True)).limit(1)):
-                            db.execute(update(Job).where(Job.id == job_id).values(is_active=False, removed_at=now))
-                            totals['removed'] += 1
+                closed_ids = set(getattr(items, 'closed_external_ids', ())) - seen
+                listed_ids = getattr(items, 'listed_external_ids', None)
+                inventory_seen = set(listed_ids) - closed_ids if listed_ids is not None else israel_seen
+                from .catalog_freshness import reconcile_source_availability
+                source_removed = reconcile_source_availability(db, source.id,
+                    listed_external_ids=inventory_seen if complete or listed_ids is not None else None,
+                    closed_external_ids=closed_ids, now=now)
+                totals['removed'] += source_removed
                 if changed:
                     # Source changes invalidate every user's track score, not only scanner scope.
                     db.connection().execute(JobRanking.__table__.update().where(JobRanking.job_id.in_(changed)).values(stale=True))
@@ -472,7 +473,9 @@ async def scan_unified_catalog(db, source_ids, progress_callback, career_track, 
                 totals['unchanged'] += source_unchanged
                 db.commit()
                 per_source.append({'source': source.name, 'collected': len(seen), 'israel_found': source_israel, 'found': source_found,
-                                   'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete, 'error': '', **batch})
+                                   'new': source_new, 'updated': source_updated, 'unchanged': source_unchanged, 'partial': not complete,
+                                   **({'inventory_verified': True, 'inventory_count': len(inventory_seen)} if listed_ids is not None else {}),
+                                   'error': '', **batch})
             if progress_callback:
                 progress_callback({'phase': 'scanning', 'current': completed, 'completed': completed,
                                    'total': len(sources), 'current_source': source.name,

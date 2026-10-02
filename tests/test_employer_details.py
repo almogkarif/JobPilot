@@ -149,7 +149,7 @@ def test_rafael_challenge_preserves_snapshot_instead_of_accepting_summary(monkey
     assert rows[0]['_detail_blocked']
     async def listing(*args):
         return rows
-    async def hydration(*args):
+    async def hydration(*args, **kwargs):
         return rows
     monkeypatch.setattr(official, '_collect_static_rows', listing)
     monkeypatch.setattr(official, '_hydrate_detail_rows', hydration)
@@ -168,7 +168,7 @@ def test_official_collector_propagates_blocked_job_identity(monkeypatch):
     from app.collectors.base import PreserveExistingJobs
     async def listing(*args):
         return [{'href':'https://www.speedata.io/careers/engineer','title':'Engineer','text':'summary','_detail_blocked':True}]
-    async def hydrate_rows(rows,preset):
+    async def hydrate_rows(rows,preset, *, retain_unavailable=False):
         return rows
     monkeypatch.setattr(official,'_collect_static_rows',listing)
     monkeypatch.setattr(official,'_hydrate_detail_rows',hydrate_rows)

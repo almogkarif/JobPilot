@@ -47,7 +47,7 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     assert "אין הגשות פעילות" in js
     assert "actionableItems=items.filter(item=>!item.queue||Number(item.count)>0)" in js
     assert "queueNotices=items.filter(item=>item.queue).map(notificationMarkup).join('')" in js
-    assert "root.innerHTML=tracker+queueNotices+otherNotices" in js
+    assert "root.innerHTML=queueNotices+tracker+otherNotices" in js
     assert "notification-queue-shortcut" in js
     assert ".notification-queue-shortcut" in css
     assert ".notification-queue-shortcut { position:relative" in css
@@ -55,7 +55,7 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     assert "דורשות טיפול" in js
     assert "attention:Array.isArray" in js
     assert "data-choice-blocker" in js
-    assert "workers פעילים" in js
+    assert "הגשות פועלות כרגע" in js
     assert "queue.running" in js
     assert "function combinedApplicationQueue" in js
     assert "Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()])" in js
@@ -83,7 +83,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
     assert "TRACKABLE_APPLICATION_STATUSES" in js
     assert "/api/applications/tracking-list?current_id=" in js
-    assert "item.status==='queued'&&(Number(item.attempt_count||0)>0" in js
+    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['queued','applying','needs_input','verification_pending'])" in js
     assert ".sort((a,b)=>Number(a.id)-Number(b.id))" in js
     assert "trackingPinnedByUser=false" in js
     assert "startApplicationTracking(trackingApplications[next].id,false,true)" in js
@@ -162,7 +162,7 @@ def test_verified_submission_tracker_is_cleared_but_attention_states_remain_trac
     # States that are still waiting for user feedback/action stay in the
     # tracking list and therefore can become the next tracker instead of being
     # discarded as completed.
-    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','verification_pending'])" in js
+    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['queued','applying','needs_input','verification_pending'])" in js
     assert "const feedbackNext=trackingApplications.find(item=>Number(item.id)!==finishedId)" in js
 
 

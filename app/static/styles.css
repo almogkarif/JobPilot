@@ -697,8 +697,9 @@ body.theme-dark .applied-job-button { background: #1d4935 !important; border-col
 .application-option:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 .modal-actions { padding-top: 13px; border-top: 1px solid var(--line); }
 .toast {
+  /* Global feedback must stay above dialogs, onboarding and admin preview. */
   position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
-  padding: 12px 14px; background: #123b62; color: #fff; opacity: 0; pointer-events: none; transition: transform var(--motion-slow) var(--ease-apple-spring), opacity var(--motion-base) var(--ease-apple); z-index: 40;
+  padding: 12px 14px; background: #123b62; color: #fff; opacity: 0; pointer-events: none; transition: transform var(--motion-slow) var(--ease-apple-spring), opacity var(--motion-base) var(--ease-apple); z-index: 400;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 

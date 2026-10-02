@@ -4,6 +4,78 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Hourly vacancy availability — October 2, 2026
+
+The hourly schedule is unchanged. NVIDIA, Intel, Applied Materials, KLA and
+Medtronic now read the complete lightweight Workday inventory (up to 2,000 rows /
+100 pages of 20) independently of the 100-detail / NVIDIA 120-detail budget.
+All responses on these routes are capped at 4,000,000 decoded bytes. An incomplete,
+changing, oversized or failed inventory never authorizes absence-based closure.
+Verified 404/410 or explicit `canApply: false` is a separate closure signal;
+403/429/timeouts are not. Official HTML readers also preserve explicit tombstones
+instead of silently dropping them from partial payloads. Unverified sources keep
+the existing 14-day expiry; submitted application history is retained.
+
+The five Workday sources reuse the existing durable detail cursor and soft
+deadline, so slow details cannot discard an already verified inventory and later
+postings rotate into the download budget. At most 520 details and 500 listing
+requests/scan across these five sources; the theoretical response-body bound is
+4.08 GB from employers, not Supabase. Existing 45-second per-source wall limits,
+four detail requests at a time and scan concurrency still apply. No employer
+requests or Storage downloads are added to page loads, startup or health checks.
+
+Availability reconciliation executes at most three UPDATE statements/source,
+without RETURNING, descriptions, IDs or result rows. It replaces the old absent-ID
+SELECT and one SELECT/UPDATE pair per missing job; only statement acknowledgments
+cross the database connection. The existing per-source 8 KiB framing reservation
+and 64 MiB/day catalog transfer guard cover these bounded writes. Budgets and
+source/identity cardinality limits remain enforced before reconciliation.
+
+Five additional cursors are <=2 KiB/source, or <=20 KiB for the scanner's two
+source reads per run: <=480 KiB/day and 14.1 MiB/30 days at hourly scans. Explicit
+source-list reads add <=10 KiB each (50/day: <=14.7 MiB/month). The two inventory
+summary fields add <=128 bytes per Workday source to an existing audit payload,
+<=640 bytes/report; no new polling request is introduced. At 20 existing status
+reads/minute for a 45-minute scan this is <=563 KiB/scan, 13.2 MiB/day, 396 MiB/month
+for a continuously open tab; normal closed UI adds none of those status reads.
+The inventory itself is ephemeral and is never stored in source metadata/logs.
+
+Regression tests cover full/partial/blocked/empty inventories, closed tombstones,
+other live source identities, history retention, real SQLite/PostgreSQL execution,
+cursor rotation, cancellation and SQL-only reconciliation. Live validation uses
+NVIDIA public endpoints only and never opens a production database connection.
+
+## Personal queue navigation for registered users — October 2, 2026
+
+Registered non-admin users now reuse the compact tracking-list endpoint, not the
+admin queue snapshot, history, recovery pass, campaign or Gmail verification.
+Opening their queue is read-only; a selected item uses the existing scoped
+timeline. Dashboard and per-job status polling still omit the full queue graph
+for regular users, and the existing 50-event/10-attempt timeline limits remain.
+
+Tracking reads exactly one projected active-track row and at most 100 application
+metadata rows, with SQL-capped 300-character titles and 200-character companies.
+It never loads job descriptions, profile JSON, answers, attempts or evidence.
+The explicitly selected owned application stays in the window; the queue explains
+the 100-row display ceiling. Failed/manual rows remain available for the queue
+and bounded explicit diagnostic copy but are excluded from notification navigation.
+
+Non-admin open-center refresh is every 15 seconds, stops while the page is hidden
+or the center is closed, and ends after 15 minutes. Allow 3 KiB per metadata row
+and 8 KiB overhead: <308 KiB per full response, <=61 responses / 122 SELECTs per
+15-minute opening (<18.4 MiB). An uninterrupted open view adds zero list calls
+after that period. Four deliberate reopenings/hour are <=73.4 MiB/hour; one
+15-minute visit/day is <=18.4 MiB/day or 551 MiB/30 days at the extreme 100-row
+ceiling, per user. Normal three-item queues are much smaller. Existing per-job
+timeline-driven refreshes (at most 12 per tracking session) and deliberate clicks
+can add <=3.7 MiB plus <308 KiB per click. No Storage or model calls are added.
+Diagnostic copy remains an explicit export capped at 100 applications, 300 attempts
+and 1,000 events; no automatic export or bulk retry is introduced.
+
+Tests use disposable SQLite, synthetic accounts/CVs and disabled external
+dispatch. They check tenant isolation (including foreign IDs), query projections
+and limits, closed jobs, mobile/desktop navigation and clipboard behavior.
+
 ## Phone onboarding and developer activity ordering — October 2, 2026
 
 Onboarding changes are CSS and a scroll-position reset. Visual tests use the

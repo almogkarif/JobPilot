@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import json
 from types import SimpleNamespace
 
@@ -36,6 +37,9 @@ def install_client(monkeypatch, handler):
         def __init__(self, **kwargs): pass
         async def __aenter__(self): return self
         async def __aexit__(self, *args): pass
+        @asynccontextmanager
+        async def stream(self, method, url, **kwargs):
+            yield await getattr(self, method.lower())(url, **kwargs)
         async def get(self, url, **kwargs):
             calls.append(("GET", url, kwargs))
             result = handler("GET", url, kwargs)
@@ -158,7 +162,11 @@ def test_detail_failures_block_ids_instead_of_overwriting_descriptions(monkeypat
                else smartrecruiters.SmartRecruitersCollector().collect("ServiceNow"))
     assert not jobs
     assert jobs.complete is False
-    assert set(jobs.blocked_external_ids) == {"123"}
+    if provider == "workday" and fault == 404:
+        assert jobs.closed_external_ids == ("123",)
+        assert not jobs.blocked_external_ids
+    else:
+        assert set(jobs.blocked_external_ids) == {"123"}
     assert all("evil.test" not in url for _, url, _ in calls)
 
 

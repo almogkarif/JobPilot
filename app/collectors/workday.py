@@ -7,6 +7,7 @@ import re
 import httpx
 
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from .incremental import collect_detail_batch, current_window
 from . import audit_diagnostics as diagnostics
 from ..services.location_filter import is_israel_location
 from ..services.job_text import job_text_quality
@@ -19,6 +20,8 @@ from ..utils import html_to_text
 AUDIT_V3_WORKDAY_IDENTIFIERS = frozenset({"analog-devices", "salesforce", "philips", "jabil-israel"})
 BOUNDED_WORKDAY_IDENTIFIERS = AUDIT_V3_WORKDAY_IDENTIFIERS | {"samsung"}
 STRICT_LOCATION_FALLBACK_IDENTIFIERS = BOUNDED_WORKDAY_IDENTIFIERS | {"flex-israel"}
+FULL_INVENTORY_IDENTIFIERS = frozenset({"nvidia", "intel", "applied-materials", "kla-israel", "medtronic"})
+MAX_INVENTORY_RESULTS = 2000
 
 WORKDAY_PRESETS = {
     "samsung": ("sec.wd3.myworkdayjobs.com", "sec", "Samsung_Careers", "Samsung Research Israel"),
@@ -46,11 +49,7 @@ EXPANSION_WORKDAY_IDENTIFIERS = frozenset({"unity", "motorola-solutions", "pg-is
 
 
 async def _payload(client, method: str, url: str, *, bounded: bool = False, **kwargs):
-    """New routes use bounded decoded JSON and refuse cross-host redirects.
-
-    Legacy request behavior is unchanged so this repair does not silently
-    change the contract of previously working Workday sources.
-    """
+    """Read public JSON, with a decoded-byte cap on audited/inventory routes."""
     if not bounded:
         response = await getattr(client, method.lower())(url, **kwargs)
         response.raise_for_status()
@@ -78,6 +77,7 @@ class WorkdayCollector:
         api_base = f"https://{host}/wday/cxs/{tenant}/{site}"
         rows: list[dict] = []
         bounded = identifier in BOUNDED_WORKDAY_IDENTIFIERS
+        full_inventory = identifier in FULL_INVENTORY_IDENTIFIERS
         async with httpx.AsyncClient(timeout=25 if bounded else 40, follow_redirects=not bounded) as client:
             applied_facets = {}
             search_text = "Israel"
@@ -107,11 +107,12 @@ class WorkdayCollector:
             total = 1
             count_changed = False
             seen_paths: set[str] = set()
-            max_results = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS else (120 if identifier == "nvidia" else 100)
+            detail_limit = 40 if identifier in EXPANSION_WORKDAY_IDENTIFIERS else (120 if identifier == "nvidia" else 100)
+            max_results = MAX_INVENTORY_RESULTS if full_inventory else detail_limit
             while offset < total and offset < max_results:
                 if identifier in EXPANSION_WORKDAY_IDENTIFIERS and listing_pages >= 2:
                     break
-                payload = await _payload(client, "POST", f"{api_base}/jobs", bounded=bounded, json={
+                payload = await _payload(client, "POST", f"{api_base}/jobs", bounded=bounded or full_inventory, json={
                     "appliedFacets": applied_facets, "limit": 20, "offset": offset, "searchText": search_text,
                 })
                 listing_pages += 1
@@ -141,7 +142,7 @@ class WorkdayCollector:
                         or offset + len(page_rows) > total):
                     raise PreserveExistingJobs("Workday returned invalid or repeated posting identities")
                 seen_paths.update(paths)
-                if identifier in EXPANSION_WORKDAY_IDENTIFIERS and len(page_rows) > 20:
+                if (identifier in EXPANSION_WORKDAY_IDENTIFIERS or full_inventory) and len(page_rows) > 20:
                     raise PreserveExistingJobs("Workday ignored its 20-row page limit")
                 if applied_facets or strict_search_fallback:
                     rows.extend(page_rows)
@@ -155,24 +156,36 @@ class WorkdayCollector:
                     break
                 offset += len(page_rows)
 
+            # Listing identity is cheap and complete even when descriptions are
+            # bounded or unavailable. Never infer closure from a detail budget.
+            listed_ids = (tuple(_external_id(row) for row in rows)
+                          if full_inventory and not count_changed and offset >= total else None)
+            details_truncated = len(rows) > detail_limit
+            if not (full_inventory and current_window()):
+                rows = rows[:detail_limit]
             blocked_ids: set[str] = set()
+            closed_ids: set[str] = set()
             semaphore = asyncio.Semaphore(4 if bounded else 10)
 
             async def normalize(row: dict) -> NormalizedJob | None:
                 path = str(row.get("externalPath") or "")
-                fields = row.get("bulletFields")
-                external_id = str((fields[0] if isinstance(fields, list) and fields else "")
-                                  or path.rsplit("_", 1)[-1])
+                external_id = _external_id(row)
                 async with semaphore:
                     try:
-                        detail = await _payload(client, "GET", f"{api_base}{path}", bounded=bounded)
+                        detail = await _payload(client, "GET", f"{api_base}{path}", bounded=bounded or full_inventory)
                         info = detail.get("jobPostingInfo") if isinstance(detail, dict) else None
                     except (httpx.HTTPError, ValueError) as exc:
                         diagnostics.record("workday_detail_rejected", id=external_id, reason="detail_request",
                                            error_type=type(exc).__name__,
                                            http_status=getattr(getattr(exc, "response", None), "status_code", None))
-                        blocked_ids.add(external_id)
+                        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in {404, 410}:
+                            closed_ids.add(external_id)
+                        else:
+                            blocked_ids.add(external_id)
                         return None
+                if isinstance(info, dict) and info.get("canApply") is False:
+                    closed_ids.add(external_id)
+                    return None
                 if identifier == "samsung":
                     organization = detail.get("hiringOrganization") if isinstance(detail, dict) else None
                     if not isinstance(organization, dict) or organization.get("name") != "Samsung R&D Institute Israel":
@@ -238,7 +251,14 @@ class WorkdayCollector:
                     source_url=f"https://{host}/en-US/{site}{path}",
                 )
 
-            jobs = await asyncio.gather(*(normalize(row) for row in rows))
+            if full_inventory and current_window():
+                # Reuse the scanner's durable cursor and soft deadline. Completed
+                # inventory must survive slow details, and later rows must rotate
+                # into the download budget rather than starve behind the first page.
+                jobs = await collect_detail_batch(rows, normalize, key=_external_id,
+                    scope=f'workday-details-{identifier}', batch_size=detail_limit)
+            else:
+                jobs = await asyncio.gather(*(normalize(row) for row in rows))
         unique: dict[str, NormalizedJob] = {job.external_id: job for job in jobs if job}
         diagnostics.record("workday_result", listing_total=total, listing_rows=len(rows),
                            accepted=len(unique), blocked_ids=sorted(blocked_ids),
@@ -249,8 +269,15 @@ class WorkdayCollector:
                 "this does not establish that no Israel vacancies exist",
                 blocked_external_ids=blocked_ids,
             )
-        return JobCollection(unique.values(), complete=(not strict_search_fallback and not count_changed and offset >= total
-                             and not blocked_ids and len(unique) == len(rows)), blocked_external_ids=blocked_ids)
+        return JobCollection(unique.values(), complete=(not details_truncated and not strict_search_fallback and not count_changed and offset >= total
+                             and not blocked_ids and len(unique) == len(rows)), blocked_external_ids=blocked_ids,
+                             closed_external_ids=closed_ids, listed_external_ids=listed_ids)
+
+
+def _external_id(row: dict) -> str:
+    fields = row.get("bulletFields")
+    return str((fields[0] if isinstance(fields, list) and fields else "")
+               or str(row.get("externalPath") or "").rsplit("_", 1)[-1])
 
 
 def _applied_materials_israel_row(row: dict) -> bool:

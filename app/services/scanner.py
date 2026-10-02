@@ -319,6 +319,8 @@ async def scan_all_sources(
                 # in Israel, not only roles matching this user's preferences.
                 # Otherwise a present-but-filtered role could look deleted upstream.
                 seen_external_ids = {item.external_id for item in israel_items}
+                closed_external_ids = set(getattr(items, "closed_external_ids", ())) - {item.external_id for item in items}
+                listed_external_ids = getattr(items, "listed_external_ids", None)
                 eligible_external_ids = {item.external_id for item in eligible_items}
                 seen_at = datetime.now(timezone.utc)
                 source_jobs_statement = select(Job).where(Job.source_id == source.id)
@@ -468,7 +470,11 @@ async def scan_all_sources(
                 # together with their dependent application/blocker records.
                 for old_index, old in enumerate(source_jobs, start=1):
                     removal_reason = ""
-                    if not is_israel_location(old.location):
+                    if old.external_id in closed_external_ids:
+                        removal_reason = "confirmed_closed"
+                    elif listed_external_ids is not None and old.external_id not in listed_external_ids:
+                        removal_reason = "no_longer_listed"
+                    elif not is_israel_location(old.location):
                         removal_reason = "outside_israel"
                     elif (not catalog_only) and hard_exclusion_reason(old, profile, match_context.excluded):
                         removal_reason = "hard_exclusion"

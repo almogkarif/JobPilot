@@ -865,6 +865,12 @@ def _require_applications_workspace(request: Request) -> None:
     if not _applications_workspace_allowed(getattr(request.state, "identity", None)):
         raise HTTPException(403, "ניהול תור והיסטוריית הגשות זמינים למנהל בלבד")
 
+
+def _require_application_tracking(request: Request) -> None:
+    identity = getattr(request.state, "identity", None)
+    if _request_is_guest(request) or (settings.auth_mode == "supabase" and not identity):
+        raise HTTPException(403, "מעקב הגשות זמין למשתמשים רשומים בלבד")
+
 def _request_is_guest(request: Request) -> bool:
     identity = getattr(request.state, "identity", None)
     return bool(identity and (getattr(identity, "is_guest", False) or getattr(identity, "role", "") == "guest"))
@@ -4039,18 +4045,19 @@ def list_applications(request: Request, status: str | None = None, limit: int = 
 
 @app.get("/api/applications/tracking-list")
 def application_tracking_list(request: Request, current_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
-    _require_applications_workspace(request)
+    _require_application_tracking(request)
     """Return only the tiny navigation payload needed by the notification tracker.
 
     The full applications endpoint eagerly loads jobs, sources, blockers and every
     attempt. Polling that graph every three seconds made the notification center
     progressively slower as submission history grew.
     """
-    track = active_track(get_user_profile(db))
+    track = normalize_track(db.scalar(select(Profile.active_career_track).order_by(Profile.id).limit(1)))
     rows = db.execute(
         select(
             Application.id, Application.status, Application.mode, Application.attempt_count,
-            Application.updated_at, Job.title, Job.company,
+            Application.updated_at, func.substr(Job.title, 1, 300).label("title"),
+            func.substr(Job.company, 1, 200).label("company"),
         )
         .join(Job, Application.job_id == Job.id)
         .where(
@@ -4066,8 +4073,11 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
                 Application.status.in_(("applying", "needs_input", "verification_pending", "queued", "failed", "manual_required")),
                 and_(Application.id == current_id, Application.status == "submitted"),
             ),
+            or_(Application.mode == "auto", Application.status != "queued",
+                Application.attempt_count > 0, Application.id == current_id),
         )
-        .order_by(Application.id)
+        .order_by(desc(case((Application.id == current_id, 1), else_=0)), desc(Application.updated_at), desc(Application.id))
+        .limit(100)
     ).all()
     return [
         {
@@ -4076,7 +4086,6 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
             "job": {"title": row.title, "company": row.company},
         }
         for row in rows
-        if row.mode == "auto" or row.status != "queued" or int(row.attempt_count or 0) > 0 or row.id == current_id
     ]
 
 

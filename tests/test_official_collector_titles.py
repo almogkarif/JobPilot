@@ -127,7 +127,7 @@ def test_new_official_sources_extract_real_job_rows_and_hydrate_details(
         assert preset is PRESETS[identifier]
         return [{"href": href, "linkText": title, "title": title, "text": title}]
 
-    async def fake_hydrate(rows, preset):
+    async def fake_hydrate(rows, preset, *, retain_unavailable=False):
         assert preset is PRESETS[identifier]
         return [{**rows[0], "text": f"{title}\nTel Aviv, Israel\n3+ years of relevant experience"}]
 

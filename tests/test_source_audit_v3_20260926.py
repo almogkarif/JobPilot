@@ -318,7 +318,7 @@ def test_unknown_directory_links_need_structured_job_evidence(monkeypatch, ident
     row = {"href": url, "title": "Engineering stories", "text": DESCRIPTION, "_detail_complete": True}
     async def listing(preset):
         return [row]
-    async def hydrate(rows, preset):
+    async def hydrate(rows, preset, *, retain_unavailable=False):
         return rows
     monkeypatch.setattr(official, "_collect_static_rows", listing)
     monkeypatch.setattr(official, "_hydrate_detail_rows", hydrate)

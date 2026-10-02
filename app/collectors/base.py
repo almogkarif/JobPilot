@@ -30,10 +30,15 @@ class PreserveExistingJobs(RuntimeError):
 class JobCollection(list[NormalizedJob]):
     """A bounded payload that explicitly reports whether absence means closure."""
 
-    def __init__(self, jobs=(), *, complete: bool = True, blocked_external_ids=()):
+    def __init__(self, jobs=(), *, complete: bool = True, blocked_external_ids=(), closed_external_ids=(),
+                 listed_external_ids=None):
         super().__init__(jobs)
         self.complete = complete
         self.blocked_external_ids = tuple(blocked_external_ids)
+        self.closed_external_ids = tuple(closed_external_ids)
+        # None means the inventory could not be verified. An empty tuple means
+        # the complete, validated source inventory really contains no vacancies.
+        self.listed_external_ids = None if listed_external_ids is None else tuple(listed_external_ids)
 
 
 class Collector(Protocol):
