@@ -5080,6 +5080,7 @@ async function retryTrackedApplication(id,button=null){return retryAutomaticAppl
 function compactDiagnosticValue(value){if(value===null||value===undefined||value==='')return '—';if(typeof value==='string')return value.replace(/\s+/g,' ').trim()||'—';try{return JSON.stringify(value)}catch{return String(value)}}
 function applicationDiagnosticText(item,index){
   const question=item.yellow_question||{},error=item.red_error||{},attempts=Array.isArray(item.attempts)?item.attempts:[],events=Array.isArray(item.events)?item.events:[],latest=attempts[0]||{};
+  const questionPrefix=item.blocker_is_historical?'HISTORICAL_QUESTION':'YELLOW_QUESTION',explanationPrefix=item.blocker_is_historical?'HISTORICAL_BLOCKER':'RED_ERROR';
   const lines=[
     `${index+1}. ${item.company||''} — ${item.title||''}`,
     `application_id: ${item.application_id} | job_id: ${item.job_id} | status: ${item.status} | mode: ${item.mode} | attempts: ${item.attempt_count||0}`,
@@ -5088,10 +5089,11 @@ function applicationDiagnosticText(item,index){
     `job_url: ${item.urls?.job||'—'}`,
     `automation_url: ${item.urls?.automation||'—'}`,
     `blocker_page: ${item.urls?.blocker_page||'—'} | screenshot: ${item.urls?.blocker_screenshot||'—'}`,
-    `YELLOW_QUESTION kind: ${question.kind||'—'} | field: ${question.field_label||'—'}`,
-    `YELLOW_QUESTION text: ${question.question||'—'}`,
-    `YELLOW_QUESTION options: ${(question.options||[]).join(' | ')||'—'}`,
-    `RED_ERROR explanation: ${error.explanation||'—'}`,
+    `blocker_is_historical: ${item.blocker_is_historical===true} | last_observed_at: ${item.blocker_last_observed_at||'—'}`,
+    `${questionPrefix} kind: ${question.kind||'—'} | field: ${question.field_label||'—'}`,
+    `${questionPrefix} text: ${question.question||'—'}`,
+    `${questionPrefix} options: ${(question.options||[]).join(' | ')||'—'}`,
+    `${explanationPrefix} explanation: ${error.explanation||'—'}`,
     `RED_ERROR raw: ${error.last_error||'—'}`,
     `blocker_diagnostics: ${compactDiagnosticValue(item.blocker_diagnostics||{})}`,
     `queue_health: ${compactDiagnosticValue(item.queue_health||{})}`,

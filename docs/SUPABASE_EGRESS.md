@@ -62,6 +62,45 @@ users queuing the same job, and verify duplicate prevention and history retentio
 
 ## Hourly vacancy availability — October 2, 2026
 
+Inactive application retry guards reuse `Job.is_active` on the job already loaded
+by the existing request. Resolving an old question, uploading a grade sheet,
+operator retry, worker recovery and automatic form repairs cannot revive a closed
+vacancy or dispatch a worker for it. Queue/notification queries keep their existing
+active-job filters, while submitted application history keeps its existing policy.
+No queries, returned columns, polling or Storage reads are added: incremental
+egress is 0 bytes/hour, day and billing cycle. The regression
+`test_inactive_application_guards_do_not_query_or_dispatch` rejects any database
+access from the early dispatch/read-repair guards; API tests cover both catalog
+modes, queue visibility and retained submitted history.
+
+The explicit diagnostic export selects its newest open blocker in memory and
+marks a question from an older attempt using already-loaded blocker/event/attempt
+timestamps. It adds no database columns or reads; Supabase egress remains unchanged.
+The API/clipboard adds a boolean and timestamp (allow 128 bytes/application,
+<=12.5 KiB per deliberate 100-application export). It introduces no polling.
+`tests/test_application_diagnostic_history.py` covers ordering, a repeated blocker
+observed in the latest attempt, preserved history and the copied report labels.
+
+Cyera now reuses its existing public Comeet board response for a validated inventory
+of at most 2,000 IDs. The company envelope, every ID and its exact board URL must
+agree; malformed, oversized, blocked or unverified snapshots cannot close absent
+jobs. Description hydration remains partial and keeps its existing 160-job limit.
+The listing and each detail response are capped at 4,000,000 decoded bytes: at most
+644 MB/scan from the employer, not Supabase, with the existing scan timeout still
+applied. No additional employer request is introduced, and the inventory is not
+persisted. Normal inline descriptions require only the one existing listing GET.
+
+Cyera availability adds at most three SQL UPDATE acknowledgments per hourly scan,
+returning zero job/identity rows; reserve the existing 8 KiB/source allowance,
+<=8 KiB/hour, 192 KiB/day and 5.625 MiB/30 days. No SELECT, Storage download, startup
+or polling schedule changes are added. Its two existing inventory summary fields
+add at most 128 bytes to a status response; a continuously open scan UI at 20 reads
+per minute for 45 minutes adds <=112.5 KiB/scan (<=2.64 MiB/day at 24 scans).
+The new Cyera regression covers bounded HTTP, partial/empty/invalid inventories,
+normal SQLite/PostgreSQL scan deactivation and retained submitted history. The
+existing SQL reconciliation regression verifies UPDATE-only, no RETURNING and
+no descriptions; the egress suite also checks reuse of one capped board response.
+
 The hourly schedule is unchanged. NVIDIA, Intel, Applied Materials, KLA and
 Medtronic now read the complete lightweight Workday inventory (up to 2,000 rows /
 100 pages of 20) independently of the 100-detail / NVIDIA 120-detail budget.

@@ -1703,6 +1703,23 @@ def test_live_application_visibility_reuses_compact_queries_without_descriptions
     assert 'application_ids=' not in copy
 
 
+def test_inactive_application_guards_do_not_query_or_dispatch(monkeypatch):
+    from types import SimpleNamespace
+    class NoQueries:
+        def __getattr__(self, name):
+            pytest.fail(f'Inactive application guard must not access database: {name}')
+    application = SimpleNamespace(mode='auto', status='queued', job=SimpleNamespace(is_active=False))
+    blocker = SimpleNamespace(kind='unknown_field')
+    monkeypatch.setattr(main_module, 'dispatch_application_workflow',
+                        lambda *_args, **_kwargs: pytest.fail('Inactive application was dispatched'))
+    db = NoQueries()
+    asyncio.run(main_module._dispatch_resolved_auto_application(db, application))
+    for repair in (main_module._auto_requeue_profile_identity,
+                   main_module._auto_requeue_greenhouse_native_url,
+                   main_module._auto_requeue_stored_grade_sheet):
+        assert repair(db, application, blocker, source='egress-regression') is False
+
+
 @pytest.mark.parametrize('inventory', [None, (), ('still-open',)])
 @pytest.mark.parametrize('identity_changed', [False, True])
 def test_availability_reconciliation_returns_no_catalog_payload(inventory, identity_changed):
@@ -1726,3 +1743,17 @@ def test_availability_reconciliation_returns_no_catalog_payload(inventory, ident
         assert 'not (exists' in str(statements[-1].compile(dialect=postgresql.dialect())).lower()
     else:
         assert all(statement.table.name == 'job_source_identities' for statement in statements)
+
+
+def test_cyera_inventory_reuses_one_bounded_public_board_request(monkeypatch):
+    from app.collectors import official
+    from app.collectors.base import PreserveExistingJobs
+    from tests.test_cyera_inventory import BOARD, board_document, mock_listing, position
+    calls = mock_listing(monkeypatch, board_document([position()]))
+    jobs = asyncio.run(official.OfficialCareersCollector().collect('cyera'))
+    assert calls == [BOARD] and jobs.listed_external_ids == ('AA.123',)
+    assert 'Software' in jobs[0].title  # The same body serves discovery and availability.
+    calls = mock_listing(monkeypatch, 'x' * 4_000_001)
+    with pytest.raises(PreserveExistingJobs):
+        asyncio.run(official.OfficialCareersCollector().collect('cyera'))
+    assert calls == [BOARD]

@@ -304,6 +304,10 @@ PRESETS['texas-instruments'].update(
 PRESETS['matrix-israel'].update(matrix_inline=True, max_inline_jobs=100,
     hydrate_details=False, selector='.job-item[job-id]', id_pattern=r'(?i)/(?:משרה|%D7%9E%D7%A9%D7%A8%D7%94)/([^/?#]+)')
 PRESETS['global-e'].update(globale_feed=True, hydrate_details=False)
+# Cyera's public board was verified to embed the complete, unfiltered inventory.
+# Keep availability separate from the bounded description hydration below.
+PRESETS['cyera'].update(verified_embedded_inventory=True, listing_response_bytes=4_000_000,
+                       detail_response_bytes=4_000_000)
 PRESETS['netafim'].update(
     url='https://careers.netafim.com/jobs', selector='a[href*="/jobs/"]',
     id_pattern=r'/jobs/(\d+)-', detail_response_bytes=4_000_000,
@@ -389,6 +393,7 @@ class OfficialCareersCollector:
         # avoids Chromium/anti-bot timing issues. Dynamic boards fall back to
         # Playwright below when the static response contains no usable job links.
         rows: list[dict] = []
+        listed_external_ids = None
         static_error: Exception | None = None
         if preset.get("globale_feed"):
             rows = await collect_globale_rows()
@@ -407,6 +412,7 @@ class OfficialCareersCollector:
             try:
                 if not rows:
                     rows = await _collect_static_rows(preset)
+                    listed_external_ids = getattr(rows, "listed_external_ids", None)
                     rows = [row for row in rows if _resolve_row_href(row, preset)[1]]
             except Exception as exc:
                 # Keep the actual HTTP/parser failure for the diagnostic report;
@@ -422,7 +428,7 @@ class OfficialCareersCollector:
                 rows = await _collect_external_fallback_rows(preset)
             except Exception as exc:
                 rendered_error = exc
-        if not rows and not preset.get("data_only") and not preset.get("static_only"):
+        if not rows and listed_external_ids is None and not preset.get("data_only") and not preset.get("static_only"):
             try:
                 rows = await self._collect_rendered_rows(identifier, preset)
             except Exception as exc:
@@ -556,14 +562,14 @@ class OfficialCareersCollector:
                 diagnostics.record("retym_fallback", requested=sorted(missing),
                                    recovered=sorted(recovered), remaining=sorted(missing - recovered))
         normalized = list(results.values())
-        if not normalized and not closed_ids:
+        if not normalized and not closed_ids and listed_external_ids is None:
             raise PreserveExistingJobs(
                 f"{preset['company']} did not expose a reliable job payload; "
                 f"candidate_rows={len(rows)}, rejected={rejected}; preserving the last successful snapshot",
                 blocked_external_ids=blocked_ids
             ) from (static_error or rendered_error)
         return JobCollection(normalized, complete=False, blocked_external_ids=blocked_ids,
-                             closed_external_ids=closed_ids)
+                             closed_external_ids=closed_ids, listed_external_ids=listed_external_ids)
 
     async def _collect_rendered_rows(self, identifier: str, preset: dict) -> list[dict]:
         async with async_playwright() as playwright:
@@ -1125,6 +1131,43 @@ def _extract_gstat_job_rows(soup: BeautifulSoup, limit: int = 100) -> list[dict]
     return rows
 
 
+class _OfficialListingRows(list[dict]):
+    def __init__(self, rows, listed_external_ids):
+        super().__init__(rows)
+        self.listed_external_ids = listed_external_ids
+
+
+def _verified_comeet_inventory(document: str, payload, preset: dict) -> tuple[str, ...] | None:
+    """Only a validated whole company board may close absent vacancies."""
+    if not preset.get("verified_embedded_inventory") or not isinstance(payload, list) or len(payload) > 2000:
+        return None
+    company_match = re.search(r"\bCOMPANY_DATA\s*=\s*", document)
+    if not company_match:
+        return None
+    try:
+        company, _ = json.JSONDecoder().raw_decode(document[company_match.end():])
+    except (ValueError, TypeError):
+        return None
+    board = str(preset["url"]).rstrip("/")
+    if not isinstance(company, dict) or str(company.get("url_comeet_hosted_page") or "").rstrip("/") != board:
+        return None
+    ids = []
+    for position in payload:
+        if not isinstance(position, dict):
+            return None
+        external_id = position.get("uid")
+        target = urlparse(str(position.get("url_comeet_hosted_page") or ""))
+        match = re.fullmatch(str(preset["id_pattern"]), target.path)
+        if (not isinstance(external_id, str)
+                or not re.fullmatch(str(preset["network_id_pattern"]), external_id)
+                or not isinstance(position.get("name"), str) or not position["name"].strip()
+                or target.scheme != "https" or target.netloc != urlparse(board).netloc
+                or not match or match.group(1) != external_id or external_id in ids):
+            return None
+        ids.append(external_id)
+    return tuple(ids)
+
+
 async def _collect_static_rows(preset: dict) -> list[dict]:
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -1146,6 +1189,10 @@ async def _collect_static_rows(preset: dict) -> list[dict]:
             try:
                 payload, _ = json.JSONDecoder().raw_decode(response.text[match.end():])
                 structured = _extract_structured_job_rows(json.dumps(payload), preset)
+                inventory = _verified_comeet_inventory(response.text, payload, preset)
+                if inventory is not None:
+                    return _OfficialListingRows(
+                        [{**row, "_structured_description": True} for row in structured], inventory)
                 if structured:
                     return [{**row, "_structured_description": True} for row in structured]
             except (ValueError, TypeError):

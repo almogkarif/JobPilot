@@ -294,7 +294,7 @@ def test_pliops_does_not_launch_a_browser_when_its_static_page_has_no_jobs():
 
 
 def test_comeet_embedded_positions_keep_full_descriptions_without_detail_download(monkeypatch):
-    from types import SimpleNamespace
+    import httpx
     import app.collectors.official as official
     description = 'Build secure software and test production services. ' * 6
     payload = [{'uid': 'AA.123', 'name': 'Software Engineer',
@@ -302,21 +302,20 @@ def test_comeet_embedded_positions_keep_full_descriptions_without_detail_downloa
                 'url_comeet_hosted_page': 'https://www.comeet.com/jobs/cyera/17.008/software-engineer/AA.123',
                 'custom_fields': {'details': [{'name': 'Description', 'value': description}]}}]
     calls = []
-    class Client:
-        def __init__(self, **kwargs): pass
-        async def __aenter__(self): return self
-        async def __aexit__(self, *args): pass
-        async def get(self, url):
-            calls.append(url)
-            return SimpleNamespace(raise_for_status=lambda: None,
-                text=f'<script>COMPANY_POSITIONS_DATA = {json.dumps(payload)};</script>')
-    monkeypatch.setattr(official.httpx, 'AsyncClient', Client)
+    real_client = httpx.AsyncClient
+    def response(request):
+        calls.append(str(request.url))
+        return httpx.Response(200, request=request,
+            text=f'<script>COMPANY_POSITIONS_DATA = {json.dumps(payload)};</script>')
+    monkeypatch.setattr(official.httpx, 'AsyncClient', lambda **kwargs: real_client(
+        transport=httpx.MockTransport(response), **kwargs))
     jobs = asyncio.run(official.OfficialCareersCollector().collect('cyera'))
     assert len(jobs) == 1
     assert description.strip() in jobs[0].description
     assert jobs[0].location == 'Tel Aviv, Israel'
     assert calls == [PRESETS['cyera']['url']]
     assert jobs.complete is False
+    assert jobs.listed_external_ids is None  # An unvalidated company envelope is not a full inventory.
 
 
 def test_cisco_job_schema_wins_over_shared_marketing_body():

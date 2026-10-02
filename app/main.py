@@ -4235,9 +4235,17 @@ def application_failure_diagnostics(
         for event in events:
             events_by_application[event.application_id].append(event)
 
+    def diagnostic_timestamp(value: datetime | None) -> float:
+        if value is None:
+            return 0.0
+        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).timestamp()
+
     diagnostics = []
     for application in rows:
-        open_blocker = next((item for item in application.blockers if item.status == "open"), None)
+        open_blocker = max(
+            (item for item in application.blockers if item.status == "open"),
+            key=lambda item: (diagnostic_timestamp(item.created_at), item.id), default=None,
+        )
         blocker = _blocker_dict(open_blocker) if open_blocker else None
         source_kind = application.job.source.kind if application.job.source else ""
         adapter = adapter_payload_for_job(application.job)
@@ -4248,12 +4256,15 @@ def application_failure_diagnostics(
         recent_attempts = attempts_by_application.get(application.id, [])[:3]
         recent_events = events_by_application.get(application.id, [])[:10]
         blocker_diagnostics = {}
+        blocker_last_observed_at = open_blocker.created_at if open_blocker else None
         matched_current_blocker = False
         for item in recent_events:
             details = loads(item.details_json, {})
             if blocker and details.get("kind") == blocker.get("kind"):
                 candidate = details.get("diagnostics")
                 blocker_diagnostics = candidate if isinstance(candidate, dict) else {}
+                if diagnostic_timestamp(item.created_at) > diagnostic_timestamp(blocker_last_observed_at):
+                    blocker_last_observed_at = item.created_at
                 matched_current_blocker = True
                 break
         if not matched_current_blocker:
@@ -4269,6 +4280,10 @@ def application_failure_diagnostics(
                 if isinstance(candidate, dict) and candidate:
                     blocker_diagnostics = candidate
                     break
+        blocker_is_historical = bool(
+            open_blocker and recent_attempts and blocker_last_observed_at
+            and diagnostic_timestamp(blocker_last_observed_at) < diagnostic_timestamp(recent_attempts[0].started_at)
+        )
         diagnostics.append({
             "application_id": application.id,
             "job_id": application.job_id,
@@ -4299,6 +4314,8 @@ def application_failure_diagnostics(
                 "last_error": application.last_error,
             },
             "blocker_diagnostics": bounded_detail(blocker_diagnostics),
+            "blocker_is_historical": blocker_is_historical,
+            "blocker_last_observed_at": blocker_last_observed_at,
             "queue_health": bounded_detail(health_by_id.get(application.id, {})),
             "saved_answers": bounded_detail(answers),
             "attempts": [bounded_detail(_attempt_dict(item)) for item in recent_attempts],
@@ -4605,6 +4622,8 @@ async def retry_application(
 ):
     _repair_existing_ashby_spam_blocks(db)
     application = _active_application_or_404(db, application_id)
+    if not application.job.is_active:
+        raise HTTPException(409, "המשרה כבר אינה פעילה ולכן לא ניתן להגיש אליה שוב")
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
     if interactive and not _application_auto_submit_supported(application):
@@ -4822,7 +4841,8 @@ def application_attempt_screenshot(attempt_id: int, db: Session = Depends(get_db
 async def _dispatch_resolved_auto_application(
     db: Session, application: Application, *, force: bool = False,
 ) -> None:
-    if application.status != "queued" or (application.mode != "auto" and not force):
+    if (not application.job or not application.job.is_active
+            or application.status != "queued" or (application.mode != "auto" and not force)):
         return
     try:
         await run_in_threadpool(dispatch_application_workflow, application.id)
@@ -4940,7 +4960,7 @@ def _auto_requeue_profile_identity(
     attempt: ApplicationAttempt | None = None,
 ) -> bool:
     """Resolve exact identity fields from the saved profile, including old blockers."""
-    if application.mode != "auto":
+    if application.mode != "auto" or not application.job or not application.job.is_active:
         return False
     profile = get_user_profile(db)
     answer, profile_field = _safe_default_blocker_answer(blocker)
@@ -5004,7 +5024,9 @@ def _requeue_agent_form_repairs(db: Session, career_track: str) -> list[int]:
         Application.mode == "auto", Application.status == "needs_input"
     ).order_by(Application.id)).all()
     for application in applications:
-        if not application.job or not job_belongs_to_track(db, application.job, career_track):
+        if (not application.job or not application.job.is_active
+                or not job_belongs_to_track(db, application.job, career_track)
+                or not _application_auto_submit_supported(application)):
             continue
         blocker = db.scalar(select(Blocker).where(
             Blocker.application_id == application.id, Blocker.status == "open"
@@ -5097,7 +5119,8 @@ def _auto_requeue_greenhouse_native_url(
     db: Session, application: Application, blocker: Blocker, *, source: str, attempt: ApplicationAttempt | None = None,
 ) -> bool:
     """Retry old branded-Greenhouse failures on the ATS-native hosted form once."""
-    if application.mode != "auto" or blocker.kind not in {"submit_button_missing", "application_form_missing"}:
+    if (application.mode != "auto" or not application.job or not application.job.is_active
+            or blocker.kind not in {"submit_button_missing", "application_form_missing"}):
         return False
     if detect_adapter(application.job.apply_url, application.job.source.kind if application.job.source else "").key != "greenhouse":
         return False
@@ -5160,7 +5183,8 @@ def _auto_requeue_stored_grade_sheet(
     attempt still cannot attach the same stored document, keep the blocker open
     with a diagnostic instead of creating an infinite retry loop.
     """
-    if application.mode != "auto" or not _blocker_requests_grade_sheet(blocker, application.job):
+    if (application.mode != "auto" or not application.job or not application.job.is_active
+            or not _blocker_requests_grade_sheet(blocker, application.job)):
         return False
     profile = get_user_profile(db)
     if not profile or not str(profile.grade_sheet_path or "").strip():
@@ -5253,6 +5277,8 @@ async def upload_grade_sheet(file: UploadFile = File(...), db: Session = Depends
     ).all()
     for blocker in blockers:
         application = blocker.application
+        if not application or not application.job or not application.job.is_active:
+            continue
         if not _blocker_requests_grade_sheet(blocker, application.job if application else None):
             continue
         legacy_label = _legacy_required_file_label(blocker)
@@ -5300,6 +5326,8 @@ async def upload_grade_sheet(file: UploadFile = File(...), db: Session = Depends
 @app.post("/api/blockers/{blocker_id}/resolve")
 async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: Session = Depends(get_db)):
     blocker = _active_blocker_or_404(db, blocker_id)
+    if not blocker.application.job.is_active:
+        raise HTTPException(409, "המשרה כבר אינה פעילה ולכן לא ניתן להמשיך בהגשה")
     if blocker.status != "open":
         raise HTTPException(409, "Blocker is already resolved")
 
@@ -6601,6 +6629,8 @@ def agent_retry_stopped_application(
     application = resolve_application(db, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
+    if not application.job or not application.job.is_active:
+        raise HTTPException(409, "Job is no longer active")
     if not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
     if application.status == "queued":
@@ -6767,6 +6797,8 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
     payload.screenshot_path = str(payload.screenshot_path or "")[:700]
     application = resolve_application(db, application_id)
     if not application: raise HTTPException(404, "Application not found")
+    if not application.job or not application.job.is_active:
+        raise HTTPException(409, "Job is no longer active")
     if application.status == "submitted":
         raise HTTPException(409, "Application already submitted")
     previous_status = application.status
