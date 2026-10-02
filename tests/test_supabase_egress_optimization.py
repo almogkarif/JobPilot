@@ -24,6 +24,30 @@ import app.main as main_module
 from tests.test_job_id_search import job_search_catalog
 from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
+from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
+
+
+def test_dashboard_company_diversity_stays_in_one_five_row_query(dashboard_diversity_catalog):
+    client, engine, _, add_jobs = dashboard_diversity_catalog
+    add_jobs([{}]*60 + [{'company':name} for name in ('Beta','Gamma','Delta','Epsilon')])
+    statements = []
+    def capture(_conn, _cursor, statement, parameters, context, _many):
+        if 'row_number() over' in statement.lower():
+            statements.append((' '.join(statement.lower().split()), context.compiled.statement))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get('/api/dashboard')
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200
+    assert len(response.json()['recent_jobs']) == 5
+    assert len(statements) == 1
+    sql, statement = statements[0]
+    assert statement._limit_clause.value == 5
+    assert 'jobs.description' not in sql
+    projection = sql.split(' from ', 1)[0]
+    assert 'row_number' not in projection  # No per-company rows/metadata leave SQL.
+    assert all('description' not in row for row in response.json()['recent_jobs'])
 
 
 def test_palette_save_only_reads_one_small_owned_preference_row(personal_tracking):

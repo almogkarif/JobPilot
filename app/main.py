@@ -2021,8 +2021,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             ranking_refresh = _ranking_failure_status(ranking_refresh, int(current_stats.get("ranking_failed_jobs", 0)))
 
         # Dashboard recommendations are the strongest active opportunities in the
-        # entire catalog. Recency is only a tie-breaker; an excellent older role
-        # should not disappear just because it was discovered before today.
+        # entire catalog. Company diversity and then recency break ranking ties;
+        # neither can displace a stronger match.
         top_jobs_statement = select(Job).options(
             defer(Job.description), joinedload(Job.source), joinedload(Job.application)
         ).where(
@@ -2040,6 +2040,18 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 & JobRanking.stale.is_(False)
                 & (JobRanking.error == "")
             )
+            ranking_order = (
+                desc(case((JobRanking.id.is_not(None), 1), else_=0)),
+                desc(_v2_tier_order()), desc(JobRanking.score),
+            )
+            recency_order = (desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))
+            # Round-robin companies only within equal rankings. Counting each
+            # company's stronger jobs first also favours unseen companies at the
+            # fifth-slot tie. The window stays in SQL; only five jobs are loaded.
+            company_position = func.row_number().over(
+                partition_by=func.lower(func.trim(func.coalesce(Job.company, ""))),
+                order_by=(*ranking_order, *recency_order),
+            )
             # Keep jobs visible while automatic submission is still in progress.
             # Queued/applying/needs-input/verification-pending/failed/manual-required
             # are all unfinished states. Submitted and personally hidden jobs leave the dashboard.
@@ -2048,9 +2060,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             ).where((_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title))).outerjoin(JobRanking, valid_ranking_join).where(
                 or_(JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded")
             ).order_by(
-                desc(case((JobRanking.id.is_not(None), 1), else_=0)),
-                desc(_v2_tier_order()), desc(JobRanking.score),
-                desc(Job.published_at), desc(Job.discovered_at),
+                *ranking_order, company_position, *recency_order,
             )
         else:
             top_jobs_statement = top_jobs_statement.order_by(desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id))

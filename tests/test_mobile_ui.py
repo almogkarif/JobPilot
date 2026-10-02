@@ -142,6 +142,75 @@ def fits_viewport(locator, width):
             assert box['x'] >= -1 and box['x']+box['width'] <= width+1, (element.get_attribute('class'), box)
 
 
+@pytest.mark.parametrize('width,height,theme', [(320,700,'light'), (390,844,'light'),
+    (390,844,'dark'), (844,390,'light'), (1280,900,'light')])
+def test_swipe_actions_are_readable_and_tooltips_stay_above_other_buttons(phone, width, height, theme):
+    page, work = phone
+    page.set_viewport_size({'width':width,'height':height})
+    page.evaluate('theme=>applyTheme(theme)',theme)
+    page.evaluate("switchView('dashboard')")
+    shell = page.locator('#recent-jobs .job-swipe-shell').first
+    shell.wait_for(state='visible')
+    shell.evaluate('el=>el.scrollIntoView({block:"center"})')
+    card = shell.locator('.job-swipe-card')
+    actions = shell.locator('.job-swipe-actions')
+    # Drag well past the opening threshold; the moving card must follow the tray
+    # width both during the gesture and after it snaps open.
+    card.evaluate('''el => {
+      const r=el.getBoundingClientRect();
+      for (const [type,x] of [['pointerdown',r.right-15],['pointermove',r.left+5]])
+        el.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:77,
+          pointerType:'touch',button:0,clientX:x,clientY:r.top+30}));
+    }''')
+    reveal = actions.bounding_box()['width']
+    shift = card.evaluate('el=>-new DOMMatrix(getComputedStyle(el).transform).m41')
+    assert abs(shift-reveal)<2
+    card.evaluate('''el => { const r=el.parentElement.getBoundingClientRect();
+      el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:77,
+        pointerType:'touch',button:0,clientX:r.left+5,clientY:r.top+30})); }''')
+    expect(shell).to_have_class('job-swipe-shell is-open')
+    page.wait_for_function('el=>!el.getAnimations().some(a=>a.playState==="running")',arg=card.element_handle())
+    assert abs(card.evaluate('el=>-new DOMMatrix(getComputedStyle(el).transform).m41')-reveal)<2
+    if width<1000:
+        assert reveal >= shell.bounding_box()['width']*.75
+        for button in actions.locator('.job-swipe-action').all():
+            box=button.bounding_box()
+            assert box['width']>=52 and box['height']>=52,box
+            label=button.locator('.job-swipe-label-full')
+            expect(label).to_be_visible()
+            assert label.evaluate('el=>parseFloat(getComputedStyle(el).fontSize)')>=13
+            assert label.evaluate('''el=>{const text=el.getBoundingClientRect(),button=el.parentElement.getBoundingClientRect();
+              return text.left>=button.left+1&&text.right<=button.right-1;}''')
+    fits_viewport(actions.locator('.job-swipe-action'),width)
+    page.screenshot(path=str(work/f'swipe-actions-{width}-{theme}.png'))
+    # Give the pseudo-element hit testing only in this test, so its paint order
+    # relative to neighbouring buttons can be checked without screenshot timing.
+    page.add_style_tag(content='.job-swipe-actions .has-tooltip:hover::after {pointer-events:auto!important}')
+    first=actions.locator('.job-swipe-action').first
+    first.hover()
+    page.wait_for_function("el=>getComputedStyle(el,'::after').opacity==='1'",arg=first.element_handle())
+    geometry=first.evaluate('''el=>{
+      const style=getComputedStyle(el,'::after'),button=el.getBoundingClientRect();
+      const width=parseFloat(style.width),height=parseFloat(style.height);
+      const shift=new DOMMatrix(style.transform);
+      const x=button.right-parseFloat(style.right)-width+shift.m41;
+      const y=button.top+parseFloat(style.top)+shift.m42;
+      const shell=el.closest('.job-swipe-shell').getBoundingClientRect();
+      const neighbour=el.nextElementSibling.getBoundingClientRect();
+      const pointX=Math.max(x,neighbour.left)+4,pointY=Math.max(y,neighbour.top)+8;
+      return {inside:x>=shell.left-1&&x+width<=shell.right+1&&y>=shell.top-1&&y+height<=shell.bottom+1,
+        onTop:document.elementFromPoint(pointX,pointY)===el, x,y,width,height};
+    }''')
+    assert geometry['inside'] and geometry['onTop'],geometry
+    page.screenshot(path=str(work/f'swipe-tooltip-{width}-{theme}.png'))
+    # Swiping right across the tray closes it without triggering an application.
+    actions.evaluate('''el=>{const r=el.getBoundingClientRect();
+      for(const [type,x] of [['pointerdown',r.left+5],['pointermove',r.right-5],['pointerup',r.right-5]])
+        el.dispatchEvent(new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:78,
+          pointerType:'touch',button:0,clientX:x,clientY:r.top+20}));}''')
+    expect(shell).not_to_have_class('job-swipe-shell is-open')
+
+
 @pytest.mark.parametrize('width', [320, 390, 430])
 @pytest.mark.parametrize('theme', ['light', 'dark'])
 def test_phone_screens_fit_and_navigation_remains_reachable(phone, width, theme):
@@ -168,6 +237,41 @@ def test_phone_screens_fit_and_navigation_remains_reachable(phone, width, theme)
     dock=page.locator('#mobile-tab-dock').bounding_box()
     assert center['y']+center['height'] <= dock['y']
     page.locator('#notification-close').tap()
+
+
+@pytest.mark.parametrize('status,supported,automatic', [
+    ('manual_required',True,False), ('manual_required',False,False),
+    ('new',True,True), ('failed',True,True), ('new',False,False),
+])
+def test_manual_submission_state_matches_badges_swipe_and_job_details(phone, status, supported, automatic):
+    page, _ = phone
+    job = page.request.get(page.url.rstrip('/')+'/api/jobs/1001').json()
+    job['status'] = status
+    job['application_adapter']['supports_automatic_submit'] = supported
+    if not supported:
+        job['application_adapter']['exclusion_reason'] = 'נדרשת הגשה ידנית לפי מדיניות המקור'
+    page.route('**/api/jobs/1001',lambda route:route.fulfill(json=job))
+    page.evaluate('job=>renderRecent([job])',job)
+    shell = page.locator('#recent-jobs .job-swipe-shell').first
+    expect(shell.locator('.auto-submit-badge.supported')).to_have_count(int(automatic))
+    expect(shell.locator('.auto-submit-badge.manual')).to_have_count(int(not automatic))
+    shell.evaluate('el=>setJobSwipeOpen(el,true)')
+    action = shell.locator('.job-swipe-primary-action')
+    expect(action).to_have_attribute('aria-label','הגשה אוטומטית' if automatic else 'הגשה ידנית')
+    if not automatic:
+        expect(action).to_have_attribute('href',job['apply_url'])
+        assert 'queueJob' not in action.get_attribute('onclick')
+    page.evaluate('job=>{state.jobs=[job];renderJobs()}',job)
+    expect(page.locator('#jobs-list .auto-submit-badge.supported')).to_have_count(int(automatic))
+    expect(page.locator('#jobs-list [onclick*="queueJob"]')).to_have_count(2 if automatic else 0)
+    page.evaluate('showJob(1001)')
+    expect(page.locator('#modal')).to_have_class('modal open')
+    expect(page.locator('#modal .auto-submit-badge.supported')).to_have_count(int(automatic))
+    expect(page.locator('#modal .application-option-auto')).to_have_count(int(automatic))
+    if status=='manual_required':
+        expect(page.locator('#modal .manual-only-note')).to_contain_text('נדרשת הגשה ידנית')
+    if not supported:
+        expect(page.locator('#modal .manual-only-note')).to_contain_text(job['application_adapter']['exclusion_reason'])
 
 
 @pytest.mark.parametrize('width,height', [(320,700), (390,844), (844,390)])

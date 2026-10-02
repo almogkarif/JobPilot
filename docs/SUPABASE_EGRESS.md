@@ -4,6 +4,25 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Dashboard company diversity — October 2, 2026
+
+The existing top-five SELECT now uses an SQL window to favour different companies
+only when ranking priority and score tie. Filtering and tenant/track scoping run
+before the window. There is no candidate download or Python catalog sort: the
+same SELECT still returns at most five Job rows with descriptions deferred and
+the same existing related fields. The company ordinal is used only in ORDER BY
+and is not returned. No score recalculation, startup task, polling change, Storage
+download, new query or new response field is introduced; guest selection is unchanged.
+
+Incremental egress is zero calls × zero extra rows/fields: 0 bytes/hour, day and
+30-day cycle, including the existing 45-poll ranking refresh and a continuously
+open dashboard. SQL does additional partition/sort work over eligible metadata,
+without transferring it. The regression
+`test_dashboard_company_diversity_stays_in_one_five_row_query` verifies the actual
+executed query, its five-row limit, unchanged projection and absent descriptions
+against catalogs with more than sixty tied candidates. No deployment or production
+scan is part of this change.
+
 ## Personal track palettes — October 2, 2026
 
 A VARCHAR(256) column on the existing owned Profile stores at most three validated

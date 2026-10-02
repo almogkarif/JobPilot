@@ -53,6 +53,13 @@
   #view-dashboard .dashboard-job-title { font-size:15px; }
   #view-dashboard .dashboard-job-meta { font-size:12px; }
   #view-dashboard .dashboard-job-action .auto-submit-badge { font-size:11px; }
+  /* Leave a reachable strip of the card; use the rest for three readable actions. */
+  .job-swipe-shell { --job-swipe-reveal:calc(100% - 44px); --job-swipe-tooltip-width:calc(100cqw - 56px); }
+  .job-swipe-actions { gap:6px; padding:8px; }
+  .job-swipe-action { width:100%; min-height:64px; max-height:100%; border-radius:12px; padding:4px 2px; }
+  .job-swipe-action b { font-size:clamp(13px,4.2cqw,14px); line-height:1.35; }
+  .job-swipe-label-full { display:block; }
+  .job-swipe-label-short { display:none; }
 
   /* Phone history is grouped into populated status sections. Tables scroll locally. */
   #applications-list { min-width:0; max-width:100%; overscroll-behavior-inline:contain; }

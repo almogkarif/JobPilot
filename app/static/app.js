@@ -2078,21 +2078,28 @@ function dashboardJobMeta(job) {
   return parts.filter(Boolean).map((value) => esc(value)).join(' · ');
 }
 
+function jobSupportsAutomaticSubmission(job) {
+  return job?.status !== 'manual_required' && job?.application_adapter?.supports_automatic_submit === true;
+}
+
+function manualSubmissionReason(job) {
+  return job?.application_adapter?.exclusion_reason || (job?.status === 'manual_required'
+    ? 'ההגשה האוטומטית למשרה הזו נעצרה ונדרשת השלמה ידנית באתר החברה.'
+    : 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית');
+}
+
 function dashboardSubmissionBadge(job) {
   const adapter = job?.application_adapter || {};
-  if (job?.status === 'manual_required') {
-    return `<span class="auto-submit-badge manual" title="מערכת הגיוס חסמה את ההגשה האוטומטית עבור המשרה הזו">הגשה ידנית</span>`;
-  }
-  if (adapter.supports_automatic_submit === true) {
+  if (jobSupportsAutomaticSubmission(job)) {
     return `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> הגשה אוטומטית</span>`;
   }
-  return `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית</span>`;
+  return `<span class="auto-submit-badge manual" title="${esc(manualSubmissionReason(job))}">הגשה ידנית</span>`;
 }
 
 function swipeJobActions(job) {
   if (authState.user?.is_guest) return '';
   const automaticSupported = applicationAgentAllowed()
-    && job.application_adapter?.supports_automatic_submit === true;
+    && jobSupportsAutomaticSubmission(job);
   const primaryAction = automaticSupported
     ? `<button class="job-swipe-action job-swipe-primary-action is-automatic has-tooltip" aria-label="הגשה אוטומטית" data-tooltip="מכניס את המשרה לתור ומגיש אותה אוטומטית ברקע" type="button" onclick="event.stopPropagation();queueJob(${job.id},'auto')" ${job.status === 'submitted' ? 'disabled' : ''}><b class="job-swipe-label-full">הגשה אוטומטית</b><b class="job-swipe-label-short" aria-hidden="true">אוטומטית</b></button>`
     : `<a class="job-swipe-action job-swipe-primary-action is-manual has-tooltip" aria-label="הגשה ידנית" data-tooltip="פותח את טופס ההגשה באתר החברה" target="_blank" rel="noopener" href="${safeUrl(job.apply_url)}" onclick="event.stopPropagation()"><b class="job-swipe-label-full">הגשה ידנית</b><b class="job-swipe-label-short" aria-hidden="true">ידנית</b></a>`;
@@ -2261,8 +2268,7 @@ function initializeJobSwipeActions(root) {
       if (!horizontal) return;
       if (event.cancelable) event.preventDefault();
       moved = moved || Math.abs(dx) > 14;
-      const width = Math.max(1, shell.getBoundingClientRect().width);
-      const reveal = width * .34;
+      const reveal = actions.getBoundingClientRect().width;
       const base = shell.classList.contains('is-open') ? -reveal : 0;
       const offset = Math.max(-reveal, Math.min(0, base + dx));
       card.style.transform = `translate3d(${offset}px,0,0)`;
@@ -2698,7 +2704,7 @@ function jobCardActions(job) {
   const appliedButton = job.status === 'submitted'
     ? '<button class="btn applied-job-button small has-tooltip" data-tooltip="המועמדות מסומנת כהוגשה במעקב שלך" type="button" disabled>✓ הגשתי כבר למשרה זו</button>'
     : `<button class="btn secondary small has-tooltip" data-tooltip="מסמן שהמועמדות כבר הוגשה ומעדכן את המעקב" type="button" onclick="event.stopPropagation();markJobSubmitted(${job.id})">הגשתי כבר למשרה זו</button>`;
-  const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
+  const automaticSupported = jobSupportsAutomaticSubmission(job);
   return `<div class="card-actions" data-no-card-click>
     ${appliedButton}
     <button class="btn secondary small has-tooltip" data-tooltip="שומר את המשרה ברשימה שלך להמשך טיפול" type="button" onclick="event.stopPropagation();saveJob(${job.id})">שמור</button>
@@ -2713,9 +2719,9 @@ function jobCardActions(job) {
 
 function automaticSubmissionBadge(job) {
   const adapter = job?.application_adapter || {};
-  return adapter.supports_automatic_submit === true
+  return jobSupportsAutomaticSubmission(job)
     ? `<span class="auto-submit-badge supported" title="הגשה אוטומטית ברקע באמצעות ${esc(adapter.label || 'מערכת גיוס נתמכת')}"><b>✓</b> ${adapter.form_flow === 'single_page' ? 'טופס קצר · ' : ''}תומך בהגשה אוטומטית</span>`
-    : `<span class="auto-submit-badge manual" title="${esc(adapter.exclusion_reason || 'מערכת הגיוס הזו עדיין אינה נתמכת להגשה אוטומטית')}">הגשה ידנית בלבד</span>`;
+    : `<span class="auto-submit-badge manual" title="${esc(manualSubmissionReason(job))}">הגשה ידנית בלבד</span>`;
 }
 
 function renderJobs() {
@@ -3296,8 +3302,8 @@ async function showJob(id) {
   try {
     const [job, resumes] = await Promise.all([api(`/api/jobs/${id}`), api(`/api/resumes?job_id=${id}`)]);
     const alreadySubmitted = job.status === 'submitted';
-    const antiAutomationBlocked = false;
-    const automaticSupported = job.application_adapter?.supports_automatic_submit === true;
+    const manualRequired = job.status === 'manual_required';
+    const automaticSupported = jobSupportsAutomaticSubmission(job);
     const breakdownEntries=job.ranking_engine==='v2'
       ? Object.entries({role:'התאמת תפקיד',skills:'כישורים וטכנולוגיות',requirements:'דרישות מקצועיות',preferences:'העדפות'}).map(([key,label])=>{const part=job.match_breakdown?.[key]||{},maximum=Number(part.max)||1,points=Number(part.score)||0;return `<div><span>${label}</span><i><b style="width:${Math.max(0,Math.min(100,Math.round(points/maximum*100)))}%"></b></i><strong>${points}/${maximum}</strong></div>`})
       : Object.entries({title:'כותרת',skills:'סקילים',experience:'ניסיון',location:'מיקום',freshness:'עדכניות'}).map(([key,label]) => `<div><span>${label}</span><i><b style="width:${job.match_breakdown?.[key] ?? 50}%"></b></i><strong>${job.match_breakdown?.[key] ?? 50}</strong></div>`);
@@ -3315,7 +3321,7 @@ async function showJob(id) {
       <h3>אפשרויות הגשה</h3>
       <div class="job-capabilities job-capabilities-modal">${automaticSubmissionBadge(job)}${job.application_adapter?.label ? `<span class="ats-label">${esc(job.application_adapter.label)}</span>` : ''}</div>
       ${resumeChoiceMarkup(resumes, job.selected_resume_id)}
-      ${antiAutomationBlocked ? `<div class="agent-restricted-note manual-only-note"><strong>מערכת הגיוס חסמה את ההגשה האוטומטית</strong><span>JobPilot לא יבצע retry אוטומטי נוסף למשרה הזו. פתח את אתר החברה והגש ידנית.</span></div>` : applicationAgentAllowed() && automaticSupported ? `<div class="application-options">
+      ${manualRequired ? `<div class="agent-restricted-note manual-only-note"><strong>נדרשת הגשה ידנית למשרה הזו</strong><span>${esc(manualSubmissionReason(job))}</span></div>` : applicationAgentAllowed() && automaticSupported ? `<div class="application-options">
         <button class="application-option application-option-review" type="button" onclick="queueJob(${job.id},'audit',Number(document.querySelector('#job-resume-select')?.value)||null);closeModal()" ${alreadySubmitted ? 'disabled' : ''}>
           <i class="application-option-icon">◉</i><span class="application-option-copy"><small>דפדפן גלוי · ללא שליחה</small><strong>אני רוצה לראות את הסוכן מגיש</strong><span>הסוכן המקומי ימלא את הטופס, ישאיר את עמוד Review פתוח ואתה תלחץ בעצמך על Submit.</span></span><b>←</b>
         </button>

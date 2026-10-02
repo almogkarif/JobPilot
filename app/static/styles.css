@@ -510,6 +510,8 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
 .jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .job-card { padding: 15px; display: flex; flex-direction: column; gap: 12px; position: relative; background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%); }
 .job-swipe-shell {
+  --job-swipe-reveal:34%;
+  --job-swipe-tooltip-width:calc(34cqw - 12px);
   container-type:inline-size;
   position:relative;
   width:100%;
@@ -534,13 +536,13 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
   transition:transform 360ms var(--ease-apple-out);
 }
 .job-swipe-card.is-dragging { transition:none!important; cursor:grabbing; }
-.job-swipe-shell.is-open .job-swipe-card { transform:translate3d(-34%,0,0); }
-.job-swipe-shell.is-open > .job-swipe-card:not(.is-dragging) { transform:translate3d(-34%,0,0)!important; }
+.job-swipe-shell.is-open .job-swipe-card { transform:translate3d(calc(-1 * var(--job-swipe-reveal)),0,0); }
+.job-swipe-shell.is-open > .job-swipe-card:not(.is-dragging) { transform:translate3d(calc(-1 * var(--job-swipe-reveal)),0,0)!important; }
 .job-swipe-actions {
   position:absolute;
   z-index:1;
   inset:0 0 0 auto;
-  width:34%;
+  width:var(--job-swipe-reveal);
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
   grid-template-rows:minmax(0,1fr);
@@ -555,6 +557,7 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
   pointer-events:none;
 }
 .job-swipe-shell.is-open > .job-swipe-actions { pointer-events:auto; }
+.job-swipe-shell.is-open > .job-swipe-actions:has(.has-tooltip:hover,.has-tooltip:focus-visible) { z-index:3; }
 .job-swipe-action {
   min-width:0;
   width:min(100%,108px);
@@ -607,6 +610,8 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
   .job-swipe-action:active { box-shadow:inset 0 2px 6px rgba(0,0,0,.18); }
 }
 .job-swipe-action:disabled { cursor:not-allowed; opacity:.58; }
+.card-actions .has-tooltip:hover,.card-actions .has-tooltip:focus-visible,
+.job-swipe-action:hover,.job-swipe-action:focus-visible { z-index:3; }
 .card-actions .has-tooltip::after,
 .job-swipe-actions .has-tooltip::after {
   right:50%;
@@ -622,7 +627,9 @@ body.theme-dark .auto-submit-badge.manual { background:#1b3343; border-color:#38
 .card-actions .has-tooltip:focus-visible::after,
 .job-swipe-actions .has-tooltip:hover::after,
 .job-swipe-actions .has-tooltip:focus-visible::after { transform:translate(50%,0); }
-.job-swipe-actions .has-tooltip::after { top:10px; bottom:auto; }
+.job-swipe-actions .has-tooltip::after { top:10px; bottom:auto; max-width:min(260px,var(--job-swipe-tooltip-width)); font-size:12px; }
+.job-swipe-actions .has-tooltip:first-child::after { right:0; transform:none; }
+.job-swipe-actions .has-tooltip:last-child::after { left:0; right:auto; transform:none; }
 body.theme-dark .job-swipe-actions { background:var(--surface-soft); }
 body.theme-dark .job-swipe-action.is-automatic { background:linear-gradient(165deg,#218258,#125a3d); color:#fff; }
 body.theme-dark .job-swipe-action.is-manual { background:linear-gradient(165deg,#647580,#43545f); color:#fff; }

@@ -14,7 +14,7 @@ def test_job_cards_expose_mouse_and_touch_swipe_actions():
     assert "addEventListener('pointerdown'" in JS
     assert "addEventListener('pointermove'" in JS
     assert "touch-action:pan-y" in CSS
-    assert "translate3d(-34%,0,0)" in CSS
+    assert "translate3d(calc(-1 * var(--job-swipe-reveal)),0,0)" in CSS
     assert "grid-template-columns:repeat(3,minmax(0,1fr))" in CSS
     assert "aspect-ratio:1" in CSS
     assert "width:max-content" in CSS
