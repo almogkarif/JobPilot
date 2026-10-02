@@ -17,8 +17,8 @@ queue view. The notification navigator filters them in memory. Their full graph
 is fetched only when the user opens a specific queue entry; this replaces the
 same existing timeline request that previously opened Notification Center. The
 queue snapshot query is unchanged: no extra per-failure detail reads on polling.
-The tiny list can retain the one currently verified submission, adding at most
-one projected metadata row (allow 4 KiB including protocol overhead), with no new query. At the existing
+The tiny list can retain the one explicitly tracked review question or currently
+verified submission, adding at most one projected metadata row (allow 4 KiB including protocol overhead), with no new query. At the existing
 5-second open-center interval, this worst-case increment is 2.81 MiB/open hour,
 67.5 MiB/24 hours continuously open (1.98 GiB/30 days at that unrealistic duty
 cycle); closing the center stops that interval. Normal submitted feedback clears

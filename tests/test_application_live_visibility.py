@@ -84,3 +84,18 @@ def test_closed_jobs_leave_live_surfaces_while_submitted_history_remains(live_vi
     assert status.status_code == 200, status.text
     assert status.json()['is_active'] is False
     assert client.get('/api/applications/6/timeline').status_code == 200
+
+
+def test_explicit_review_question_stays_trackable_without_importing_review_queue(live_visibility):
+    client, db = live_visibility
+    db.get(Application, 1).mode = 'review'  # Not an automatic queued submission.
+    db.get(Application, 3).mode = 'review'  # The user's currently open question.
+    db.commit()
+    ordinary = client.get('/api/applications/tracking-list').json()
+    assert {1, 3}.isdisjoint({row['id'] for row in ordinary})
+    selected = client.get('/api/applications/tracking-list?current_id=3').json()
+    assert next(row for row in selected if row['id'] == 3)['status'] == 'needs_input'
+    assert 1 not in {row['id'] for row in selected}
+    db.get(Job, 3).is_active = False
+    db.commit()
+    assert 3 not in {row['id'] for row in client.get('/api/applications/tracking-list?current_id=3').json()}

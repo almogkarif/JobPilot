@@ -4056,7 +4056,11 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
         .where(
             _application_in_track(track),
             Job.is_active.is_(True),
-            Application.mode.in_(("auto", "audit")),
+            or_(
+                Application.mode.in_(("auto", "audit")),
+                and_(Application.id == current_id, Application.mode == "review",
+                     Application.status.in_(("needs_input", "verification_pending", "submitted"))),
+            ),
             _automatic_application_query_filter(),
             or_(
                 Application.status.in_(("applying", "needs_input", "verification_pending", "queued", "failed", "manual_required")),
