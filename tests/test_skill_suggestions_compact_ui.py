@@ -16,7 +16,7 @@ def test_skill_suggestions_are_a_three_row_scroll_viewport():
 
 
 def test_skill_suggestion_rows_show_only_skill_and_job_count_copy():
-    load_skills = JS[JS.index('async function loadSkills()'):JS.index('async function addSkill(')]
+    load_skills = JS[JS.index('async function loadSkills('):JS.index('async function addSkill(')]
     assert 'class="skill-suggestion-copy"' in load_skills
     assert 'מופיע ב־${item.job_count} משרות' in load_skills
     assert 'item.jobs.map' not in load_skills
@@ -24,7 +24,7 @@ def test_skill_suggestion_rows_show_only_skill_and_job_count_copy():
 
 
 def test_compact_skill_suggestion_keeps_explicit_add_action():
-    load_skills = JS[JS.index('async function loadSkills()'):JS.index('async function addSkill(')]
+    load_skills = JS[JS.index('async function loadSkills('):JS.index('async function addSkill(')]
     assert 'class="skill-suggestion-add"' in load_skills
     assert 'onclick="addSkill(' in load_skills
     assert 'aria-label="הוסף את ${esc(item.skill)} לסקילים שלי"' in load_skills

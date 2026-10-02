@@ -80,6 +80,7 @@ class Profile(UserOwnedMixin, Base):
     application_profile_json: Mapped[str] = mapped_column(Text, default="{}")
     active_career_track: Mapped[str] = mapped_column(String(40), default="computer_science", index=True)
     track_profiles_json: Mapped[str] = mapped_column(Text, default="{}")
+    color_palettes_json: Mapped[str] = mapped_column(String(256), default="{}", server_default="{}")
     onboarding_version: Mapped[int] = mapped_column(Integer, default=0)
     onboarding_state_json: Mapped[str] = mapped_column(Text, default="{}")
     auto_apply_threshold: Mapped[int] = mapped_column(Integer, default=82)

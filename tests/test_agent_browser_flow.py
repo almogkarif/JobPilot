@@ -2202,8 +2202,12 @@ def test_external_identity_redirect_becomes_blocker_instead_of_stale_worker():
     with sync_playwright() as playwright:
         browser = _launch(playwright)
         page = browser.new_page()
+        page.route("**/*", lambda route: route.abort())
+        # HTTP redirect chains only route their first request in Playwright.
+        # A client redirect keeps both documents mocked instead of reaching Google.
         page.route("https://careers.example.test/apply", lambda route: route.fulfill(
-            status=302, headers={"Location": "https://accounts.google.com/v3/signin/identifier"},
+            content_type="text/html",
+            body='<script>location.replace("https://accounts.google.com/v3/signin/identifier")</script>',
         ))
         page.route("https://accounts.google.com/**", lambda route: route.fulfill(
             content_type="text/html", body="<h1>Sign in</h1>",
@@ -2217,6 +2221,8 @@ def test_external_identity_redirect_becomes_blocker_instead_of_stale_worker():
             raise AssertionError("External identity must stop safely")
         except ApplicationBlocked as blocker:
             assert blocker.kind == "external_auth_required"
+            assert page.url == "https://accounts.google.com/v3/signin/identifier"
+            assert page.locator("h1").inner_text() == "Sign in"
         finally:
             browser.close()
 

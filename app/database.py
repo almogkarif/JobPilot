@@ -141,7 +141,10 @@ _RUNTIME_COMPATIBILITY_COLUMNS = {
     "jobs": {"canonical_job_id": "INTEGER", "canonical_key": "VARCHAR(64)", "classification_json": "TEXT NOT NULL DEFAULT '{}'"},
     "job_rankings": {"career_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
     "applications": {"canonical_application_id": "INTEGER", "originating_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
-    "profiles": {"seniority_levels_json": "TEXT NOT NULL DEFAULT ''"},
+    "profiles": {
+        "seniority_levels_json": "TEXT NOT NULL DEFAULT ''",
+        "color_palettes_json": "VARCHAR(256) NOT NULL DEFAULT '{}'",
+    },
 }
 
 
@@ -499,6 +502,31 @@ def _postgres_index_names(connection, table: str) -> set[str]:
     """), {"table": table}).scalars().all())
 
 
+def _postgres_repair_legacy_application_index(connection) -> None:
+    """Replace the old global uniqueness index, without reading application rows."""
+    legacy_unique = connection.execute(text("""
+        SELECT EXISTS (
+            SELECT 1 FROM pg_index i
+            JOIN pg_class t ON t.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_class idx ON idx.oid = i.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = i.indkey[0]
+            WHERE n.nspname = current_schema() AND t.relname = 'applications'
+              AND idx.relname = 'ix_applications_job_id' AND a.attname = 'job_id'
+              AND i.indisunique AND NOT i.indisprimary AND i.indnatts = 1
+              AND i.indpred IS NULL AND i.indexprs IS NULL
+              AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = i.indexrelid)
+        )
+    """)).scalar()
+    if legacy_unique:
+        # unique=True + index=True created a standalone UNIQUE INDEX in older
+        # SQLAlchemy mappings, so the pg_constraint-only upgrade missed it.
+        # The surrounding locked startup transaction installs tenant uniqueness
+        # before serving requests; preserve the ordinary job lookup index here.
+        connection.execute(text('DROP INDEX ix_applications_job_id'))
+        connection.execute(text('CREATE INDEX ix_applications_job_id ON applications(job_id)'))
+
+
 def _postgres_multiuser_migration(connection) -> bool:
     """Upgrade a v0.3.0 single-owner PostgreSQL DB in place.
 
@@ -606,6 +634,7 @@ def _postgres_multiuser_migration(connection) -> bool:
         for name in constraints:
             safe = str(name).replace('"', '""')
             connection.execute(text(f'ALTER TABLE applications DROP CONSTRAINT IF EXISTS "{safe}"'))
+        _postgres_repair_legacy_application_index(connection)
         # The per-user unique index is created after catalog remapping so existing
         # duplicate tenant copies can be reconciled first.
 

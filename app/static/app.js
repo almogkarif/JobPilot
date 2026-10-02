@@ -16,6 +16,8 @@ const state = {
   applicationSection: 'queue',
   careerTracks: [],
   activeCareerTrack: 'computer_science',
+  colorPalettes: {},
+  paletteSaving: false,
 };
 let activeBlockerIndex = 0;
 
@@ -492,9 +494,9 @@ function careerTrackUI(key = state.activeCareerTrack) {
 
 function applyCareerTrackTheme() {
   const config = careerTrackUI();
-  document.body.classList.toggle('track-industrial-engineering', config.key === 'industrial_engineering');
-  document.body.classList.toggle('track-computer-science', config.key === 'computer_science');
-  document.body.classList.toggle('track-electrical-engineering', config.key === 'electrical_engineering');
+  const palette = selectedColorPalette();
+  Object.values(CAREER_TRACK_UI).forEach(track => document.body.classList.toggle(track.themeClass, track.key === palette));
+  document.body.dataset.colorPalette = palette;
   document.body.dataset.careerTrack = config.key;
   $('#career-track-symbol') && ($('#career-track-symbol').textContent = config.symbol);
   $('#career-track-label') && ($('#career-track-label').textContent = config.label);
@@ -504,6 +506,44 @@ function applyCareerTrackTheme() {
   $('#skills-preference-legend') && ($('#skills-preference-legend').textContent = config.skillsLegend);
   $('#scan-btn') && ($('#scan-btn').textContent = `סרוק עכשיו · ${config.shortLabel}`);
   document.title = `JobPilot — ${config.label}`;
+  renderColorPaletteSettings();
+}
+
+function selectedColorPalette() {
+  const saved = state.colorPalettes[state.activeCareerTrack];
+  return Object.hasOwn(CAREER_TRACK_UI, saved) ? saved : careerTrackUI().key;
+}
+
+function renderColorPaletteSettings() {
+  const guest = Boolean(authState.user?.is_guest);
+  const label = $('#color-palette-track');
+  if (label) label.textContent = careerTrackUI().label;
+  const help = $('#color-palette-help');
+  if (help) help.textContent = guest ? 'שמירת צבע אישי זמינה לאחר התחברות לחשבון.' : 'הצבע נשמר בחשבון שלך למסלול הזה בלבד, גם בכניסה ממכשיר אחר.';
+  $$('#color-palette-options [data-color-palette]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.colorPalette === selectedColorPalette()));
+    button.disabled = state.paletteSaving || guest;
+  });
+  $('#color-palette-options')?.setAttribute('aria-busy', String(state.paletteSaving));
+}
+
+async function selectColorPalette(palette) {
+  if (state.paletteSaving || authState.user?.is_guest || !Object.hasOwn(CAREER_TRACK_UI, palette)) return;
+  if (palette === selectedColorPalette()) return;
+  const track = state.activeCareerTrack;
+  state.paletteSaving = true;
+  renderColorPaletteSettings();
+  try {
+    const result = await api('/api/settings/palette', {method:'PUT', body:JSON.stringify({track, palette})});
+    state.colorPalettes = result.color_palettes;
+    applyCareerTrackTheme();
+    toast(`הצבע נשמר עבורך במסלול ${careerTrackUI(track).label}`);
+  } catch (error) {
+    toast(`לא ניתן לשמור את הצבע: ${error.message}`);
+  } finally {
+    state.paletteSaving = false;
+    renderColorPaletteSettings();
+  }
 }
 
 function preferenceOptionMarkup(field, values) {
@@ -556,6 +596,7 @@ async function loadCareerTracks() {
   const payload = await api('/api/career-tracks');
   state.careerTracks = payload.tracks || [];
   state.activeCareerTrack = payload.active_track || 'computer_science';
+  state.colorPalettes = payload.color_palettes || {};
   applyCareerTrackTheme();
   renderCareerPreferenceOptions();
   renderCareerSwitcher();
@@ -578,11 +619,19 @@ async function switchCareerTrack(target) {
   try {
     $('#career-switcher-trigger').disabled = true;
     const result = await api('/api/career-tracks/active', { method: 'PUT', body: JSON.stringify({ track: target }) });
+    // Synchronize the hidden form before it can become a draft for the new track.
+    state.profileLoaded = false;
     state.activeCareerTrack = result.active_track || target;
     state.careerTracks = result.tracks || state.careerTracks;
     state.profile = result.profile || null;
+    state.colorPalettes = result.color_palettes || state.colorPalettes;
     applyCareerTrackTheme();
     renderCareerPreferenceOptions();
+    if (state.profile) {
+      applyProfileToForm(state.profile);
+      state.profileLoaded = true;
+      clearProfileDirtyState();
+    }
     renderCareerSwitcher();
     setCareerMenu(false);
     toast(`עברנו למסלול ${targetTrack?.label || careerTrackUI(target).label}. סוכן החיפוש הקודם כובה.`);
@@ -3506,15 +3555,22 @@ function syncSkillsEverywhere(skills = [], changedSkill = '') {
   }
 }
 
-async function loadSkills() {
-  $('#my-skills').innerHTML = skeleton(2, 'rows');
-  $('#skill-suggestions').innerHTML = skeleton(3, 'rows');
-  state.skillsOverview = await api('/api/skills/overview');
+async function loadSkills({ preserveScroll = false } = {}) {
+  const suggestions = $('#skill-suggestions');
+  if (!preserveScroll) {
+    $('#my-skills').innerHTML = skeleton(2, 'rows');
+    suggestions.innerHTML = skeleton(3, 'rows');
+  }
+  const overview = await api('/api/skills/overview');
+  // Keep the list intact during the request, including any scrolling while it loads.
+  const scrollTop = preserveScroll ? suggestions.scrollTop : 0;
+  state.skillsOverview = overview;
   setPageContext('skills', state.skillsOverview.profile_skills.length);
   renderOwnedSkills(state.skillsOverview.profile_skills);
-  $('#skill-suggestions').innerHTML = state.skillsOverview.suggestions.length
+  suggestions.innerHTML = state.skillsOverview.suggestions.length
     ? state.skillsOverview.suggestions.map((item) => `<article class="skill-suggestion"><div class="skill-suggestion-copy"><strong title="${esc(item.skill)}">${esc(item.skill)}</strong><span>מופיע ב־${item.job_count} משרות</span></div><button class="skill-suggestion-add" type="button" title="הוסף לסקילים שלי" aria-label="הוסף את ${esc(item.skill)} לסקילים שלי" onclick="addSkill(decodeURIComponent('${encodeURIComponent(item.skill)}'))">＋</button></article>`).join('')
     : emptyState('✓', 'אין כרגע פערי סקילים חדשים', 'כל הסקילים שזוהו במשרות הפעילות כבר מופיעים בפרופיל שלך.');
+  suggestions.scrollTop = scrollTop;
 }
 
 async function addSkill(skill, reopenJobId = null) {
@@ -3522,7 +3578,7 @@ async function addSkill(skill, reopenJobId = null) {
     const result = await api('/api/profile/skills', { method: 'POST', body: JSON.stringify({ skill }) });
     syncSkillsEverywhere(result.skills || [], skill);
     toast(`${skill} נוסף מיד · ציוני המשרות מתעדכנים ברקע`);
-    if (state.activeView === 'skills') loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
+    if (state.activeView === 'skills') loadSkills({ preserveScroll: true }).catch((error) => console.warn('Skill overview refresh failed', error));
     if (state.activeView === 'jobs') loadJobs({ silent:true }).catch((error) => console.warn('Jobs refresh failed', error));
     if (reopenJobId) await showJob(reopenJobId);
   } catch (error) {
@@ -3536,7 +3592,7 @@ async function removeSkill(skill) {
     const result = await api(`/api/profile/skills?skill=${encodeURIComponent(skill)}`, { method: 'DELETE' });
     syncSkillsEverywhere(result.skills || []);
     toast(`${skill} הוסר · ציוני המשרות מתעדכנים ברקע`);
-    loadSkills().catch((error) => console.warn('Skill overview refresh failed', error));
+    loadSkills({ preserveScroll: true }).catch((error) => console.warn('Skill overview refresh failed', error));
   } catch (error) {
     toast(error.message);
   }
@@ -4744,6 +4800,7 @@ $$('.preference-group', profileElement).forEach((group, index) => {
   group.classList.toggle('is-preference-collapsed', collapsed);
   toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   toggle.onclick = () => {
+    updateSummary(); // Track changes can restore checkboxes without an input event.
     const next = group.classList.toggle('is-preference-collapsed');
     toggle.setAttribute('aria-expanded', next ? 'false' : 'true');
     toggle.title = next ? 'פתח' : 'מזער';
@@ -5304,6 +5361,7 @@ function applyTextSize(size,announce=false){
 }
 applyTextSize(localStorage.getItem('jobpilot-text-size')||'default');
 $$('#view-settings [data-text-size]').forEach(button=>{button.onclick=()=>applyTextSize(button.dataset.textSize,true)});
+$$('#color-palette-options [data-color-palette]').forEach(button=>{button.onclick=()=>selectColorPalette(button.dataset.colorPalette)});
 let suppressThemeClick = false;
 function selectTheme(theme, compactMessage = false, silent = false) {
   preferredTheme = theme;

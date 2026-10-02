@@ -50,6 +50,7 @@ def test_legacy_postgres_orm_works_without_canonical_migration(pg_catalog, monke
     assert not unified_catalog_enabled()
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE profiles DROP COLUMN seniority_levels_json"))
+        connection.execute(text("ALTER TABLE profiles DROP COLUMN color_palettes_json"))
         connection.execute(text("DROP TABLE collection_observations"))
     # create_all alone leaves existing tables incompatible with the new mappings.
     if entrypoint == "web":
@@ -93,6 +94,7 @@ def test_legacy_postgres_orm_works_without_canonical_migration(pg_catalog, monke
         source = Source(name="Compatibility", kind="greenhouse", identifier="compatibility")
         db.add_all([source, Profile(full_name="Compatibility")])
         db.flush()
+        assert db.scalar(select(Profile).where(Profile.full_name == "Compatibility")).color_palettes_json == "{}"
         job = Job(source_id=source.id, external_id="new", title="Engineer", company="Example",
                   apply_url="https://example.com/jobs/new")
         db.add(job)

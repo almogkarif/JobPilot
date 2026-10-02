@@ -2,3 +2,7 @@
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-ra"
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::FutureWarning",
+]

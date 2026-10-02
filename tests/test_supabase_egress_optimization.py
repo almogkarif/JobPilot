@@ -26,6 +26,46 @@ from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
 
 
+def test_palette_save_only_reads_one_small_owned_preference_row(personal_tracking):
+    client, _, engine = personal_tracking
+    statements = []
+    def capture(_conn, _cursor, statement, parameters, _context, _many):
+        statements.append((statement.lower(), parameters))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.put('/api/settings/palette', headers={'Authorization': 'alpha'},
+                              json={'track': 'industrial_engineering', 'palette': 'electrical_engineering'})
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200 and len(response.content) < 256
+    assert len(statements) == 2
+    read, write = statements
+    assert read[0].startswith('select profiles.id, profiles.color_palettes_json')
+    assert write[0].startswith('update profiles set') and 'updated_at=profiles.updated_at' in write[0]
+    for sql, params in statements:
+        assert 'user_id' in sql and 'alpha' in params
+        assert not any(field in sql for field in ('description', 'application_profile_json', 'track_profiles_json', 'jobs', 'rankings'))
+
+
+@pytest.mark.parametrize('legacy_unique', [False, True])
+def test_legacy_application_index_repair_reads_one_metadata_boolean(legacy_unique):
+    from types import SimpleNamespace
+    from app.database import _postgres_repair_legacy_application_index
+    statements = []
+    class Connection:
+        def execute(self, statement):
+            statements.append(str(statement).strip().lower())
+            return SimpleNamespace(scalar=lambda: legacy_unique)
+    _postgres_repair_legacy_application_index(Connection())
+    assert len(statements) == (3 if legacy_unique else 1)
+    assert statements[0].startswith('select exists (') and 'from pg_index' in statements[0]
+    assert 'current_schema()' in statements[0] and "idx.relname = 'ix_applications_job_id'" in statements[0]
+    assert not any('select *' in sql or 'from applications' in sql or 'from jobs' in sql for sql in statements)
+    assert not any(word in statements[0] for word in ('description', 'resume_path', 'answers_json'))
+    if legacy_unique:
+        assert statements[1:] == ['drop index ix_applications_job_id', 'create index ix_applications_job_id on applications(job_id)']
+
+
 def test_personal_tracking_is_two_bounded_metadata_queries(personal_tracking):
     client,_,engine=personal_tracking
     statements=[]
@@ -1234,7 +1274,8 @@ def test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_re
     assert len(_RUNTIME_COMPATIBILITY_COLUMNS) == 5
     for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
         _add_runtime_compatibility_columns(connection, table, set())
-    assert len(connection.statements) == 9
+    assert len(connection.statements) == 10
+    assert "ALTER TABLE profiles ADD COLUMN color_palettes_json VARCHAR(256) NOT NULL DEFAULT '{}'" in connection.statements
     connection.statements.clear()
     for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
         _add_runtime_compatibility_columns(connection, table, set(columns))

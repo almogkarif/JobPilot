@@ -42,7 +42,7 @@ from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
     AgentResultRequest, AgentProgressRequest, AgentSecurityCodeRequest, CampaignUpdate,
-    DesiredTitleUpdateRequest,
+    DesiredTitleUpdateRequest, ColorPaletteUpdate,
     ImportJobRequest,
     ProfilePatch,
     ProfileUpdate,
@@ -1874,7 +1874,33 @@ def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats
             source_errors=track_stats.get("source_errors", 0),
             jobs=track_stats.get("jobs", 0),
         ))
-    return {"active_track": current, "tracks": rows, "scanning": _user_scan_lock(SHARED_CATALOG_USER_ID).locked()}
+    return {"active_track": current, "tracks": rows, "scanning": _user_scan_lock(SHARED_CATALOG_USER_ID).locked(),
+            "color_palettes": _color_palettes(profile.color_palettes_json)}
+
+
+def _color_palettes(raw: str | None) -> dict[str, str]:
+    saved = loads(raw, {})
+    if not isinstance(saved, dict):
+        saved = {}
+    return {key: saved.get(key) if isinstance(saved.get(key), str) and saved.get(key) in CAREER_TRACK_BY_KEY else key
+            for key in CAREER_TRACK_BY_KEY}
+
+
+@app.put("/api/settings/palette")
+def set_color_palette(payload: ColorPaletteUpdate, db: Session = Depends(get_db)):
+    # Cosmetic preferences never touch ranking inputs, profile timestamps or ATS data.
+    # Lock the single user's row so simultaneous saves for different tracks merge.
+    row = db.execute(select(Profile.id, Profile.color_palettes_json)
+                     .where(Profile.user_id == current_user_id(db)).with_for_update()).first()
+    if row is None:
+        raise HTTPException(404, "Profile not found")
+    palettes = _color_palettes(row.color_palettes_json)
+    palettes[payload.track] = payload.palette
+    db.execute(update(Profile).where(Profile.id == row.id, Profile.user_id == current_user_id(db))
+               .values(color_palettes_json=dumps(palettes), updated_at=Profile.updated_at)
+               .execution_options(synchronize_session=False))
+    db.commit()
+    return {"color_palettes": palettes}
 
 
 ONBOARDING_VERSION = 2

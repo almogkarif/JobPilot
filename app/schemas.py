@@ -6,6 +6,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
+class ColorPaletteUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    track: Literal["computer_science", "industrial_engineering", "electrical_engineering"]
+    palette: Literal["computer_science", "industrial_engineering", "electrical_engineering"]
+
+
 class ProfileUpdate(BaseModel):
     full_name: str = ""
     email: EmailStr | Literal[""] = ""

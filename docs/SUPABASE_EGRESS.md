@@ -4,6 +4,43 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Personal track palettes — October 2, 2026
+
+A VARCHAR(256) column on the existing owned Profile stores at most three validated
+palette choices. An additive, idempotent compatibility migration supplies `{}` for
+existing accounts; no profile/catalog backfill or export runs. The existing career
+track response includes the three choices (under 256 bytes), without a new request
+or query. Existing profile reads add at most 256 bytes per row; even 1,000 reads/day
+add at most 250 KiB/day, or 7.4 MiB/30 days. Projected polling queries stay unchanged.
+
+An explicit palette save reads only one user's ID and preference column, locks that
+row, and updates that column while preserving the profile timestamp. Allow 2 KiB
+including protocol overhead per save: 20 deliberate saves/day are <=40 KiB/day or
+1.2 MiB/30 days per user (20 saves/hour: <=40 KiB/hour). There is no periodic saving,
+new polling, catalog/description query, ranking refresh, model or Storage access.
+Startup adds only the existing metadata column check and a one-time DDL ack.
+SQLite, PostgreSQL compatibility, tenant isolation, bounded SQL and browser checks
+use disposable synthetic data. No production scan, retry or deployment is required.
+
+## Legacy application uniqueness repair — October 2, 2026
+
+PostgreSQL startup now checks the exact legacy `ix_applications_job_id` definition
+using one `SELECT EXISTS` over system catalogs. Only a standalone, unconditional,
+single-column UNIQUE(job_id) index is replaced with a non-unique lookup index;
+the existing transaction installs/retains UNIQUE(user_id, job_id). Applications,
+attempts, answers, resumes and user ownership are unchanged. No queue endpoint,
+worker, polling request or per-request schema check is added.
+
+The additional result is one boolean (reserve 1 KiB with protocol overhead) per
+successful web startup: one restart/hour is <=24 KiB/day and <=720 KiB/30 days;
+even 100 restarts/day are <=100 KiB/day and <3 MiB/30 days. On the first affected
+startup, two DDL acknowledgments add <=2 KiB once. Index rebuilding occurs inside
+PostgreSQL; zero application/job rows or Storage objects leave the database.
+The existing schema advisory lock serializes the transactional repair. Once
+repaired, subsequent restarts issue only the bounded metadata check, no DDL.
+Tests reproduce the legacy index on temporary PostgreSQL, exercise two synthetic
+users queuing the same job, and verify duplicate prevention and history retention.
+
 ## Hourly vacancy availability — October 2, 2026
 
 The hourly schedule is unchanged. NVIDIA, Intel, Applied Materials, KLA and

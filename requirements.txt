@@ -1,5 +1,5 @@
 fastapi==0.141.1
-starlette==1.6.0
+starlette==1.7.0
 uvicorn[standard]==0.48.0
 sqlalchemy==2.0.50
 pydantic==2.13.4
@@ -8,7 +8,7 @@ httpx==0.28.1
 beautifulsoup4==4.14.3
 python-multipart==0.0.32
 email-validator==2.3.0
-playwright==1.57.0
+playwright==1.59.0
 pypdf==6.16.2
 
 PyJWT[crypto]==2.13.0
