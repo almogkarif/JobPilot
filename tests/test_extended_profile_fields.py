@@ -1,3 +1,5 @@
+import pytest
+
 from agent.fields import known_value, missing_profile_context
 from app.main import _normalize_application_contact_fields
 
@@ -205,3 +207,46 @@ def test_work_experience_from_and_to_use_employment_dates():
     assert known_value("From*", "text", profile, {}, []).value == "08/2024"
     assert known_value("To*", "text", profile, {}, []).value == "08/2025"
     assert known_value("Type to Add Skills", "text", profile, {}, []).value == "Python, Linux"
+
+
+@pytest.mark.parametrize("field_type", ["text", "select", "radio"])
+@pytest.mark.parametrize("needs_sponsorship", [True, False])
+def test_sponsorship_question_with_current_location_uses_saved_boolean(field_type, needs_sponsorship):
+    profile = {**PROFILE, "needs_sponsorship": needs_sponsorship,
+               "application_profile": {**PROFILE["application_profile"], "city": "Haifa"}}
+    answer = known_value(
+        "Will you now or in the future require sponsorship for a visa to remain in your current location?*",
+        field_type, profile, {}, [],
+    )
+    assert answer.value is needs_sponsorship
+
+
+def test_work_authorization_question_with_country_uses_saved_boolean():
+    profile = {**PROFILE, "work_authorization": False,
+               "application_profile": {"country": "Israel", "city": "Haifa"}}
+    answer = known_value("Are you authorized to work in your current country?", "select", profile, {}, [])
+    assert answer.value is False
+
+
+@pytest.mark.parametrize("label", [
+    "Will you require sponsorship for a visa to remain in your current location?",
+    "Are you authorized to work in your current country?",
+])
+def test_authorization_and_sponsorship_require_saved_value(label):
+    profile = {**PROFILE, "application_profile": {"country": "Israel", "city": "Haifa"}}
+    assert known_value(label, "select", profile, {}, []) is None
+    explicit = known_value(label, "select", profile, {label: "Yes"}, [])
+    assert explicit.value == "Yes" and explicit.source == "resolved_answer"
+
+
+def test_country_list_eligibility_does_not_receive_city_as_an_answer():
+    label = ("This role is open to candidates in Canada, the UK, and Israel. "
+             "Do you currently live in one of these locations? *")
+    profile = {**PROFILE, "application_profile": {"city": "Haifa"}}
+    assert known_value(label, "text", profile, {}, []) is None
+    explicit = known_value(label, "select", profile, {label: "Yes"}, [])
+    assert explicit.value == "Yes" and explicit.source == "resolved_answer"
+    remembered = known_value(label, "select", profile, {}, [
+        {"pattern": label, "answer": "Yes", "scope": "company"},
+    ])
+    assert remembered.value == "Yes" and remembered.source == "company_answer_memory"

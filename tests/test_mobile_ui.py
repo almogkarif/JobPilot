@@ -119,6 +119,9 @@ def phone(mobile_server):
         context = browser.new_context(viewport={'width':390,'height':844}, is_mobile=True,
                                       has_touch=True, locale='he-IL', device_scale_factor=1)
         context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base+'/') else route.abort())
+        # A preceding theme/onboarding case may have switched the shared profile.
+        switched=context.request.put(base+'/api/career-tracks/active',data={'track':'computer_science'})
+        assert switched.status==200,switched.text()
         page = context.new_page()
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
@@ -205,6 +208,10 @@ def test_phone_selects_resume_and_queues_once_with_real_preview(phone, mobile_se
     page.screenshot(path=str(work/f'auto-approval-{width}.png'))
     dimensions=page.locator('#modal-content').evaluate('el=>({scrollHeight:el.scrollHeight,height:el.clientHeight,scrollWidth:el.scrollWidth,width:el.clientWidth})')
     assert dimensions['scrollHeight']>dimensions['height'] and dimensions['scrollWidth']<=dimensions['width']+1, (dimensions, page.locator('#modal-content').evaluate('''el=>[...el.querySelectorAll('*')].filter(e=>e.scrollWidth>e.clientWidth+10).slice(0,15).map(e=>[e.tagName,e.className,e.clientWidth,e.scrollWidth])'''))
+    # Preserve the underlying list instead of hiding a repaint behind the modal.
+    page.evaluate("window.__queuedCard=document.querySelector('#jobs-list .job-card')")
+    navigations=[]
+    page.on('framenavigated',lambda frame: navigations.append(frame.url) if frame==page.main_frame else None)
     with page.expect_response(lambda response: response.url.endswith(f'/api/jobs/{job_id}/queue')) as pending:
         button.tap()
     response=pending.value
@@ -216,9 +223,15 @@ def test_phone_selects_resume_and_queues_once_with_real_preview(phone, mobile_se
         assert saved==(2,'queued','auto')
         assert db.execute('SELECT count(*) FROM applications WHERE job_id=?',(job_id,)).fetchone()[0]==1
     expect(page.locator('#modal')).not_to_have_class('modal open')
-    expect(page.locator('.application-live-queue')).to_be_visible()
-    page.wait_for_timeout(500)  # Capture after the modal/notification transitions.
-    fits_viewport(page.locator('#notification-center'),width)
+    expect(page.locator('#toast')).to_contain_text('ההגשה נשלחה לתור')
+    page.wait_for_function('applicationQueueInFlight.size===0')
+    expect(page.locator('#notification-center')).not_to_have_class('notification-center open')
+    assert page.locator('#notification-center').get_attribute('aria-hidden')=='true'
+    assert page.evaluate('state.activeView')=='jobs'
+    expect(page.locator('#job-search')).to_have_value(f'#{job_id}')
+    assert page.evaluate("window.__queuedCard===document.querySelector('#jobs-list .job-card')")
+    assert not navigations
+    page.wait_for_timeout(450)  # Capture after the closing modal animation.
     page.screenshot(path=str(work/f'auto-queued-{width}.png'))
 
 
@@ -284,3 +297,145 @@ def test_large_text_track_themes_and_onboarding(phone):
         else:
             expect(page.locator('[data-ob-track]').first).to_be_in_viewport()
     page.screenshot(path=str(work/'onboarding-review.png'))
+
+
+@pytest.mark.parametrize('width,theme', [(320,'light'), (390,'dark'), (430,'light'), (1440,'light')])
+def test_resume_skill_suggestions_fit_and_can_be_added(phone, mobile_server, width, theme):
+    page, work = phone
+    skill = f'MultilingualApplicationObservability{width}'
+    resume_label = 'demo-resume-software-engineering-and-data-platforms-latest-version-2026.pdf'
+    suggestions = [
+        {'field':'skills', 'value':value, 'label':f'להוסיף את {value} לסקילים'}
+        for value in [skill, 'CI/CD', 'PostgreSQL', 'Accessibility testing']
+    ]
+    with sqlite3.connect(mobile_server[1]/'test.db') as db:
+        original = db.execute('SELECT label, analysis_json FROM resume_profiles WHERE id=1').fetchone()
+        analysis = json.loads(original[1])
+        analysis['suggestions'] = suggestions
+        db.execute('UPDATE resume_profiles SET label=?, analysis_json=? WHERE id=1',
+                   (resume_label, json.dumps(analysis)))
+    try:
+        page.set_viewport_size({'width':width, 'height':844})
+        page.evaluate('theme=>applyTheme(theme)', theme)
+        nav = '[data-mobile-view="profile"]' if width<760 else '#nav [data-view="profile"]'
+        page.locator(nav).tap()
+        button = page.locator('[data-resume-suggestion]').filter(has_text=skill)
+        expect(button).to_be_visible()
+        button.scroll_into_view_if_needed()
+        page.screenshot(path=str(work/f'resume-skills-{width}-{theme}.png'))
+        fits_viewport(page.locator('#resume-insights, [data-resume-suggestion]'), width)
+        expect(button.locator('small')).to_have_text(resume_label)
+        assert button.evaluate('el=>el.scrollWidth<=el.clientWidth+1')
+        assert page.locator('#resume-insights').evaluate('el=>el.scrollWidth<=el.clientWidth+1')
+        with page.expect_response(lambda response: response.url.endswith('/api/resumes/1/suggestions/apply')) as pending:
+            button.tap()
+        response = pending.value
+        assert response.status==200, response.text()
+        assert skill in response.json()['profile']['skills']
+        expect(button).to_have_count(0)
+    finally:
+        with sqlite3.connect(mobile_server[1]/'test.db') as db:
+            db.execute('UPDATE resume_profiles SET label=?, analysis_json=? WHERE id=1', original)
+
+
+@pytest.mark.parametrize('width', [320, 430])
+def test_phone_admin_navigation_is_available_only_with_permission(phone, mobile_server, width):
+    page, work = phone
+    page.set_viewport_size({'width':width, 'height':844})
+    developer = page.locator('[data-mobile-view="developer"]')
+    applications = page.locator('[data-mobile-view="applications"]')
+    expect(developer).to_have_count(1)
+    expect(developer).to_be_visible()
+    expect(applications).to_be_visible()
+    developer.scroll_into_view_if_needed()
+    developer.tap()
+    expect(page.locator('#view-developer')).to_have_class('view active')
+    expect(developer).to_have_attribute('aria-current', 'page')
+    fits_viewport(page.locator('#view-developer .panel'), width)
+    page.screenshot(path=str(work/f'developer-{width}.png'))
+
+    page.locator('#developer-preview-non-admin').tap()
+    expect(page.locator('#admin-preview-exit')).to_be_visible()
+    expect(developer).to_be_hidden()
+    expect(applications).to_be_hidden()
+    for view in ('developer', 'applications'):
+        assert page.evaluate('view=>{switchView(view);return state.activeView}', view)=='jobs'
+    for endpoint in ('/api/admin/developer/overview', '/api/applications'):
+        response = page.request.get(mobile_server[0]+endpoint, headers={'X-JobPilot-Preview-Role':'user'})
+        assert response.status==403
+
+    page.locator('#admin-preview-exit').tap()
+    expect(developer).to_be_visible()
+    expect(applications).to_be_visible()
+    # Cloud users receive separate capabilities from /api/auth/me. Neither link
+    # may become visible just because one-job submission is available to them.
+    for role in ('user', 'guest'):
+        page.evaluate('''role=>{
+          authState.config={...authState.config,mode:'supabase'};
+          authState.user={role};
+          authState.capabilities={developer_tools:false,applications_workspace:false,application_agent:role==='user'};
+          configureDeveloperTools();
+        }''', role)
+        expect(developer).to_be_hidden()
+        expect(applications).to_be_hidden()
+
+
+@pytest.mark.parametrize('width', [390, 1440])
+def test_notification_failures_stay_in_queue_and_full_diagnostics(phone, mobile_server, width):
+    page, work = phone
+    page.set_viewport_size({'width':width,'height':900})
+    path=mobile_server[1]/'test.db'
+    with sqlite3.connect(path) as db:
+        original=db.execute('SELECT id,status FROM applications WHERE id IN (104,105,106)').fetchall()
+        old_blocker=db.execute('SELECT status FROM blockers WHERE id=105').fetchone()[0]
+        db.execute("UPDATE applications SET status='manual_required' WHERE id=104")
+        db.execute("UPDATE applications SET status='needs_input' WHERE id=105")
+        db.execute("UPDATE applications SET status='failed' WHERE id=106")
+        db.execute("UPDATE blockers SET status='open' WHERE id=105")
+    try:
+        page.evaluate('''() => {
+          Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copiedDiagnostics=text}}});
+          startApplicationTracking(106,true);
+        }''')
+        expect(page.locator('#notification-center .application-live-tracker')).to_be_visible()
+        assert page.locator('#notification-center .has-failure').count()==0
+        expect(page.locator('#notification-center .application-live-head')).not_to_contain_text('Infrastructure 6')
+        expect(page.locator('#notification-center .application-live-head')).not_to_contain_text('Infrastructure 4')
+        page.screenshot(path=str(work/f'notifications-{width}.png'))
+        with page.expect_response(lambda r:'/api/applications/failure-diagnostics' in r.url) as response:
+            page.locator('#notification-center .application-diagnostics-copy').click()
+        assert '?' not in response.value.url
+        page.wait_for_function("window.__copiedDiagnostics?.includes('application_id: 106')")
+        copied=page.evaluate('window.__copiedDiagnostics')
+        assert 'application_id: 104' in copied and 'manual_required' in copied
+        assert 'application_id: 105' in copied and 'failed' in copied
+        page.locator('[data-auto-queue-list]').click()
+        expect(page.locator('.auto-apply-queue-list')).to_be_visible()
+        failed=page.locator('.auto-queue-attention').filter(has_text='Infrastructure 6')
+        expect(failed).to_be_visible()
+        expect(page.locator('.auto-queue-attention').filter(has_text='Infrastructure 4')).to_be_visible()
+        page.wait_for_timeout(450)
+        page.screenshot(path=str(work/f'queue-failures-{width}.png'))
+        failed.get_by_role('button',name='פתח',exact=True).click()
+        expect(page.locator('#modal .application-live-tracker.has-failure')).to_be_visible()
+        assert page.locator('#notification-center .has-failure').count()==0
+        page.locator('.modal-close').click()
+
+        page.evaluate('startApplicationTracking(105,true,true)')
+        expect(page.locator('#notification-center .application-live-head')).to_contain_text('Infrastructure 5')
+        # Simulate a scan closing jobs while the user already has a tracker open.
+        with sqlite3.connect(path) as db:
+            db.execute("UPDATE jobs SET is_active=0, removed_at=CURRENT_TIMESTAMP WHERE id IN (1003,1005,1006)")
+        page.evaluate('async()=>{await refreshTrackingApplications();renderNotificationCenter()}')
+        assert page.locator('#notification-center .application-live-head').filter(has_text='Infrastructure 5').count()==0
+        page.evaluate('showAutoApplyQueue()')
+        expect(page.locator('.auto-apply-queue-list')).to_be_visible()
+        assert page.locator('.auto-queue-attention').filter(has_text='Infrastructure 6').count()==0
+        assert page.locator('.auto-queue-attention').filter(has_text='Infrastructure 5').count()==0
+        history=page.request.get(mobile_server[0]+'/api/applications').json()
+        assert 103 in {item['id'] for item in history}
+    finally:
+        with sqlite3.connect(path) as db:
+            for id,status in original: db.execute('UPDATE applications SET status=? WHERE id=?',(status,id))
+            db.execute('UPDATE blockers SET status=? WHERE id=105',(old_blocker,))
+            db.execute('UPDATE jobs SET is_active=1,removed_at=NULL WHERE id IN (1003,1005,1006)')

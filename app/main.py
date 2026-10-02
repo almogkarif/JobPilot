@@ -2071,10 +2071,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         auto_apply_queue = _auto_apply_queue_snapshot(db, career_track)
         open_blockers = db.scalar(select(func.count()).select_from(Blocker)
             .join(Application, Blocker.application_id == Application.id).join(Job, Application.job_id == Job.id)
-            .where(Blocker.status == "open", _application_in_track(career_track))) or 0
+            .where(Blocker.status == "open", Job.is_active.is_(True), _application_in_track(career_track))) or 0
         due_reminders = db.scalar(select(func.count()).select_from(Application).join(Job, Application.job_id == Job.id).where(
             Application.reminder_at.is_not(None), Application.reminder_at <= utcnow(),
-            Application.status.not_in(["rejected"]), _application_in_track(career_track))) or 0
+            Application.status.not_in(["rejected"]), Job.is_active.is_(True), _application_in_track(career_track))) or 0
 
     enabled_sources = int(current_stats.get("enabled_sources", 0))
     failed_sources = int(current_stats.get("source_errors", 0))
@@ -4058,7 +4058,10 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
             Job.is_active.is_(True),
             Application.mode.in_(("auto", "audit")),
             _automatic_application_query_filter(),
-            Application.status.in_(("applying", "needs_input", "verification_pending", "failed", "manual_required", "queued")),
+            or_(
+                Application.status.in_(("applying", "needs_input", "verification_pending", "queued", "failed", "manual_required")),
+                and_(Application.id == current_id, Application.status == "submitted"),
+            ),
         )
         .order_by(Application.id)
     ).all()
@@ -4135,9 +4138,10 @@ def application_failure_diagnostics(
     statement = (
         select(Application)
         .join(Job, Application.job_id == Job.id)
-        .options(joinedload(Application.job).joinedload(Job.source), selectinload(Application.blockers))
+        .options(joinedload(Application.job).defer(Job.description).joinedload(Job.source), selectinload(Application.blockers))
         .where(
             _application_in_track(track),
+            Job.is_active.is_(True),
             Application.mode.in_(("auto", "audit")),
             Application.status.in_(("queued", "applying", "needs_input", "verification_pending", "failed", "manual_required")),
         )
@@ -4442,8 +4446,9 @@ def application_tracking_status(application_id: int, request: Request, db: Sessi
     return {
         "application_id": application.id,
         "status": application.status,
+        "is_active": application.job.is_active,
         "updated_at": application.updated_at,
-        "timeline_version": f"{updated}:{latest_event_id}:{attempt_token}:{blocker_token}:{queue_token}",
+        "timeline_version": f"{int(application.job.is_active)}:{updated}:{latest_event_id}:{attempt_token}:{blocker_token}:{queue_token}",
         "latest_event_id": latest_event_id,
         "auto_apply_queue": queue,
     }
@@ -4672,8 +4677,8 @@ def remove_application_from_queue(application_id: int, db: Session = Depends(get
 def list_blockers(status: str = "open", db: Session = Depends(get_db)):
     track = active_track(get_user_profile(db))
     statement = (select(Blocker).join(Application, Blocker.application_id == Application.id).join(Job, Application.job_id == Job.id)
-                 .options(joinedload(Blocker.application).joinedload(Application.job))
-                 .where(_application_in_track(track)).order_by(desc(Blocker.created_at)))
+                 .options(joinedload(Blocker.application).joinedload(Application.job).defer(Job.description))
+                 .where(_application_in_track(track), Job.is_active.is_(True)).order_by(desc(Blocker.created_at)))
     if status != "all":
         statement = statement.where(Blocker.status == status)
     blockers = db.scalars(statement).all()
@@ -6058,14 +6063,28 @@ def agent_resume_file(application_id: int, request: Request, token: str = "", ag
     agent_token = request.headers.get("X-JobPilot-Agent-Token", "") or token
     _check_agent_token(db, agent_token, agent_id=agent_id, application_id=application_id)
     application = resolve_application(db, application_id)
-    if not application or not application.resume_path:
+    if not application:
+        raise HTTPException(404, "Resume not found")
+    # Replacing the selected version deletes its former file. Resolve that same
+    # version's current reference, never a different recommended/default resume.
+    resume = db.execute(select(ResumeProfile.path, ResumeProfile.filename).where(
+        ResumeProfile.id == application.resume_id,
+        ResumeProfile.user_id == application.user_id,
+    )).first() if application.resume_id else None
+    resume_path = (resume.path if resume and resume.path else application.resume_path) or ""
+    if not resume_path.strip():
         raise HTTPException(404, "Resume not found")
     try:
-        content = read_bytes(application.resume_path)
-    except Exception as exc:  # noqa: BLE001
+        content = read_bytes(resume_path)
+    except FileNotFoundError as exc:
         raise HTTPException(404, "Resume not found") from exc
-    resume = db.get(ResumeProfile, application.resume_id) if application.resume_id else None
-    filename = (resume.filename if resume else Path(application.resume_path).name) or "resume.pdf"
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise HTTPException(404, "Resume not found") from exc
+        raise HTTPException(503, "Resume storage unavailable") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, "Resume storage unavailable") from exc
+    filename = (resume.filename if resume else Path(resume_path).name) or "resume.pdf"
     safe_filename = Path(filename.replace("\r", "").replace("\n", "")).name or "resume.pdf"
     suffix = Path(safe_filename).suffix.lower()
     ascii_fallback = f"resume{suffix if suffix and suffix.isascii() else '.pdf'}"

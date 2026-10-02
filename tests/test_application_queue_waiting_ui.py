@@ -16,7 +16,7 @@ def test_auto_apply_queue_has_persistent_visual_waiting_state():
 
     assert "ממתינה בתור להגשה אוטומטית" in js
     assert "תופעל אוטומטית ברצף" in js
-    assert "autoQueue.total_active_count" in js
+    assert "combinedApplicationQueue(autoQueue).total_active_count" in js
     assert "otherAutoQueueItems" in js
     assert "משרות ממתינות בתור" in js
     assert "queue_position" in js
@@ -40,7 +40,7 @@ def test_profile_grade_sheet_reuse_is_automatic_not_a_user_confirmation():
 def test_auto_apply_queue_count_and_modal_include_the_running_application():
     js = (ROOT / "app/static/app.js").read_text(encoding="utf-8")
     css = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
-    assert "const autoQueueCount=autoQueue.total_active_count" in js
+    assert "const autoQueueCount=combinedApplicationQueue(autoQueue).total_active_count" in js
     assert "items.push({ view:'applications', count:autoQueueCount, queue:true, persistent:true })" in js
     assert "משרות ממתינות בתור" in js
     assert "אין כרגע משרות בתור — לחץ כדי לפתוח את התור" in js
@@ -59,7 +59,7 @@ def test_auto_apply_queue_count_and_modal_include_the_running_application():
     assert "queue.running" in js
     assert "function combinedApplicationQueue" in js
     assert "Promise.all([refreshAutoApplyQueue(),refreshTrackingApplications()])" in js
-    assert "הרשימה כוללת את כל ההגשות שמופיעות במרכז ההתראות" in js
+    assert "וגם הגשות שנכשלו ודורשות הגשה ידנית" in js
     assert "running_count" in js
     assert "tone-${tone}" in js
     assert ".auto-apply-queue-list article.tone-danger" in css
@@ -104,7 +104,7 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "פתח צפייה חיה" in js
     assert "viewInteractiveApplication(${data.application.id})" in js
     assert "blindRetryBlocked=['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blockerKind)" in js
-    assert "guidedFailureAction=failed&&!manualRequired&&['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blocker?.kind)" in js
+    assert "guidedFailureAction=(failed||status==='needs_input')&&!manualRequired&&['submit_not_sent','anti_automation_blocked','review_before_submit'].includes(blocker?.kind)" in js
     assert "data.application?.live_view_ready?'':`<button" in js
     assert "JobPilot לא יבצע retry אוטומטי נוסף" in js
     assert "status==='queued'&&attemptCount>0" in js
@@ -116,7 +116,8 @@ def test_notification_tracker_navigates_all_unfinished_auto_applications_and_ret
     assert "העתק אבחון של ההגשות שלא הושלמו" in js
     assert "/api/applications/failure-diagnostics" in js
     assert "await refreshTrackingApplications()" in js
-    assert "?application_ids=${ids.join(',')}" in js
+    assert "api('/api/applications/failure-diagnostics')" in js
+    assert "?application_ids=${ids.join(',')}" not in js
     assert "needs_input: ${Number(summary.needs_input||0)}" in js
     assert "YELLOW_QUESTION" in js
     assert "RED_ERROR" in js
@@ -161,7 +162,7 @@ def test_verified_submission_tracker_is_cleared_but_attention_states_remain_trac
     # States that are still waiting for user feedback/action stay in the
     # tracking list and therefore can become the next tracker instead of being
     # discarded as completed.
-    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','manual_required','verification_pending','failed'])" in js
+    assert "TRACKABLE_APPLICATION_STATUSES=new Set(['applying','needs_input','verification_pending'])" in js
     assert "const feedbackNext=trackingApplications.find(item=>Number(item.id)!==finishedId)" in js
 
 

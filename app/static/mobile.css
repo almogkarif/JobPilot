@@ -150,6 +150,18 @@
   .form-grid :is(input, select, textarea), .form-stack :is(input, select, textarea),
   .campaign-controls :is(input, select, textarea), .onboarding-content :is(input, select, textarea) { font-size:16px; }
   .form-grid > label, .form-stack > label { min-width:0; font-size:13px; }
+  .resume-insights, .resume-suggestions { min-width:0; max-width:100%; }
+  .resume-insights-head { flex-wrap:wrap; }
+  .resume-insights-head strong { min-width:0; font-size:12px; }
+  .resume-insights-head .text-btn { min-height:44px; }
+  .resume-suggestions > span { font-size:12px; line-height:1.5; }
+  .resume-suggestions button {
+    min-width:0; max-width:100%; min-height:44px; grid-template-columns:24px minmax(0,1fr);
+    gap:4px 8px; padding:12px; overflow-wrap:anywhere; white-space:normal;
+  }
+  .resume-suggestions button b { grid-column:1; grid-row:1 / 3; }
+  .resume-suggestion-label { grid-column:2; grid-row:1; min-width:0; font-size:14px; line-height:1.5; }
+  .resume-suggestions button small { grid-column:2; grid-row:2; min-width:0; font-size:12px; line-height:1.5; text-align:start; }
   .source-toggle, .source-item-controls .btn { min-height:44px; }
   .source-toggle-copy strong { font-size:12px; }
   .source-health-label { font-size:11px; }

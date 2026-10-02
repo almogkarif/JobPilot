@@ -326,6 +326,26 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
             return CandidateValue("Requires visa sponsorship", "profile")
         return None
 
+    # These questions can mention "country", "company" or "current location".
+    # Resolve their saved boolean before generic identity/address aliases.
+    if any(x in key for x in ["authorized to work", "work authorization", "רשאי לעבוד", "אישור עבודה"]) or (
+        "eligible" in key and "work" in key and "legally" in key
+    ):
+        value = profile.get("work_authorization")
+        return CandidateValue(value, "profile") if isinstance(value, bool) else None
+    if (
+        any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"])
+        or ("sponsorship" in key and any(term in key for term in ("require", "need")))
+        or ("sponsor" in key and any(term in key for term in ("require", "need")))
+    ):
+        value = profile.get("needs_sponsorship")
+        return CandidateValue(value, "profile") if isinstance(value, bool) else None
+
+    # A residency eligibility gate needs a yes/no answer, not a city. Explicit
+    # answers and memories above still apply; otherwise let the user resolve it.
+    if re.search(r"\bdo you (?:currently )?(?:live|reside) in\b", key):
+        return None
+
     mapping: list[tuple[list[str], Any, str]] = [
         (["preferred name"], extra.get("preferred_name", ""), "profile"),
         (["pronouns"], extra.get("pronouns", ""), "profile"),
@@ -371,16 +391,6 @@ def known_value(label: str, field_type: str, profile: dict, explicit_answers: di
         if any(needle in key for needle in needles) and str(value).strip():
             return CandidateValue(value, source)
 
-    if any(x in key for x in ["authorized to work", "work authorization", "רשאי לעבוד", "אישור עבודה"]) or (
-        "eligible" in key and "work" in key and "legally" in key
-    ):
-        return CandidateValue(bool(profile.get("work_authorization")), "profile")
-    if (
-        any(x in key for x in ["require sponsorship", "visa sponsorship", "ספונסר", "ויזה"])
-        or ("sponsorship" in key and any(term in key for term in ("require", "need")))
-        or ("sponsor" in key and any(term in key for term in ("require", "need")))
-    ):
-        return CandidateValue(bool(profile.get("needs_sponsorship")), "profile")
     return None
 
 

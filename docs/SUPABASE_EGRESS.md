@@ -4,6 +4,65 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Phone queue feedback and live application visibility — October 2, 2026
+
+Mobile background approval reuses the existing compact queue/tracker requests,
+without reloading the dashboard or jobs page. It introduces zero calls, rows,
+Storage downloads or model requests per approval/hour/day/cycle, and removes the
+previous dashboard and job-page reads. Poll intervals and the existing 15-minute /
+12-timeline-fetch ceilings are unchanged. No production scan or retry is launched.
+
+Red applications remain in the existing compact tracking-list response for the
+queue view. The notification navigator filters them in memory. Their full graph
+is fetched only when the user opens a specific queue entry; this replaces the
+same existing timeline request that previously opened Notification Center. The
+queue snapshot query is unchanged: no extra per-failure detail reads on polling.
+The tiny list can retain the one currently verified submission, adding at most
+one projected metadata row (allow 4 KiB including protocol overhead), with no new query. At the existing
+5-second open-center interval, this worst-case increment is 2.81 MiB/open hour,
+67.5 MiB/24 hours continuously open (1.98 GiB/30 days at that unrealistic duty
+cycle); closing the center stops that interval. Normal submitted feedback clears
+within 2.2 seconds. Titles, company and status are the existing compact fields.
+
+Closed-job predicates run in SQL for blockers, notification navigation, reminders
+and diagnostics. Blocker and diagnostic queries now defer Job.description. They
+add no projected columns or queries and only reduce returned rows. Application
+history/retention, scanners, startup and worker scheduling are unchanged.
+
+Copy diagnostics explicitly requests the existing bounded unfinished set rather
+than the filtered notification IDs. Its existing 100-application / 300-attempt /
+1,000-event ceilings remain; there is no automatic export or new polling. This
+can include more red/queued rows than the previously selected subset, up to the
+same endpoint limits. No job description, CV or Storage object is downloaded.
+Validation uses isolated SQLite and synthetic documents with employer traffic
+blocked. Regression gates include test_live_application_visibility_reuses_compact_queries_without_descriptions,
+application live-visibility API tests, and Chromium/WebKit phone clipboard/queue tests.
+
+## Selected resume delivery recovery — October 2, 2026
+
+Worker delivery resolves the current path of the application's already selected
+resume ID. Replacing that version can delete the saved application path; recovery
+never searches other versions or downloads a second file. The existing version
+lookup now projects only `path` (700 characters) and `filename` (300 characters),
+at most one user-scoped row and 4,000 UTF-8 data bytes per call, excluding protocol
+overhead. Extracted text, analysis, profiles and job bodies are not added to reads.
+The existing application lookup is unchanged. There are no new startup tasks,
+polls, backfills or automatic retries.
+
+For N explicit attempts, at most N version lookups and N Storage object reads are
+made. The 10 MiB bucket ceiling bounds existing file delivery at 10N MiB; version
+metadata is at most 4,000N bytes. At ten attempts/hour this is <=100 MiB of files
+plus 40,000 metadata bytes/hour; ten attempts/day is <=100 MiB plus 40,000 bytes/day,
+or 3,000 MiB plus 1.2 MB/30 days. These are alternative example request rates,
+not a newly authorized campaign. Added query/Storage request count is zero for
+successful attempts; missing-file attempts now read the same compact metadata
+before the single file request. No production Usage, documents or DB were read.
+
+Regression: `test_worker_resume_delivery_reads_only_selected_metadata_and_one_file`
+checks the exact scoped projection, absent catalog/profile reads and one selected
+file read. `test_agent_resume_delivery.py` reproduces replacement with synthetic
+local files and checks missing/network errors without retries or employer access.
+
 ## Mobile layout and visual verification — October 2, 2026
 
 Phone layout changes add one public, first-party stylesheet, bounded by a 20 KiB

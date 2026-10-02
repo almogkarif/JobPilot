@@ -122,13 +122,22 @@ def prepare_resume(task: dict) -> str:
     if not application_id or not application.get("resume_path"):
         return ""
     AGENT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    response = httpx.get(
-        f"{BASE_URL}/api/agent/tasks/{application_id}/resume",
-        params={"agent_id": AGENT_ID},
-        headers={"X-JobPilot-Agent-Token": TOKEN},
-        timeout=60.0,
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.get(
+            f"{BASE_URL}/api/agent/tasks/{application_id}/resume",
+            params={"agent_id": AGENT_ID},
+            headers={"X-JobPilot-Agent-Token": TOKEN},
+            timeout=60.0,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            message = "קובץ קורות החיים שנבחר למועמדות אינו זמין. יש לבחור מחדש או להעלות את הקובץ לפני ניסיון נוסף. לא בוצעה שליחה."
+        else:
+            message = f"השרת לא הצליח לספק את קובץ קורות החיים שנבחר (HTTP {exc.response.status_code}). לא בוצעה שליחה."
+        raise RuntimeError(message) from exc
+    except httpx.RequestError as exc:
+        raise RuntimeError("הורדת קורות החיים נכשלה עקב תקלה בחיבור לשרת. לא בוצעה שליחה.") from exc
     disposition = response.headers.get("content-disposition", "")
     filename = "resume.pdf"
     encoded_match = re.search(r"filename\*=UTF-8''([^;]+)", disposition, flags=re.IGNORECASE)

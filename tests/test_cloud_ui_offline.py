@@ -106,7 +106,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
         page.wait_for_function("document.querySelector('#admin-preview-exit') && !document.querySelector('#admin-preview-exit').hidden")
         assert page.evaluate("window.previewHeaderHits") > 0
         assert page.locator('#admin-preview-exit').is_visible()
-        assert page.locator('.admin-only-nav').is_hidden()
+        assert page.locator('#nav .admin-only-nav').is_hidden()
         assert page.locator('#admin-worker-setting').evaluate('(el) => el.hidden')
         assert 'Token מאובטח ל־Agent' not in page.locator('#readiness').inner_text()
         page.locator('#account-chip').click(force=True)
@@ -118,7 +118,7 @@ def test_cloud_session_hides_login_and_shows_account_and_agent_state():
 
         page.evaluate("async () => { await exitNonAdminPreview(); }")
         page.wait_for_function("document.querySelector('#admin-preview-exit').hidden")
-        assert page.locator('.admin-only-nav').is_visible()
+        assert page.locator('#nav .admin-only-nav').is_visible()
         assert page.locator('#admin-worker-setting').evaluate('(el) => !el.hidden')
         assert page.locator('#readiness').is_hidden()
         assert 'Token מאובטח ל־Agent' not in page.locator('#readiness').inner_text()

@@ -174,7 +174,8 @@ def test_regular_user_application_surface_avoids_bulk_polling_and_bounds_history
     assert "APPLICATION_TRACKING_MAX_MS=15*60*1000" in javascript
     assert "APPLICATION_TIMELINE_MAX_FETCHES=12" in javascript
     assert "document.visibilityState==='hidden'?30000:5000" in javascript
-    assert "?application_ids=${ids.join(',')}" in javascript
+    assert "api('/api/applications/failure-diagnostics')" in javascript
+    assert "?application_ids=${ids.join(',')}" not in javascript
 
     source = (main_module.STATIC_DIR.parent / "main.py").read_text(encoding="utf-8")
     assert "if guest_catalog or not applications_workspace:" in source
@@ -982,6 +983,41 @@ def test_resume_delete_does_not_download_file_or_read_job_catalog():
     assert "read_bytes" not in request
 
 
+def test_worker_resume_delivery_reads_only_selected_metadata_and_one_file(monkeypatch):
+    from fastapi import Request
+    from app.config import settings
+    from app.models import Application, ResumeProfile
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'unified_catalog_preview', False)
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    with sessionmaker(engine, expire_on_commit=False)() as db:
+        set_user_scope(db, 'delivery-owner')
+        resume = ResumeProfile(label='Selected', filename='current.pdf', path='/current.pdf',
+                               extracted_text='x' * 250_000, analysis_json='x' * 250_000)
+        db.add(resume); db.flush()
+        application = Application(job_id=123, resume_id=resume.id, resume_path='/deleted.pdf')
+        db.add(application); db.commit(); db.expunge_all()
+        monkeypatch.setattr(main_module, '_check_agent_token', lambda *_args, **_kwargs: None)
+        reads = []
+        monkeypatch.setattr(main_module, 'read_bytes', lambda path: reads.append(path) or b'synthetic-resume')
+        queries = []
+        event.listen(engine, 'before_cursor_execute', lambda _c, _u, sql, *_args: queries.append(sql.lower()))
+
+        response = main_module.agent_resume_file(application.id, Request({'type': 'http', 'headers': []}), db=db)
+
+        assert response.body == b'synthetic-resume'
+        assert reads == ['/current.pdf']
+        metadata = [sql for sql in queries if 'from resume_profiles' in sql]
+        assert len(metadata) == 1
+        assert 'resume_profiles.id = ?' in metadata[0] and 'resume_profiles.user_id = ?' in metadata[0]
+        projection = metadata[0].split('from resume_profiles', 1)[0]
+        assert 'resume_profiles.path' in projection and 'resume_profiles.filename' in projection
+        assert not any(field in projection for field in ('extracted_text', 'analysis_json', 'skills_json'))
+        assert len(queries) == 2 and not any('from jobs' in sql or 'from profiles' in sql for sql in queries)
+    engine.dispose()
+
+
 def test_resume_coverage_reuses_versions_once_without_text_storage_or_catalog_reads(monkeypatch):
     from types import SimpleNamespace
     from app.models import ResumeProfile
@@ -1516,3 +1552,25 @@ def test_verified_replacement_feeds_use_one_bounded_response_each(monkeypatch):
         assert calls == [expansion_ats.endpoint_for(identifier)]
         assert len(jobs) == 1 and jobs.complete is False
         assert len(jobs[0].description) <= 24_000
+
+
+def test_live_application_visibility_reuses_compact_queries_without_descriptions():
+    import inspect
+    tracking = inspect.getsource(main_module.application_tracking_list)
+    blockers = inspect.getsource(main_module.list_blockers)
+    diagnostics = inspect.getsource(main_module.application_failure_diagnostics)
+    dashboard = inspect.getsource(main_module.dashboard)
+    for query in (tracking, blockers, diagnostics):
+        assert 'Job.is_active.is_(True)' in query
+    assert 'Job.description' not in tracking
+    assert 'defer(Job.description)' in blockers and 'defer(Job.description)' in diagnostics
+    assert '.limit(100)' in diagnostics
+    assert 'Job.is_active.is_(True), _application_in_track(career_track)' in dashboard
+    javascript = (main_module.STATIC_DIR / 'app.js').read_text()
+    queue = javascript[javascript.index('async function confirmApplicationPreview'):javascript.index('window.confirmApplicationPreview')]
+    mobile = queue[queue.index('if (phoneBackground)'):queue.index('} else {')]
+    assert 'loadDashboard' not in mobile and 'loadJobs' not in mobile
+    assert 'syncPrimaryApplicationTracking(application.id, false)' in mobile
+    copy = javascript[javascript.index('async function copyApplicationFailureDiagnostics'):javascript.index('window.moveTrackedApplication')]
+    assert 'refreshTrackingApplications' not in copy
+    assert 'application_ids=' not in copy
