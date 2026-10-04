@@ -95,3 +95,54 @@ def test_onboarding_seniority_round_trip_and_empty_selection(browser_page, save_
     expect(page.locator('#ob-keywords-extra')).to_have_value('infrastructure')
     expect(page.locator('#ob-excluded-extra')).to_have_value('sales')
     assert not errors
+
+
+def test_onboarding_continue_focuses_missing_degree_and_keeps_error_visible(browser_page):
+    page, errors = browser_page
+    url = page.url.rstrip('/')
+    _prepare(page, url)
+    page.set_viewport_size({'width':390, 'height':844})
+    page.evaluate('''async () => {
+        await openOnboarding(true);
+        state.profile.degree_level='';
+        onboardingState.draft={};
+        onboardingSetStep(4);
+        document.querySelector('#ob-degree').value='';
+        document.querySelector('#onboarding-content').scrollTop=10000;
+    }''')
+    page.locator('#onboarding-next').click()
+    expect(page.locator('#ob-degree')).to_be_focused()
+    expect(page.locator('#ob-degree')).to_be_in_viewport()
+    expect(page.locator('#onboarding-error')).to_contain_text('בחר סוג תואר')
+    expect(page.locator('#onboarding-next')).to_be_enabled()
+    expect(page.locator('#onboarding-title')).to_have_text('נחדד את החיפוש')
+    page.locator('#ob-degree').select_option('bachelor')
+    page.locator('#onboarding-next').click()
+    expect(page.locator('#onboarding-content')).to_have_class(re.compile('onboarding-step-review'))
+    expect(page.locator('#onboarding-error')).to_be_hidden()
+    assert not errors
+
+
+def test_onboarding_continue_server_failure_is_visible_and_next_click_recovers(browser_page):
+    page, errors = browser_page
+    url = page.url.rstrip('/')
+    _prepare(page, url)
+    page.evaluate('''async () => {await openOnboarding(true);onboardingSetStep(4)}''')
+    failures = []
+    def fail_once(route):
+        if route.request.method == 'PATCH' and not failures:
+            failures.append(True)
+            route.fulfill(status=500, body='Internal Server Error')
+        else:
+            route.continue_()
+    page.route('**/api/profile', fail_once)
+    page.locator('#onboarding-next').click()
+    expect(page.locator('#onboarding-error')).to_contain_text('Internal Server Error')
+    expect(page.locator('#onboarding-title')).to_have_text('נחדד את החיפוש')
+    expect(page.locator('#onboarding-next')).to_be_enabled()
+    page.locator('#onboarding-next').click()
+    expect(page.locator('#onboarding-content')).to_have_class(re.compile('onboarding-step-review'))
+    expect(page.locator('#onboarding-error')).to_be_hidden()
+    expected_error = 'console.error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
+    assert errors == [expected_error]
+    errors.remove(expected_error)

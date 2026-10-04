@@ -5920,6 +5920,7 @@ function onboardingSetStep(index){
   $('#onboarding-next').hidden=step==='track' || step==='ranking';
   const content=$('#onboarding-content');
   content.className=`onboarding-content onboarding-step onboarding-step-${step}`;
+  $('#onboarding-error').hidden=true;
   if(step==='track'){
     const tracks=(state.careerTracks||[]).filter(t=>CAREER_TRACK_UI[t.key]);
     content.innerHTML=`<div class="onboarding-hero compact"><span class="kicker">מתחילים מהכיוון שלך</span><h1 id="onboarding-title">באיזה תחום מחפשים את התפקיד הבא?</h1><p>הבחירה מתאימה מיד את הצבעים, הסקילים, המקורות והעדפות החיפוש. המבנה מוכן למסלולים נוספים בהמשך.</p><div class="onboarding-track-grid">${tracks.map(t=>{const ui=onboardingTrackConfig(t.key);return `<button class="onboarding-track-card ${t.key===state.activeCareerTrack?'active':''}" type="button" data-ob-track="${esc(t.key)}"><span class="onboarding-track-symbol">${esc(ui.symbol)}</span><span><strong>${esc(t.label||ui.label)}</strong><small>${esc(t.description||ui.description)}</small></span><i>בחירה</i></button>`}).join('')}</div></div>`;
@@ -6018,7 +6019,13 @@ async function onboardingSaveSkills(){
 }
 async function saveOnboardingPreferences(){
   const draft=onboardingCollectPreferences();
-  if(!draft.degree_level) throw new Error('בחר סוג תואר כדי שנוכל לסנן משרות לפי דרישת ההשכלה');
+  if(!draft.degree_level){
+    const degree=$('#ob-degree');
+    degree?.scrollIntoView({block:'center'});
+    degree?.focus({preventScroll:true});
+    degree?.reportValidity();
+    throw new Error('בחר סוג תואר כדי שנוכל לסנן משרות לפי דרישת ההשכלה');
+  }
   if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;}
   const saved=await onboardingPersistProfile(draft);
   state.profile=saved;
@@ -6106,7 +6113,21 @@ async function openOnboarding(preview=false){
 async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
 $('#onboarding-back').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();onboardingSetStep(onboardingState.step-1)}catch(error){toast(error.message)}};
 $('#onboarding-skip').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();await onboardingFinish(true)}catch(error){toast(error.message)}};
-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='resume-review')await onboardingSaveResumeReview();if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await saveOnboardingPreferences();await onboardingFlushSave()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+$('#onboarding-next').onclick=async()=>{
+  const next=$('#onboarding-next'),error=$('#onboarding-error');
+  if(next.disabled)return;
+  const navigation=[next,$('#onboarding-back'),$('#onboarding-skip')];
+  navigation.forEach(button=>button.disabled=true);
+  next.textContent='שומר…';next.setAttribute('aria-busy','true');error.hidden=true;
+  try{
+    const step=onboardingSteps[onboardingState.step];
+    if(step==='resume-review')await onboardingSaveResumeReview();
+    if(step==='skills')await onboardingSaveSkills();
+    if(step==='preferences'){await saveOnboardingPreferences();await onboardingFlushSave()}
+    onboardingSetStep(onboardingState.step+1);
+  }catch(e){error.textContent=e.message;error.hidden=false;toast(e.message)}
+  finally{navigation.forEach(button=>button.disabled=false);next.textContent='המשך';next.removeAttribute('aria-busy')}
+};
 let developerUsersCache=[];
 const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
 const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
