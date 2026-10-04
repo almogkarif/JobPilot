@@ -143,6 +143,23 @@ accepted; unrelated text and missing answers remain blocked. A browser regressio
 failed before the fix and passed afterwards. The subsequent isolated local
 attempt confirmed consent was filled from the stored answer, then stopped at the
 demographic dropdown. "I don't wish to answer" was selected for the follow-up test.
+That exposed another parsing failure: the dropdown's `aria-labelledby` points to
+`1439-label`, a valid HTML ID that cannot be used as an unescaped CSS `#id` selector.
+The exception had silently skipped the question even with an exact saved answer.
+Label lookup now uses `document.getElementById`. Both new browser regressions
+failed before the change and passed afterwards, covering an unknown choice and
+an explicitly approved answer. **26 relevant browser tests passed** (88 unrelated
+tests deselected), and a GET-only check against the real Taboola form confirmed
+the declined demographic answer fills and clears `aria-invalid` without any POST.
+
+The final Taboola application **150 / job 10907 / attempt 664** completed after
+the user supplied the employer's fresh email code to the same waiting browser
+session. The employer displayed "Thank you for applying" and "Your application
+has been received"; the saved confirmation screenshot was visually checked.
+The ordinary worker submitted callback succeeded with verified evidence and
+recorded the application as submitted. This verifies real website acceptance
+from isolated local Chromium with user-assisted email verification, not a fully
+unattended GitHub Actions run. No further submission was made after acceptance.
 
 An operator request using local-worker mode with an explicit application ID
 unexpectedly claimed another queued review task (Intel application 4, attempt

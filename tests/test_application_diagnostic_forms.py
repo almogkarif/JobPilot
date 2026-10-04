@@ -40,6 +40,45 @@ def test_taboola_single_checkbox_reuses_only_its_exact_approved_option(answer):
             browser.close()
 
 
+@pytest.mark.parametrize('answer', [None, "I don't wish to answer"])
+def test_taboola_numeric_aria_label_id_keeps_demographic_choice_actionable(answer):
+    question = 'Gender Identity (Optional, and given with my consent as described above)*'
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        page = browser.new_page()
+        url = 'https://job-boards.greenhouse.io/embed/job_app?for=example&token=123'
+        page.route('https://job-boards.greenhouse.io/**', lambda route: route.fulfill(
+            content_type='text/html', body=f"""
+            <form><div class="field-wrapper"><label id="1439-label" for="1439">{question}</label>
+            <input id="1439" role="combobox" aria-labelledby="1439-label" aria-required="true" aria-invalid="true">
+            <input class="requiredInput" required aria-hidden="true" style="opacity:0;width:0;height:0">
+            </div><button type="submit">Submit Application</button></form><div id="portal"></div>
+            <script>window.submitClicks=0;document.querySelector('form').onsubmit=e=>{{e.preventDefault();window.submitClicks++}};
+            const control=document.getElementById('1439');control.onclick=()=>{{
+              portal.innerHTML='<div role="option">I don\\'t wish to answer</div><div role="option">Male</div>';
+              portal.querySelectorAll('[role=option]').forEach(option=>option.onclick=()=>{{
+                document.querySelector('.requiredInput').value=option.textContent;
+                control.value='';control.setAttribute('aria-invalid','false');portal.replaceChildren();
+              }});
+            }};control.onkeydown=e=>{{if(e.key==='Escape')portal.replaceChildren()}};</script>""",
+        ))
+        task = {'job': {'apply_url': url}, 'profile': {}, 'answer_memories': [],
+                'answers': {question: answer} if answer else {}}
+        try:
+            with pytest.raises(ApplicationBlocked) as error:
+                fill_application(page, task, auto_submit=False)
+            if answer:
+                assert error.value.kind == 'review_before_submit'
+                assert page.locator('.requiredInput').input_value() == answer
+                assert page.locator('form').evaluate('form => form.checkValidity()')
+            else:
+                assert error.value.kind == 'choice_required' and error.value.question == question
+                assert error.value.options == ["I don't wish to answer", 'Male']
+            assert page.evaluate('window.submitClicks') == 0
+        finally:
+            browser.close()
+
+
 def _greenhouse_choices():
     controls = "".join(f"""
       <div class="field-wrapper">

@@ -3211,9 +3211,10 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
             label = control.get_attribute("aria-label") or ""
             if not label:
                 labelled_by = (control.get_attribute("aria-labelledby") or "").split()
-                label = " ".join(
-                    page.locator(f"#{ref}").inner_text(timeout=500)
-                    for ref in labelled_by if page.locator(f"#{ref}").count()
+                # HTML IDs may begin with digits and need not be valid CSS selectors.
+                label = page.evaluate(
+                    "ids => ids.map(id => document.getElementById(id)?.innerText || '').filter(Boolean).join(' ')",
+                    labelled_by,
                 )
             if not label:
                 try:
