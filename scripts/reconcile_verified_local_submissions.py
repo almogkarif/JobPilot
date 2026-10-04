@@ -15,7 +15,7 @@ import sys
 from datetime import datetime, timezone
 from urllib.parse import unquote
 
-from sqlalchemy import bindparam, create_engine, text
+from sqlalchemy import DateTime, bindparam, create_engine, text
 
 
 VERSION = 'local-employer-receipts-2026-10-02-v1'
@@ -192,7 +192,9 @@ def reconcile(connection, employer='all', *, apply=False, expected_plan=''):
             application_id = previous['id']
             result = connection.execute(text('''UPDATE applications SET status='submitted', mode='manual',
                 submitted_at=:submitted, updated_at=:now WHERE id=:id AND user_id=:owner
-                AND status=:previous AND canonical_application_id IS NULL'''),
+                AND status=:previous AND canonical_application_id IS NULL''').bindparams(
+                    bindparam('submitted', type_=DateTime(timezone=True)),
+                    bindparam('now', type_=DateTime(timezone=True))),
                 {'submitted': submitted, 'now': now, 'id': application_id, 'owner': owner, 'previous': previous['status']})
             if result.rowcount != 1:
                 raise ReconciliationRefused('Owned application changed')
@@ -202,12 +204,15 @@ def reconcile(connection, employer='all', *, apply=False, expected_plan=''):
                last_error,agent_id,attempt_count,resume_id,notes,reminder_note)
               VALUES (:owner,:job_id,:track,'submitted','manual','','{}',:submitted,:now,
                       '','',0,NULL,'Recorded from a verified local submission; sent CV has no cloud link.','')
-              RETURNING id'''), {'owner': owner, 'job_id': job_id, 'track': receipt['track'],
+              RETURNING id''').bindparams(
+                  bindparam('submitted', type_=DateTime(timezone=True)),
+                  bindparam('now', type_=DateTime(timezone=True))), {'owner': owner, 'job_id': job_id, 'track': receipt['track'],
                                  'submitted': submitted, 'now': now}).scalar_one()
         connection.execute(text('''INSERT INTO user_job_states
             (user_id,job_id,status,score,score_reasons_json,match_breakdown_json,updated_at)
             VALUES (:owner,:job_id,'submitted',0,'[]','{}',:now)
-            ON CONFLICT(user_id,job_id) DO UPDATE SET status='submitted',updated_at=:now'''),
+            ON CONFLICT(user_id,job_id) DO UPDATE SET status='submitted',updated_at=:now''').bindparams(
+                bindparam('now', type_=DateTime(timezone=True))),
             {'owner': owner, 'job_id': job_id, 'now': now})
         details = json.dumps({'version': VERSION, 'employer_job_id': receipt['external_id'],
                               'evidence': receipt['evidence'], 'employer_url': receipt['urls'][0],
@@ -215,7 +220,8 @@ def reconcile(connection, employer='all', *, apply=False, expected_plan=''):
                               'sent_cv_cloud_link': None}, ensure_ascii=False)
         connection.execute(text('''INSERT INTO application_events
             (user_id,application_id,event_type,from_status,to_status,actor,message,details_json,created_at)
-            VALUES (:owner,:id,:event_type,:previous,'submitted','local_probe',:message,:details,:now)'''),
+            VALUES (:owner,:id,:event_type,:previous,'submitted','local_probe',:message,:details,:now)''').bindparams(
+                bindparam('now', type_=DateTime(timezone=True))),
             {'owner': owner, 'id': application_id, 'event_type': EVENT_TYPE,
              'previous': previous['status'] if previous else '', 'message': receipt['evidence'], 'details': details, 'now': now})
         item['application_id'] = application_id

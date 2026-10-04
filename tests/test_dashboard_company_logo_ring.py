@@ -8,7 +8,8 @@ CSS = (ROOT / "app/static/styles.css").read_text(encoding="utf-8")
 def test_dashboard_score_ring_uses_company_logo_and_percent_below():
     recent = JS.split("function renderRecent(jobs) {", 1)[1].split("function scanResultSummary", 1)[0]
     assert "sourceLogoMarkup({ company_name: job.company, name: job.company }, 'dashboard-company-logo')" in recent
-    assert 'class="dashboard-score-value"' in recent
+    assert 'class="dashboard-score-value${job.guest_match_available ?' in recent
+    assert "' has-shared-score' : ''" in recent
     assert "`${score}% התאמה`" in recent
     assert "dashboardMatchLabel(job)</span>" not in recent
 
