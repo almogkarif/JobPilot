@@ -22,9 +22,10 @@ details, saved answers and complete ranking JSON never leave the database.
 
 The eight fingerprint inputs are each limited to 8 KiB in SQL (oversize fails
 closed); the ranking configuration is limited to 8 KiB. Filter combinations are
-aggregated into at most 512 rows using nine fixed keys. Queue output is capped
-at 50 rows with SQL-capped public job metadata and short failure metadata; a 51st
-row only signals truncation. Reserve **2 MiB per deliberate invocation**, including
+aggregated into at most 512 rows using nine fixed keys. Queue output covers only
+automatic/review attempts, excluding manual history before applying its 50-row
+cap, with SQL-capped public job metadata and short failure metadata; a 51st row
+only signals truncation. Reserve **2 MiB per deliberate invocation**, including
 UTF-8 and protocol overhead, 20 MiB at ten invocations/hour or day, 600 MiB/30 days
 at ten/day. Idle traffic is zero and the workflow is not scheduled. PostgreSQL
 tests verify read-only enforcement, owner isolation, overlapping counts and stale

@@ -128,6 +128,7 @@ LEFT JOIN application_attempts t ON t.id=(
  ORDER BY id DESC LIMIT 1
 )
 WHERE a.user_id=:owner AND a.canonical_application_id IS NULL
+ AND a.mode IN ('auto','audit','review')
  AND a.status IN ('queued','applying','needs_input','verification_pending','failed','manual_required')
 ORDER BY a.id LIMIT 51
 """)

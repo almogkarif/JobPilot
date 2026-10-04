@@ -129,6 +129,21 @@ def test_owner_mismatch_fails_without_returning_a_different_profile(owner_catalo
         diagnostic.run_diagnosis(owner_catalog.url.render_as_string(hide_password=False), 150, hashlib.sha256(b'other@example.invalid').hexdigest())
 
 
+def test_manual_history_cannot_crowd_out_the_bounded_automatic_queue(owner_catalog):
+    with Session(owner_catalog) as db:
+        set_user_scope(db, 'private-owner')
+        for index in range(55):
+            job = Job(source_id=1, external_id=f'manual-{index}', is_active=False,
+                      title='Manual history', company='Example', apply_url=f'https://example.invalid/manual/{index}')
+            db.add(job)
+            db.flush()
+            db.add(Application(id=index+20, job_id=job.id, mode='manual', status='failed'))
+        db.commit()
+    report = run(owner_catalog)
+    assert report['queue_truncated'] is False
+    assert [row['application_id'] for row in report['incomplete_applications']] == [150, 151]
+
+
 def test_read_only_guard_rejects_writes_and_restores_runtime(owner_catalog, monkeypatch):
     old_settings = (settings.database_url, settings.auth_mode, catalog_routing._cloud_catalog_database)
     def attempt_write(connection, _anchor, _email):
