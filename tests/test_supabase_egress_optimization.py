@@ -28,7 +28,7 @@ from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
 from tests.test_application_resume_metadata import resume_metadata_db
 from tests.test_application_submit_progress import sent_progress_application
 from tests.test_application_resume_recovery import resume_recovery_engine
-
+from tests.test_guest_dashboard import owner_guest_catalog
 from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
 
 
@@ -524,6 +524,40 @@ def test_one_time_admin_queue_mode_is_explicit_and_restores_opt_in():
     assert "profile.auto_submit_opt_in_version = previous_version" in body
 
 
+from tests.test_preference_auto_queue import preference_queue_db
+
+
+def test_preference_auto_queue_checks_freshness_inside_existing_query(preference_queue_db):
+    from app.models import JobRanking
+    sessions, dispatched = preference_queue_db
+    with sessions() as db:
+        profile = db.scalar(select(Profile))
+        main_module._rescore_v2_jobs(db, profile)
+        target = db.scalar(select(Job).where(Job.external_id == '0'))
+        ranking = db.scalar(select(JobRanking).where(JobRanking.job_id == target.id))
+        ranking.profile_fingerprint = 'old-preferences'
+        db.commit()
+        statements = []
+        def capture(_conn, _cursor, statement, _params, _context, _many):
+            if statement.lstrip().lower().startswith('select'):
+                statements.append(statement.lower())
+        event.listen(db.get_bind(), 'before_cursor_execute', capture)
+        try:
+            assert scanner.auto_queue_jobs(db, profile) == 0
+        finally:
+            event.remove(db.get_bind(), 'before_cursor_execute', capture)
+        job_queries = [sql for sql in statements if 'from jobs' in sql]
+        assert len(job_queries) == 1
+        sql = job_queries[0]
+        assert 'job_rankings.profile_fingerprint =' in sql
+        assert 'job_rankings.job_fingerprint = jobs.source_fingerprint' in sql
+        assert 'profiles.updated_at =' in sql
+        projection = sql.split('from jobs', 1)[0]
+        assert 'jobs.description' not in projection and 'result_json' not in projection
+        assert 'profiles.' not in projection
+        assert dispatched == []
+
+
 def _isolated_session_factory():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
@@ -897,16 +931,60 @@ def test_new_source_expansion_does_not_enable_unbounded_official_pages():
         assert preset["listing_response_bytes"] == preset["detail_response_bytes"] == 4_000_000
 
 
-def test_dashboard_pending_ranking_uses_existing_aggregate_query():
-    source = Path(main_module.__file__).read_text()
-    stats_body = source.split("def _career_track_stats", 1)[1].split("def _career_tracks_payload", 1)[0]
-    assert '"ranking_pending_jobs": 0' in stats_body
-    assert "case((catalog_condition, case((valid_ranking_join, 0), else_=1)), else_=0)" in stats_body
-    # The source aggregate has mutually exclusive local/legacy branches.
-    assert stats_body.count("db.execute(") == 3
-    assert "if unified_catalog_enabled():" in stats_body
-    assert "Job.description" not in stats_body
-    assert '"ranking_pending_jobs": ranking_pending_jobs' in source
+def test_dashboard_pending_ranking_uses_existing_aggregate_query(dashboard_diversity_catalog, monkeypatch):
+    from sqlalchemy import delete
+    from app.database import LOCAL_USER_ID
+
+    client, engine, factory, add_jobs = dashboard_diversity_catalog
+    ids = add_jobs([
+        {}, {'stale': True}, {'error': 'ranking failed'}, {}, {'eligibility': 'excluded'},
+        {'track': 'electrical_engineering'}, {'track': 'electrical_engineering', 'stale': True},
+        {'active': False, 'stale': True},
+    ])
+    with factory() as db:
+        set_user_scope(db, LOCAL_USER_ID)
+        db.execute(delete(JobRanking).where(JobRanking.job_id == ids[3]))
+        db.commit()
+
+    statements, results = [], []
+    original_stats = main_module._career_track_stats
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        statements.append(' '.join(sql.lower().split()))
+    def measured_stats(*args, **kwargs):
+        event.listen(engine, 'before_cursor_execute', capture)
+        try:
+            result = original_stats(*args, **kwargs)
+            results.append(result)
+            return result
+        finally:
+            event.remove(engine, 'before_cursor_execute', capture)
+    monkeypatch.setattr(main_module, '_career_track_stats', measured_stats)
+
+    response = client.get('/api/dashboard')
+    assert response.status_code == 200, response.text
+    assert response.json()['total_jobs'] == 5
+    assert response.json()['ranking_pending_jobs'] == 3  # stale, failed and never ranked
+    assert len(results) == 1
+    assert results[0]['computer_science']['ranking_failed_jobs'] == 1
+    assert results[0]['electrical_engineering']['jobs'] == 2
+    assert results[0]['electrical_engineering']['ranking_pending_jobs'] == 1
+
+    # Source counts and every ranking count use the existing two aggregates;
+    # only the singleton settings read accompanies them, with no per-job fetch.
+    assert len(statements) == 3 and all(sql.startswith('select ') for sql in statements)
+    assert sum(' from ranking_settings ' in sql for sql in statements) == 1
+    source_queries = [sql for sql in statements if ' from sources ' in sql and ' from jobs ' not in sql]
+    job_queries = [sql for sql in statements if ' from jobs ' in sql]
+    assert len(source_queries) == len(job_queries) == 1
+    assert 'sum(case ' in source_queries[0]
+    track_column = 'job_tracks.career_track' if main_module.unified_catalog_enabled() else 'jobs.career_track'
+    projection = job_queries[0].split(' from jobs ', 1)[0]
+    assert projection.startswith(f'select {track_column}, sum(case ')
+    assert projection.count('sum(case ') == 5
+    assert f'group by {track_column}' in job_queries[0]
+    assert all(field not in sql for sql in statements for field in (
+        'description', 'result_json', 'profile_fingerprint', 'guest_owner_ranking',
+    ))
 
 
 def test_guided_review_stops_polling_when_popup_closes_without_extra_queue_reads():
@@ -966,13 +1044,29 @@ def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatc
     assert run_agent.prepare_grade_sheet(task) == ''
 
 
-def test_dashboard_scan_suggestions_project_only_three_small_rows():
-    source = Path(main_module.__file__).read_text()
-    query = source.split('scan_suggestions_statement = select(', 1)[1].split('scan_suggestions = [', 1)[0]
-    assert ').limit(3)' in query
-    projection = query.split(').join(', 1)[0]
-    assert 'Job.description' not in projection
-    assert 'Job.id, Job.title, Job.company, Job.location, Job.discovered_at, JobRanking.score' in projection
+def test_dashboard_scan_suggestions_project_only_three_small_rows(dashboard_diversity_catalog):
+    client, engine, _, add_jobs = dashboard_diversity_catalog
+    add_jobs([{'date': datetime.now(timezone.utc)} for _ in range(12)])
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        normalized = ' '.join(sql.lower().split())
+        if normalized.startswith('select jobs.id, jobs.title, jobs.company, jobs.location, jobs.discovered_at'):
+            statements.append((normalized, parameters))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get('/api/dashboard')
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200, response.text
+    assert len(statements) == 1
+    sql, parameters = statements[0]
+    assert 'limit ? offset ?' in sql and parameters[-2:] == (3, 0)
+    assert sql.split(' from jobs ', 1)[0] == (
+        'select jobs.id, jobs.title, jobs.company, jobs.location, jobs.discovered_at, job_rankings.score as score'
+    )
+    suggestions = response.json()['scan_suggestions']
+    assert len(suggestions) == 3
+    assert all(set(row) == {'id', 'title', 'company', 'location', 'discovered_at', 'score'} for row in suggestions)
 
 
 def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descriptions(monkeypatch):
@@ -1938,3 +2032,90 @@ def test_aman_source_bounds_inventory_details_and_persistent_checkpoint(monkeypa
     assert set(checkpoint) <= {'v', 'scope', 'cursor', 'retry', 'page'}
     assert all(len(job.description) <= 24000 for job in jobs)
     assert aman.MAX_HTML_BYTES == 512 * 1024
+
+
+def test_guest_recent_scan_cards_are_one_projected_three_row_query(personal_tracking):
+    client, _, engine = personal_tracking
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        normalized = ' '.join(sql.lower().split())
+        if normalized.startswith('select jobs.id, jobs.title, jobs.company, jobs.location, jobs.discovered_at'):
+            statements.append((normalized, parameters))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get('/api/dashboard', headers={'Authorization': 'guest'})
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200, response.text
+    assert len(statements) == 1
+    sql, parameters = statements[0]
+    assert 'limit ? offset ?' in sql and parameters[-2:] == (3, 0)
+    assert 'jobs.is_active is 1' in sql and 'jobs.discovered_at >=' in sql
+    assert 'guest_owner_ranking.user_id = ' in sql and 'applications' not in sql
+    assert 'guest_matches.career_track = ' in sql
+    assert 'description' not in sql and 'skills_json' not in sql and 'result_json' not in sql
+    assert len(response.json()['scan_suggestions']) <= 3
+
+
+def test_guest_shared_scores_read_no_owner_profile_or_ranking_json(owner_guest_catalog):
+    client, _, engine = owner_guest_catalog
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        statements.append((' '.join(sql.lower().split()), parameters))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        tracks = client.get('/api/career-tracks', headers={'Authorization': 'guest'})
+        dashboard = client.get('/api/dashboard', headers={'Authorization': 'guest'})
+        jobs = client.get('/api/jobs?paginated=true&page_size=2', headers={'Authorization': 'guest'})
+        detail = client.get('/api/jobs/1', headers={'Authorization': 'guest'})
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert tracks.status_code == dashboard.status_code == jobs.status_code == detail.status_code == 200
+    assert len(dashboard.json()['recent_jobs']) == 5 and len(dashboard.json()['scan_suggestions']) <= 3
+    assert len(jobs.json()['items']) == 2 and detail.json()['score'] == 90
+    owner_queries = [(sql, params) for sql, params in statements if 'guest_owner_ranking' in sql]
+    assert owner_queries and all('alpha' in params and 'beta' not in params for _, params in owner_queries)
+    assert all('guest_owner_ranking.user_id = ' in sql and 'guest_matches.career_track' in sql for sql, _ in owner_queries)
+    assert not any('result_json' in sql or 'profile_fingerprint' in sql for sql, _ in owner_queries)
+    for sql, params in statements:
+        if 'from profiles' in sql:
+            assert 'profiles.user_id = ' in sql and 'guest' in params and 'alpha' not in params
+        assert not sql.startswith(('insert ', 'update ', 'delete '))
+        assert 'from resume_profiles' not in sql and 'from answer_memories' not in sql
+    paged = [sql for sql, params in owner_queries if 'order by' in sql and params[-2:] == (2, 0)]
+    assert len(paged) == 1 and 'description' not in paged[0].split(' from jobs ', 1)[0]
+
+
+def test_new_claim_retires_otp_in_one_owner_scoped_write_without_reading_codes(sent_progress_application):
+    from app.database import engine, SessionLocal
+    from app.models import Application, Blocker
+    client, application_id, _ = sent_progress_application
+    with SessionLocal() as db:
+        application = db.get(Application, application_id)
+        application.status = 'queued'
+        db.add(Blocker(application_id=application_id, kind='security_code_required',
+                       answer='Old9CODE', explanation='expired session'))
+        db.commit()
+    statements = []
+    def capture(_conn, _cursor, sql, parameters, context, _many):
+        statements.append((' '.join(sql.lower().split()), parameters, context.execution_options))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get('/api/agent/tasks/next', params={
+            'token': 'change-me', 'agent_id': 'otp-egress', 'worker_type': 'local',
+            'application_id': application_id,
+        })
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200, response.text
+    assert response.json()['task']['application']['id'] == application_id
+    writes = [(sql, params, options) for sql, params, options in statements if sql.startswith('update blockers ')]
+    assert len(writes) == 1
+    sql, params, options = writes[0]
+    assert 'blockers.application_id = ' in sql and 'blockers.user_id = ' in sql
+    assert 'blockers.kind = ' in sql and 'blockers.status = ' in sql
+    assert 'security_code_required' in params and application_id in params
+    assert 'answer=' in sql and '' in params
+    assert 'returning' not in sql and 'select ' not in sql
+    assert options['synchronize_session'] is False
+    assert not any(sql.startswith('select ') and 'blockers.kind = ' in sql for sql, _, _ in statements)

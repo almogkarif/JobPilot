@@ -4,6 +4,23 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Email verification session renewal — October 4, 2026
+
+Only after a worker successfully claims an application, one owner/application
+scoped SQL UPDATE resolves its prior open email-code blockers and erases their
+codes. The write shares the claim transaction, has no RETURNING clause and no
+additional SELECT. Other blocker types and stopped-attempt explanations remain
+unchanged. A queued retry or unsuccessful claim does not erase the prior state.
+
+Idle overhead is zero. Each successful claim adds one fixed-size command
+acknowledgement, conservatively budgeted at 1 KiB including protocol overhead,
+with zero returned rows. Five claims/hour cost at most 5 KiB/hour, 120 KiB/day,
+or 3.52 MiB/30 days if sustained continuously. Existing task/document delivery
+budgets remain unchanged. The code-entry UI reuses existing polling and bounded
+code/retry endpoints; it introduces no extra polling, scan or file download.
+API regressions verify that a prior code cannot reach the new attempt, and the
+egress regression verifies the single scoped write without reading codes.
+
 ## Explicit owner filter and queue diagnosis — October 4, 2026
 
 The manual owner diagnostic requires an application ID and matching account-email
@@ -32,6 +49,70 @@ tests verify read-only enforcement, owner isolation, overlapping counts and stal
 rankings; the egress regression verifies bounded projections with large private
 synthetic documents present. This describes the diagnostic budget, not a live
 verification result or permission to trigger retries.
+
+## Guest live-catalog dashboard — October 4, 2026
+
+Guest authentication checks one scoped Profile ID with LIMIT 1. Existing visitors
+no longer run profile reconciliation/commits on every API request. Missing guest
+profiles still use isolated initialization. Guest startup skips profile, answer
+library and resume reads; guest job details also skip the unused resume request.
+
+The owner explicitly authorized sharing saved example match scores. Each guest
+catalog request resolves only a configured owner's ID (LIMIT 1), or the sole admin
+when no owner email is configured (LIMIT 2 to reject ambiguity). A missing explicit
+owner never falls back to another admin. SQL joins project only score/tier and use
+saved exclusion flags internally, restricted to that owner, the guest-selected
+track, current engine/config version and matching source digest; stale/error rows
+remain neutral. No owner Profile, full ranking JSON, private matching explanation,
+answers, documents or application state is read or returned. No ranking or queue
+work runs on a guest request. Another track without an owner score stays neutral.
+
+Track totals stay SQL aggregates (at most three result rows). Dashboard selection
+still returns five preview cards and at most three recent-scan cards from 14 days;
+the latter projects only public job metadata and score. Jobs keep their existing
+100-row page ceiling, and a detail score query has LIMIT 1. Reserve an additional
+2 KiB for identity/detail metadata plus <=128 bytes per returned score/tier/flags;
+a 100-job page is <=15 KiB additional egress. The new guest recent-scan query plus
+score sharing costs <=20 KiB/dashboard load including protocol overhead: 10 loads
+per hour/day <=200 KiB, 100/day <=2 MiB/day or 59 MiB/30 days. There is no added idle
+poll, scan, Storage download or full-catalog export. Egress regressions execute
+legacy/canonical queries and assert projection, limits, owner scoping and no
+private profile/ranking reads or writes; API/browser tests verify live score
+updates, account isolation, explicit demo labels and absent fake ranking loaders.
+The combined owner-diagnostic, guest, OTP, preference, tenant-isolation and egress
+run passed 304 tests without skips; two additional guest WebKit mobile cases
+passed. Browser fixtures used synthetic local data. These app changes have not
+been deployed; the complete repository suite was not completed.
+
+## Preference-triggered automatic application checks — October 4, 2026
+
+Cloud preference saves already coalesce a ranking refresh followed by an automatic
+queue check. The synchronous local save now performs that same check after a
+matching/filter change, in addition to threshold/toggle changes. There is no new
+cloud refresh, scan, startup task, poll, Storage read or response field. The local
+path adds at most one existing queue check per effective save; unchanged saves
+do not run it, and existing applications are not submitted again.
+
+The existing candidate SELECT now also requires the current profile digest,
+current employer-content digest and unchanged persisted profile timestamp. These
+are SQL-only predicates: no new columns, rows or SELECTs are returned. Candidate
+selection rejects a ranking worker's already-superseded profile snapshot. The
+incremental Supabase database/query payload is therefore **0 bytes/hour/day/month**;
+these predicates can only reduce the existing candidate result. The small display
+clarifications are static assets and do not add dashboard queries.
+
+An actual newly eligible submission still uses the existing worker/file budget:
+for N additional attempts reserve up to 10N MiB for selected CV delivery, plus
+the existing task/result and any required grade-sheet allowance. For five CV-only
+attempts/hour or day that is up to 50 MiB; at five/day, 1,500 MiB/30 days. This
+change does not raise those limits or trigger production scans or bulk retries.
+Synthetic tests cover local/cloud filter saves, threshold/opt-in rules, duplicate
+prevention and stale-profile/content rejection. The egress regression checks that
+freshness gates stay inside the single existing candidate query without reading
+job descriptions, ranking JSON or additional profile payloads.
+The combined filtering, queue, UI, canonical catalog and egress run passed
+292 tests without skips. The full repository suite was not run, and no production
+scan, submission or deployment was performed for this change.
 
 ## Explicit local worker claims — October 4, 2026
 

@@ -195,6 +195,88 @@ def test_security_code_is_delivered_only_to_the_active_attempt_and_then_erased()
             assert blocker.answer == ""
 
 
+def test_new_claim_retires_only_prior_session_codes_and_never_delivers_them():
+    with TestClient(app) as client:
+        job = _make_job(client, "OTP session isolation engineer")
+        application_id, old_task = _queue_and_claim(client, job)
+        old_attempt_id = old_task["attempt"]["id"]
+        waiting = client.post(f"/api/agent/tasks/{application_id}/security-code", json={
+            "token": "change-me", "attempt_id": old_attempt_id,
+        })
+        assert waiting.status_code == 200
+        accepted = client.post(f"/api/applications/{application_id}/security-code", json={"code": "Old9CODE"})
+        assert accepted.status_code == 200
+        stopped = client.post(f"/api/agent/tasks/{application_id}/blocked", json={
+            "token": "change-me", "attempt_id": old_attempt_id, "kind": "security_code_required",
+            "field_label": "Security code", "question": "Code wait expired",
+            "explanation": "The previous browser session stopped waiting.",
+        })
+        assert stopped.status_code == 200, stopped.text
+        other_job = _make_job(client, "Unrelated OTP session engineer")
+        with SessionLocal() as db:
+            old_blocker = db.scalar(select(Blocker).where(
+                Blocker.application_id == application_id, Blocker.kind == "security_code_required",
+            ))
+            old_blocker_id = old_blocker.id
+            assert old_blocker.status == "open" and old_blocker.answer == "Old9CODE"
+            question = Blocker(application_id=application_id, kind="choice_required",
+                               field_label="Availability", question="When?", answer="Next month")
+            other = Application(job_id=other_job["id"], status="needs_input", mode="review")
+            db.add_all([question, other]); db.flush()
+            unrelated = Blocker(application_id=other.id, kind="security_code_required", answer="Other8CD")
+            db.add(unrelated); db.commit()
+            question_id, unrelated_id = question.id, unrelated.id
+
+        retry = client.post(f"/api/applications/{application_id}/retry")
+        assert retry.status_code == 200, retry.text
+        no_claim = client.get("/api/agent/tasks/next", params={
+            "agent_id": "otp-no-claim", "token": "change-me", "application_id": 999999999,
+        })
+        assert no_claim.json() == {"task": None}
+        with SessionLocal() as db:
+            old_blocker = db.get(Blocker, old_blocker_id)
+            assert old_blocker.status == "open" and old_blocker.answer == "Old9CODE"
+            assert old_blocker.explanation == "The previous browser session stopped waiting."
+
+        claimed = client.get("/api/agent/tasks/next", params={
+            "agent_id": "otp-new-session", "token": "change-me", "application_id": application_id,
+        })
+        assert claimed.status_code == 200, claimed.text
+        new_task = claimed.json()["task"]
+        new_attempt_id = new_task["attempt"]["id"]
+        assert new_attempt_id != old_attempt_id
+        assert new_task["application"]["blocker"]["id"] == question_id
+        with SessionLocal() as db:
+            old_blocker = db.get(Blocker, old_blocker_id)
+            assert old_blocker.status == "resolved" and old_blocker.answer == ""
+            assert old_blocker.remember_answer is False and old_blocker.resolved_at
+            assert old_blocker.explanation == "The previous browser session stopped waiting."
+            assert db.get(Blocker, question_id).status == "open"
+            assert db.get(Blocker, question_id).answer == "Next month"
+            assert db.get(Blocker, unrelated_id).status == "open"
+            assert db.get(Blocker, unrelated_id).answer == "Other8CD"
+        old_poll = client.post(f"/api/agent/tasks/{application_id}/security-code", json={
+            "token": "change-me", "attempt_id": old_attempt_id,
+        })
+        assert old_poll.status_code == 409
+        new_poll = client.post(f"/api/agent/tasks/{application_id}/security-code", json={
+            "token": "change-me", "attempt_id": new_attempt_id,
+        })
+        assert new_poll.status_code == 200, new_poll.text
+        assert new_poll.json() == {"code": "", "waiting": True}
+        with SessionLocal() as db:
+            new_blocker = db.scalar(select(Blocker).where(
+                Blocker.application_id == application_id, Blocker.kind == "security_code_required",
+                Blocker.status == "open",
+            ))
+            assert new_blocker.id != old_blocker_id and new_blocker.answer == ""
+        assert client.post(f"/api/applications/{application_id}/security-code", json={"code": "Fresh8CD"}).status_code == 200
+        delivered = client.post(f"/api/agent/tasks/{application_id}/security-code", json={
+            "token": "change-me", "attempt_id": new_attempt_id,
+        })
+        assert delivered.json() == {"code": "Fresh8CD", "waiting": False}
+
+
 def test_agent_operator_can_retry_only_a_stopped_auto_application(monkeypatch):
     monkeypatch.setattr("app.main.dispatch_application_workflow", lambda application_id: None)
     with TestClient(app) as client:

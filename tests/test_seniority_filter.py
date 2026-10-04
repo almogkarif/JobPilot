@@ -11,6 +11,35 @@ from app.services.ranking import v2, service
 from tests.test_ranking_v2 import profile, job, score
 
 
+@pytest.mark.parametrize('title', [
+    'Student Software Engineer', 'Graduate Software Engineer', 'Junior Software Engineer',
+    'Intermediate Software Engineer', 'Senior Software Engineer', 'Lead Software Engineer',
+    'Staff Software Engineer', 'Software Engineering Manager', 'Software Engineer',
+])
+def test_all_levels_and_experience_options_do_not_exclude_software_seniority(title):
+    from app.services.seniority import LEVELS
+    candidate = profile(years=5, years_options=['0', '1', '2', '3', '4', '5+'])
+    candidate.seniority_levels_json = json.dumps(LEVELS)
+    result = score(candidate, job(title, 'Develop Python software. At least 10 years of experience required.'))
+    assert result.eligibility['eligible']
+    assert result.eligibility['experience_status'] == 'match'
+
+
+@pytest.mark.parametrize(('description', 'age', 'reason'), [
+    ('Python software. 3 years of experience required.', 1, 'Experience requirement'),
+    ('Python software. A Master degree in Computer Science is required.', 1, 'Degree requirement mismatch'),
+    ('Python software.', 60, 'maximum is 45'),
+])
+def test_all_seniority_levels_preserve_independent_filters(description, age, reason):
+    from app.services.seniority import LEVELS
+    candidate = profile(years=0, years_options=['0'])
+    candidate.seniority_levels_json = json.dumps(LEVELS)
+    candidate.application_profile_json = '{"degree_level":"bachelor"}'
+    result = score(candidate, job('Software Engineer', description, age=age))
+    assert result.eligibility['state'] == 'excluded'
+    assert any(reason in item for item in result.eligibility['reasons'])
+
+
 @pytest.mark.parametrize('title,level', [
     ('Software Engineer Intern', 'student'), ('Internal Tools Engineer', 'unknown'),
     ('Senior Backend Developer', 'senior'), ('Sr. Developer', 'senior'),

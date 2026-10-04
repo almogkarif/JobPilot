@@ -4968,6 +4968,7 @@ body.theme-dark #view-dashboard .metric-link:focus-visible {
   #view-dashboard .dashboard-score-ring .dashboard-company-logo { width:40px; height:40px; flex-basis:40px; }
   #view-dashboard .dashboard-score-ring .dashboard-company-logo .source-company-logo { width:26px; height:26px; }
   #view-dashboard .dashboard-score-block > span { display:none; }
+  body.guest-mode #view-dashboard .dashboard-score-block > .has-shared-score { display:block; min-width:0; max-width:54px; white-space:normal; line-height:1.4; }
   #view-dashboard .dashboard-job-action { grid-column:2; justify-items:start; gap:0; margin-top:-2px; padding:0; border:0; }
   #view-dashboard .dashboard-job-action .btn { display:none; }
   #view-dashboard .dashboard-job-capabilities { justify-content:flex-start; }

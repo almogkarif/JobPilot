@@ -157,11 +157,11 @@ def _guest_has_live_admin_catalog(db: Session) -> bool:
 def _ensure_workspace(db: Session, identity: AuthIdentity, *, new_account: bool) -> None:
     set_user_scope(db, identity.user_id)
 
-    # Guest workspaces are intentionally disposable, so their bootstrap must also be
-    # self-healing. A previous request may have been interrupted after creating the
-    # profile but before the demo rows were committed. Always reconcile guest demo
-    # data instead of treating the mere presence of a profile as "ready".
+    # A guest needs only an isolated track selection, never a seeded catalog.
+    # Check its existence without reloading/reconciling a full profile on every GET.
     if identity.is_guest:
+        if db.scalar(select(Profile.id).limit(1)) is not None:
+            return
         from .services.seed import initialize_database
         try:
             # Jobs/sources are one shared catalog now. A guest needs only a tiny

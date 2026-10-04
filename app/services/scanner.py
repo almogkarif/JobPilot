@@ -21,7 +21,7 @@ from .career_tracks import DEFAULT_TRACK, active_track, auto_submit_is_enabled, 
 from .degree_requirements import extract_degree_requirement_details
 from .source_quality import SourceDataQualityError, validate_source_payload
 from .ranking.service import (get_ranking_engine, get_settings as get_ranking_settings,
-                              job_fingerprint_values, persist_v2_result)
+                              job_fingerprint_values, persist_v2_result, profile_fingerprint)
 from .job_text import clean_job_text
 from .collection_metrics import record_observations
 from .catalog_routing import unified_catalog_enabled, track_relevance as track_job_relevance, job_in_track
@@ -688,7 +688,13 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
         JobRanking.engine_version == get_ranking_engine().version,
         JobRanking.config_version == ranking_settings.config_version,
         JobRanking.stale.is_(False), JobRanking.error == "", JobRanking.eligibility_state != "excluded",
+        JobRanking.profile_fingerprint == profile_fingerprint(profile, career_track),
+        Job.source_fingerprint != "", JobRanking.job_fingerprint == Job.source_fingerprint,
         JobRanking.score >= profile.auto_apply_threshold,
+        # A newer preference save may finish while an older ranking worker runs.
+        # Reject a snapshot already superseded when candidates are selected.
+        select(Profile.id).where(Profile.id == profile.id,
+            Profile.updated_at == profile.updated_at).exists(),
     )
     jobs = db.scalars(query).all()
     count = 0
@@ -730,7 +736,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
                 db.add(ApplicationEvent(
                     application_id=application_id, event_type="worker_dispatched",
                     from_status="queued", to_status="queued", actor="system",
-                    message="GitHub Actions worker הופעל אוטומטית לאחר הסריקה",
+                    message="GitHub Actions worker הופעל למשרה שעומדת בסף ההגשה האוטומטית",
                     details_json=dumps({"application_id": application_id, "trigger": "scanner_auto_queue"}),
                 ))
                 db.commit()
@@ -738,11 +744,11 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
                 db.rollback()
                 application = db.get(Application, application_id)
                 if application and application.status == "queued":
-                    application.last_error = f"ה-worker לא הופעל לאחר הסריקה: {exc}"[:2000]
+                    application.last_error = f"ה-worker לא הופעל להגשה האוטומטית: {exc}"[:2000]
                     db.add(ApplicationEvent(
                         application_id=application_id, event_type="worker_dispatch_failed",
                         from_status="queued", to_status="queued", actor="system",
-                        message="הפעלת worker אוטומטי לאחר הסריקה נכשלה",
+                        message="הפעלת worker להגשה האוטומטית נכשלה",
                         details_json=dumps({"application_id": application_id, "trigger": "scanner_auto_queue",
                                             "error": str(exc)[:500]}),
                     ))

@@ -766,8 +766,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     code = str(security_code_provider() if security_code_provider else "").strip()
                     if not re.fullmatch(r"[A-Za-z0-9]{6,16}", code):
                         raise ApplicationBlocked(
-                            "security_code_required", "קוד אבטחה", "הדבק את קוד האבטחה שקיבלת במייל",
-                            "ה־worker נשאר באותו סשן, אך לא התקבל קוד בזמן. רק הקוד האחרון ש־Greenhouse שלחה תקף.",
+                            "security_code_required", "קוד אבטחה", "זמן ההמתנה לקוד האבטחה הסתיים",
+                            "לא התקבל קוד בזמן והניסיון נעצר. יש להפעיל ניסיון חדש ולהזין את הקוד החדש שיתקבל; הקוד מהניסיון הקודם לא ישמש שוב.",
                             page.url,
                         )
                     _fill_greenhouse_security_code(security_inputs, code)

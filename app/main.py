@@ -38,7 +38,7 @@ from .database import (Base, LOCAL_USER_ID, SHARED_CATALOG_USER_ID, SessionLocal
                        get_db, get_user_profile, set_user_scope, user_session)
 from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationCampaign, ApplicationEvent,
                      AppIdentity, AgentDevice, AuditLog, Blocker, CampaignRun, EmailConnection, Job, JobRanking, JobTrack,
-                     OpenAnswerDraft, Profile, ResumeProfile, Source, UserJobState, utcnow)
+                     OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, UserJobState, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
     AgentBlockerRequest,
@@ -878,8 +878,8 @@ def _request_is_guest(request: Request) -> bool:
 
 
 def _primary_admin_user_id(db: Session) -> str:
-    """Resolve the account whose live job catalog is exposed to read-only guests."""
-    owner_email = str(settings.owner_email or "").strip().casefold()
+    """Resolve the explicitly selected owner; ambiguity never shares another account."""
+    owner_email = str(settings.owner_email or settings.application_agent_owner_email or "").strip().casefold()
     if owner_email:
         owner_id = db.scalar(
             select(AppIdentity.auth_user_id)
@@ -887,15 +887,54 @@ def _primary_admin_user_id(db: Session) -> str:
             .order_by(AppIdentity.id)
             .limit(1)
         )
-        if owner_id:
-            return str(owner_id)
-    admin_id = db.scalar(
+        return str(owner_id or "")
+    admin_ids = db.scalars(
         select(AppIdentity.auth_user_id)
         .where(AppIdentity.role == "admin")
         .order_by(AppIdentity.id)
-        .limit(1)
+        .limit(2)
+    ).all()
+    return str(admin_ids[0]) if len(admin_ids) == 1 else ""
+
+
+def _guest_catalog_rankings(db: Session):
+    """Share only saved match metadata, never changing the guest's tenant scope.
+
+    Core columns deliberately bypass ORM tenant injection for this one explicit
+    owner projection. No Profile, result_json, answers or application state is read.
+    """
+    owner_id = _primary_admin_user_id(db)
+    ranking = JobRanking.__table__.alias("guest_owner_ranking")
+    explicit_track = JobRanking.__table__.alias("guest_explicit_ranking")
+    config_version = select(RankingSettings.config_version).where(RankingSettings.id == 1).scalar_subquery()
+    return select(
+        ranking.c.job_id, ranking.c.career_track, ranking.c.score, ranking.c.tier,
+        ranking.c.eligibility_state, ranking.c.job_fingerprint,
+    ).where(
+        ranking.c.user_id == owner_id, literal(bool(owner_id)), ranking.c.engine == "v2",
+        ranking.c.engine_version == get_ranking_engine().version,
+        ranking.c.config_version == func.coalesce(config_version, 1),
+        ranking.c.stale.is_(False), ranking.c.error == "",
+        # Legacy rows use an empty track. Once an explicit track row exists, never
+        # duplicate it or revive the legacy score while its replacement is stale.
+        or_(ranking.c.career_track != "", ~select(explicit_track.c.id).where(
+            explicit_track.c.user_id == owner_id, explicit_track.c.job_id == ranking.c.job_id,
+            explicit_track.c.engine == "v2", explicit_track.c.career_track != "",
+        ).exists()),
+    ).subquery("guest_matches")
+
+
+def _guest_ranking_join(rankings, career_track):
+    return and_(
+        rankings.c.job_id == Job.id,
+        (rankings.c.career_track == career_track if unified_catalog_enabled()
+         else or_(rankings.c.career_track == career_track, rankings.c.career_track == "")),
+        Job.source_fingerprint != "", rankings.c.job_fingerprint == Job.source_fingerprint,
     )
-    return str(admin_id or "")
+
+
+def _attach_guest_score(job: Job, score, tier) -> None:
+    setattr(job, "_guest_score", None if score is None else {"score": int(score), "tier": tier})
 
 
 @contextmanager
@@ -918,6 +957,13 @@ def _job_payload_for_request(job: Job, request: Request, *, full: bool = False, 
         data["status"] = "new"
         data["application_id"] = None
         data["skill_gaps"] = []
+        data["guest_catalog"] = True
+        data["ranking_pending"] = False
+        shared_score = getattr(job, "_guest_score", None)
+        data["guest_match_available"] = bool(shared_score)
+        if shared_score:
+            data["score"] = shared_score["score"]
+            data["ranking_tier"] = shared_score["tier"]
     return data
 
 
@@ -939,11 +985,12 @@ def _attach_v2_rankings(db: Session, jobs: list[Job]) -> None:
         setattr(job, "_active_v2_ranking", by_job.get(job.id))
 
 
-def _v2_tier_order():
+def _v2_tier_order(tier=None):
+    tier = JobRanking.tier if tier is None else tier
     return case(
-        (JobRanking.tier == "top_match", 5), (JobRanking.tier == "strong_match", 4),
-        (JobRanking.tier == "good_match", 3), (JobRanking.tier == "low_match", 2),
-        (JobRanking.tier == "stretch", 1), else_=0,
+        (tier == "top_match", 5), (tier == "strong_match", 4),
+        (tier == "good_match", 3), (tier == "low_match", 2),
+        (tier == "stretch", 1), else_=0,
     )
 
 
@@ -1786,7 +1833,7 @@ def _degree_visibility_condition(profile: Profile | None):
     )
 
 
-def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str, dict[str, int]]:
+def _career_track_stats(db: Session, profile: Profile | None = None, *, guest_rankings=None) -> dict[str, dict[str, int]]:
     stats = {
         track.key: {
             "enabled_sources": 0, "source_errors": 0, "jobs": 0,
@@ -1817,6 +1864,27 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
                 stats[key]["source_errors"] = int(source_errors or 0)
 
     catalog_condition = Job.is_active.is_(True) & Job.source.has(Source.kind != "demo")
+    if guest_rankings is not None:
+        track_column = JobTrack.career_track if unified_catalog_enabled() else Job.career_track
+        visible = or_(guest_rankings.c.job_id.is_(None), guest_rankings.c.eligibility_state != "excluded")
+        ranked = guest_rankings.c.job_id.is_not(None) & visible
+        statement = select(
+            track_column,
+            func.sum(case((catalog_condition, 1), else_=0)),
+            func.sum(case((catalog_condition & visible, 1), else_=0)),
+            func.sum(case((catalog_condition & ranked & (guest_rankings.c.score >= 80), 1), else_=0)),
+            func.sum(case((catalog_condition & ranked, 1), else_=0)),
+        ).select_from(Job)
+        if unified_catalog_enabled():
+            statement = statement.join(JobTrack, JobTrack.job_id == Job.id).where(Job.canonical_job_id.is_(None))
+        rows = db.execute(statement.outerjoin(
+            guest_rankings, _guest_ranking_join(guest_rankings, track_column),
+        ).group_by(track_column)).all()
+        for track_key, jobs, eligible, strong, ranked in rows:
+            if track_key in stats:
+                stats[track_key].update(jobs=int(jobs or 0), eligible_jobs=int(eligible or 0),
+                                        strong_matches=int(strong or 0), shared_ranked_jobs=int(ranked or 0))
+        return stats
     degree_condition = (_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title)) & Job.source.has(Source.kind != "demo")
 
     ranking_settings = get_ranking_settings(db)
@@ -1866,11 +1934,12 @@ def _career_track_stats(db: Session, profile: Profile | None = None) -> dict[str
     return stats
 
 
-def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats: dict[str, dict[str, int]] | None = None) -> dict:
+def _career_tracks_payload(db: Session, profile: Profile | None = None, *, stats: dict[str, dict[str, int]] | None = None, guest_rankings=None) -> dict:
     profile = profile or get_user_profile(db)
-    ensure_track_state(profile)
+    if guest_rankings is None:
+        ensure_track_state(profile)
     current = active_track(profile)
-    stats = stats or _career_track_stats(db, profile=profile)
+    stats = stats or _career_track_stats(db, profile=profile, guest_rankings=guest_rankings)
     rows = []
     for track in CAREER_TRACKS:
         track_stats = stats.get(track.key, {})
@@ -1969,8 +2038,8 @@ def admin_onboarding_preview(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/career-tracks")
-def list_career_tracks(db: Session = Depends(get_db)):
-    return _career_tracks_payload(db)
+def list_career_tracks(request: Request, db: Session = Depends(get_db)):
+    return _career_tracks_payload(db, guest_rankings=_guest_catalog_rankings(db) if _request_is_guest(request) else None)
 
 
 @app.put("/api/career-tracks/active")
@@ -1984,8 +2053,9 @@ def set_active_career_track(payload: CareerTrackSwitch, request: Request, db: Se
     if not profile:
         raise HTTPException(404, "Profile not found")
     previous = active_track(profile)
+    guest_rankings = _guest_catalog_rankings(db) if _request_is_guest(request) else None
     if target == previous:
-        return {**_career_tracks_payload(db, profile), "profile": _profile_dict(profile)}
+        return {**_career_tracks_payload(db, profile, guest_rankings=guest_rankings), "profile": _profile_dict(profile)}
     switch_track(profile, target)
     identity = getattr(request.state, "identity", None)
     if not getattr(identity, "is_guest", False):
@@ -1999,7 +2069,7 @@ def set_active_career_track(payload: CareerTrackSwitch, request: Request, db: Se
         details_json=dumps({"from": previous, "to": target}),
     ))
     db.commit(); db.refresh(profile)
-    return {**_career_tracks_payload(db, profile), "profile": _profile_dict(profile)}
+    return {**_career_tracks_payload(db, profile, guest_rankings=guest_rankings), "profile": _profile_dict(profile)}
 
 
 @app.get("/api/dashboard")
@@ -2018,10 +2088,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Guest mode mirrors the primary admin's live opportunity catalog while every
     # personal surface (profile, applications, blockers, answers) stays isolated.
     with _job_catalog_session(request, db) as catalog_db:
-        career_stats = _career_track_stats(catalog_db, profile=profile)
+        guest_rankings = _guest_catalog_rankings(catalog_db) if guest_catalog else None
+        career_stats = _career_track_stats(catalog_db, profile=profile, guest_rankings=guest_rankings)
         current_stats = career_stats.get(career_track, {})
         total_jobs = int(current_stats.get("jobs", 0))
-        eligible_jobs = total_jobs if guest_catalog else int(current_stats.get("eligible_jobs", 0))
+        eligible_jobs = int(current_stats.get("eligible_jobs", 0))
         strong_matches = int(current_stats.get("strong_matches", 0))
         ranking_pending_jobs = 0 if guest_catalog else int(current_stats.get("ranking_pending_jobs", 0))
         if not guest_catalog:
@@ -2036,7 +2107,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             Job.is_active.is_(True), job_in_track(career_track),
             Job.source.has(Source.kind != "demo"),
         )
-        ranking_settings = get_ranking_settings(catalog_db)
+        ranking_settings = None if guest_catalog else get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
         if ranking_active:
             valid_ranking_join = (
@@ -2070,8 +2141,28 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 *ranking_order, company_position, *recency_order,
             )
         else:
-            top_jobs_statement = top_jobs_statement.order_by(desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id))
-        top_jobs = catalog_db.scalars(top_jobs_statement.limit(5)).all()
+            guest_order = (
+                desc(case((guest_rankings.c.job_id.is_not(None), 1), else_=0)),
+                desc(_v2_tier_order(guest_rankings.c.tier)), desc(guest_rankings.c.score),
+            )
+            guest_recency = (desc(func.coalesce(Job.published_at, Job.discovered_at)), desc(Job.id))
+            company_position = func.row_number().over(
+                partition_by=func.lower(func.trim(func.coalesce(Job.company, ""))),
+                order_by=(*guest_order, *guest_recency),
+            )
+            top_jobs_statement = top_jobs_statement.outerjoin(
+                guest_rankings, _guest_ranking_join(guest_rankings, career_track),
+            ).where(or_(guest_rankings.c.job_id.is_(None), guest_rankings.c.eligibility_state != "excluded"))
+            rows = catalog_db.execute(top_jobs_statement.add_columns(
+                guest_rankings.c.score, guest_rankings.c.tier,
+            ).order_by(*guest_order, case((guest_rankings.c.job_id.is_not(None), company_position), else_=0),
+                       *guest_recency).limit(5)).unique().all()
+            top_jobs = []
+            for job, score, tier in rows:
+                _attach_guest_score(job, score, tier)
+                top_jobs.append(job)
+        if ranking_active:
+            top_jobs = catalog_db.scalars(top_jobs_statement.limit(5)).all()
         if ranking_active:
             attach_user_job_states(catalog_db, top_jobs)
             _attach_v2_rankings(catalog_db, top_jobs)
@@ -2081,25 +2172,34 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ]
         # Local dashboard preview: a small independent selection of recent matches.
         # Project only the card fields; details are fetched when the user opens a job.
-        scan_suggestions = []
+        scan_suggestions_statement = select(
+            Job.id, Job.title, Job.company, Job.location, Job.discovered_at,
+            (JobRanking.score if ranking_active else guest_rankings.c.score).label("score"),
+        ).where(
+            Job.is_active.is_(True), job_in_track(career_track),
+            Job.source.has(Source.kind != "demo"),
+            Job.discovered_at >= utcnow() - timedelta(days=14),
+            Job.id.notin_([job.id for job in top_jobs]),
+        )
         if ranking_active:
-            scan_suggestions_statement = select(
-                Job.id, Job.title, Job.company, Job.location, Job.discovered_at, JobRanking.score,
-            ).join(JobRanking, valid_ranking_join).outerjoin(
+            scan_suggestions_statement = scan_suggestions_statement.join(JobRanking, valid_ranking_join).outerjoin(
                 UserJobState, UserJobState.job_id == Job.id,
             ).where(
-                Job.is_active.is_(True), job_in_track(career_track),
-                Job.source.has(Source.kind != "demo"),
-                Job.discovered_at >= utcnow() - timedelta(days=14),
                 JobRanking.score >= 70, JobRanking.eligibility_state != "excluded",
                 func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden", "skipped"]),
                 (_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title)),
-                Job.id.notin_([job.id for job in top_jobs]),
-            ).order_by(desc(Job.discovered_at), desc(JobRanking.score), desc(Job.id)).limit(3)
-            scan_suggestions = [dict(row) for row in catalog_db.execute(scan_suggestions_statement).mappings()]
+            ).order_by(desc(Job.discovered_at), desc(JobRanking.score), desc(Job.id))
+        else:
+            scan_suggestions_statement = scan_suggestions_statement.outerjoin(
+                guest_rankings, _guest_ranking_join(guest_rankings, career_track),
+            ).where(or_(guest_rankings.c.job_id.is_(None), guest_rankings.c.eligibility_state != "excluded"))
+            if current_stats.get("shared_ranked_jobs", 0):
+                scan_suggestions_statement = scan_suggestions_statement.where(guest_rankings.c.score >= 70)
+            scan_suggestions_statement = scan_suggestions_statement.order_by(desc(Job.discovered_at), desc(Job.id))
+        scan_suggestions = [dict(row) for row in catalog_db.execute(scan_suggestions_statement.limit(3)).mappings()]
 
 
-    career_track_info = _career_tracks_payload(db, profile, stats=career_stats)
+    career_track_info = _career_tracks_payload(db, profile, stats=career_stats, guest_rankings=guest_rankings)
     if guest_catalog or not applications_workspace:
         # Never leak the admin's application pipeline through the demo dashboard.
         # Regular accounts submit one explicitly selected job at a time and do not
@@ -2169,6 +2269,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "ranking_refresh": ranking_refresh,
         "readiness": readiness,
         "guest_catalog": guest_catalog,
+        "guest_matches_available": bool(guest_catalog and current_stats.get("shared_ranked_jobs", 0)),
     }
 
 
@@ -2441,7 +2542,7 @@ def _apply_profile_changes(
     if resume_analysis_changed:
         _refresh_resume_analyses(db, profile)
     db.commit()
-    if automatic_settings_changed and auto_submit_is_enabled(profile):
+    if (matching_changed or automatic_settings_changed) and auto_submit_is_enabled(profile):
         from .services.scanner import auto_queue_jobs
         auto_queue_jobs(db, profile)
     db.refresh(profile)
@@ -3114,8 +3215,9 @@ def list_jobs(
         raise HTTPException(403, "סינון האדמין זמין למנהל בלבד")
 
     with _job_catalog_session(request, db) as catalog_db:
-        ranking_settings = get_ranking_settings(catalog_db)
+        ranking_settings = None if guest_catalog else get_ranking_settings(catalog_db)
         ranking_active = not guest_catalog
+        guest_rankings = _guest_catalog_rankings(catalog_db) if guest_catalog else None
         selected_locations = list(dict.fromkeys(
             str(value).strip() for value in (location or []) if str(value).strip()
         ))
@@ -3148,6 +3250,17 @@ def list_jobs(
             location_count_statement = location_count_statement.outerjoin(
                 UserJobState, UserJobState.job_id == Job.id
             ).outerjoin(JobRanking, valid_ranking_join)
+        else:
+            guest_join = _guest_ranking_join(guest_rankings, career_track)
+            guest_visible = or_(guest_rankings.c.job_id.is_(None), guest_rankings.c.eligibility_state != "excluded")
+            if min_score > 0:
+                guest_visible &= guest_rankings.c.score >= min_score
+            statement = statement.add_columns(guest_rankings.c.score, guest_rankings.c.tier).outerjoin(
+                guest_rankings, guest_join,
+            ).where(guest_visible)
+            location_count_statement = location_count_statement.outerjoin(
+                guest_rankings, guest_join,
+            ).where(guest_visible)
         selected_degree = "" if guest_catalog else profile_degree_level(profile)
         if selected_degree:
             degree_filter = _degree_visibility_condition(profile)
@@ -3170,7 +3283,7 @@ def list_jobs(
                 )
             statement = statement.where(ranking_visibility)
             location_count_statement = location_count_statement.where(ranking_visibility)
-        if active_only:
+        if active_only or guest_catalog:
             statement = statement.where(Job.is_active.is_(True))
             location_count_statement = location_count_statement.where(Job.is_active.is_(True))
         if ranking_active:
@@ -3244,9 +3357,13 @@ def list_jobs(
                 ranked_first, asc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id),
             )
         else:
-            active_score = literal(0)
-            score_desc_order = (desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))
-            score_asc_order = score_desc_order
+            active_score = guest_rankings.c.score
+            ranked_first = desc(case((guest_rankings.c.job_id.is_not(None), 1), else_=0))
+            score_desc_order = (
+                ranked_first, desc(_v2_tier_order(guest_rankings.c.tier)), desc(active_score),
+                desc(Job.published_at), desc(Job.discovered_at), desc(Job.id),
+            )
+            score_asc_order = (ranked_first, asc(active_score), desc(Job.published_at), desc(Job.discovered_at), desc(Job.id))
         sort_map = {
             "score_desc": score_desc_order,
             "auto_apply_first": (desc(_automatic_submit_sort_order()), *score_desc_order),
@@ -3273,7 +3390,10 @@ def list_jobs(
         else:
             limited_statement = statement.limit(limit)
         if guest_catalog:
-            jobs = catalog_db.scalars(limited_statement).all()
+            jobs = []
+            for job, score, tier in catalog_db.execute(limited_statement).unique().all():
+                _attach_guest_score(job, score, tier)
+                jobs.append(job)
         else:
             rows = catalog_db.execute(limited_statement).unique().all()
             jobs = []
@@ -3314,6 +3434,18 @@ def get_job(job_id: int, request: Request, db: Session = Depends(get_db)):
         if not _request_is_guest(request):
             attach_user_job_states(catalog_db, [job])
             _attach_v2_rankings(catalog_db, [job])
+        else:
+            if not job.is_active:
+                raise HTTPException(404, "Job not found")
+            guest_rankings = _guest_catalog_rankings(catalog_db)
+            row = catalog_db.execute(select(
+                guest_rankings.c.score, guest_rankings.c.tier, guest_rankings.c.eligibility_state,
+            ).select_from(Job).join(
+                guest_rankings, _guest_ranking_join(guest_rankings, career_track),
+            ).where(Job.id == job.id).limit(1)).first()
+            if row and row.eligibility_state == "excluded":
+                raise HTTPException(404, "Job not found")
+            _attach_guest_score(job, row.score if row else None, row.tier if row else None)
         return _job_payload_for_request(job, request, full=True, profile=profile)
 
 
@@ -6296,6 +6428,20 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     if claimed.rowcount != 1:
         db.rollback()
         return {"task": None}
+    # Email codes belong to the browser session that requested them. Keep the
+    # stopped attempt's explanation until a new worker really claims this row,
+    # then retire its OTP without reading or returning any stored code.
+    db.execute(
+        update(Blocker)
+        .where(
+            Blocker.application_id == application.id,
+            Blocker.user_id == application.user_id,
+            Blocker.kind == "security_code_required",
+            Blocker.status == "open",
+        )
+        .values(status="resolved", answer="", remember_answer=False, resolved_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
     db.commit()
     db.refresh(application)
     answers = loads(application.answers_json, {})

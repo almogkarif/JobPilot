@@ -84,6 +84,11 @@ def test_one_collection_routes_to_all_tracks_and_keeps_ids(preview_db, monkeypat
     for track, ids in expected.items():
         assigned = set(preview_db.scalars(select(JobTrack.job_id).where(JobTrack.career_track == track)))
         assert {j.external_id for j in rows if j.id in assigned} == ids
+    from app.main import _career_track_stats
+    stats = _career_track_stats(preview_db, preview_db.scalar(select(Profile)))
+    assert {track: stats[track]['jobs'] for track in expected} == {
+        track: len(ids) for track, ids in expected.items()
+    }
     j = next(j for j in rows if j.external_id == 'cs')
     application = Application(job_id=j.id, status='submitted')
     preview_db.add(application); preview_db.commit()
@@ -169,7 +174,7 @@ def test_same_canonical_job_has_independent_track_rankings(preview_db, monkeypat
 
 def test_multi_track_application_is_queued_once(preview_db, monkeypatch):
     from app.models import JobRanking
-    from app.services.ranking.service import get_settings, get_ranking_engine
+    from app.services.ranking.service import get_settings, get_ranking_engine, profile_fingerprint
     class Collector:
         async def collect(self,*args): return items()
     monkeypatch.setitem(scanner.COLLECTORS,'greenhouse',Collector)
@@ -180,6 +185,7 @@ def test_multi_track_application_is_queued_once(preview_db, monkeypatch):
     for track in ('computer_science','electrical_engineering'):
         preview_db.add(JobRanking(job_id=job.id,career_track=track,engine='v2',score=100,
             engine_version=get_ranking_engine().version,config_version=config.config_version,
+            profile_fingerprint=profile_fingerprint(profile, track), job_fingerprint=job.source_fingerprint,
             eligibility_state='realistic',stale=False))
     preview_db.commit()
     dispatched=[]
