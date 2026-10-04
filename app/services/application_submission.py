@@ -8,7 +8,7 @@ import re
 import secrets
 import time
 from dataclasses import asdict, dataclass
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 
 PREVIEW_TTL_SECONDS = 10 * 60
@@ -26,6 +26,8 @@ class ATSAdapter:
 
 
 ADAPTERS = {
+    "aman": ATSAdapter("aman", "Aman Careers", notes="הגשה מהירה המשויכת למשרה; אישור קבלה מפורש מהשרת נדרש לאחר שליחה יחידה."),
+    "one": ATSAdapter("one", "ONE Careers", notes="טופס למשרה מסוימת; נדרש אישור קבלה מפורש מהשרת לאחר שליחה יחידה."),
     "yael": ATSAdapter("yael", "Yael Group", notes="טופס מועמדות ייעודי למשרה; ההגשה מאושרת רק לאחר תשובת קבלה מפורשת מהשרת."),
     "elad": ATSAdapter("elad", "Elad Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש התואם למשרה."),
     "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
@@ -143,6 +145,8 @@ def automation_apply_url(job) -> str:
     controls. The original public URL remains on the Job row for users.
     """
     original = str(getattr(job, "apply_url", "") or "").strip()
+    if one_careers_job_id(original):
+        return f"https://www.one1.co.il/careers/?job_id={one_careers_job_id(original)}"
     parsed_original = urlparse(original)
     original_host = (parsed_original.hostname or "").casefold()
     original_parts = [part for part in parsed_original.path.split("/") if part]
@@ -170,6 +174,31 @@ def automation_apply_url(job) -> str:
         "https://job-boards.greenhouse.io/embed/job_app"
         f"?for={quote(token, safe='-._~')}&token={quote(external_id, safe='-._~')}"
     )
+
+
+def one_careers_job_id(url: str) -> str:
+    """Recognize ONE's observed share links and exact public application URLs."""
+    try:
+        parsed = urlparse(str(url or ""))
+        query = parse_qs(parsed.query, keep_blank_values=True, strict_parsing=True)
+        key = {"/": "share_job_id", "/careers/": "job_id"}.get(parsed.path)
+        if (parsed.scheme != "https" or parsed.netloc.casefold() != "www.one1.co.il"
+                or parsed.fragment or not key or set(query) != {key} or len(query[key]) != 1):
+            return ""
+        value = query[key][0]
+        return value if re.fullmatch(r"[1-9][0-9]{0,11}", value) else ""
+    except ValueError:
+        return ""
+
+
+def aman_job_url(url: str) -> str:
+    parsed = urlparse(str(url or ""))
+    if (parsed.scheme != "https" or parsed.netloc.casefold() != "www.aman.co.il"
+            or parsed.query or parsed.fragment):
+        return ""
+    path = unquote(parsed.path).rstrip("/")
+    return path if (len(path) <= 1800 and re.fullmatch(r"/careers/[^/]+/[^/]+", path)
+                    and not any(part in {".", ".."} for part in path.split("/"))) else ""
 
 
 def is_gstat_application_url(url: str) -> bool:
@@ -203,6 +232,10 @@ def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    if one_careers_job_id(value):
+        return ADAPTERS["one"]
+    if aman_job_url(value):
+        return ADAPTERS["aman"]
     if yael_job_id(value):
         return ADAPTERS["yael"]
     if elad_job_id(value):

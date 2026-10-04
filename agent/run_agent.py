@@ -166,7 +166,7 @@ def prepare_resume(task: dict) -> str:
 def prepare_grade_sheet(task: dict) -> str:
     # These verified forms accept only the CV. New fields stop their adapters
     # for review, so downloading a grade sheet here cannot help.
-    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael"}:
+    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael", "one", "aman"}:
         return ""
     application = task.get("application") or {}
     application_id = application.get("id")

@@ -958,6 +958,9 @@ def _automatic_application_query_filter():
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("https://yaelgroup.com/jobs/order/%")
+        | apply_url.like("https://www.one1.co.il/?share_job_id=%")
+        | apply_url.like("https://www.one1.co.il/careers/?job_id=%")
+        | apply_url.like("https://www.aman.co.il/careers/%/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%aquasec.com/careers/%")
@@ -994,6 +997,9 @@ def _automatic_submit_sort_order():
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("https://yaelgroup.com/jobs/order/%")
+        | apply_url.like("https://www.one1.co.il/?share_job_id=%")
+        | apply_url.like("https://www.one1.co.il/careers/?job_id=%")
+        | apply_url.like("https://www.aman.co.il/careers/%/%")
         | apply_url.like("%greenhouse%") | source_kind.like("%greenhouse%")
         | apply_url.like("%comeet%") | source_kind.like("%comeet%")
         | apply_url.like("%aquasec.com/careers/%")
@@ -6234,7 +6240,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"yael", "elad", "gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"aman", "one", "yael", "elad", "gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -6261,6 +6267,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         candidates = db.scalars(select(Application).join(Job, Application.job_id == Job.id).where(
             Application.status == "queued", job_in_track(track), Job.is_active.is_(True),
             Application.originating_track == track if unified_catalog_enabled() else literal(True),
+            Application.id == application_id if application_id else literal(True),
         ).order_by(Application.updated_at).limit(50)).all()
         application = next((candidate for candidate in candidates if (
             candidate.mode != "auto"
@@ -6409,6 +6416,10 @@ def _deterministic_ats_anti_automation_block(application: Application, payload: 
         return diagnostics.get("elad_response_outcome") == "blocked"
     if adapter == "yael":
         return diagnostics.get("yael_response_outcome") == "blocked"
+    if adapter == "one":
+        return diagnostics.get("one_response_outcome") == "blocked"
+    if adapter == "aman":
+        return diagnostics.get("aman_response_outcome") == "blocked"
     if adapter == "comeet":
         return bool(diagnostics.get("invisible_recaptcha_rejected")) or any(
             int(item.get("status") or 0) == 423
@@ -6545,6 +6556,9 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
 @app.post("/api/agent/tasks/{application_id}/progress")
 def agent_progress(application_id: int, payload: AgentProgressRequest, db: Session = Depends(get_db)):
     _check_agent_token(db, payload.token, application_id=application_id)
+    # Observing the outgoing request completes the existing send step, not receipt verification.
+    if payload.stage == "submit_request_sent":
+        payload.stage = "submit_clicked"
     payload.page_url = str(payload.page_url or "")[:1200]
     application = resolve_application(db, application_id)
     if not application:
@@ -6553,11 +6567,11 @@ def agent_progress(application_id: int, payload: AgentProgressRequest, db: Sessi
     if not attempt or attempt.status != "running":
         raise HTTPException(409, "Application attempt is no longer active")
     details = {"attempt_id": attempt.id, "page_url": payload.page_url}
-    existing_events = db.scalars(select(ApplicationEvent).where(
+    latest_details = db.scalar(select(ApplicationEvent.details_json).where(
         ApplicationEvent.application_id == application_id,
         ApplicationEvent.event_type == payload.stage,
-    )).all()
-    duplicate = any(loads(item.details_json, {}).get("attempt_id") == attempt.id for item in existing_events)
+    ).order_by(desc(ApplicationEvent.id)).limit(1))
+    duplicate = loads(latest_details, {}).get("attempt_id") == attempt.id
     if payload.stage == "security_code_filled":
         blocker = db.scalar(select(Blocker).where(
             Blocker.application_id == application_id,

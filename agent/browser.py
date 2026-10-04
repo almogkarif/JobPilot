@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-from app.services.application_submission import elad_job_id, is_gstat_application_url, lever_confirmation_from_url, yael_job_id
+from app.services.application_submission import aman_job_url, elad_job_id, is_gstat_application_url, lever_confirmation_from_url, one_careers_job_id, yael_job_id
 from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
@@ -181,6 +181,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         progress("page_opened", "עמוד ההגשה נפתח ברקע", page.url)
     _detect_captcha(page)
 
+    if one_careers_job_id(job["apply_url"]):
+        from .one import fill_one_application
+        return fill_one_application(page, task, auto_submit, progress)
+    if aman_job_url(job["apply_url"]):
+        from .aman import fill_aman_application
+        return fill_aman_application(page, task, auto_submit, progress)
     if yael_job_id(job["apply_url"]):
         from .yael import fill_yael_application
         return fill_yael_application(page, task, auto_submit, progress)
@@ -1644,7 +1650,8 @@ def _choice_candidate_is_compatible(field: dict, desired: str | bool) -> bool:
     options = [normalize(option) for option in field.get("options", []) or [] if normalize(option)]
     unique_options = set(options)
     if field.get("type") == "checkbox" and len(unique_options) <= 1:
-        return desired_key in {"true", "yes", "כן", "1", "false", "no", "לא", "0"}
+        # A resolved one-option checkbox stores the selected label, not always "Yes".
+        return desired_key in {"true", "yes", "כן", "1", "false", "no", "לא", "0"} or desired_key in unique_options
     if not options:
         # A single checkbox can legitimately use a textual Yes/No value even
         # without an exposed option list. Other arbitrary text is unsafe.
@@ -3232,7 +3239,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 and key in {"settings", "account settings"}
             ):
                 continue
-            if "skill" in key:
+            # Skill ratings are ordinary questions, not a tokenized Skills picker.
+            if "skill" in key and not any(term in key for term in ("level", "rate", "rating", "proficiency")):
                 continue
             if "citizenship" in key:
                 continue

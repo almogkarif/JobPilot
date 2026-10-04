@@ -255,7 +255,7 @@ class AgentResultRequest(BaseModel):
 class AgentProgressRequest(BaseModel):
     token: str
     attempt_id: int | None = None
-    stage: str = Field(pattern="^(page_opened|form_detected|details_filled|submit_clicked|security_code_waiting|security_code_filled)$")
+    stage: str = Field(pattern="^(page_opened|form_detected|details_filled|submit_clicked|submit_request_sent|security_code_waiting|security_code_filled)$")
     message: str = Field(default="", max_length=500)
     page_url: str = Field(default="", max_length=2_000)
 

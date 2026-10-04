@@ -6,6 +6,7 @@ from app.database import SessionLocal, get_user_profile
 from app.main import app, ONE_TIME_SUBMIT_KEY, _automatic_application_query_filter, _automatic_submit_sort_order
 from app.models import Application, Job, Source
 from app.services.application_queue_recovery import queue_health
+from app.services.application_submission import automation_apply_url
 from app.utils import dumps, loads
 
 
@@ -17,6 +18,9 @@ from app.utils import dumps, loads
 @pytest.mark.parametrize('adapter,url', [
     ('elad', 'https://careers.eladsoft.com/jobs/1007746/'),
     ('yael', 'https://yaelgroup.com/jobs/order/25686/'),
+    ('one', 'https://www.one1.co.il/?share_job_id=3568'),
+    ('one', 'https://www.one1.co.il/careers/?job_id=3568'),
+    ('aman', 'https://www.aman.co.il/careers/data/analyst/'),
 ])
 def test_verified_employer_claim_is_exact_and_uncertain_or_blocked_sends_cannot_requeue(tmp_path, kind, diagnostics, status, adapter, url):
     diagnostics = {key.replace('elad_', f'{adapter}_'): value for key, value in diagnostics.items()}
@@ -50,7 +54,7 @@ def test_verified_employer_claim_is_exact_and_uncertain_or_blocked_sends_cannot_
         task = result.json()['task']
         assert task and task['application']['id'] == application_id
         assert task['submission_adapter']['key'] == adapter
-        assert task['job']['apply_url'] == job.apply_url
+        assert task['job']['apply_url'] == automation_apply_url(job)
         assert task['submit_approved_once'] is True
         assert client.get('/api/agent/tasks/next', params=params).json()['task'] is None
         response = client.post(f'/api/agent/tasks/{application_id}/blocked', json={

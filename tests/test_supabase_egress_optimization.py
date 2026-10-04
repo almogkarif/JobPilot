@@ -26,6 +26,7 @@ from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
 from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
 from tests.test_application_resume_metadata import resume_metadata_db
+from tests.test_application_submit_progress import sent_progress_application
 from tests.test_application_resume_recovery import resume_recovery_engine
 
 
@@ -57,6 +58,48 @@ def test_fixed_resume_recovery_only_reads_bounded_metadata_and_writes_four_links
         'description', 'extracted_text', 'answers_json', 'last_error', 'attempt_count', 'from profiles', 'select *',
     ))
     assert len(json.dumps(report).encode()) < 2048
+
+
+def test_submit_progress_duplicate_check_reads_one_projected_event(sent_progress_application):
+    from app.database import engine
+    client, application_id, attempt_id = sent_progress_application
+    statements = []
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        if sql.lstrip().lower().startswith('select') and 'application_events.event_type =' in sql:
+            statements.append(' '.join(sql.lower().split()))
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.post(f'/api/agent/tasks/{application_id}/progress', json={
+            'token': 'change-me', 'attempt_id': attempt_id, 'stage': 'submit_request_sent',
+        })
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200, response.text
+    assert len(statements) == 1
+    assert statements[0].startswith('select application_events.details_json')
+    assert 'limit ' in statements[0] and 'order by application_events.id desc' in statements[0]
+    assert 'description' not in statements[0] and 'application_events.message' not in statements[0]
+
+
+def test_local_explicit_claim_filters_in_sql_without_loading_other_queued_jobs(sent_progress_application):
+    from app.database import engine
+    client, application_id, _attempt_id = sent_progress_application
+    statements = []
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        normalized = ' '.join(sql.lower().split())
+        if normalized.startswith('select') and 'order by applications.updated_at' in normalized:
+            statements.append(normalized)
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get('/api/agent/tasks/next', params={
+            'token': 'change-me', 'agent_id': 'exact-local', 'worker_type': 'local',
+            'application_id': application_id,
+        })
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200 and response.json()['task'] is None
+    assert len(statements) == 1 and 'applications.id = ' in statements[0]
+    assert 'limit ' in statements[0] and 'jobs.description' not in statements[0]
 
 
 def test_receipt_reconciliation_keeps_catalog_and_applicant_documents_inside_db():
@@ -876,12 +919,14 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
         sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
         assert 'careers.eladsoft.com/jobs/' in sql and 'g-stat.com/jobs/' in sql
         assert 'yaelgroup.com/jobs/order/' in sql
+        assert 'www.one1.co.il/?share_job_id=' in sql and 'www.one1.co.il/careers/?job_id=' in sql
+        assert 'www.aman.co.il/careers/' in sql
         assert 'kaltura' in sql and 'limit 50' in sql
         assert 'description' not in sql and 'metadata_json' not in sql
         assert 'resume_profiles' not in sql and 'application_events' not in sql
 
 
-@pytest.mark.parametrize('adapter', ['elad', 'yael'])
+@pytest.mark.parametrize('adapter', ['elad', 'yael', 'one', 'aman'])
 def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatch, adapter):
     from agent import run_agent
     def unexpected_download(*args, **kwargs):

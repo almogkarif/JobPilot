@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -397,6 +398,35 @@ def test_operator_worker_can_convert_an_already_queued_guided_attempt_to_auto(mo
         assert stored.mode == "auto"
         stored.status = "failed"
         db.commit()
+
+
+@pytest.mark.parametrize('requested_mode', ['review', 'auto'])
+def test_local_agent_with_explicit_id_never_claims_another_queued_application(requested_mode):
+    with TestClient(app) as client:
+        applications = []
+        for title in ['Older review', 'Requested review']:
+            job = _make_job(client, title)
+            application = client.post(f"/api/jobs/{job['id']}/queue", json={'mode': 'review'}).json()
+            applications.append(application['id'])
+        older, requested = applications
+        with SessionLocal() as db:
+            db.get(Application, requested).mode = requested_mode
+            db.commit()
+        params = {'token': 'change-me', 'agent_id': 'exact-local', 'worker_type': 'local'}
+        assert client.get('/api/agent/tasks/next', params={**params, 'application_id': requested + 10_000}).json()['task'] is None
+        task = client.get('/api/agent/tasks/next', params={**params, 'application_id': requested}).json()['task']
+        if requested_mode == 'review':
+            assert task['application']['id'] == requested
+        else:
+            assert task is None  # An auto job without a local handoff belongs to the cloud worker.
+        with SessionLocal() as db:
+            assert db.get(Application, older).status == 'queued'
+            # This module shares a database; leave no review task for the next local worker test.
+            for application_id in applications:
+                stored = db.get(Application, application_id)
+                stored.status = 'failed'
+                stored.job.status = 'failed'
+            db.commit()
 
 
 def test_local_browser_handoff_is_claimed_only_by_local_agent(monkeypatch):

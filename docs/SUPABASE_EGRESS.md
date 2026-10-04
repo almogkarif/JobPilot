@@ -4,6 +4,32 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Explicit local worker claims — October 4, 2026
+
+When a local worker supplies an application ID, its existing queue SELECT now
+includes that ID in SQL. It returns at most one matching Application instead of
+up to 50 unrelated candidates. Requests without an ID keep their existing queue
+behavior; automatic tasks still require a local handoff before a local claim.
+There are zero additional queries, columns, files, startup tasks or polls, hence
+zero incremental bytes/hour/day for this restriction. Existing selected-task
+payload/file bounds still apply to an actual claim. The egress regression checks
+the ID predicate and existing LIMIT and excludes job-description projection.
+
+## Observed submission progress — October 4, 2026
+
+The existing worker callback `submit_request_sent` now maps to the existing
+`submit_clicked` timeline step; it does not establish employer acceptance.
+Duplicate detection reads only the latest event's `details_json`, ordered by ID
+with LIMIT 1, instead of downloading every full matching event. Only the latest
+running attempt can report progress. Current progress details contain one attempt
+ID and a URL capped at 1,200 characters; allow 6 KiB per projected response,
+including UTF-8 and protocol overhead. No job description or full event message
+is added to the query. Idle traffic is zero. At eight callbacks per attempt and
+five attempts in an hour/day, allow 240 KiB for these event checks, 7.1 MiB/30 days
+at five attempts/day, within the existing task/callback budget. This changes no
+polling or retry schedule and downloads no file. API tests verify deduplication
+and uncertain-delivery recovery; the egress test verifies the single projection.
+
 ## Explicit resume metadata diagnosis — October 2, 2026
 
 The manual diagnostic workflow accepts 1–10 explicit application IDs. A separate
@@ -92,6 +118,42 @@ per day: <=400 KiB/day). The logo is a bundled 2,026-byte static image, never a
 Supabase object. No scheduled scan or production installation was run for this
 validation. Tests verify the 40+20 request ceiling, <=2 KiB checkpoint, cursor
 rotation, partial/empty inventories, identity binding and blocked POSTs.
+
+## ONE and Aman application adapters — October 2, 2026
+
+These adapters reuse the existing projected job/queue queries, exact application
+claim, selected-CV endpoint and result report. URL predicates add no returned
+columns, catalog reads, polling or startup requests: incremental idle egress is
+0 bytes/hour/day for the adapters. The separate Aman source budget is above.
+`test_verified_employer_claim_is_exact_and_uncertain_or_blocked_sends_cannot_requeue`
+in `tests/test_elad_queue.py` covers both adapters through the actual queue/claim
+and terminal-result path, and the egress suite checks the supported URL filter
+without a description projection.
+
+An approved attempt uses the existing single selected-CV download (the existing
+upload limit is 10 MiB). ONE accepts at most 2 MiB and Aman 10 MiB; both skip the
+unused grade-sheet download. For N additional approved attempts/day, reserve up
+to 10N MiB/day of existing file delivery plus the existing task/result envelope
+budget. At 5 attempts/day that is at most 50 MiB/day, 1,500 MiB/30 days; 5 in one
+hour is at most 50 MiB/hour. This is a quota estimate, not a new daily scheduler
+or authorization for a bulk retry. No file is redownloaded inside either adapter.
+`test_verified_cv_only_worker_does_not_download_unused_grade_sheet` covers both.
+
+Each adapter allows at most one job-bound employer POST per attempt, containing
+the verified CV and at most 64 KiB multipart overhead. Employer responses accepted
+as evidence are limited to 8 KiB; receipt observation reuses the existing response
+and makes no extra request. Employer HTML/assets are ordinary browser traffic,
+not Supabase traffic. Aman visits the exact posting and board, then makes at most
+one normal title search if its card is not immediately present; it does not crawl
+all pages. Request/response evidence stores short messages, not CVs or raw bodies.
+
+Two authorized local validation submissions used an existing local CV and public
+employer forms: no Supabase Storage read, production write or bulk scan. After
+device reconnection, five deliberate selected-CV checks were made: four 39-byte
+errors and one successful 44,296-byte download. No application was queued or sent.
+Four further 29-byte error responses after deployment confirmed missing objects.
+These one-off checks are not polling; no bulk retry followed. The production quota
+remains unverified.
 
 ## Dashboard company diversity — October 2, 2026
 

@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -96,6 +97,21 @@ def test_monday_branded_job_uses_its_ashby_application_surface():
     assert automation_apply_url(job) == (
         "https://jobs.ashbyhq.com/monday.com/3ce06e40-f9bf-4bb6-b60b-65f8dc763e1d"
     )
+
+
+@pytest.mark.parametrize("url", ["https://www.one1.co.il/?share_job_id=3568", "https://www.one1.co.il/careers/?job_id=3568"])
+def test_one_share_links_use_the_exact_public_application_job(url):
+    assert detect_adapter(url).key == "one"
+    assert automation_apply_url(_job(url)) == "https://www.one1.co.il/careers/?job_id=3568"
+
+
+@pytest.mark.parametrize("url", ["https://www.one1.co.il/careers/", "http://www.one1.co.il/?share_job_id=3568",
+    "https://www.one1.co.il.evil.test/?share_job_id=3568", "https://www.one1.co.il/?share_job_id=3568&share_job_id=99",
+    "https://www.one1.co.il/?share_job_id=3568&next=other", "https://www.one1.co.il/?share_job_id=none",
+    "https://www.one1.co.il/?share_job_id=3568#other"])
+def test_one_does_not_promote_ambiguous_or_untrusted_links(url):
+    assert detect_adapter(url).key == "custom"
+    assert automation_apply_url(_job(url)) == url
 
 
 def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday():
