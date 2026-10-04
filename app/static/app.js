@@ -5813,7 +5813,7 @@ function onboardingSyncSavedProfile(profile){
   updateProfileDirtyState();
 }
 function onboardingPersistProfile(patch){
-  onboardingState.saveChain=onboardingState.saveChain.then(async()=>{
+  onboardingState.saveChain=onboardingState.saveChain.catch(()=>{}).then(async()=>{
     const saved=await api('/api/profile',{method:'PATCH',body:JSON.stringify(patch)});
     onboardingSyncSavedProfile(saved);
     return saved;
@@ -5836,13 +5836,28 @@ const onboardingSteps = ['track','resume','resume-review','skills','preferences'
 function onboardingSplit(value=''){ return String(value).split(',').map(v=>v.trim()).filter(Boolean); }
 function onboardingTrackConfig(key=state.activeCareerTrack){ return CAREER_TRACK_UI[key] || CAREER_TRACK_UI.computer_science; }
 function onboardingPresetSkills(){ return (onboardingTrackConfig().skills||[]).map(([value])=>value); }
-function onboardingSkillValues(){ return [...new Set([...onboardingPresetSkills(), ...onboardingState.selectedSkills])]; }
+function onboardingNormalizeSkills(values){
+  const presets=new Map(onboardingPresetSkills().map(value=>[value.toLowerCase(),value]));
+  const unique=new Map();
+  for(const raw of values){const value=String(raw||'').trim(),key=value.toLowerCase();if(value&&!unique.has(key))unique.set(key,presets.get(key)||value);}
+  return [...unique.values()];
+}
+function onboardingSkillValues(){
+  onboardingState.selectedSkills=new Set(onboardingNormalizeSkills([...onboardingState.selectedSkills]));
+  return onboardingNormalizeSkills([...onboardingPresetSkills(), ...onboardingState.selectedSkills]);
+}
 function onboardingChoiceValues(items=[]){return (items||[]).map(item=>Array.isArray(item)?item:[item,item]).filter(([v])=>v)}
 function onboardingChoiceBox(kind,value,label,selected){
   return `<button type="button" class="onboarding-choice ${selected?'selected':''}" data-ob-choice="${kind}" data-value="${encodeURIComponent(value)}"><span class="onboarding-choice-check" aria-hidden="true">✓</span><strong>${esc(label)}</strong></button>`;
 }
 function onboardingToggleChoice(button){
   button.classList.toggle('selected');
+  if(button.dataset.obChoice==='location' && button.classList.contains('selected')){
+    const country=decodeURIComponent(button.dataset.value)==='Israel';
+    $$('[data-ob-choice="location"]').forEach(other=>{
+      if(other!==button && (country || decodeURIComponent(other.dataset.value)==='Israel'))other.classList.remove('selected');
+    });
+  }
 }
 
 function onboardingApplyTrackTheme(key){ state.activeCareerTrack=key; applyCareerTrackTheme(); document.querySelector('.onboarding-shell')?.setAttribute('data-track',key); }
@@ -5893,6 +5908,8 @@ async function onboardingSaveResumeReview(){
   await onboardingPersistProfile(patch);
 }
 
+function onboardingRoyalUser(){ return String(authState.user?.email||'').trim().toLowerCase()==='yoramp4@gmail.com'; }
+
 function onboardingSetStep(index){
   onboardingState.step=Math.max(0,Math.min(onboardingSteps.length-1,index));
   const step=onboardingSteps[onboardingState.step], profile=state.profile||{}, track=onboardingTrackConfig();
@@ -5936,6 +5953,7 @@ function onboardingSetStep(index){
     const titles=new Set(draft.desired_titles||profile.desired_titles||[]);
     const seniority=new Set(draft.seniority_levels||profile.seniority_levels||[]);
     const locations=new Set(draft.preferred_locations||profile.preferred_locations||[]);
+    if(locations.has('Israel')||locations.has('ישראל')){locations.clear();locations.add('Israel');}
     const locationChoices=[['Israel','ישראל'],['Haifa','חיפה'],['Tel Aviv','תל אביב'],['Jerusalem','ירושלים']];
     const titleChoices=onboardingChoiceValues(track.desiredTitles||[]);
     const experienceChoices=[['student','Student / Intern'],['entry level','Entry Level / Graduate'],['junior','Junior'],['mid level','Mid Level'],['senior','Senior'],['lead','Lead'],['staff','Staff / Principal'],['manager','Manager'],['unknown','לא צוינה רמת ניסיון']];
@@ -5967,6 +5985,12 @@ function onboardingSetStep(index){
     $('#onboarding-enter-now').onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()};
     onboardingStartRanking();
   }
+  if(onboardingRoyalUser()){
+    const greeting=document.createElement('p');
+    greeting.className='onboarding-royal-greeting';
+    greeting.textContent='המלך יורם, הוד מעלתך — ברוך הבא';
+    content.prepend(greeting);
+  }
   content.scrollTop=0;
 }
 async function onboardingResume(event,droppedFile=null){
@@ -5982,19 +6006,20 @@ async function onboardingResume(event,droppedFile=null){
     const result=await api('/api/profile/resume',{method:'POST',body}); onboardingState.resume={...result,filename:result.filename||result.profile?.cv_filename||file.name}; state.profile=result.profile||state.profile;
     const suggestions=result.analysis?.suggestions||[];
     const found=[...(result.analysis?.detected_skills||result.analysis?.skills||[]),...suggestions.filter(x=>x.field==='skills').map(x=>x.value)].flat().map(v=>String(v||'').trim()).filter(Boolean);
-    onboardingState.selectedSkills=new Set([...(state.profile?.skills||[]), ...found]); onboardingSyncSavedProfile(state.profile); onboardingSetStep(onboardingSteps.indexOf('resume-review'));
+    onboardingState.selectedSkills=new Set(onboardingNormalizeSkills([...(state.profile?.skills||[]), ...found])); onboardingSyncSavedProfile(state.profile); onboardingSetStep(onboardingSteps.indexOf('resume-review'));
     const filled=resumeAutofillSummary(result.autofilled_fields||[]);
     toast(filled?`קורות החיים נותחו · מולאו: ${filled}`:'קורות החיים הועלו ונותחו');
   }catch(error){label?.classList.remove('uploading');toast(error.message)}finally{event.target.value='';navigation.forEach(button=>button.disabled=false)}
 }
 async function onboardingSaveSkills(){
-  const skills=[...onboardingState.selectedSkills].map(v=>String(v||'').trim()).filter(Boolean);
+  const skills=onboardingNormalizeSkills([...onboardingState.selectedSkills]);
   state.profile=await onboardingPersistProfile({skills});
   onboardingState.selectedSkills=new Set(state.profile.skills||skills);
 }
 async function saveOnboardingPreferences(){
   const draft=onboardingCollectPreferences();
   if(!draft.degree_level) throw new Error('בחר סוג תואר כדי שנוכל לסנן משרות לפי דרישת ההשכלה');
+  if(onboardingState.saveTimer){clearTimeout(onboardingState.saveTimer);onboardingState.saveTimer=null;}
   const saved=await onboardingPersistProfile(draft);
   state.profile=saved;
   onboardingState.draft={
@@ -6081,7 +6106,7 @@ async function openOnboarding(preview=false){
 async function maybeOpenOnboarding(){if(authState.user?.is_guest)return;const status=await api('/api/onboarding');if(Number(status.current_version||0)!==ONBOARDING_VERSION)console.warn('Onboarding asset/API version mismatch',status);if(!status.completed)await openOnboarding(false)}
 $('#onboarding-back').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();onboardingSetStep(onboardingState.step-1)}catch(error){toast(error.message)}};
 $('#onboarding-skip').onclick=async()=>{try{if(onboardingSteps[onboardingState.step]==='resume-review')await onboardingSaveResumeReview();await onboardingFinish(true)}catch(error){toast(error.message)}};
-$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='resume-review')await onboardingSaveResumeReview();if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await onboardingFlushSave();await saveOnboardingPreferences()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
+$('#onboarding-next').onclick=async()=>{try{const step=onboardingSteps[onboardingState.step];if(step==='resume-review')await onboardingSaveResumeReview();if(step==='skills')await onboardingSaveSkills();if(step==='preferences'){await saveOnboardingPreferences();await onboardingFlushSave()}onboardingSetStep(onboardingState.step+1)}catch(e){toast(e.message)}};
 let developerUsersCache=[];
 const developerDate=value=>value?new Date(value).toLocaleString('he-IL'):'—';
 const developerTrackLabel=key=>CAREER_TRACK_UI[key]?.label||key||'—';
