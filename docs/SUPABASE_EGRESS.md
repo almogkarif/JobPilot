@@ -7,10 +7,13 @@ hard production budget, not only a billing metric.
 ## Explicit owner filter and queue diagnosis — October 4, 2026
 
 The manual owner diagnostic requires an application ID and matching account-email
-SHA-256 digest (computed inside SQL without returning the email). Because the
-repository is public, the CLI writes only an RSA-OAEP/AES-GCM encrypted report
-for an operator-supplied public key; it never prints the report. The private key
-stays with the operator. The encrypted artifact expires after one day.
+SHA-256 digest (computed inside SQL without returning the email). All invocation
+controls, including the digest and recipient public key, come from a temporary
+GitHub Actions secret; there are no public workflow inputs. Remove that secret
+after collecting the report. Because the repository is public, the CLI writes
+only an RSA-OAEP/AES-GCM encrypted report for the operator's key; it never prints
+the report. The private key stays with the operator. The encrypted artifact
+expires after one day.
 Every connection is read-only with 5-second statement / 1-second lock timeouts;
 the report uses a repeatable-read snapshot. It performs ten projected/aggregate
 SELECTs, including two migration-marker checks. No startup, scan, mutation,
@@ -28,7 +31,6 @@ tests verify read-only enforcement, owner isolation, overlapping counts and stal
 rankings; the egress regression verifies bounded projections with large private
 synthetic documents present. This describes the diagnostic budget, not a live
 verification result or permission to trigger retries.
-
 
 ## Explicit local worker claims — October 4, 2026
 

@@ -197,3 +197,33 @@ def test_cli_emits_only_recipient_encrypted_report(tmp_path, monkeypatch, capsys
     decoded = AESGCM(key).decrypt(base64.b64decode(envelope['nonce']),
         base64.b64decode(envelope['data']), b'JobPilot owner diagnostic v1')
     assert json.loads(decoded) == report
+
+
+def test_workflow_controls_stay_in_secret_instead_of_public_inputs(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+    from textwrap import dedent
+    import subprocess
+    workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/jobpilot-owner-diagnostic.yml').read_text()
+    assert 'inputs:' not in workflow and '${{ inputs.' not in workflow
+    assert '${{ secrets.JOBPILOT_OWNER_DIAGNOSTIC_INPUTS }}' in workflow
+    controls = {'anchor_application_id': '150', 'expected_owner_email_sha256': 'a' * 64,
+                'recipient_public_key': 'SYNTHETIC PUBLIC KEY\n'}
+    monkeypatch.setenv('OWNER_DIAGNOSTIC_INPUTS', json.dumps(controls))
+    monkeypatch.setenv('RUNNER_TEMP', str(tmp_path))
+    monkeypatch.setenv('EXPECTED_OWNER_EMAIL_SHA256', '')
+    calls = []
+    def run(argv, *, check):
+        import os
+        assert check is True and 'OWNER_DIAGNOSTIC_INPUTS' not in os.environ
+        assert os.environ['EXPECTED_OWNER_EMAIL_SHA256'] == controls['expected_owner_email_sha256']
+        calls.append(argv)
+    monkeypatch.setattr(subprocess, 'run', run)
+    script = workflow.split("python - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
+    exec(compile(dedent(script), 'owner-diagnostic-workflow', 'exec'), {})
+    assert len(calls) == 1 and calls[0][1:3] == ['-m', 'scripts.diagnose_owner_catalog']
+    assert controls['expected_owner_email_sha256'] not in ' '.join(calls[0])
+    recipient = tmp_path / 'recipient.pem'
+    assert recipient.read_text() == controls['recipient_public_key']
+    assert recipient.stat().st_mode & 0o777 == 0o600
+    captured = capsys.readouterr()
+    assert captured.out == captured.err == ''
