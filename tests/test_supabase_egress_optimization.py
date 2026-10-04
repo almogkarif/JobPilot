@@ -29,6 +29,33 @@ from tests.test_application_resume_metadata import resume_metadata_db
 from tests.test_application_submit_progress import sent_progress_application
 from tests.test_application_resume_recovery import resume_recovery_engine
 
+from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
+
+
+def test_owner_catalog_diagnosis_aggregates_without_catalog_or_private_payloads(owner_catalog):
+    from sqlalchemy.engine import Engine
+    from scripts.diagnose_owner_catalog import run_diagnosis
+    import hashlib
+    statements = []
+    def capture(_conn, _cursor, sql, _params, _context, _many):
+        statements.append(' '.join(sql.lower().split()))
+    event.listen(Engine, 'before_cursor_execute', capture)
+    try:
+        report = run_diagnosis(owner_catalog.url.render_as_string(hide_password=False),
+                               150, hashlib.sha256(b'owner@example.invalid').hexdigest())
+    finally:
+        event.remove(Engine, 'before_cursor_execute', capture)
+    reads = [sql for sql in statements if sql.startswith(('select ', 'with '))]
+    assert len(reads) == 10
+    assert all(sql.startswith(('select ', 'with ', 'set ')) for sql in statements)
+    assert not any(field in sql for sql in reads for field in (
+        'description', 'cv_path', 'answers_json', 'extracted_text', 'snapshot_json', 'select *',
+    ))
+    assert any('limit 51' in sql and 'left(j.apply_url,1500)' in sql for sql in reads)
+    assert any('group by reasons' in sql and 'limit 513' in sql for sql in reads)
+    assert any('octet_length(p.skills_json) <= 8192' in sql for sql in reads)
+    assert len(json.dumps(report, default=str).encode()) < 10000
+
 
 def test_fixed_resume_recovery_only_reads_bounded_metadata_and_writes_four_links(resume_recovery_engine):
     from scripts.repair_application_resume_links_20261002 import repair

@@ -4,6 +4,32 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Explicit owner filter and queue diagnosis — October 4, 2026
+
+The manual owner diagnostic requires an application ID and matching account-email
+SHA-256 digest (computed inside SQL without returning the email). Because the
+repository is public, the CLI writes only an RSA-OAEP/AES-GCM encrypted report
+for an operator-supplied public key; it never prints the report. The private key
+stays with the operator. The encrypted artifact expires after one day.
+Every connection is read-only with 5-second statement / 1-second lock timeouts;
+the report uses a repeatable-read snapshot. It performs ten projected/aggregate
+SELECTs, including two migration-marker checks. No startup, scan, mutation,
+worker dispatch or Storage read runs. Catalog rows, descriptions, CVs, contact
+details, saved answers and complete ranking JSON never leave the database.
+
+The eight fingerprint inputs are each limited to 8 KiB in SQL (oversize fails
+closed); the ranking configuration is limited to 8 KiB. Filter combinations are
+aggregated into at most 512 rows using nine fixed keys. Queue output is capped
+at 50 rows with SQL-capped public job metadata and short failure metadata; a 51st
+row only signals truncation. Reserve **2 MiB per deliberate invocation**, including
+UTF-8 and protocol overhead, 20 MiB at ten invocations/hour or day, 600 MiB/30 days
+at ten/day. Idle traffic is zero and the workflow is not scheduled. PostgreSQL
+tests verify read-only enforcement, owner isolation, overlapping counts and stale
+rankings; the egress regression verifies bounded projections with large private
+synthetic documents present. This describes the diagnostic budget, not a live
+verification result or permission to trigger retries.
+
+
 ## Explicit local worker claims — October 4, 2026
 
 When a local worker supplies an application ID, its existing queue SELECT now

@@ -1,0 +1,63 @@
+name: JobPilot owner catalog diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      anchor_application_id:
+        description: 'Existing application belonging to the expected owner (read-only)'
+        required: true
+        type: string
+      expected_owner_email_sha256:
+        description: 'SHA-256 of lower-case account email, checked against the anchor'
+        required: true
+        type: string
+      recipient_public_key:
+        description: 'RSA public PEM key; report encrypted for this recipient only'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jobpilot-owner-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install existing project dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Prepare public recipient key
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          Path(os.environ['RUNNER_TEMP'], 'recipient.pem').write_text(event['inputs']['recipient_public_key'])
+          PY
+      - name: Read bounded filter and queue snapshot
+        env:
+          JOBPILOT_DATABASE_URL: ${{ secrets.JOBPILOT_DATABASE_URL }}
+          JOBPILOT_SCHEDULER_ENABLED: 'false'
+          EXPECTED_OWNER_EMAIL_SHA256: ${{ inputs.expected_owner_email_sha256 }}
+          ANCHOR_APPLICATION_ID: ${{ inputs.anchor_application_id }}
+        run: >-
+          python -m scripts.diagnose_owner_catalog
+          --anchor-application-id "$ANCHOR_APPLICATION_ID"
+          --recipient-public-key-file "$RUNNER_TEMP/recipient.pem"
+          --output-file "$RUNNER_TEMP/owner-diagnostic.encrypted.json"
+      - name: Upload encrypted report
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: owner-diagnostic-encrypted
+          path: ${{ runner.temp }}/owner-diagnostic.encrypted.json
+          retention-days: 1
+          if-no-files-found: error
