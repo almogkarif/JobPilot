@@ -108,6 +108,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python
+        if: ${{ inputs.runner_mode != 'local_ephemeral' }}
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
@@ -115,6 +116,16 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-test.txt
+
+      - name: Set up temporary Python 3.13
+        if: ${{ inputs.runner_mode == 'local_ephemeral' }}
+        run: |
+          set -euo pipefail
+          test -n "${CAPACITY_CI_PYTHON:-}"
+          test -x "$CAPACITY_CI_PYTHON"
+          "$CAPACITY_CI_PYTHON" -c 'import sys; print(sys.version); sys.exit(0 if sys.version_info[:2] == (3, 13) else "Python 3.13 is required")'
+          "$CAPACITY_CI_PYTHON" -m venv "$RUNNER_TEMP/capacity-python"
+          echo "$RUNNER_TEMP/capacity-python/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: python -m pip install -r requirements-test.txt
