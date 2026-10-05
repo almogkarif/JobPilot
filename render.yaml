@@ -25,7 +25,7 @@ services:
       - key: JOBPILOT_TIMEZONE
         value: Asia/Jerusalem
       - key: JOBPILOT_MAX_USERS
-        value: "10"
+        value: "20"
       - key: JOBPILOT_MAX_CONCURRENT_USER_SCANS
         value: "1"
       - key: JOBPILOT_ALLOWED_EMAILS

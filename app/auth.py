@@ -38,7 +38,7 @@ def auth_public_config() -> dict:
         "supabase_publishable_key": settings.supabase_publishable_key if settings.auth_mode == "supabase" else "",
         "google_enabled": bool(settings.auth_mode == "supabase" and settings.supabase_url and settings.supabase_publishable_key),
         "guest_enabled": bool(settings.auth_mode == "supabase" and settings.supabase_url and settings.supabase_publishable_key),
-        "max_users": max(1, int(settings.max_users or 10)) if settings.auth_mode == "supabase" else 1,
+        "max_users": max(1, int(settings.max_users or 20)) if settings.auth_mode == "supabase" else 1,
         "registration_restricted": bool(_allowed_email_set()),
     }
 
@@ -257,7 +257,7 @@ def authorize_web_request(request: Request, db: Session) -> AuthIdentity:
                     db.commit()
                 _ensure_workspace_once(db, identity, new_account=False)
                 return identity
-        max_users = max(1, int(settings.max_users or 10))
+        max_users = max(1, int(settings.max_users or 20))
         count = int(db.scalar(select(func.count()).select_from(AppIdentity)) or 0)
         if count >= max_users:
             raise HTTPException(403, f"This JobPilot instance has reached its {max_users}-user limit")

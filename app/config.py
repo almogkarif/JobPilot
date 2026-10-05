@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     auth_mode: str = "local"  # local | supabase
     owner_email: str = ""  # optional admin email; no longer locks the whole instance
     allow_first_user_claim: bool = False  # legacy compatibility
-    max_users: int = 10
+    max_users: int = 20
     allowed_emails: str = ""  # comma-separated; empty means any authenticated user up to max_users
     max_concurrent_user_scans: int = 2
     application_agent_owner_email: str = ""

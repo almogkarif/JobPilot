@@ -270,10 +270,12 @@ def test_personal_tracking_is_two_bounded_metadata_queries(personal_tracking):
         assert not any(field in sql for field in ('description','application_profile_json','extracted_text','evidence_json','answers_json'))
 
 
-def test_developer_activity_sort_reuses_one_identity_query(activity_roster):
+@pytest.mark.parametrize('user_limit', [10, 20])
+def test_developer_activity_sort_reuses_one_identity_query(activity_roster, monkeypatch, user_limit):
     from types import SimpleNamespace
     from sqlalchemy.dialects import postgresql, sqlite
     from app.auth import AuthIdentity
+    monkeypatch.setattr(main_module.settings, 'max_users', user_limit)
     statements = []
     def record(state):
         if state.is_select:
@@ -284,7 +286,7 @@ def test_developer_activity_sort_reuses_one_identity_query(activity_roster):
         payload = main_module.admin_users(request, activity_roster)
     finally:
         event.remove(activity_roster, 'do_orm_execute', record)
-    assert payload['count'] == 4 and len(statements) == 1
+    assert payload['count'] == 4 and payload['max_users'] == user_limit and len(statements) == 1
     for dialect in (postgresql.dialect(), sqlite.dialect()):
         sql = str(statements[0].compile(dialect=dialect)).lower()
         assert 'order by app_identity.last_seen_at desc nulls last, app_identity.id' in sql

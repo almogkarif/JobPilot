@@ -1260,7 +1260,7 @@ def admin_users(request: Request, db: Session = Depends(get_db)):
     accounts = db.scalars(select(AppIdentity).order_by(desc(AppIdentity.last_seen_at).nullslast(), AppIdentity.id)).all()
     return {
         "count": len(accounts),
-        "max_users": max(1, int(settings.max_users or 10)),
+        "max_users": max(1, int(settings.max_users or 20)),
         "users": [
             {
                 "id": account.auth_user_id,

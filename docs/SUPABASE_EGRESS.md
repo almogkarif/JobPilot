@@ -4,6 +4,29 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Authorized-user capacity — October 5, 2026
+
+The configured admission limit increases from 10 to 20; the existing email
+invitation check and concurrent-scan limits remain in force. Adding capacity
+creates no accounts, scans, polls or Storage downloads: zero idle calls/bytes.
+Each first registration retains the existing SQL `COUNT` aggregate (one returned
+scalar), rather than downloading the identity roster. The public configuration
+adds no query. An explicit admin roster read still uses one identity-only query;
+reserve 3 KiB per admitted identity, at most 60 KiB for 20 identities, a 30 KiB
+increment. At one roster opening/hour that increment is 720 KiB/day, about
+21.1 MiB/30 days. It is an activity estimate, not an enforced request frequency.
+
+Existing per-user activity budgets still apply. Doubling the earlier workload
+example to 20 active users making five submissions/day yields about 180 MB/day
+for status/timeline delivery alone (5.4 GB/30 days), before documents, catalog
+traffic or same-page question waits. Capacity does not reserve or increase the
+5 GB organization quota. Check current Usage and daily slope before deploying
+this setting or enabling bulk work. Production was observed at 10 users; this
+change is local and has not been applied to Render.
+
+`test_developer_activity_sort_reuses_one_identity_query` exercises both limits,
+protecting the one-query roster path without profile or job-description reads.
+
 ## Email verification session renewal — October 4, 2026
 
 Only after a worker successfully claims an application, one owner/application
