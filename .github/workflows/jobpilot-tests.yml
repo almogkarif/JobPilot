@@ -14,6 +14,14 @@ on:
         options:
           - full
           - user_limit
+      runner_mode:
+        description: Runner for focused user-limit tests
+        required: true
+        default: github_hosted
+        type: choice
+        options:
+          - github_hosted
+          - local_ephemeral
 
 permissions:
   contents: read
@@ -92,8 +100,8 @@ jobs:
         run: python -m pytest -q -n 4 tests/test_agent_browser_flow.py
 
   user-limit:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'user_limit' }}
-    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'user_limit' && (inputs.runner_mode != 'local_ephemeral' || (github.ref == 'refs/heads/main' && github.actor == 'almogkarif' && github.triggering_actor == 'almogkarif')) }}
+    runs-on: ${{ inputs.runner_mode == 'local_ephemeral' && format('jobpilot-capacity-{0}', github.run_id) || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - name: Checkout JobPilot
