@@ -970,6 +970,29 @@ adds at most 540 KB. Guest dashboards skip the query. Deployment remains outside
 the scope of this local preview. Regression coverage checks its projection and
 three-row limit in `tests/test_supabase_egress_optimization.py`.
 
+### QA preference in dashboard recommendations — 7 October 2026
+
+Personal Computer Science recommendations require an explicit QA title preference
+before returning jobs with QA/SQA/QAE, Quality Assurance or software-testing titles.
+The predicate runs inside both existing dashboard queries, before their five-row
+and three-row limits. It uses only already-loaded profile preferences and SQL
+`Job.title`; no description, ranking JSON, profile reread or new query is added.
+The guest catalog, other tracks, ordinary job catalog and scoring caches retain
+their existing behavior. Automation by itself does not select explicitly QA roles.
+
+Incremental calls/hour and calls/day are zero. The projected fields, maximum rows,
+poll cadence and existing 4 KB/card / 12 KB suggestion-response envelope remain
+unchanged; filtering can only reduce returned metadata. No scan, backfill, ranking
+refresh, startup task or Storage access is added. Existing dashboard response and
+authentication budgets still apply. The read-only investigation queried only one
+job ID with bounded title/company projections in local SQLite snapshots; it made
+zero production Supabase queries.
+
+`test_dashboard_scan_suggestions_project_only_three_small_rows` verifies one
+three-row metadata query, no description selection and filtering before download.
+The API regressions cover stored high scores, both catalog modes, preference
+changes without reranking, word boundaries, unrelated tracks and the full catalog.
+
 ### Shared-source classification comparison — local shadow only
 
 `track_classification` and `shared_source_comparison` are candidate modules, not

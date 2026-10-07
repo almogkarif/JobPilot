@@ -1047,8 +1047,13 @@ def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatc
 
 
 def test_dashboard_scan_suggestions_project_only_three_small_rows(dashboard_diversity_catalog):
-    client, engine, _, add_jobs = dashboard_diversity_catalog
-    add_jobs([{'date': datetime.now(timezone.utc)} for _ in range(12)])
+    client, engine, factory, add_jobs = dashboard_diversity_catalog
+    with factory() as db:
+        set_user_scope(db, 'local-owner')
+        db.query(Profile).one().desired_titles_json = '["software engineer", "backend"]'
+        db.commit()
+    ids = add_jobs([{'title':'QA Software Engineer', 'date':datetime.now(timezone.utc)} for _ in range(6)]
+                  + [{'date':datetime.now(timezone.utc)} for _ in range(12)])
     statements = []
     def capture(_conn, _cursor, sql, parameters, _context, _many):
         normalized = ' '.join(sql.lower().split())
@@ -1069,6 +1074,8 @@ def test_dashboard_scan_suggestions_project_only_three_small_rows(dashboard_dive
     suggestions = response.json()['scan_suggestions']
     assert len(suggestions) == 3
     assert all(set(row) == {'id', 'title', 'company', 'location', 'discovered_at', 'score'} for row in suggestions)
+    assert not {row['id'] for row in suggestions} & set(ids[:6])
+    assert 'regexp' in sql and 'jobs.description' not in sql
 
 
 def test_iem_rescan_deactivates_wrong_discipline_without_reading_saved_descriptions(monkeypatch):

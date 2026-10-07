@@ -166,6 +166,10 @@ jobs:
           tests/test_job_requirement_sections.py
           tests/test_resume_fit.py
           tests/test_matching.py
+          tests/test_dashboard_scan_suggestions.py
+          tests/test_dashboard_company_diversity.py
+          tests/test_supabase_egress_optimization.py::test_dashboard_scan_suggestions_project_only_three_small_rows
+          tests/test_supabase_egress_optimization.py::test_dashboard_company_diversity_stays_in_one_five_row_query
           tests/test_supabase_egress_optimization.py::test_required_language_penalty_reuses_loaded_data_and_keeps_metadata_bounded
           tests/test_supabase_egress_optimization.py::test_hourly_ranking_stale_only_skips_unchanged_job
           tests/test_supabase_egress_optimization.py::test_shared_catalog_startup_never_selects_jobs

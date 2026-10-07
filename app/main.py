@@ -1813,6 +1813,24 @@ def security_disable(request: Request):
     return response
 
 
+_DASHBOARD_QA_TITLE_PATTERN = (
+    r"(^|[^\w])(qa|sqa|qae|quality[-\s]*assurance|"
+    r"בודק(?:[/.]?ת|י|ות)?[-\s]+תוכנה|בדיקות[-\s]+תוכנה)([^\w]|$)"
+)
+
+
+def _dashboard_role_visibility_condition(profile: Profile | None, career_track: str):
+    # Generic software preferences must not opt a user into QA recommendations.
+    if profile is None or career_track != COMPUTER_SCIENCE:
+        return literal(True)
+    desired_titles = loads(profile.desired_titles_json, [])
+    if any(
+        re.search(_DASHBOARD_QA_TITLE_PATTERN, str(title).casefold()) for title in desired_titles
+    ):
+        return literal(True)
+    return ~func.lower(func.coalesce(Job.title, "")).regexp_match(_DASHBOARD_QA_TITLE_PATTERN)
+
+
 def _degree_visibility_condition(profile: Profile | None):
     """SQL predicate for jobs that are not blocked solely by academic level.
 
@@ -2135,7 +2153,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             # are all unfinished states. Submitted and personally hidden jobs leave the dashboard.
             top_jobs_statement = top_jobs_statement.outerjoin(UserJobState, UserJobState.job_id == Job.id).where(
                 func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden"])
-            ).where((_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title))).outerjoin(JobRanking, valid_ranking_join).where(
+            ).where((_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title)
+                     & _dashboard_role_visibility_condition(profile, career_track))).outerjoin(JobRanking, valid_ranking_join).where(
                 or_(JobRanking.id.is_(None), JobRanking.eligibility_state != "excluded")
             ).order_by(
                 *ranking_order, company_position, *recency_order,
@@ -2188,6 +2207,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 JobRanking.score >= 70, JobRanking.eligibility_state != "excluded",
                 func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden", "skipped"]),
                 (_degree_visibility_condition(profile) & seniority_visibility_condition(profile, Job.title)),
+                _dashboard_role_visibility_condition(profile, career_track),
             ).order_by(desc(Job.discovered_at), desc(JobRanking.score), desc(Job.id))
         else:
             scan_suggestions_statement = scan_suggestions_statement.outerjoin(
