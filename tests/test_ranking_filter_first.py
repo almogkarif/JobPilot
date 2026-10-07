@@ -174,7 +174,7 @@ def test_filter_changes_reuse_scores_and_only_score_newly_eligible_jobs(ranking_
         assert set(calls) == {original.id, student.id, newcomer.id}
 
 
-@pytest.mark.parametrize('change', ['job', 'config', 'resume'])
+@pytest.mark.parametrize('change', ['job', 'config', 'resume', 'engine'])
 def test_scoring_cache_invalidates_real_scoring_changes(ranking_db, monkeypatch, change):
     with ranking_db('one') as db:
         p = db.scalar(select(Profile)); p.excluded_keywords_json = '[]'
@@ -185,6 +185,8 @@ def test_scoring_cache_invalidates_real_scoring_changes(ranking_db, monkeypatch,
             j.description += ' SQL is required.'
         elif change == 'config':
             settings.config_version += 1
+        elif change == 'engine':
+            db.scalar(select(JobRanking)).engine_version = service.get_ranking_engine().version - 1
         else:
             context = build_match_context(p, ['SQL'])
         calls = []

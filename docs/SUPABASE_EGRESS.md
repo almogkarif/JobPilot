@@ -1222,6 +1222,30 @@ to reuse cached results. Existing per-user refresh I/O limits still apply. No cl
 refresh or deployment was performed; a production refresh volume/description-byte
 budget must be measured before rollout, as noted above for the canonical preview.
 
+### Required programming-language deduction — 6 October 2026
+
+Language evidence uses the job description and candidate skills already in memory:
+zero added database queries, employer requests, Storage reads or polling calls per
+hour/day. Only explicit mandatory language evidence receives the additional
+25-point deduction per missing language, capped at 50 points. Title-only evidence,
+preferred languages and proxy skill aliases such as .NET/MySQL/Simulink do not
+receive it. A satisfied explicit language OR group avoids the additional deduction;
+independent mandatory clauses still apply.
+
+The two bounded JSON fields add at most 512 bytes per ranked result: at most
+50 KiB for an existing 100-row response, or 512R bytes for R returned/persisted
+results. Existing hidden score caches retain their 8 KiB ceiling and do not duplicate
+visible breakdowns. Engine version 11 invalidates version-10 results through the
+existing serialized refresh and bounded batches; no new startup scan, full-catalog
+repair, schedule or row projection is added. Existing catalog/ranking reservations
+remain within the shared 64 MiB/day ledger (1.875 GiB per 30 days). User-facing
+response/protocol bytes outside that ledger still need production Usage monitoring.
+No cloud refresh or deployment was triggered for this change.
+
+Regression: `test_required_language_penalty_reuses_loaded_data_and_keeps_metadata_bounded`
+rejects additional reads, enforces the metadata bound and verifies cached replay
+preserves the score without another skill extraction.
+
 ### PostgreSQL canonical rehearsal — 24 September 2026 (local only)
 
 `canonical_postgres.migrate_postgres_copy` and the explicit rehearsal CLI refuse

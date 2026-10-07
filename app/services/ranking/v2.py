@@ -20,7 +20,7 @@ MANDATORY_TERMS = ("security clearance", "סיווג ביטחוני", "certifica
 
 class EligibilityRankingEngine(RankingEngine):
     key = "v2"
-    version = 10
+    version = 11
 
     def rank_job(self, job, profile, config=None, *, context=None, cached_scoring=None) -> RankingResult:
         config = config if isinstance(config, RankingV2Config) else RankingV2Config.from_dict(config) if config else DEFAULT_V2_CONFIG
@@ -99,10 +99,12 @@ class EligibilityRankingEngine(RankingEngine):
 
             breakdown = {"role": role, "skills": skills, "requirements": requirements, "preferences": preferences}
         score = sum(int(part["score"]) for part in breakdown.values())
+        language_penalty = min(50, 25 * len(skills["missing_required_languages"]))
         if skills["missing_required"]:
             penalty = min(28, 12 + 6 * len(skills["missing_required"]))
             score -= penalty
-            skills["penalty"] = penalty
+            skills["penalty"] = penalty + language_penalty
+            skills["required_language_penalty"] = language_penalty
             score = min(score, 69)
         if job_text_quality(getattr(job, "description", "")) != "complete":
             score = min(score, 55)
@@ -121,7 +123,7 @@ class EligibilityRankingEngine(RankingEngine):
             )
         # Apply after existing caps so the deduction is not swallowed by a cap.
         # Keep raw component scores unchanged: cached scoring must not compound it.
-        score = max(0, min(100, round(score - missing_penalty)))
+        score = max(0, min(100, round(score - language_penalty - missing_penalty)))
         if eligibility["state"] == "excluded":
             tier = "excluded"
         elif eligibility["state"] == "stretch":

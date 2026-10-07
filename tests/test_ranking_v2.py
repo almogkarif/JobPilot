@@ -168,6 +168,120 @@ def test_missing_required_cpp_is_not_hidden_by_python_advantage():
     assert skills["penalty"] > 0
 
 
+def language_requirement_job(requirement):
+    return job("Backend Software Engineer", "Requirements:\n"
+               "Bachelor's degree in Computer Science required.\n"
+               "3 years of software development experience required.\n"
+               + requirement + "\nResponsibilities:\n"
+               + "Build reliable services, review changes and maintain production systems. " * 8)
+
+
+def test_missing_required_language_loses_significantly_more_than_a_missing_tool():
+    candidate = profile(skills=["docker", "kubernetes", "aws", "linux"], titles=["backend software engineer"])
+    candidate.application_profile_json = '{"degree_level":"bachelor"}'
+    language = score(candidate, language_requirement_job("Python, Docker, Kubernetes, AWS and Linux required."))
+    tool = score(candidate, language_requirement_job("Git, Docker, Kubernetes, AWS and Linux required."))
+    assert language.breakdown["skills"]["score"] == tool.breakdown["skills"]["score"]
+    assert language.breakdown["skills"]["missing_required_languages"] == ["python"]
+    assert language.breakdown["skills"]["required_language_penalty"] == 25
+    assert language.breakdown["skills"]["penalty"] == tool.breakdown["skills"]["penalty"] + 25
+    assert language.score == tool.score - 25
+    assert language.eligibility["state"] == tool.eligibility["state"] == "realistic"
+
+
+@pytest.mark.parametrize("requirement", [
+    "Python preferred.",
+    "Python - יתרון.",
+    "Docker required, preferably Python.",
+    ".NET required.",
+    "MySQL required.",
+    "Simulink required.",
+])
+def test_optional_languages_and_tool_aliases_do_not_get_the_extra_penalty(requirement):
+    result = score(profile(titles=["backend software engineer"]), language_requirement_job(requirement))
+    assert result.breakdown["skills"]["missing_required_languages"] == []
+    assert result.breakdown["skills"].get("required_language_penalty", 0) == 0
+
+
+def test_title_only_language_does_not_get_the_extra_required_language_penalty():
+    opening = language_requirement_job("Docker required.")
+    opening.title = "Python Backend Software Engineer"
+    result = score(profile(skills=["docker"], titles=["backend software engineer"]), opening)
+    assert "python" in result.breakdown["skills"]["missing_required"]
+    assert result.breakdown["skills"]["missing_required_languages"] == []
+    assert result.breakdown["skills"]["penalty"] == 18
+
+
+@pytest.mark.parametrize("requirement, missing", [
+    ("Python or Java required.", []),
+    ("Python או Java חובה.", []),
+    ("Python, Java or Rust required.", []),
+    ("Python or C++17 required.", []),
+    ("Python or C#12 required.", []),
+    ("Python and Java required.", ["java"]),
+    ("Java and Python or Java required.", ["java"]),
+    ("Python or Java required.\nJava required.", ["java"]),
+    ("Python or Java required.\nRust required.", ["rust"]),
+])
+def test_owned_language_alternative_avoids_extra_penalty_but_independent_requirements_remain(requirement, missing):
+    result = score(profile(skills=["python"], titles=["backend software engineer"]), language_requirement_job(requirement))
+    assert result.breakdown["skills"]["missing_required_languages"] == missing
+    assert result.breakdown["skills"].get("required_language_penalty", 0) == 25 * len(missing)
+
+
+def test_required_language_present_in_resume_context_is_not_penalized():
+    from app.services.ranking.v2 import EligibilityRankingEngine
+    candidate = profile(titles=["backend software engineer"])
+    context = build_match_context(candidate, resume_skills=["Python"], now=NOW)
+    result = EligibilityRankingEngine().rank_job(language_requirement_job("Python required."), candidate, context=context)
+    assert result.breakdown["skills"]["missing_required_languages"] == []
+    assert result.breakdown["skills"].get("required_language_penalty", 0) == 0
+
+
+@pytest.mark.parametrize("language, alias", [
+    ("python", "Python"), ("c++", "CPP"), ("c#", "C sharp"),
+    ("javascript", "JavaScript"), ("typescript", "TypeScript"),
+    ("go", "Golang"), ("rust", "Rust"), ("java", "Java"),
+    ("sql", "SQL"), ("vba", "Visual Basic for Applications"),
+    ("matlab", "MATLAB"), ("verilog", "Verilog"),
+    ("systemverilog", "System Verilog"), ("vhdl", "VHDL"),
+])
+def test_detected_mandatory_languages_get_extra_penalty_and_owned_languages_do_not(language, alias):
+    opening = language_requirement_job(f"{alias} חובה.")
+    missing = score(profile(titles=["backend software engineer"]), opening)
+    owned = score(profile(skills=[language.upper()], titles=["backend software engineer"]), opening)
+    assert missing.breakdown["skills"]["missing_required_languages"] == [language]
+    assert missing.breakdown["skills"]["required_language_penalty"] == 25
+    assert owned.breakdown["skills"]["missing_required_languages"] == []
+    assert owned.breakdown["skills"].get("required_language_penalty", 0) == 0
+
+
+def test_required_language_penalty_is_bounded_and_does_not_compound_on_cache_replay():
+    from app.services.ranking.v2 import EligibilityRankingEngine
+    candidate = profile(skills=["docker"], titles=["backend software engineer"])
+    opening = language_requirement_job("Python, Java and Rust required. Docker preferred.")
+    context = build_match_context(candidate, career_track=candidate.active_career_track, now=NOW)
+    engine = EligibilityRankingEngine()
+    result = engine.rank_job(opening, candidate, context=context)
+    assert result.breakdown["skills"]["required_language_penalty"] == 50
+    assert result.breakdown["skills"]["penalty"] == 78
+    assert 0 <= result.score <= 100
+    cached = engine.rank_job(opening, candidate, context=context,
+                             cached_scoring={"breakdown": result.breakdown, "skills": result.skills})
+    assert cached.to_dict() == result.to_dict()
+
+
+def test_required_language_penalty_is_not_swallowed_by_incomplete_description_cap():
+    opening = job("Backend Software Engineer", "B.Sc. in Computer Science required. No experience required. "
+                  "Python, Docker, Linux, AWS and Git required.")
+    candidate = profile(years=0, skills=["docker", "linux", "aws", "git"], titles=["backend software engineer"])
+    candidate.application_profile_json = '{"degree_level":"bachelor"}'
+    result = score(candidate, opening)
+    assert result.eligibility["missing_requirements_penalty"] == 0
+    assert result.breakdown["skills"]["required_language_penalty"] == 25
+    assert result.score == 55 - 25
+
+
 def test_complete_detected_skills_and_matching_degree_receive_full_component_scores():
     candidate = profile(skills=["c++"], titles=["software engineer"])
     candidate.application_profile_json = '{"degree_level":"bachelor"}'

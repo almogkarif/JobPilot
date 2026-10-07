@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from ..matching import extract_skills
+from ..matching import _contains_variant, extract_skills
 from ..job_requirements import iter_requirement_clauses
 
 REQUIRED_MARKERS = (
@@ -10,6 +10,47 @@ REQUIRED_MARKERS = (
     "חובה", "נדרש", "נדרשת", "נדרשים", "דרישות", "לפחות", "ניסיון מוכח",
 )
 PREFERRED_MARKERS = ("preferred", "advantage", "nice to have", "יתרון", "עדיפות")
+
+# Keep language evidence explicit: .NET, database products and Simulink are
+# useful skill aliases, but do not themselves require C#, SQL or MATLAB.
+PROGRAMMING_LANGUAGE_ALIASES = {
+    "c++": ("c++", "cpp"),
+    "python": ("python",),
+    "javascript": ("javascript",),
+    "typescript": ("typescript",),
+    "go": ("golang", "go language"),
+    "rust": ("rust",),
+    "java": ("java",),
+    "c#": ("c#", "c sharp"),
+    "sql": ("sql",),
+    "vba": ("vba", "visual basic for applications"),
+    "matlab": ("matlab",),
+    "verilog": ("verilog",),
+    "systemverilog": ("systemverilog", "system verilog"),
+    "vhdl": ("vhdl",),
+}
+_LANGUAGE_TOKEN = "(?:" + "|".join(
+    re.escape(alias) + (r"(?:\d+)?" if alias in {"c++", "c#"} else "") for alias in sorted(
+        {alias for aliases in PROGRAMMING_LANGUAGE_ALIASES.values() for alias in aliases},
+        key=len, reverse=True,
+    )
+) + ")"
+_ALTERNATIVE_LANGUAGES_RE = re.compile(
+    rf"(?<![\w]){_LANGUAGE_TOKEN}(?:\s*,\s*{_LANGUAGE_TOKEN})*"
+    rf"(?:\s*,?\s*(?:\bor\b|\bאו\b)\s+{_LANGUAGE_TOKEN})+(?![\w])",
+    re.I,
+)
+
+
+def _programming_languages(text: str, candidate_skills: set[str] | None = None) -> set[str]:
+    lowered = re.sub(r"\bsystem\s+verilog\b", "systemverilog", text.casefold())
+    if candidate_skills:
+        lowered = _ALTERNATIVE_LANGUAGES_RE.sub(
+            lambda match: " " if _programming_languages(match.group()) & candidate_skills else match.group(),
+            lowered,
+        )
+    return {language for language, aliases in PROGRAMMING_LANGUAGE_ALIASES.items()
+            if any(_contains_variant(lowered, alias) for alias in aliases)}
 
 # Some requirement bullets contain a mandatory core plus a narrower preferred
 # qualifier, for example: "Experience with Embedded platforms, preference for
@@ -32,13 +73,14 @@ def _sentences(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"[\n.!?;]+", str(text or "")) if part.strip()]
 
 
-def classify_job_skills(job) -> tuple[set[str], set[str], set[str]]:
+def _classify_job_skills(job, candidate_skills: set[str] | None = None) -> tuple[set[str], set[str], set[str], set[str]]:
     title = str(getattr(job, "title", "") or "")
     description = str(getattr(job, "description", "") or "")
     all_skills = set(extract_skills(f"{title}. {description}"))
     required: set[str] = set()
     preferred: set[str] = set()
     supporting: set[str] = set()
+    required_languages: set[str] = set()
 
     for kind, clause in iter_requirement_clauses(
         description, include_required=True, include_preferred=True,
@@ -58,6 +100,7 @@ def classify_job_skills(job) -> tuple[set[str], set[str], set[str]]:
             preferred_found = set(extract_skills(clause[scoped_preference.start():]))
             if kind == "required" or any(marker in lowered[:scoped_preference.start()] for marker in REQUIRED_MARKERS):
                 required.update(core_found)
+                required_languages.update(_programming_languages(clause[:scoped_preference.start()], candidate_skills))
             else:
                 supporting.update(core_found)
             preferred.update(preferred_found)
@@ -65,12 +108,13 @@ def classify_job_skills(job) -> tuple[set[str], set[str], set[str]]:
             supporting.update(remaining)
             continue
 
-        if _WHOLE_CLAUSE_PREFERRED_RE.search(clause) or any(
+        if _WHOLE_CLAUSE_PREFERRED_RE.search(clause.rstrip(".!? ")) or any(
             lowered.lstrip().startswith(marker) for marker in PREFERRED_MARKERS
         ):
             preferred.update(found)
         elif kind == "required" or any(marker in lowered for marker in REQUIRED_MARKERS):
             required.update(found)
+            required_languages.update(_programming_languages(clause, candidate_skills))
         else:
             # Responsibilities and unheaded narrative are evidence that a technology
             # matters to the role, but not enough to invent a hard requirement.
@@ -81,11 +125,16 @@ def classify_job_skills(job) -> tuple[set[str], set[str], set[str]]:
     preferred.difference_update(required)
     supporting.update(all_skills - required - preferred)
     supporting.difference_update(required | preferred)
+    return required, preferred, supporting, required_languages
+
+
+def classify_job_skills(job) -> tuple[set[str], set[str], set[str]]:
+    required, preferred, supporting, _ = _classify_job_skills(job)
     return required, preferred, supporting
 
 
 def score_skills(job, candidate_skills: set[str], maximum: int, required_share: float) -> dict:
-    required, preferred, supporting = classify_job_skills(job)
+    required, preferred, supporting, required_languages = _classify_job_skills(job, candidate_skills)
     matched_required = sorted(required & candidate_skills)
     missing_required = sorted(required - candidate_skills)
     matched_preferred = sorted((preferred | supporting) & candidate_skills)
@@ -113,6 +162,7 @@ def score_skills(job, candidate_skills: set[str], maximum: int, required_share: 
     return {
         "score": max(0, min(maximum, score)), "max": maximum,
         "matched_required": matched_required, "missing_required": missing_required,
+        "missing_required_languages": sorted(required_languages - candidate_skills),
         "matched_preferred": matched_preferred, "required": sorted(required),
         "preferred": sorted(preferred), "supporting": sorted(supporting),
         "unmatched_optional": sorted(optional_pool - candidate_skills), "reasons": reasons,

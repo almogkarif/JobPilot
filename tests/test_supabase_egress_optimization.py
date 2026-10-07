@@ -1276,6 +1276,41 @@ def test_reusing_score_components_needs_no_additional_database_reads():
     assert row.score == stored['score']
 
 
+def test_required_language_penalty_reuses_loaded_data_and_keeps_metadata_bounded(monkeypatch):
+    from types import SimpleNamespace
+    from app.services.ranking import service, v2
+    from app.services.ranking.skills import PROGRAMMING_LANGUAGE_ALIASES
+    from app.services.matching import build_match_context
+    from tests.test_ranking_v2 import NOW, language_requirement_job, profile
+    from app.utils import dumps, loads
+
+    class NoReadDB:
+        def scalar(self, *args, **kwargs):
+            raise AssertionError('Language scoring must reuse the loaded ranking')
+
+    candidate = profile(skills=['docker'], titles=['backend software engineer'])
+    languages = ', '.join(aliases[0] for aliases in PROGRAMMING_LANGUAGE_ALIASES.values())
+    opening = language_requirement_job(languages + ' required. Docker preferred.')
+    context = build_match_context(candidate, career_track=candidate.active_career_track, now=NOW)
+    row = JobRanking(job_id=opening.id, engine='v2', engine_version=0)
+    config = SimpleNamespace(config_version=1, config_json='{}')
+    service.persist_v2_result(NoReadDB(), opening, candidate, config, context=context, existing_row=row)
+    stored = loads(row.result_json, {})
+    details = stored['breakdown']['skills']
+    assert details['missing_required_languages'] == sorted(PROGRAMMING_LANGUAGE_ALIASES)
+    assert details['required_language_penalty'] == 50
+    metadata = {key: details[key] for key in ('missing_required_languages', 'required_language_penalty')}
+    assert len(dumps(metadata).encode('utf-8')) <= 512
+    assert set(stored['_score_cache']) == {'fingerprint'}
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Unchanged language scoring must reuse cached components')
+
+    monkeypatch.setattr(v2, 'score_skills', forbidden)
+    service.persist_v2_result(NoReadDB(), opening, candidate, config, context=context, existing_row=row)
+    assert loads(row.result_json, {}) == stored
+
+
 def test_title_filter_comparison_uses_bounded_metadata_pages_only(monkeypatch):
     from app.services.ranking import service
     engine, Factory = _isolated_session_factory()
