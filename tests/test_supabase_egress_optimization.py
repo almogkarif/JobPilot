@@ -1026,6 +1026,7 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
         sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
         assert 'careers.eladsoft.com/jobs/' in sql and 'g-stat.com/jobs/' in sql
         assert 'yaelgroup.com/jobs/order/' in sql
+        assert 'appliedmaterials' in sql and 'myworkdayjobs' in sql
         assert 'www.one1.co.il/?share_job_id=' in sql and 'www.one1.co.il/careers/?job_id=' in sql
         assert 'www.aman.co.il/careers/' in sql
         assert 'kaltura' in sql and 'limit 50' in sql
@@ -1033,7 +1034,7 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
         assert 'resume_profiles' not in sql and 'application_events' not in sql
 
 
-@pytest.mark.parametrize('adapter', ['elad', 'yael', 'one', 'aman'])
+@pytest.mark.parametrize('adapter', ['elad', 'yael', 'one', 'aman', 'applied_materials'])
 def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatch, adapter):
     from agent import run_agent
     def unexpected_download(*args, **kwargs):
@@ -2163,3 +2164,46 @@ def test_new_claim_retires_otp_in_one_owner_scoped_write_without_reading_codes(s
     assert 'returning' not in sql and 'select ' not in sql
     assert options['synchronize_session'] is False
     assert not any(sql.startswith('select ') and 'blockers.kind = ' in sql for sql, _, _ in statements)
+
+
+@pytest.mark.parametrize('headed_worker', [False, True])
+def test_applied_materials_attempt_downloads_only_its_selected_resume(monkeypatch, tmp_path, headed_worker):
+    import httpx
+    from agent import run_agent
+    monkeypatch.setattr(run_agent, 'AGENT_CACHE_DIR', tmp_path)
+    calls = []
+    selected_bytes = b'%PDF-1.4 synthetic selected resume'
+    def download(url, **kwargs):
+        calls.append(url)
+        assert url.endswith('/api/agent/tasks/42/resume')
+        return httpx.Response(200, content=selected_bytes,
+                              headers={'content-disposition': 'attachment; filename="selected.pdf"'},
+                              request=httpx.Request('GET', url))
+    monkeypatch.setattr(run_agent.httpx, 'get', download)
+    task = {
+        'submission_adapter': {'key': 'applied_materials'},
+        'application': {'id': 42, 'resume_path': 'supabase://private/selected.pdf'},
+        'profile': {'cv_path': 'supabase://private/different-primary.pdf',
+                    'grade_sheet_path': 'supabase://private/unused.pdf'},
+    }
+    def prepare(_context, current):
+        saved_files.append(run_agent.prepare_resume(current))
+        assert run_agent.prepare_grade_sheet(current) == ''
+    saved_files = []
+    if headed_worker:
+        from types import SimpleNamespace
+        monkeypatch.setattr(run_agent, 'HEADLESS', True)
+        monkeypatch.setattr(run_agent, 'INTERACTIVE_BROWSER', False)
+        task['application']['mode'] = 'auto'
+        context = SimpleNamespace(close=lambda: None)
+        playwright = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=lambda **_: context))
+        monkeypatch.setattr(run_agent, 'run_task', prepare)
+        monkeypatch.setattr(run_agent, 'api', lambda *_args, **_kwargs: pytest.fail('No extra claims or polling'))
+        run_agent.run_claimed_task(playwright, None, task)
+    else:
+        prepare(None, task)
+    assert len(saved_files) == 1
+    saved = saved_files[0]
+    assert len(calls) == 1
+    assert task['profile']['cv_path'] == task['application']['resume_path'] == saved
+    assert Path(saved).read_bytes() == selected_bytes

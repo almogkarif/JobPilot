@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-from app.services.application_submission import aman_job_url, elad_job_id, is_gstat_application_url, lever_confirmation_from_url, one_careers_job_id, yael_job_id
+from app.services.application_submission import aman_job_url, applied_materials_job_reference, elad_job_id, is_gstat_application_url, lever_confirmation_from_url, one_careers_job_id, yael_job_id
 from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
@@ -174,6 +174,11 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     # Dynamic ATS pages frequently replace controls while rendering. Do not let
     # one detached control stall the entire agent for Playwright's 30s default.
     page.set_default_timeout(7_500)
+
+    if applied_materials_job_reference(job["apply_url"]):
+        from .applied_materials import fill_applied_materials_application
+        # Isolate the candidate before the employer page can restore any profile.
+        return fill_applied_materials_application(page, task, auto_submit, progress)
 
     page.goto(job["apply_url"], wait_until="domcontentloaded", timeout=60_000)
     page.wait_for_timeout(1500)

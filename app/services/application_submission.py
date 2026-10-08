@@ -31,6 +31,7 @@ ADAPTERS = {
     "yael": ATSAdapter("yael", "Yael Group", notes="טופס מועמדות ייעודי למשרה; ההגשה מאושרת רק לאחר תשובת קבלה מפורשת מהשרת."),
     "elad": ATSAdapter("elad", "Elad Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש התואם למשרה."),
     "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
+    "applied_materials": ATSAdapter("applied_materials", "Applied Materials Careers", notes="טופס אורח ללא חשבון קודם; הקו״ח נבחרים לכל משתמש, ונדרש אישור קבלה מפורש התואם למשרה. אימות אנושי עוצר את ההגשה."),
     "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
     "wix": ATSAdapter(
         "wix", "Wix Careers", execution="manual_only", supports_automatic_submit=False,
@@ -53,7 +54,7 @@ ADAPTERS = {
 
 _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "intel": "Intel הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
-    "applied materials": "Applied Materials הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "applied materials": "הקישור אינו מזהה משרת Applied Materials נתמכת בטופס האורח; נדרשת הגשה ידנית.",
     "check point": "Check Point הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
     "servicenow": "ServiceNow הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
     "traild": "TRAILD הוסרה מהגשה אוטומטית: טופס Lever מציג CAPTCHA פעיל שדורש אימות אנושי.",
@@ -72,8 +73,10 @@ def automatic_submission_exclusion(company: str, apply_url: str = "") -> str:
     host = urlparse(str(apply_url or "")).netloc.casefold()
     if normalized_company == "intel" or host.startswith("intel."):
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["intel"]
-    if normalized_company in {"applied materials", "applied material"} or host.startswith("amat."):
-        return _AUTOMATIC_SUBMISSION_EXCLUSIONS["applied materials"]
+    if (normalized_company in {"applied materials", "applied material"} or host.startswith("amat.")
+            or host in {"careers.appliedmaterials.com", "jobs.appliedmaterials.com"}):
+        reference = applied_materials_job_reference(apply_url)
+        return "" if reference and reference[0] in {"pid", "req"} else _AUTOMATIC_SUBMISSION_EXCLUSIONS["applied materials"]
     if normalized_company in {"check point", "check point software", "check point software technologies"}:
         return _AUTOMATIC_SUBMISSION_EXCLUSIONS["check point"]
     if normalized_company in {"servicenow", "service now"}:
@@ -145,6 +148,9 @@ def automation_apply_url(job) -> str:
     controls. The original public URL remains on the Job row for users.
     """
     original = str(getattr(job, "apply_url", "") or "").strip()
+    applied_pid = applied_materials_pid(original)
+    if applied_pid:
+        return f"https://careers.appliedmaterials.com/careers/apply?pid={applied_pid}&domain=appliedmaterials.com"
     if one_careers_job_id(original):
         return f"https://www.one1.co.il/careers/?job_id={one_careers_job_id(original)}"
     parsed_original = urlparse(original)
@@ -226,12 +232,55 @@ def yael_job_id(url: str) -> str:
     return match[1] if match else ""
 
 
+def applied_materials_job_reference(url: str) -> tuple[str, str] | None:
+    """Recognize exact employer-owned job identities, without making network requests."""
+    try:
+        parsed = urlparse(str(url or ""))
+        query = parse_qs(parsed.query, keep_blank_values=True, strict_parsing=True)
+        if parsed.scheme != "https" or parsed.fragment:
+            return None
+        host = parsed.netloc.casefold()
+        if host == "careers.appliedmaterials.com":
+            if any(len(values) != 1 for values in query.values()):
+                return None
+            if "domain" in query and query["domain"] != ["appliedmaterials.com"]:
+                return None
+            match = re.fullmatch(r"/careers/job/([1-9][0-9]{0,17})/?", parsed.path)
+            if match and set(query) <= {"domain"}:
+                return "pid", match[1]
+            if parsed.path == "/careers/apply" and set(query) <= {"pid", "domain"}:
+                pid = query.get("pid", [""])[0]
+                if re.fullmatch(r"[1-9][0-9]{0,17}", pid):
+                    return "pid", pid
+        if query:
+            return None
+        if host == "amat.wd1.myworkdayjobs.com":
+            match = re.fullmatch(r"/External/job/[^/]{1,200}/[^/]{1,400}_(R[0-9]{4,12})/?", parsed.path)
+            if match:
+                return "req", match[1]
+        if host == "jobs.appliedmaterials.com":
+            match = re.fullmatch(r"/job/[a-z0-9-]{1,200}/[a-z0-9-]{1,400}/95/([1-9][0-9]{0,17})/?", parsed.path)
+            if match:
+                return "posting", match[1]
+    except ValueError:
+        pass
+    return None
+
+
+def applied_materials_pid(url: str) -> str:
+    reference = applied_materials_job_reference(url)
+    return reference[1] if reference and reference[0] == "pid" else ""
+
+
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     value = str(url or "").strip()
     host = urlparse(value).netloc.casefold()
     path = urlparse(value).path.casefold()
     kind = str(source_kind or "").strip().casefold()
     joined = " ".join((host, path, kind))
+    applied_reference = applied_materials_job_reference(value)
+    if applied_reference and applied_reference[0] in {"pid", "req"}:
+        return ADAPTERS["applied_materials"]
     if one_careers_job_id(value):
         return ADAPTERS["one"]
     if aman_job_url(value):

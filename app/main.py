@@ -994,13 +994,29 @@ def _v2_tier_order(tier=None):
     )
 
 
+def _applied_materials_application_query_filter():
+    # Exact posting identities only; resolution happens once inside the worker,
+    # without reading or repairing the catalog.
+    url = func.coalesce(Job.apply_url, "")
+    pid = r"[1-9][0-9]{0,17}"
+    domain = r"domain=appliedmaterials\.com"
+    return url.regexp_match(
+        r"^https://(?:careers\.appliedmaterials\.com/careers/(?:job/" + pid
+        + r"/?(?:\?" + domain + r")?|apply\?(?:pid=" + pid + r"(?:&" + domain
+        + r")?|" + domain + r"&pid=" + pid + r"))|amat\.wd1\.myworkdayjobs\.com"
+        # PostgreSQL bounds are limited to 255; split the 400-character slug.
+        + r"/External/job/[^/?#]{1,200}/[^/?#]{1,200}[^/?#]{0,200}_R[0-9]{4,12}/?)$"
+    )
+
+
 def _automatic_application_query_filter():
     """Match lightweight application lists to the adapter capability check."""
     apply_url = func.lower(func.coalesce(Job.apply_url, ""))
     source_kind = func.lower(func.coalesce(
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
     ))
-    supported = (
+    applied = _applied_materials_application_query_filter()
+    supported = applied | (
         apply_url.like("%elbitsystemscareer.com/%")
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
@@ -1023,13 +1039,19 @@ def _automatic_application_query_filter():
     company = func.lower(func.trim(func.coalesce(Job.company, "")))
     excluded = company.in_(
         (
-            "intel", "applied materials", "applied material",
+            "intel",
             "check point", "check point software", "check point software technologies",
             "servicenow", "service now", "traild", "claroty", "kla", "medtronic", "nvidia",
             "vast data", "vastdata", "kaltura",
         )
     )
-    return supported & ~excluded
+    applied_employer = (
+        company.in_(("applied materials", "applied material"))
+        | apply_url.like("https://amat.%")
+        | apply_url.like("https://careers.appliedmaterials.com/%")
+        | apply_url.like("https://jobs.appliedmaterials.com/%")
+    )
+    return supported & ~excluded & (~applied_employer | applied)
 
 
 def _automatic_submit_sort_order():
@@ -1039,7 +1061,7 @@ def _automatic_submit_sort_order():
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
     ))
     supported = _automatic_application_query_filter()
-    short_form = (
+    short_form = _applied_materials_application_query_filter() | (
         apply_url.like("%elbitsystemscareer.com/%")
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
@@ -6392,7 +6414,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"aman", "one", "yael", "elad", "gstat", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
+        cloud_adapters = {"aman", "one", "yael", "elad", "gstat", "applied_materials", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -6949,19 +6971,22 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
     if application.status == "submitted":
         raise HTTPException(409, "Application already submitted")
     previous_status = application.status
-    application.status = "failed"
+    uncertain_submission = (payload.verification_state in {"uncertain", "pending"}
+                            or previous_status == "verification_pending")
+    application.status = "verification_pending" if uncertain_submission else "failed"
     application.last_error = payload.message[:2000]
-    set_job_status(db, application.job, "failed")
+    set_job_status(db, application.job, application.status)
     attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
-        attempt.status = "failed"
-        attempt.verification_state = "none"
+        attempt.status = "pending_verification" if uncertain_submission else "failed"
+        attempt.verification_state = "uncertain" if uncertain_submission else "none"
         attempt.error = payload.message[:2000]
         attempt.confirmation_url = payload.page_url
         attempt.screenshot_path = payload.screenshot_path
         attempt.finished_at = utcnow()
     _record_application_event(
-        db, application, "attempt_failed", from_status=previous_status, to_status="failed", actor="agent",
+        db, application, "verification_pending" if uncertain_submission else "attempt_failed",
+        from_status=previous_status, to_status=application.status, actor="agent",
         message=payload.message, details={"attempt_id": attempt.id if attempt else None, "page_url": payload.page_url},
     )
     db.add(AuditLog(event_type="application_failed", entity_type="application", entity_id=str(application_id),

@@ -166,7 +166,7 @@ def prepare_resume(task: dict) -> str:
 def prepare_grade_sheet(task: dict) -> str:
     # These verified forms accept only the CV. New fields stop their adapters
     # for review, so downloading a grade sheet here cannot help.
-    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael", "one", "aman"}:
+    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael", "one", "aman", "applied_materials"}:
         return ""
     application = task.get("application") or {}
     application_id = application.get("id")
@@ -329,12 +329,15 @@ def run_task(context, task: dict):
         try:
             report_blocker(application_id, blocker, remote_screenshot or screenshot_path)
         except Exception as report_exc:  # noqa: BLE001
-            # A reporting failure must never leave an application permanently in
-            # `applying`. Persist a terminal failure through the simpler endpoint.
+            # Preserve uncertainty after an outgoing request even if the richer
+            # blocker report failed, so a reporting outage cannot authorize a retry.
+            uncertain_submission = (blocker.kind == "confirmation_missing"
+                                    or blocker.diagnostics.get("request_sent") is True)
             api(
                 "POST", f"/api/agent/tasks/{application_id}/failed",
                 json={"token": TOKEN, "attempt_id": attempt_id,
-                      "message": f"Blocker report failed: {report_exc}", "page_url": page.url},
+                      "message": f"Blocker report failed: {report_exc}", "page_url": page.url,
+                      "verification_state": "uncertain" if uncertain_submission else "none"},
             )
             print(f"[blocker report fallback] {report_exc}", file=sys.stderr)
         print(f"[blocked:{blocker.kind}] {blocker.explanation}")
@@ -372,6 +375,31 @@ def run_task(context, task: dict):
             page.close()
 
 
+def run_claimed_task(playwright, context, task: dict):
+    # The native Applied form accepted a fresh headed guest submission while a
+    # headless attempt returned 400. Other adapters retain their existing browser.
+    headed_applied = (HEADLESS and not INTERACTIVE_BROWSER and submission_is_authorized(task)
+                      and (task.get("submission_adapter") or {}).get("key") == "applied_materials")
+    if not headed_applied:
+        return run_task(context, task)
+    try:
+        applied_context = playwright.chromium.launch_persistent_context(
+            user_data_dir="", headless=False,
+            viewport={"width": 1440, "height": 1000}, locale="en-US",
+        )
+    except Exception as exc:  # noqa: BLE001
+        api("POST", f"/api/agent/tasks/{task['application']['id']}/failed", json={
+            "token": TOKEN, "attempt_id": (task.get("attempt") or {}).get("id"),
+            "message": f"לא ניתן היה להקים דפדפן עבור Applied Materials. לא בוצעה שליחה. ({type(exc).__name__})",
+            "page_url": "", "verification_state": "none",
+        })
+        return
+    try:
+        return run_task(applied_context, task)
+    finally:
+        applied_context.close()
+
+
 def main():
     print(f"JobPilot agent: {AGENT_ID} | server={BASE_URL} | worker={WORKER_TYPE} | auto_submit={AUTO_SUBMIT} | headless={HEADLESS}")
     BROWSER_PROFILE.mkdir(parents=True, exist_ok=True)
@@ -407,7 +435,7 @@ def main():
                 })
                 task = response.get("task")
                 if task:
-                    run_task(context, task)
+                    run_claimed_task(playwright, context, task)
                     if RUN_ONCE:
                         if INTERACTIVE_BROWSER:
                             print(

@@ -27,6 +27,52 @@ change is local and has not been applied to Render.
 `test_developer_activity_sort_reuses_one_identity_query` exercises both limits,
 protecting the one-query roster path without profile or job-description reads.
 
+## Applied Materials guest applications — October 8, 2026
+
+Supported native PID links and the existing Workday requisition links use one
+guest form per deliberate attempt. No catalog rewrite, startup repair, scan,
+history query, source change or new polling schedule is introduced. SQL capability
+filtering stays inside the existing projected, paginated queries. Marketing
+posting IDs remain manual until a separate exact mapping is verified.
+
+Impact check: the worker downloads the selected CV once through the existing
+owned delivery endpoint (maximum 10 MiB); it does not download an unused grade
+sheet. Four existing progress callbacks use the existing per-callback 6 KiB
+event-check reservation. Reserve 10 MiB + 24 KiB per attempt, 50 MiB + 120 KiB
+at five attempts/hour or day, and 1,500 MiB + 3,600 KiB/30 days at five/day,
+within the existing document/task budgets. Existing claim, result, screenshot
+and question-wait allowances still apply; this is not a new global allowance.
+Fresh headed browser setup reuses the same claimed task and selected CV delivery;
+it adds no claim, poll, Storage read or document download. Added idle egress is
+zero. Retry authorization and user application limits remain unchanged; a possibly sent request without a complete receipt remains uncertain.
+
+The resolver makes one public employer GET for an exact requisition, accepts
+at most 512 KiB of JSON and inspects at most 100 returned positions. Questionnaire
+JSON is capped at 512 KiB; other accepted API responses and final multipart are
+capped at 64 KiB. One owned CV upload and one final application POST are allowed.
+These are employer/worker requests, not Supabase egress. Browser assets have no
+aggregate byte ceiling; the API caps are validation limits, not streaming limits.
+No extra Supabase request is made by the resolver or form adapter.
+
+Regression gates cover the SQL metadata projection, CV-only document delivery,
+resolver/schema/file limits, first-time/returning candidate isolation, delayed CV
+receipts (bounded to 60 seconds), exact native dial-code options, dedicated-browser
+cleanup and unsent startup failures. Accepted native envelopes contain an explicitly
+empty structured `error`; regression fixtures preserve that real protocol shape.
+
+The new adapter completed an actual fresh headed guest submission for R2627382:
+one CV upload, one final HTTP 201 with `data.success=true`, and the matching PID
+success route, without an account, cached employer profile or restored cookies.
+A separate fresh headless submission for R2610395 returned HTTP 400 and remains
+unverified; it was not automatically retried. This comparison motivates the
+Applied-only headed path; different requisitions do not establish the cause of
+400. Other adapters and existing interactive sessions keep their original browser.
+The cloud workflow supplies a virtual display using the standard
+[Playwright headed CI setup](https://playwright.dev/python/docs/ci#running-headed).
+A full Linux/cloud employer submission has not been verified. No production
+Supabase read or bulk retry was performed. Compare daily Supabase usage before
+any post-deployment bulk retries.
+
 ## Email verification session renewal — October 4, 2026
 
 Only after a worker successfully claims an application, one owner/application

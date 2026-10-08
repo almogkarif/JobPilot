@@ -114,7 +114,7 @@ def test_one_does_not_promote_ambiguous_or_untrusted_links(url):
     assert automation_apply_url(_job(url)) == url
 
 
-def test_intel_and_applied_materials_are_manual_only_even_on_supported_workday():
+def test_excluded_employers_and_unrecognized_applied_postings_remain_manual():
     for company, url, source_kind, adapter_key in (
         ("Intel", "https://intel.wd1.myworkdayjobs.com/External/job/Israel/Test_R1", "workday", "workday"),
         ("Applied Materials", "https://amat.wd1.myworkdayjobs.com/External/job/Israel/Test_R2", "workday", "workday"),
