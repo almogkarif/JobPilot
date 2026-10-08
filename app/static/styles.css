@@ -2358,6 +2358,14 @@ body.theme-dark .auth-google:hover,body.theme-dark .auth-form input:hover { back
 
 /* Destructive/session affordances should read clearly without competing with the theme. */
 .logout-action { flex:0 0 auto; color:#9b5149; }
+@media (min-width:761px) {
+  .topbar > div:first-child { flex:0 1 180px; min-width:0; }
+  .top-actions { flex:1 1 auto; min-width:0; flex-wrap:nowrap; justify-content:flex-end; }
+  .top-actions > .scan-status { flex:1 1 590px; width:auto; min-width:0; max-width:590px; }
+  .top-actions > .career-switcher,.top-actions > .logout-action,.top-actions > #scan-btn { flex:0 0 auto; }
+  .top-actions > .account-chip { flex:0 1 190px; min-width:49px; }
+  .top-actions > .account-chip > span { flex:0 0 29px; }
+}
 .logout-action:hover,.logout-action:focus-visible { border-color:#d9a29b; background:#fff3f1; color:#a33e34; box-shadow:0 8px 20px rgba(169,66,54,.12); }
 body.theme-dark .logout-action { color:#e8a39a; }
 body.theme-dark .logout-action:hover,body.theme-dark .logout-action:focus-visible { border-color:#8a5552; background:#3b292b !important; color:#ffb0a6; }
