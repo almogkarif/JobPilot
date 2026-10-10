@@ -238,6 +238,14 @@ class AgentBlockerRequest(BaseModel):
     screenshot_path: str = ""
     page_url: str = ""
     diagnostics: dict[str, Any] = Field(default_factory=dict)
+    wait_seconds: int = Field(default=0, ge=0, le=60)
+
+
+class AgentQuestionAnswerRequest(BaseModel):
+    token: str
+    attempt_id: int = Field(gt=0)
+    blocker_id: int = Field(gt=0)
+    release: bool = False
 
 
 class AgentResultRequest(BaseModel):

@@ -16,6 +16,7 @@ on:
           - user_limit
           - ranking
           - scan_resources
+          - applications
       runner_mode:
         description: Runner for focused user-limit tests
         required: true
@@ -34,7 +35,7 @@ concurrency:
 
 jobs:
   test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -71,10 +72,69 @@ jobs:
           echo "JOBPILOT_TEST_POSTGRES_BIN=$postgres_bin" >> "$GITHUB_ENV"
 
       - name: Run test suite
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' }}
         run: python -m pytest -q --ignore=tests/test_agent_browser_flow.py
 
+      - name: Run application release tests
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'applications' }}
+        run: >-
+          python -m pytest -q -n 4 --dist loadfile
+          tests/test_agent_reporting_safety.py
+          tests/test_agent_one_time_approval.py
+          tests/test_agent_resume_delivery.py
+          tests/test_agent_password_field.py
+          tests/test_agent_live_question_wait.py
+          tests/test_agent_live_question_browser.py
+          tests/test_live_question_wait_api.py
+          tests/test_live_question_wait_migration.py
+          tests/test_live_question_wait_postgres.py
+          tests/test_live_question_resume_integration.py
+          tests/test_live_question_countdown_browser.py
+          tests/test_guided_submission_admin_gate.py
+          tests/test_guided_submission_admin_browser.py
+          tests/test_guided_submission_browser.py
+          tests/test_workday_account_blocker_api.py
+          tests/test_workday_account_lifecycle.py
+          tests/test_workday_email_sign_in.py
+          tests/test_workday_posting_start_modal.py
+          tests/test_intel_workday_policy.py
+          tests/test_ness_submission.py
+          tests/test_speedata_submission.py
+          tests/test_application_submission.py
+          tests/test_auto_apply_job_sort.py
+          tests/test_uncertain_submission_report_recovery.py
+          tests/test_application_queue_recovery.py
+          tests/test_application_tracking_access.py
+          tests/test_application_submit_progress.py
+          tests/test_multiuser_isolation.py
+          tests/test_cloud_mode.py
+          tests/test_supabase_egress_optimization.py
+          tests/test_applied_materials_submission.py
+          tests/test_applied_materials_worker.py
+          tests/test_applied_materials_postgres.py
+          tests/test_applied_materials_integration.py
+          tests/test_applied_materials_report_recovery.py
+          tests/test_application_resume_recovery.py
+          tests/test_application_resume_metadata.py
+          tests/test_grade_sheet_context_repair.py
+          tests/test_application_live_visibility.py
+          tests/test_application_security_code_ui.py
+          tests/test_application_queue_waiting_ui.py
+          tests/test_application_choice_blocker_ui.py
+          tests/test_auto_apply_queue_focus.py
+          tests/test_auto_apply_queue_priority.py
+          tests/test_auto_apply_diagnostics_v4.py
+          tests/test_auto_apply_expansion_v037.py
+          tests/test_one_application.py
+          tests/test_yael_submission.py
+          tests/test_elad_submission.py
+          tests/test_elad_receipts.py
+          tests/test_elad_queue.py
+          tests/test_gstat_submission.py
+          tests/test_gstat_queue.py
+
   browser-agent:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

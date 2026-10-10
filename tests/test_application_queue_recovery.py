@@ -109,6 +109,34 @@ def test_opening_queue_recovery_endpoint_dispatches_never_started_rows(monkeypat
         assert calls == [application_id]
 
 
+@pytest.mark.parametrize('company,url,adapter', [
+    ('Ness', 'https://www.ness-tech.co.il/careers/job/43334', 'ness'),
+    ('Speedata', 'https://www.speedata.io/careers/senior-sw-engineer-%5Bcodegen%5D', 'speedata'),
+    ('Applied Materials', 'https://careers.appliedmaterials.com/careers/apply?pid=790123456789&domain=appliedmaterials.com', 'applied_materials'),
+])
+def test_supported_native_employer_queues_are_recovered_once_without_manual_downgrade(company, url, adapter):
+    with TestClient(app) as client:
+        job = _job(client, f'{company} recovery')
+        with SessionLocal() as db:
+            stored = db.get(Job, job['id'])
+            stored.company = company
+            stored.apply_url = url
+            db.commit()
+        application_id = _queued_auto(job['id'])
+        calls = []
+        with SessionLocal() as db:
+            health = queue_health(db, 'computer_science')[application_id]
+            assert health['adapter'] == adapter and health['dispatchable']
+            first = recover_stuck_auto_applications(db, 'computer_science', dispatcher=calls.append)
+            assert first['recovered'] == [application_id]
+            assert first['repaired_unsupported'] == []
+            application = db.get(Application, application_id)
+            assert application.status == 'queued' and application.mode == 'auto'
+            second = recover_stuck_auto_applications(db, 'computer_science', dispatcher=calls.append)
+            assert second['recovered'] == []
+        assert calls == [application_id]
+
+
 def test_legacy_unsupported_auto_rows_are_removed_from_automatic_queue():
     with TestClient(app) as client:
         job = _job(client, 'Unsupported legacy queue')

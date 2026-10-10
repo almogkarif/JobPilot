@@ -24,6 +24,16 @@ class AgentTaskTimeout(TimeoutError):
     pass
 
 
+class LiveQuestionWaitStopped(Exception):
+    """The paused attempt was cancelled, replaced, or released by the server."""
+
+
+QUESTION_WAIT_SECONDS = 60
+QUESTION_POLL_SECONDS = 3
+QUESTION_WAIT_MAX_WINDOWS = 24
+LIVE_QUESTION_KINDS = {"choice_required", "unknown_field", "missing_profile_detail"}
+
+
 def submission_is_authorized(task: dict) -> bool:
     """Return whether this attempt may click the final Submit control."""
     application_mode = str((task.get("application") or {}).get("mode") or "").strip().lower()
@@ -63,6 +73,19 @@ def task_deadline(seconds: int):
     finally:
         signal.setitimer(signal.ITIMER_REAL, *previous_timer)
         signal.signal(signal.SIGALRM, previous_handler)
+
+
+@contextmanager
+def pause_task_deadline():
+    """User thinking time must not consume the browser's execution deadline."""
+    if not hasattr(signal, "SIGALRM"):
+        yield
+        return
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, 0)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
 
 
 def api(method: str, path: str, **kwargs):
@@ -166,7 +189,7 @@ def prepare_resume(task: dict) -> str:
 def prepare_grade_sheet(task: dict) -> str:
     # These verified forms accept only the CV. New fields stop their adapters
     # for review, so downloading a grade sheet here cannot help.
-    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael", "one", "aman", "applied_materials"}:
+    if (task.get("submission_adapter") or {}).get("key") in {"elad", "yael", "one", "aman", "ness", "speedata", "applied_materials"}:
         return ""
     application = task.get("application") or {}
     application_id = application.get("id")
@@ -212,10 +235,11 @@ def upload_screenshot(application_id: int, screenshot_path: str) -> str:
     return str(response.json().get("screenshot_ref") or "")
 
 
-def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_path: str = ""):
-    api(
+def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_path: str = "", *, wait_seconds: int = 0):
+    return api(
         "POST",
         f"/api/agent/tasks/{application_id}/blocked",
+        timeout=5 if wait_seconds else 60,
         json={
             "token": TOKEN,
             "attempt_id": getattr(blocker, "attempt_id", None),
@@ -227,8 +251,65 @@ def report_blocker(application_id: int, blocker: ApplicationBlocked, screenshot_
             "screenshot_path": screenshot_path,
             "page_url": blocker.page_url,
             "diagnostics": blocker.diagnostics,
+            "wait_seconds": wait_seconds,
         },
     )
+
+
+def wait_for_question_answer(page, application_id: int, attempt_id: int, blocker: ApplicationBlocked) -> str:
+    """Keep this page alive for one bounded, server-owned question window."""
+    if (not attempt_id or blocker.kind not in LIVE_QUESTION_KINDS
+            or blocker.diagnostics.get("request_sent") is True):
+        return ""
+    blocker.attempt_id = attempt_id
+    with pause_task_deadline():
+        for registration in range(2):
+            try:
+                reported = report_blocker(application_id, blocker, wait_seconds=QUESTION_WAIT_SECONDS)
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"[question wait registration warning] {exc}", file=sys.stderr)
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 409:
+                    raise LiveQuestionWaitStopped("This paused attempt is no longer active") from exc
+                if registration == 1:
+                    return ""  # Keep the visible terminal blocker if registration never arrived.
+        if reported.get("auto_resolved"):
+            raise LiveQuestionWaitStopped("Question was resolved into another attempt")
+        if not reported.get("wait_until"):
+            blocker.live_wait_reported = True  # A server without the lease uses the existing flow.
+            return ""
+        blocker_id = reported.get("id")
+        if not isinstance(blocker_id, int) or blocker_id <= 0:
+            raise LiveQuestionWaitStopped("No paused question identity was returned")
+        deadline = time.monotonic() + QUESTION_WAIT_SECONDS
+        for poll in range(QUESTION_WAIT_SECONDS // QUESTION_POLL_SECONDS + 1):
+            release = poll == QUESTION_WAIT_SECONDS // QUESTION_POLL_SECONDS or time.monotonic() >= deadline
+            try:
+                response = api("POST", f"/api/agent/tasks/{application_id}/question-answer", json={
+                    "token": TOKEN, "attempt_id": attempt_id, "blocker_id": blocker_id, "release": release,
+                }, timeout=5)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[question answer poll warning] {exc}", file=sys.stderr)
+                if release:
+                    # The server deadline still expires independently. Do not
+                    # overwrite a possible resolved answer or a newer attempt.
+                    raise LiveQuestionWaitStopped("Question wait ended without a server response") from exc
+                response = {"state": "waiting"}
+            state = response.get("state")
+            if state == "answered":
+                answer = str(response.get("answer") or "").strip()
+                if not answer or len(answer) > 2000:
+                    raise LiveQuestionWaitStopped("The paused answer was invalid")
+                return answer
+            if state == "expired":
+                blocker.live_wait_reported = True
+                return ""
+            if state != "waiting" or release:
+                raise LiveQuestionWaitStopped("This paused attempt is no longer active")
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                page.wait_for_timeout(min(QUESTION_POLL_SECONDS, remaining) * 1000)
+        raise LiveQuestionWaitStopped("Question wait ended")
 
 
 def run_task(context, task: dict):
@@ -283,11 +364,20 @@ def run_task(context, task: dict):
                     return code
                 time.sleep(3)
             return ""
+        question_windows = 0
+        def answer_provider(blocker):
+            nonlocal question_windows
+            if question_windows >= QUESTION_WAIT_MAX_WINDOWS:
+                return ""
+            question_windows += 1
+            return wait_for_question_answer(page, application_id, attempt_id, blocker)
         with task_deadline(TASK_TIMEOUT_SECONDS):
             parameters = inspect.signature(fill_application).parameters
             kwargs = {"progress": report_progress} if "progress" in parameters else {}
             if "security_code_provider" in parameters:
                 kwargs["security_code_provider"] = wait_for_security_code
+            if "answer_provider" in parameters and submit_authorized:
+                kwargs["answer_provider"] = answer_provider
             result = fill_application(page, task, auto_submit=submit_authorized, **kwargs)
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"submitted_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
@@ -314,6 +404,12 @@ def run_task(context, task: dict):
             "review_before_submit", "unknown_field", "file_required", "grade_sheet_required", "application_form_missing",
             "submit_button_missing", "captcha", "confirmation_missing", "submit_not_sent", "duplicate_submission",
         }
+        if getattr(blocker, "live_wait_reported", False):
+            # The lease endpoint already left this question open and released
+            # the attempt. Reporting it again could reopen a just-answered one.
+            keep_open_for_manual_submit = False
+            print(f"[blocked:{blocker.kind}] {blocker.explanation}")
+            return
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"application_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         try:
@@ -343,6 +439,8 @@ def run_task(context, task: dict):
         print(f"[blocked:{blocker.kind}] {blocker.explanation}")
         if blocker.diagnostics:
             print(f"[diagnostics] {json.dumps(blocker.diagnostics, ensure_ascii=False, separators=(',', ':'))}")
+    except LiveQuestionWaitStopped as exc:
+        print(f"[question wait stopped] {exc}", file=sys.stderr)
     except AgentTaskTimeout as exc:
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         screenshot_path = str(SCREENSHOT_DIR / f"recovery_{application_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")

@@ -13,7 +13,9 @@ def test_small_choice_blocker_is_inline_and_yellow_in_live_tracker():
     assert "application-live-choice" in js
     assert "data-choice-blocker" in js
     assert "resolveChoiceBlocker" in js
-    assert "ההגשה ממשיכה אוטומטית" in js
+    assert "resolved.resumed_in_place ? 'התשובה נשמרה — ממשיכים מאותה נקודה' : 'התשובה נשמרה לחברה הזו — ההגשה מופעלת מחדש'" in js
+    assert "נותרו ${seconds} שניות להמשך מאותה נקודה." in js
+    assert "ההמתנה הסתיימה. תשובה תפעיל ניסיון חדש." in js
 
     assert ".application-live-tracker li.choice-waiting>i" in css
     assert "background:#d69232" in css

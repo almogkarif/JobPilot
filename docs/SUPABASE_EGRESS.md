@@ -90,6 +90,102 @@ change is local and has not been applied to Render.
 `test_developer_activity_sort_reuses_one_identity_query` exercises both limits,
 protecting the one-query roster path without profile or job-description reads.
 
+## Workday entry and email sign-in — October 5, 2026
+
+Posting-page application choosers now select the foreground native Workday
+method; the application then prefers the exact native email sign-in option.
+Both changes act on the already-open employer page within the existing 24-step
+worker budget. They add zero Supabase queries, returned columns, polls, schedules,
+Storage downloads or database writes per hour/day; idle egress is zero. Existing
+task/document budgets are unchanged, and Intel/NVIDIA remain excluded from
+unattended submission pending authenticated form and receipt verification.
+The live investigation used public employer pages, downloaded no CV and made
+no production Supabase query or application submission.
+
+## Intel account lifecycle and guided-session access — October 5, 2026
+
+Impact check: Workday account detection, registration/login transitions and
+bounded hydration waits run in the existing browser. They add zero Supabase
+calls, rows, Storage downloads or UI polling. Existing credentials and documents
+are delivered once through the normal task payload; these changes do not add a
+profile/history lookup or a second document download. Authentication and account
+verification do not use the ordinary answer polling endpoint.
+
+Guided creation is restricted to actual administrators. User-authenticated
+creation/retry gates reuse the authenticated identity and add zero DB reads.
+Worker-token interactive retry and queued audit claim each read only
+`AppIdentity.role` for the current owner, with `LIMIT 1`; ordinary automatic
+claims and retries add zero role queries. Reserve 1 KiB including protocol
+overhead for each one-row read: at most 2 KiB for an explicit guided retry plus
+claim, or 10 KiB/hour, 240 KiB/day and about 7.1 MiB/30 days at five such attempts
+per hour. This is a per-attempt estimate, not an enforced global request limit.
+Idle sessions add zero reads. No descriptions, profile payloads or application
+history are included in this permission query.
+
+Passive owner viewing and existing worker live-view publication keep their
+existing access rules. The viewer retains its 45-request/two-second opening
+budget and close-to-stop behavior; it adds no polling endpoint or payload field.
+The isolated local Intel experiment reuses the cached CV and adds no production
+database or Storage reads. No production deployment or bulk retry was performed;
+check current Usage and the daily egress slope before doing either.
+
+Regression coverage includes the bounded one-role query in
+`test_guided_worker_permission_reads_only_one_owner_role`, API tests proving
+ordinary claims add no role read, and browser tests proving regular users retain
+passive viewing while guided actions are hidden and guarded.
+
+## Same-page question wait — October 5, 2026
+
+An opted-in worker publishes the existing question blocker with a server deadline
+of at most 60 seconds and an explicit current-attempt ID. Two nullable blocker
+columns are added through the existing compatibility migration; no row backfill,
+catalog read, Storage read, new schedule or startup repair is added. Reserve
+16 KiB per process/schema inspection, including the two one-time DDL acknowledgements.
+Older workers keep the existing stopped-attempt path.
+
+While the page is parked, the worker polls one owner/application/blocker/attempt
+every three seconds, at most 21 calls per window, including its final release.
+Registration retries at most once after a lost response, with a five-second
+timeout per request. Exact same-attempt/question replays keep the original
+deadline and return only blocker ID, status and wait metadata; their SQL reads
+project one metadata row and compare the question/options inside the database.
+The task permits at most 24 windows, matching the browser's existing step budget;
+further questions take the ordinary stopped-attempt path. Each poll returns at
+most one metadata row; SQL caps both the answer and question key at 2,001
+characters and rejects values over 2,000 rather than truncating the user's answer.
+No profile, answers JSON, job description, options JSON, task payload, document or
+history is hydrated. Existing cloud authentication can add two bounded identity
+reads, one owner-ID read and its device heartbeat write per call.
+
+Conservatively reserve 32 KiB per poll including Unicode, authentication and
+protocol overhead: 672 KiB/window, 15.75 MiB/attempt at all 24 windows, and
+78.75 MiB/hour or day for five such attempts (2,362.5 MiB/30 days at that workload).
+Reserve another 32 KiB per possible registration retry, including the bounded
+lease read, control-row acknowledgement and existing authentication overhead:
+768 KiB/attempt at 24 windows, for a combined incremental ceiling of
+16.5 MiB/attempt, 82.5 MiB/hour or day for five attempts, and
+2,475 MiB/30 days at that workload. Existing first-registration and terminal
+report budgets remain separate.
+Idle overhead is zero. The UI countdown updates local text once per second and
+stops when its surface is hidden or time expires; it makes zero network calls.
+Existing compact UI queries add only two metadata columns, bounded to 100 rows:
+reserve an extra 96 bytes/row, under 10 KiB per refresh, or 1.76 MiB for an entire
+existing 15-minute, five-second notification session. Poll schedules are unchanged.
+
+A timely answer reuses the same browser, attempt and cached files; it adds no CV
+or grade-sheet download. Existing terminal screenshot/file budgets remain
+separate. Late answers retain the existing explicit new-attempt delivery budget.
+If neither registration reply arrives, the ordinary terminal report leaves an
+unanswered question visible. If that exact leased question was already answered,
+the report preserves the answer and queues the existing restart path instead of
+reopening it; that rare restart uses the existing new-attempt file budget.
+Regressions verify projected polling with large synthetic private fields, the
+21-call/24-window caps, no file redownload on resume, local-only UI countdown,
+expiry, ownership and concurrent resolution/release. No production queries,
+submissions, bulk retries or deployment were performed for this change. Before
+deployment, compare current daily organization usage and reserve this bounded
+increment alongside existing budgets; do not assume the remaining Free quota.
+
 ## Applied Materials guest applications — October 8, 2026
 
 Supported native PID links and the existing Workday requisition links use one
@@ -135,6 +231,53 @@ The cloud workflow supplies a virtual display using the standard
 A full Linux/cloud employer submission has not been verified. No production
 Supabase read or bulk retry was performed. Compare daily Supabase usage before
 any post-deployment bulk retries.
+
+## Five employer application routes — October 5, 2026
+
+Ness and Speedata use their job-specific native forms; Island, Global-e and TriEye
+resolve their branded posting IDs to the same employer/position on Comeet.
+Recognition is deterministic and limited to the observed HTTPS hosts and posting
+paths. Existing SQL capability filters and queue limits are reused: zero additional
+queries, columns, startup work, polls, scans or catalog-description reads. The
+selected-document delivery endpoints and file limits are unchanged. CV-only Ness
+and Speedata workers do not download an unused grade sheet.
+
+Impact check: reserve the existing maximum 10 MiB selected CV per deliberate
+attempt, up to 50 MiB for five attempts/hour or day. The three generic Comeet
+attempts can additionally use an already-configured grade sheet under the existing
+10 MiB upload allowance, giving a conservative 80 MiB file-delivery reservation
+for a five-attempt batch (2,400 MiB/30 days at one batch/day). Existing bounded
+task/event/screenshot allowances still apply; this change raises no file limit or
+worker schedule. Added idle egress is zero. The actual manual audit downloaded one
+44,296-byte cloud CV and reused that local file; public employer reads and uploads
+are employer/worker traffic, not Supabase egress. No production catalog/history
+query, bulk retry, scan or deployment was triggered by this work.
+
+Cloud claims and queue recovery share the same supported-adapter set. Ness,
+Speedata and Applied Materials queues remain automatic and are redispatched only
+through the existing queue-age and once-per-dispatch gates. This adds no query,
+projection, download, polling interval, bulk repair or retry after a possible submit.
+
+If the rich blocker callback fails after a possible employer submission, the
+existing failure callback carries the existing `verification_state=uncertain`.
+The server preserves `verification_pending`, including a late default failure
+report. This changes existing status/event values without an additional SQL
+query, returned column, download or row write; retries still require explicit
+confirmation that no submission occurred.
+
+Regression gates include the SQL-only metadata/50-row limit test and CV-only
+worker download test in `tests/test_supabase_egress_optimization.py`, exact posting
+identity/worker tests, and `tests/test_uncertain_submission_report_recovery.py`.
+Compare current Supabase daily usage before deployment or a bulk batch; this
+manual audit does not establish the current remaining organization quota.
+
+Current Wix document uploads return signed URLs exceeding 4 KiB. Speedata accepts
+at most 8 KiB and binds document receipt URLs to the exact uploaded file and
+verified employer site. These native-worker validation fixes add zero Supabase
+queries, Storage downloads, polls or row writes. A proven-unsent manual retry
+reuses the existing local 44,296-byte CV; employer upload traffic remains under
+the existing selected-file budget, and an ambiguous or rejected application is
+not retried automatically.
 
 ## Email verification session renewal — October 4, 2026
 

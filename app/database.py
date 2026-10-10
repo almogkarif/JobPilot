@@ -141,6 +141,7 @@ _RUNTIME_COMPATIBILITY_COLUMNS = {
     "jobs": {"canonical_job_id": "INTEGER", "canonical_key": "VARCHAR(64)", "classification_json": "TEXT NOT NULL DEFAULT '{}'"},
     "job_rankings": {"career_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
     "applications": {"canonical_application_id": "INTEGER", "originating_track": "VARCHAR(40) NOT NULL DEFAULT ''"},
+    "blockers": {"wait_attempt_id": "INTEGER", "wait_until": "TIMESTAMP WITH TIME ZONE"},
     "profiles": {
         "seniority_levels_json": "TEXT NOT NULL DEFAULT ''",
         "color_palettes_json": "VARCHAR(256) NOT NULL DEFAULT '{}'",
@@ -792,7 +793,7 @@ def ensure_compatibility_columns() -> None:
 def ensure_worker_runtime_schema() -> None:
     """Keep new workers compatible before the web deployment finishes migrating.
 
-    Inspect only five fixed tables' column metadata; never initialize accounts or
+    Inspect only fixed tables' column metadata; never initialize accounts or
     scan/backfill catalog rows. The observation ledger starts empty and private.
     """
     from .models import CollectionObservation

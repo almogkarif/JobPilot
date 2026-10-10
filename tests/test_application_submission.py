@@ -99,6 +99,51 @@ def test_monday_branded_job_uses_its_ashby_application_surface():
     )
 
 
+def test_ness_job_form_is_ready_but_general_or_ambiguous_links_are_not():
+    preview = build_submission_preview(_job("https://www.ness-tech.co.il/careers/job/43334"), _profile())
+    assert preview["ready"] and preview["adapter"]["key"] == "ness"
+    for url in ("https://www.ness-tech.co.il/careers", "http://www.ness-tech.co.il/careers/job/43334",
+                "https://www.ness-tech.co.il.evil.test/careers/job/43334",
+                "https://www.ness-tech.co.il/careers/job/43334?job=99",
+                "https://www.ness-tech.co.il/careers/job/43334#other"):
+        assert detect_adapter(url).key == "custom"
+
+
+def test_speedata_job_form_is_ready_but_general_or_ambiguous_links_are_not():
+    url = "https://www.speedata.io/careers/senior-sw-engineer-%5Bcodegen%5D"
+    preview = build_submission_preview(_job(url), _profile())
+    assert preview["ready"] and preview["adapter"]["key"] == "speedata"
+    for url in ("https://www.speedata.io/careers-1", "http://www.speedata.io/careers/algorithm-engineer",
+                "https://www.speedata.io.evil.test/careers/algorithm-engineer",
+                "https://www.speedata.io/careers/algorithm-engineer?other=1",
+                "https://www.speedata.io/careers/%2E%2E", "https://www.speedata.io/careers/a%2Fb"):
+        assert detect_adapter(url).key == "custom"
+
+
+@pytest.mark.parametrize("url,native", [
+    ("https://www.island.io/positions/position-54_f67", "https://www.comeet.com/jobs/island/09.00A/position/54.F67"),
+    ("https://www.global-e.com/careers/d9-963/", "https://www.comeet.com/jobs/global-e/62.002/position/D9.963"),
+    ("https://trieye.tech/careers/co/tel-aviv/7E.27B/fpga-and-embedded-sw-platform-team-lead/all", "https://www.comeet.com/jobs/trieye/A6.00E/position/7E.27B"),
+])
+def test_verified_branded_posting_uses_same_company_and_job_native_form(url, native):
+    job = _job(url)
+    assert detect_adapter(url).key == "comeet"
+    assert automation_apply_url(job) == native
+    assert build_submission_preview(job, _profile())["ready"]
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.island.io/positions/", "https://www.island.io/positions/position-54_f67?other=1",
+    "https://www.island.io.evil.test/positions/position-54_f67",
+    "https://www.global-e.com/careers/", "https://www.global-e.com/careers/d9-963/#different",
+    "https://www.global-e.com@evil.test/careers/d9-963/",
+    "https://trieye.tech/careers/co/tel-aviv/all", "http://trieye.tech/careers/co/tel-aviv/7E.27B/lead/all",
+])
+def test_branded_routing_rejects_general_or_ambiguous_company_links(url):
+    assert detect_adapter(url).key == "custom"
+    assert automation_apply_url(_job(url)) == url
+
+
 @pytest.mark.parametrize("url", ["https://www.one1.co.il/?share_job_id=3568", "https://www.one1.co.il/careers/?job_id=3568"])
 def test_one_share_links_use_the_exact_public_application_job(url):
     assert detect_adapter(url).key == "one"
@@ -207,8 +252,10 @@ def test_medtronic_is_manual_only_after_live_multistep_workday_audit():
     assert "רב-שלבי" in payload["exclusion_reason"]
 
 
-def test_nvidia_is_manual_only_after_live_external_auth_audit():
+def test_nvidia_remains_manual_until_authenticated_flow_and_receipt_are_verified():
     job = type("Job", (), {
+        "id": 41,
+        "title": "System Software Engineer",
         "company": "NVIDIA",
         "apply_url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Israel/Role_R1",
         "source": type("Source", (), {"kind": "workday"})(),
@@ -216,7 +263,11 @@ def test_nvidia_is_manual_only_after_live_external_auth_audit():
     payload = adapter_payload_for_job(job)
     assert payload["execution"] == "manual_only"
     assert payload["supports_automatic_submit"] is False
-    assert "כניסה חיצונית" in payload["exclusion_reason"]
+    assert "כניסה באימייל" in payload["exclusion_reason"]
+    assert "עדיין לא אומתו" in payload["exclusion_reason"]
+    preview = build_submission_preview(job, _profile(application_password="saved-password"))
+    assert preview["ready"] is False
+    assert preview["adapter"]["execution"] == "manual_only"
 
 
 def test_short_form_adapters_are_exposed_separately_from_multistep_workday():

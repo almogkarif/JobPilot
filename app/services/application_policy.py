@@ -21,10 +21,7 @@ def _normalized(value: str) -> str:
 
 def is_intel_workday(company: str = "", apply_url: str = "") -> bool:
     host = (urlparse(str(apply_url or "")).hostname or "").casefold()
-    return (
-        "myworkdayjobs.com" in host
-        and ("intel" in _normalized(company) or host.startswith("intel."))
-    )
+    return host == "intel.wd1.myworkdayjobs.com"
 
 
 def intel_question_key(question: str) -> str:
@@ -46,11 +43,11 @@ def application_policy(company: str = "", apply_url: str = "") -> dict:
     return {
         "id": "intel_workday",
         "workday_start_method": "apply_manually",
+        "account_creation_first": True,
         "skip_optional_profile_sections": ["education", "language"],
         "profile_defaults": {
             "country": "Israel",
             "phone_country_code": "+972",
-            "citizenships": ["Citizen (Israel)"],
         },
         "question_memory": "intel_company_scoped",
     }

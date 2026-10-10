@@ -87,6 +87,7 @@ def test_worker_report_failure_preserves_uncertainty_and_refuses_retry(
 
     def api(method, path, **kwargs):
         calls.append((path, kwargs['json']))
+        kwargs.pop('timeout', None)  # In-process transport has no network timeout.
         if path.endswith('/blocked'):
             if committed:
                 response = client.request(method, path, **kwargs)

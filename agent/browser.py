@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urljoin, urlparse
 from playwright.sync_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-from app.services.application_submission import aman_job_url, applied_materials_job_reference, elad_job_id, is_gstat_application_url, lever_confirmation_from_url, one_careers_job_id, yael_job_id
+from app.services.application_submission import aman_job_url, applied_materials_job_reference, elad_job_id, is_gstat_application_url, lever_confirmation_from_url, ness_job_id, one_careers_job_id, speedata_job_slug, yael_job_id
 from .fields import CandidateValue, is_grade_sheet_file_label, is_resume_file_label, known_value, missing_profile_context, normalize
 
 LINKEDIN_HOSTS = {"linkedin.com", "www.linkedin.com", "il.linkedin.com"}
@@ -39,6 +39,11 @@ AUTH_FAILURE_TERMS = [
     "invalid username or password", "incorrect username or password", "incorrect email or password",
     "unable to sign in", "couldn t sign in", "could not sign in", "authentication failed",
     "שם המשתמש או הסיסמה שגויים", "לא ניתן להתחבר",
+]
+ACCOUNT_EXISTS_TERMS = [
+    "account already exists", "account with this email already exists", "you already have an account",
+    "email address already exists", "email address is already registered", "email already registered",
+    "an account already exists with this email",
 ]
 SUBMIT_TERMS = [
     "submit application", "submit my application", "send application", "final submit",
@@ -130,20 +135,30 @@ def _enter_workday_start_method(
 ) -> bool:
     """Enter Workday's application form from the start-method chooser."""
     parsed = urlparse(page.url)
-    if (
-        "myworkdayjobs.com" not in (parsed.hostname or "").casefold()
-        or not parsed.path.rstrip("/").casefold().endswith("/apply")
+    host = (parsed.hostname or "").casefold()
+    start_page = parsed.path.rstrip("/").casefold().endswith("/apply")
+    if (host != "myworkdayjobs.com" and not host.endswith(".myworkdayjobs.com")) or (
+        not start_page and "/job/" not in parsed.path.casefold()
     ):
         return False
     attempts = max(1, timeout_ms // 500)
     for attempt in range(attempts):
+        chooser = page.get_by_role("dialog", name=re.compile(r"^start your application$", re.IGNORECASE))
+        if chooser.count() > 1:
+            return False
+        if chooser.count() == 1 and chooser.is_visible():
+            scope = chooser
+        elif start_page:
+            scope = page
+        else:
+            return False
         manual_candidates = [
-            page.locator('[data-automation-id="applyManually"]:visible').first,
-            page.get_by_role("button", name=re.compile(r"^apply manually$", re.IGNORECASE)).first,
+            scope.locator('[data-automation-id="applyManually"]:visible').first,
+            scope.get_by_role("button", name=re.compile(r"^apply manually$", re.IGNORECASE)).first,
         ]
         resume_candidates = [
-            page.locator('[data-automation-id="autofillWithResume"]:visible').first,
-            page.get_by_role("button", name=re.compile(r"^autofill with resume$", re.IGNORECASE)).first,
+            scope.locator('[data-automation-id="autofillWithResume"]:visible').first,
+            scope.get_by_role("button", name=re.compile(r"^autofill with resume$", re.IGNORECASE)).first,
         ]
         candidates = resume_candidates + manual_candidates if preferred_method == "resume_autofill" else manual_candidates + resume_candidates
         for candidate in candidates:
@@ -159,8 +174,63 @@ def _enter_workday_start_method(
     return False
 
 
+def _workday_email_sign_in_choices(page: Page) -> list[Locator]:
+    """Identify the native provider pane, including unavailable choices."""
+    parsed = urlparse(page.url)
+    host = (parsed.hostname or "").casefold()
+    if (host != "myworkdayjobs.com" and not host.endswith(".myworkdayjobs.com")) or not any(
+        segment.casefold() == "apply" for segment in parsed.path.split("/")
+    ):
+        return []
+    if page.locator('input[type="password"]:visible').count():
+        return []
+    candidates = page.get_by_role("button", name=re.compile(r"^sign in with email$", re.IGNORECASE))
+    return [candidates.nth(index) for index in range(candidates.count()) if candidates.nth(index).is_visible()]
+
+
+def _workday_email_sign_in_action(page: Page) -> Locator | None:
+    """Prefer Workday's native email route over external identity providers."""
+    visible = _workday_email_sign_in_choices(page)
+    if len(visible) == 1 and visible[0].is_enabled():
+        return visible[0]
+    return None
+
+
+def _workday_account_switch_action(page: Page, *, create: bool = False) -> Locator | None:
+    """Switch the native account pane without leaving the job for header login."""
+    automation = "createAccountLink" if create else "signInLink"
+    candidate = page.locator(f'[data-automation-id="{automation}"]:visible').first
+    if candidate.count() and candidate.is_enabled():
+        return candidate
+    scope = page.locator('[data-automation-id="formContainer"]:visible, form:visible')
+    name = re.compile(r"^create account$" if create else r"^sign in$", re.IGNORECASE)
+    for index in range(scope.count()):
+        pane = scope.nth(index)
+        for role in ("link", "button"):
+            action = pane.get_by_role(role, name=name).first
+            if action.count() and action.is_visible() and action.is_enabled():
+                return action
+    return None
+
+
+def _workday_account_needs_email_verification(page: Page) -> bool:
+    host = (urlparse(page.url).hostname or "").casefold()
+    if not host.endswith(".myworkdayjobs.com") or not _is_workday_application_page_url(page.url):
+        return False
+    # Application pages can mention checking email for updates. Only an active
+    # verification heading identifies the account handoff, not that body copy.
+    headings = page.locator('h1:visible, h2:visible, h3:visible, [role="heading"]:visible')
+    verification_headings = {
+        "verify your email", "verify your e mail", "verify your email address",
+        "please verify your email", "check your email", "check your e mail",
+        "check your inbox", "activate your account", "email verification",
+    }
+    return any(normalize(heading) in verification_headings for heading in headings.all_text_contents())
+
+
 def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callable[[str, str, str], None] | None = None,
-                     security_code_provider: Callable[[], str] | None = None) -> dict:
+                     security_code_provider: Callable[[], str] | None = None,
+                     answer_provider: Callable[[ApplicationBlocked], str] | None = None) -> dict:
     job = task["job"]
     profile = task["profile"]
     policy = task.get("application_policy") or {"id": "default"}
@@ -168,7 +238,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         application_profile = profile.setdefault("application_profile", {})
         for key, value in (policy.get("profile_defaults") or {}).items():
             application_profile.setdefault(key, value)
-    answers = task.get("answers", {})
+    answers = task.setdefault("answers", {})
     memories = task.get("answer_memories", [])
     ensure_supported(job["apply_url"])
     # Dynamic ATS pages frequently replace controls while rendering. Do not let
@@ -178,7 +248,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     if applied_materials_job_reference(job["apply_url"]):
         from .applied_materials import fill_applied_materials_application
         # Isolate the candidate before the employer page can restore any profile.
-        return fill_applied_materials_application(page, task, auto_submit, progress)
+        return fill_applied_materials_application(page, task, auto_submit, progress, answer_provider)
 
     page.goto(job["apply_url"], wait_until="domcontentloaded", timeout=60_000)
     page.wait_for_timeout(1500)
@@ -201,13 +271,70 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     if elad_job_id(job["apply_url"]):
         from .elad import fill_elad_application
         return fill_elad_application(page, task, auto_submit, progress)
+    if ness_job_id(job["apply_url"]):
+        from .ness import fill_ness_application
+        return fill_ness_application(page, task, auto_submit, progress)
+    if speedata_job_slug(job["apply_url"]):
+        from .speedata import fill_speedata_application
+        return fill_speedata_application(page, task, auto_submit, progress)
 
     filled = []
     visited_steps: dict[tuple, int] = {}
+    answered_questions = set()
+
+    def question_state():
+        fields = _extract_fields(page)
+        return (_page_step_signature(page, fields), tuple(
+            (field.get("type"), _display_field_label(field), bool(field.get("required")),
+             bool(field.get("disabled")), bool(field.get("visible")), tuple(field.get("options") or [])) for field in fields
+        ))
+
+    def resume_question(blocker: ApplicationBlocked) -> bool:
+        if (not answer_provider or blocker.kind not in {"unknown_field", "choice_required", "missing_profile_detail"}
+                or blocker.diagnostics.get("control") == "workday_citizenship"
+                or blocker.label == "Applicant Privacy"):
+            return False
+        field_type = blocker.diagnostics.get("type") or ("select" if blocker.kind == "choice_required" else "text")
+        # Identity and profile-derived facts can intentionally precede explicit
+        # answers. Do not pause for a reply that their existing filler ignores.
+        probe = known_value(blocker.question, field_type, profile, {blocker.question: "__explicit_answer__"}, [])
+        if probe is None or probe.source != "resolved_answer":
+            return False
+        paused_url = page.url
+        paused_state = question_state()
+        signature = paused_state[0]
+        key = (paused_url, signature, normalize(blocker.question))
+        if key in answered_questions:
+            return False
+        answered_questions.add(key)
+        answer = str(answer_provider(blocker) or "").strip()
+        if not answer or blocker.options and answer not in blocker.options:
+            return False
+        _detect_captcha(page)
+        if page.url != paused_url or question_state() != paused_state:
+            return False
+        answers[blocker.question] = answer
+        if blocker.kind != "missing_profile_detail" and blocker.label != blocker.question:
+            answers[blocker.label] = answer
+        for step_key in list(visited_steps):
+            if step_key[0] == paused_url and step_key[-1] == signature:
+                del visited_steps[step_key]
+        return True
+
+    def fill_with_answers(fill):
+        while True:
+            try:
+                return fill()
+            except ApplicationBlocked as blocker:
+                if not resume_question(blocker):
+                    raise
+
     sign_in_opened = False
     sign_in_submitted = False
     sign_in_pending_checks = 0
     creating_account = False
+    account_creation_submitted = False
+    account_creation_pending_checks = 0
     workday_context_restores = 0
     canonical_workday_job_url = (
         job["apply_url"] if "myworkdayjobs.com" in (urlparse(job["apply_url"]).hostname or "").casefold() else ""
@@ -233,7 +360,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             continue
         if policy.get("id") == "intel_workday" and _on_intel_voluntary_disclosures(page):
             filled.extend(_fill_intel_voluntary_disclosures(page, profile))
-            next_button = _find_action(page, NAVIGATION_TERMS)
+            next_button = _find_action(page, NAVIGATION_TERMS, native_only=True)
             if next_button:
                 _click_action(page, next_button)
                 continue
@@ -269,26 +396,72 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 _enter_comeet_embedded_form(page)
                 continue
 
-        # Some ATSs show account creation first. Always switch to the existing
-        # account path before entering any registration details.
+        email_sign_in = _workday_email_sign_in_action(page)
+        if email_sign_in:
+            _click_action(page, email_sign_in)
+            sign_in_opened = True
+            continue
+        if _workday_email_sign_in_choices(page):
+            raise ApplicationBlocked(
+                "sign_in_failed", "כניסה במייל", "הכניסה במייל אינה זמינה באופן חד־משמעי",
+                "Workday מציג כניסה במייל שאינה זמינה או מספר אפשרויות זהות. יש להשלים אותה ידנית לפני המשך.",
+                page.url,
+            )
+
+        # Intel's explicit registration pane is the first-use path. Its native
+        # duplicate-account response switches to Sign In using the same email.
+        # Other employers retain their existing-account-first behavior.
         sign_in_action = _find_action(page, SIGN_IN_TERMS)
         create_action = _find_action(page, CREATE_ACCOUNT_TERMS)
-        has_password = any(f.get("type") == "password" and f.get("visible") for f in fields)
-        if create_action and sign_in_action and not sign_in_opened and not sign_in_submitted:
+        has_password = any(f.get("type") == "password" and f.get("visible") and not f.get("disabled") for f in fields)
+        native_registration = page.locator('[data-automation-id="createAccountSubmitButton"]:visible').count()
+        native_sign_in = page.locator('[data-automation-id="signInSubmitButton"]:visible').count()
+        if (account_creation_submitted or sign_in_submitted) and not has_password and _workday_account_needs_email_verification(page):
+            raise ApplicationBlocked(
+                "email_verification_required", "אימות חשבון מועמד", "נדרש לאמת את חשבון המועמד במייל",
+                "Workday שלח קישור לאימות החשבון. יש להשלים את האימות; החשבון לא ייווצר שוב והמועמדות עדיין לא נשלחה.",
+                page.url,
+            )
+        if has_password and native_sign_in and not native_registration:
             sign_in_opened = True
-            _click_action(page, sign_in_action)
+        if (has_password and native_registration and not account_creation_submitted and not sign_in_submitted
+                and (policy.get("account_creation_first") or not sign_in_action)):
+            creating_account = True
+        if (has_password and create_action and sign_in_action and not creating_account
+                and not sign_in_opened and not sign_in_submitted and not account_creation_submitted):
+            sign_in_opened = True
+            _click_action(page, _workday_account_switch_action(page) or sign_in_action)
             continue
 
-        if sign_in_submitted and has_password:
+        if account_creation_submitted and creating_account and (has_password or native_registration):
+            body_text = _body_text(page)
+            if any(normalize(term) in body_text for term in ACCOUNT_EXISTS_TERMS):
+                sign_in_switch = _workday_account_switch_action(page)
+                if sign_in_switch:
+                    creating_account = False
+                    sign_in_opened = True
+                    _click_action(page, sign_in_switch)
+                    continue
+            account_creation_pending_checks += 1
+            if account_creation_pending_checks < 4:
+                page.wait_for_timeout(750)
+                continue
+            raise ApplicationBlocked(
+                "account_creation_failed", "יצירת חשבון מועמד", "האתר לא אישר את יצירת החשבון",
+                "ניסיון יצירת החשבון בוצע פעם אחת בלבד. יש לבדוק את הודעת האתר ואת דרישות הסיסמה לפני המשך.",
+                page.url,
+            )
+
+        if sign_in_submitted and not creating_account and (has_password or native_sign_in):
             body_text = _body_text(page)
             create_action = _find_action(page, CREATE_ACCOUNT_TERMS)
             # A failed login followed by an explicit Create Account action is a
             # safe Workday recovery. Reusing the same email cannot silently create
             # a duplicate account: Workday validates uniqueness before proceeding.
-            if create_action and (
+            if not account_creation_submitted and create_action and (
                 any(normalize(term) in body_text for term in NO_ACCOUNT_TERMS)
             ):
-                _click_action(page, create_action)
+                _click_action(page, _workday_account_switch_action(page, create=True) or create_action)
                 sign_in_submitted = False
                 creating_account = True
                 continue
@@ -322,16 +495,21 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             page, profile, answers=answers, memories=memories,
         )
         if unresolved_workday_choice:
-            raise ApplicationBlocked(
+            blocker = ApplicationBlocked(
                 unresolved_workday_choice.get("kind", "choice_required"),
                 unresolved_workday_choice["label"], unresolved_workday_choice["question"],
                 unresolved_workday_choice["explanation"], page.url,
                 unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
             )
+            if resume_question(blocker):
+                continue
+            raise blocker
 
         # Career sites commonly link to a separate ATS form. Enter that form
         # before deciding that there is nothing to fill.
-        if not actionable_fields:
+        if not actionable_fields and not (
+            _is_workday_application_page_url(page.url) and _find_submit_button(page)
+        ):
             # A Workday `/apply` URL is a start-method chooser, not yet the
             # account form. Its header also contains a global Sign In button;
             # choosing that first bypasses the job application and can leave the
@@ -340,7 +518,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # global Sign In control is already usable. Enter the existing
             # account flow instead of treating the empty shell as a dead end.
             sign_in_action = _find_action(page, SIGN_IN_TERMS)
-            if sign_in_action and not sign_in_opened and not sign_in_submitted:
+            if sign_in_action and not sign_in_opened and not sign_in_submitted and not account_creation_submitted:
                 sign_in_opened = True
                 _click_action(page, sign_in_action)
                 continue
@@ -352,7 +530,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             # so no actionable input fields remain. Always advance the active
             # application before considering the escape hatch back to the job.
             # Clicking Back here discards the answers that were just filled.
-            progression_button = _find_action(page, NAVIGATION_TERMS) or _find_action(page, APPLY_START_TERMS)
+            native_only = _is_workday_application_page_url(page.url)
+            progression_button = _find_action(page, NAVIGATION_TERMS, native_only=native_only) or _find_action(
+                page, APPLY_START_TERMS, native_only=native_only,
+            )
             if progression_button:
                 step_key = (page.url, normalize(_action_text(progression_button)), _page_step_signature(page, fields))
                 if visited_steps.get(step_key, 0) >= 2:
@@ -395,10 +576,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
         unknown = []
         filled.extend(_fill_workday_segmented_dates(page, profile, answers, memories))
-        filled.extend(_fill_workday_citizenships(page, profile))
-        filled.extend(_fill_custom_comboboxes(page, profile, answers, memories, job))
-        filled.extend(_fill_ashby_yes_no_choices(page, profile, answers, memories))
-        filled.extend(_fill_ashby_privacy_consent(page))
+        filled.extend(fill_with_answers(lambda: _fill_workday_citizenships(page, profile)))
+        filled.extend(fill_with_answers(lambda: _fill_custom_comboboxes(page, profile, answers, memories, job)))
+        filled.extend(fill_with_answers(lambda: _fill_ashby_yes_no_choices(page, profile, answers, memories)))
+        filled.extend(fill_with_answers(lambda: _fill_ashby_privacy_consent(page)))
         filled.extend(_clear_stale_workday_phone_extension(page, profile))
         workday_resume = _attach_workday_resume_chooser(page, profile)
         if workday_resume:
@@ -464,7 +645,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     field["candidate_source"] = candidate.source
                 candidate_path = Path(str(candidate.value)) if candidate else None
                 document_kind = _profile_document_kind(field, candidate)
-                if candidate_path and candidate_path.exists() and _file_input_has_file(locator, candidate_path.name):
+                if candidate_path and candidate_path.exists() and _file_field_has_attachment(page, field, candidate_path.name, locator=locator):
                     filled.append({"label": label, "source": "existing_upload", "document": document_kind})
                 elif candidate_path and candidate_path.exists():
                     if _attach_file_to_field(page, field, candidate_path):
@@ -493,7 +674,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
             if field.get("tag") == "select":
                 if candidate is not None:
-                    if _select_best(locator, str(candidate.value)):
+                    if candidate.source == "resolved_answer":
+                        try:
+                            locator.select_option(label=str(candidate.value), timeout=2_000)
+                            selected_answer = True
+                        except Exception:
+                            selected_answer = False
+                    else:
+                        selected_answer = _select_best(locator, str(candidate.value))
+                    if selected_answer:
                         filled.append({"label": label, "source": candidate.source})
                     elif field.get("required"):
                         unknown.append(field)
@@ -572,8 +761,8 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         filled.extend(_fill_known_workday_button_choices(page, profile, answers, memories))
         # Ashby can re-render its questionnaire after resume parsing completes,
         # resetting button-backed answers and the privacy acknowledgement.
-        filled.extend(_fill_ashby_yes_no_choices(page, profile, answers, memories))
-        filled.extend(_fill_ashby_privacy_consent(page))
+        filled.extend(fill_with_answers(lambda: _fill_ashby_yes_no_choices(page, profile, answers, memories)))
+        filled.extend(fill_with_answers(lambda: _fill_ashby_privacy_consent(page)))
         unresolved = []
         for field in unknown:
             if field.get("type") == "file":
@@ -605,17 +794,21 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 )
             choice_options = _small_choice_options(field)
             if choice_options:
-                raise ApplicationBlocked(
+                blocker = ApplicationBlocked(
                     "choice_required", label, label,
                     "נדרשת בחירה מאושרת כדי להמשיך. בחר אחת מהאפשרויות והסוכן ימשיך אוטומטית.",
                     page.url, choice_options, _field_diagnostics(field),
                 )
-            missing = missing_profile_context(label)
-            raise ApplicationBlocked(
-                "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
-                missing[1] if missing else "זהו שדה חובה שאין עבורו תשובה מאושרת בפרופיל. ענה במערכת והסוכן ינסה שוב מההתחלה.",
-                page.url, field.get("options", []), _field_diagnostics(field),
-            )
+            else:
+                missing = missing_profile_context(label)
+                blocker = ApplicationBlocked(
+                    "missing_profile_detail" if missing else "unknown_field", missing[0] if missing else label, label,
+                    missing[1] if missing else "זהו שדה חובה שאין עבורו תשובה מאושרת בפרופיל. ענה במערכת כדי להמשיך.",
+                    page.url, field.get("options", []), _field_diagnostics(field),
+                )
+            if resume_question(blocker):
+                continue
+            raise blocker
 
         # Workday renders many questionnaire choices as buttons backed by
         # hidden React controls, so they are absent from ``actionable_fields``.
@@ -627,12 +820,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             page, profile, answers=answers, memories=memories,
         )
         if unresolved_workday_choice:
-            raise ApplicationBlocked(
+            blocker = ApplicationBlocked(
                 unresolved_workday_choice.get("kind", "choice_required"),
                 unresolved_workday_choice["label"], unresolved_workday_choice["question"],
                 unresolved_workday_choice["explanation"], page.url,
                 unresolved_workday_choice["options"], unresolved_workday_choice["diagnostics"],
             )
+            if resume_question(blocker):
+                continue
+            raise blocker
 
         if progress:
             document_kinds = {item.get("document") for item in filled if item.get("document")}
@@ -646,13 +842,25 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
 
         # Submit the existing-account form first. After a failed Workday login,
         # the explicit Create Account route is allowed and uses the same profile.
-        if has_password and not sign_in_submitted:
+        if has_password and not sign_in_submitted and not (creating_account and account_creation_submitted):
             account_button = _find_action(page, CREATE_ACCOUNT_TERMS) if creating_account else _find_action(page, SIGN_IN_TERMS)
+            submit_id = "createAccountSubmitButton" if creating_account else "signInSubmitButton"
+            native_account_submit = page.locator(f'[data-automation-id="{submit_id}"]:visible').first
+            if native_account_submit.count():
+                if not native_account_submit.is_enabled():
+                    page.wait_for_timeout(750)
+                if not native_account_submit.is_enabled():
+                    raise ApplicationBlocked(
+                        "account_validation_required", "פרטי חשבון מועמד", "האתר לא מאפשר לשלוח את פרטי החשבון",
+                        "יש לבדוק את דרישות הסיסמה והודעות האימות בטופס. לא נשלחה בקשת יצירת חשבון או כניסה.",
+                        page.url,
+                    )
+                account_button = native_account_submit
             if account_button:
-                # Mark both sign-in and create-account submissions. If Workday
-                # leaves the password form visible, the next pass must classify
-                # the response instead of submitting the same form indefinitely.
-                sign_in_submitted = True
+                if creating_account:
+                    account_creation_submitted = True
+                else:
+                    sign_in_submitted = True
                 _click_action(page, account_button)
                 continue
 
@@ -921,7 +1129,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 },
             )
 
-        next_button = _find_action(page, NAVIGATION_TERMS)
+        next_button = _find_action(page, NAVIGATION_TERMS, native_only=_is_workday_application_page_url(page.url))
         if next_button:
             step_key = (page.url, normalize(_action_text(next_button)), _page_step_signature(page, fields))
             if visited_steps.get(step_key, 0) >= 2:
@@ -1076,7 +1284,8 @@ def _workday_unresolved_button_choice(
                 choice_key = normalize(f"{label} {context}")
                 structure_key = normalize(structure_context)
                 languages = ((profile or {}).get("application_profile") or {}).get("languages", [])
-                if "language" in choice_key and isinstance(languages, list) and languages:
+                if ("language" in choice_key and isinstance(languages, list) and languages
+                        and (candidate is None or candidate.source != "resolved_answer")):
                     block_match = re.search(r"languages?\s*(\d+)", structure_key)
                     block_index = max(0, int(block_match.group(1)) - 1) if block_match else 0
                     language = languages[min(block_index, len(languages) - 1)]
@@ -1089,7 +1298,7 @@ def _workday_unresolved_button_choice(
                     else:
                         value = str(language.get("name", ""))
                     candidate = CandidateValue(value, "profile") if value else candidate
-                if candidate is not None and "degree" in choice_key:
+                if candidate is not None and candidate.source != "resolved_answer" and "degree" in choice_key:
                     degree_key = normalize(str(candidate.value))
                     if any(term in degree_key for term in ("b sc", "bachelor")):
                         matched = next((value for value in options if "bachelor" in normalize(value)), "Bachelors")
@@ -1633,7 +1842,7 @@ def _extract_fields(page: Page) -> list[dict]:
               accept: el.getAttribute('accept') || '',
               multiple: !!el.multiple,
               required: !!el.required || el.getAttribute('aria-required') === 'true',
-              disabled: !!el.disabled,
+              disabled: el.matches(':disabled'),
               checked: !!el.checked,
               value: el.value || '',
               visible,
@@ -2220,6 +2429,9 @@ def _wait_for_application_ui(page: Page, timeout_ms: int = 30_000) -> list[dict]
             and "/apply/" in parsed.path.casefold()
         )
         fields = _extract_fields(page)
+        if _workday_email_sign_in_action(page) or _workday_account_needs_email_verification(page):
+            _hide_agent_pointer(page)
+            return fields
         if any(field.get("visible") and not field.get("disabled") for field in fields):
             is_workday = "myworkdayjobs.com" in (urlparse(page.url).hostname or "").casefold()
             if not is_workday or "/apply/" in urlparse(page.url).path.casefold():
@@ -2232,10 +2444,10 @@ def _wait_for_application_ui(page: Page, timeout_ms: int = 30_000) -> list[dict]
             if workday_field_only_checks >= 3:
                 _hide_agent_pointer(page)
                 return fields
-        ready_action_terms = APPLY_START_TERMS + NAVIGATION_TERMS + SUBMIT_TERMS
+        ready_action_terms = NAVIGATION_TERMS + SUBMIT_TERMS
         if not is_workday_deep_apply:
-            ready_action_terms += SIGN_IN_TERMS + CREATE_ACCOUNT_TERMS
-        if _find_action(page, ready_action_terms):
+            ready_action_terms += APPLY_START_TERMS + SIGN_IN_TERMS + CREATE_ACCOUNT_TERMS
+        if _find_action(page, ready_action_terms, native_only=is_workday_deep_apply):
             _hide_agent_pointer(page)
             return fields
         if (
@@ -2261,7 +2473,7 @@ def _wait_for_action(page: Page, terms: list[str], timeout_ms: int = 12_000) -> 
     return None
 
 
-def _find_action(page: Page, terms: list[str]) -> Locator | None:
+def _find_action(page: Page, terms: list[str], *, native_only: bool = False) -> Locator | None:
     normalized_terms = [normalize(term) for term in terms]
     workday_selectors = []
     if any(term in normalized_terms for term in {"sign in", "log in", "login"}):
@@ -2290,13 +2502,17 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
         candidate = page.locator(selector).first
         try:
             if candidate.count() and candidate.is_visible(timeout=1_000) and candidate.is_enabled(timeout=1_000):
+                if native_only and not candidate.evaluate(
+                    "el => el.matches('a, button, [role=button], input[type=button], input[type=submit]')"
+                ):
+                    continue
                 return candidate
         except Exception:
             continue
     try:
         action_id = page.evaluate(
             r"""
-            (terms) => {
+            ({terms, nativeOnly}) => {
               const normalize = (value) => String(value || '').toLowerCase()
                 .replace(/[^a-z0-9א-ת+/# ]/g, ' ').replace(/\s+/g, ' ').trim();
               const elements = [...document.querySelectorAll(
@@ -2308,6 +2524,7 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
                 const rect = el.getBoundingClientRect();
                 if (style.display === 'none' || style.visibility === 'hidden' || !rect.width || !rect.height || el.disabled) return false;
                 const nativeAction = el.matches('a, button, [role="button"], input[type="button"], input[type="submit"]');
+                if (nativeOnly && !nativeAction) return false;
                 const automationId = String(el.getAttribute('data-automation-id') || '')
                   .replace(/([a-z])([A-Z])/g, '$1 $2');
                 const text = normalize(nativeAction
@@ -2330,7 +2547,7 @@ def _find_action(page: Page, terms: list[str]) -> Locator | None:
               return match.dataset.jobpilotActionId;
             }
             """,
-            normalized_terms,
+            {"terms": normalized_terms, "nativeOnly": native_only},
         )
         return page.locator(f'[data-jobpilot-action-id="{action_id}"]').first if action_id else None
     except Exception:
@@ -3250,8 +3467,9 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 continue
             if "citizenship" in key:
                 continue
-            candidate = None
-            if "language" in key and isinstance(languages, list) and languages:
+            known = known_value(label, "select", profile, answers, memories)
+            candidate = str(known.value) if known and known.source == "resolved_answer" else None
+            if not candidate and "language" in key and isinstance(languages, list) and languages:
                 block_match = re.search(r"languages?\s*(\d+)", key)
                 block_index = max(0, int(block_match.group(1)) - 1) if block_match else 0
                 item = languages[min(block_index, len(languages) - 1)]
@@ -3262,9 +3480,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                 else:
                     candidate = str(item.get("name", ""))
             if not candidate:
-                known = known_value(label, "select", profile, answers, memories)
                 candidate = str(known.value) if known else ""
-            if "degree" in key:
+            if "degree" in key and (known is None or known.source != "resolved_answer"):
                 degree_key = normalize(candidate)
                 if any(term in degree_key for term in ("b sc", "bachelor")):
                     candidate = "Bachelors"
@@ -3272,7 +3489,8 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     candidate = "Masters"
                 elif any(term in degree_key for term in ("ph d", "doctor")):
                     candidate = "Doctorate"
-            if "city" in key and (not candidate or normalize(candidate) in {"israel", "il"}):
+            if ("city" in key and (not candidate or normalize(candidate) in {"israel", "il"})
+                    and (known is None or known.source != "resolved_answer")):
                 candidate = _job_city_candidate(profile, job)
             if not candidate:
                 # Open unresolved compact dropdowns once so their real choices are
@@ -3328,13 +3546,25 @@ def _fill_custom_comboboxes(page: Page, profile: dict, answers: dict, memories: 
                     pass
             option = None
             for _ in range(8):
-                option = _best_visible_option(page, candidate)
+                if known is not None and known.source == "resolved_answer":
+                    visible_options = page.locator('[role="option"]:visible, [data-automation-id*="promptOption"]:visible')
+                    option = next((visible_options.nth(i) for i in range(visible_options.count())
+                                   if normalize(visible_options.nth(i).inner_text(timeout=500)) == normalize(candidate)), None)
+                else:
+                    option = _best_visible_option(page, candidate)
                 if option:
                     break
                 page.wait_for_timeout(250)
             if option:
                 option.click(timeout=2_000)
                 filled.append({"label": label or "בחירה", "source": "profile"})
+            elif known is not None and known.source == "resolved_answer":
+                control.press("Escape")
+                raise ApplicationBlocked(
+                    "choice_required", label or "בחירה נדרשת", label or "בחירה נדרשת",
+                    "הבחירה שאושרה אינה זמינה בטופס הנוכחי. נדרשת בדיקה לפני המשך.",
+                    page.url, initial_options,
+                )
             elif searchable_input and any(term in key for term in ("city", "location", "country")):
                 # Location autocompletes occasionally expose their first filtered
                 # result only to keyboard navigation (or race while mounting the
@@ -3628,7 +3858,7 @@ def _diagnose_workday_profile_controls(page: Page) -> None:
         controls = page.evaluate(
             """() => [...document.querySelectorAll('button, input, [role="combobox"], [role="option"]')]
               .filter(el => { const r = el.getBoundingClientRect(); return r.width && r.height; })
-              .map(el => ({tag: el.tagName, text: (el.innerText || el.value || '').trim().slice(0, 120),
+              .map(el => ({tag: el.tagName, text: (el.innerText || '').trim().slice(0, 120),
                 id: el.id || '', placeholder: el.getAttribute('placeholder') || '',
                 aria: el.getAttribute('aria-label') || '', role: el.getAttribute('role') || '',
                 automation: el.getAttribute('data-automation-id') || '',

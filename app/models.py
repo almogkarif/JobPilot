@@ -364,6 +364,8 @@ class Blocker(UserOwnedMixin, Base):
     remember_answer: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    wait_attempt_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    wait_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     application: Mapped[Application] = relationship(back_populates="blockers")
 

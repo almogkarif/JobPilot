@@ -29,6 +29,7 @@ import httpx
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import and_, asc, case, desc, func, literal, or_, select, update
 from sqlalchemy.orm import Session, defer, joinedload, load_only, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 from starlette.concurrency import run_in_threadpool
 
 from app.utils import split_name
@@ -41,7 +42,7 @@ from .models import (AnswerMemory, Application, ApplicationAttempt, ApplicationC
                      OpenAnswerDraft, Profile, RankingSettings, ResumeProfile, Source, UserJobState, utcnow)
 from .schemas import (
     AnswerLibraryBulkUpdate, AnswerLibraryUpdate, ApplicationUpdate, CareerTrackSwitch, DraftRequest,
-    AgentBlockerRequest,
+    AgentBlockerRequest, AgentQuestionAnswerRequest,
     AgentResultRequest, AgentProgressRequest, AgentSecurityCodeRequest, CampaignUpdate,
     DesiredTitleUpdateRequest, ColorPaletteUpdate,
     ImportJobRequest,
@@ -98,7 +99,7 @@ from .services.scan_runtime import (create_scan_run, next_scheduled_at, persiste
 from .services.github_actions import (dispatch_application_workflow,
                                       dispatch_interactive_application_workflow,
                                       dispatch_scan_workflow)
-from .services.application_queue_recovery import queue_health, recover_stuck_auto_applications
+from .services.application_queue_recovery import CLOUD_ADAPTERS, queue_health, recover_stuck_auto_applications
 from .services.seed import initialize_database
 from .services.source_catalog import install_recommended_sources, recommended_source_status
 from .services.source_retirements import retirement_reason, available_source_condition
@@ -815,11 +816,11 @@ def auth_me(request: Request):
                 "authenticated": True, "mode": "local",
                 "user": {"id": "local-owner", "email": "", "role": "user"},
                 "capabilities": {
-                    "application_agent": True, "developer_tools": False, "manual_scan": False,
+                    "application_agent": True, "guided_submission": False, "developer_tools": False, "manual_scan": False,
                     "applications_workspace": False, "automatic_campaigns": False, "write": True,
                 },
             }
-        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True, "developer_tools": True, "manual_scan": True, "applications_workspace": True, "automatic_campaigns": True, "write": True}}
+        return {"authenticated": True, "mode": "local", "user": {"id": "local-owner", "email": "", "role": "admin"}, "capabilities": {"application_agent": True, "guided_submission": True, "developer_tools": True, "manual_scan": True, "applications_workspace": True, "automatic_campaigns": True, "write": True}}
     if not identity:
         raise HTTPException(401, "Authentication required")
     is_guest = bool(getattr(identity, "is_guest", False) or identity.role == "guest")
@@ -835,6 +836,7 @@ def auth_me(request: Request):
         },
         "capabilities": {
             "application_agent": not is_guest,
+            "guided_submission": _guided_submission_allowed(identity),
             "developer_tools": False if is_guest else _developer_tools_allowed(identity),
             "manual_scan": False if is_guest else _developer_tools_allowed(identity),
             "applications_workspace": False if is_guest else _developer_tools_allowed(identity),
@@ -866,6 +868,32 @@ def _developer_tools_allowed(identity) -> bool:
 def _applications_workspace_allowed(identity) -> bool:
     """Keep bulk application controls private while one-job submission stays public."""
     return _developer_tools_allowed(identity)
+
+
+def _guided_submission_allowed(identity) -> bool:
+    """Temporarily restrict guided browser sessions to actual administrators."""
+    if getattr(identity, "preview_regular_user", False) or getattr(identity, "is_guest", False):
+        return False
+    if settings.auth_mode != "supabase":
+        return True
+    return bool(identity and getattr(identity, "role", "") == "admin")
+
+
+def _require_guided_submission(request: Request) -> None:
+    if not _guided_submission_allowed(getattr(request.state, "identity", None)):
+        raise HTTPException(403, "הגשה מונחית זמינה זמנית למנהל בלבד")
+
+
+def _require_guided_application_owner(db: Session) -> None:
+    if db.info.get("preview_regular_user"):
+        raise HTTPException(403, "הגשה מונחית זמינה זמנית למנהל בלבד")
+    if settings.auth_mode != "supabase":
+        return
+    role = db.scalar(select(AppIdentity.role).where(
+        AppIdentity.auth_user_id == current_user_id(db),
+    ).limit(1))
+    if role != "admin":
+        raise HTTPException(403, "הגשה מונחית זמינה זמנית למנהל בלבד")
 
 
 def _require_applications_workspace(request: Request) -> None:
@@ -1043,6 +1071,15 @@ def _automatic_application_query_filter():
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("https://yaelgroup.com/jobs/order/%")
+        | apply_url.like("https://www.ness-tech.co.il/careers/job/%")
+        | apply_url.like("https://www.speedata.io/careers/%")
+        | apply_url.like("https://www.island.io/positions/position-%")
+        | apply_url.like("https://island.io/positions/position-%")
+        | apply_url.like("https://www.global-e.com/careers/%-%")
+        | apply_url.like("https://global-e.com/careers/%-%")
+        | apply_url.like("https://www.global-e.com/en/careers/%-%")
+        | apply_url.like("https://global-e.com/en/careers/%-%")
+        | apply_url.like("https://trieye.tech/careers/co/%/%/%/all%")
         | apply_url.like("https://www.one1.co.il/?share_job_id=%")
         | apply_url.like("https://www.one1.co.il/careers/?job_id=%")
         | apply_url.like("https://www.aman.co.il/careers/%/%")
@@ -1088,6 +1125,15 @@ def _automatic_submit_sort_order():
         | apply_url.like("https://g-stat.com/jobs/%") | apply_url.like("https://www.g-stat.com/jobs/%")
         | apply_url.like("https://careers.eladsoft.com/jobs/%")
         | apply_url.like("https://yaelgroup.com/jobs/order/%")
+        | apply_url.like("https://www.ness-tech.co.il/careers/job/%")
+        | apply_url.like("https://www.speedata.io/careers/%")
+        | apply_url.like("https://www.island.io/positions/position-%")
+        | apply_url.like("https://island.io/positions/position-%")
+        | apply_url.like("https://www.global-e.com/careers/%-%")
+        | apply_url.like("https://global-e.com/careers/%-%")
+        | apply_url.like("https://www.global-e.com/en/careers/%-%")
+        | apply_url.like("https://global-e.com/en/careers/%-%")
+        | apply_url.like("https://trieye.tech/careers/co/%/%/%/all%")
         | apply_url.like("https://www.one1.co.il/?share_job_id=%")
         | apply_url.like("https://www.one1.co.il/careers/?job_id=%")
         | apply_url.like("https://www.aman.co.il/careers/%/%")
@@ -3781,6 +3827,77 @@ def _result_attempt(db: Session, application_id: int, attempt_id: int | None = N
     return attempt
 
 
+LIVE_QUESTION_KINDS = {"choice_required", "unknown_field", "missing_profile_detail"}
+
+
+def _question_time(value: datetime | None) -> datetime | None:
+    return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+
+
+def _latest_question_attempt_id(application_id: int, owner_id: str):
+    return select(ApplicationAttempt.id).where(
+        ApplicationAttempt.application_id == application_id, ApplicationAttempt.user_id == owner_id,
+    ).order_by(desc(ApplicationAttempt.started_at), desc(ApplicationAttempt.id)).limit(1).correlate(None).scalar_subquery()
+
+
+def _question_attempt_scope(application_id: int, attempt_id: int, owner_id: str, *, statuses=("needs_input",)):
+    return select(Application.id).join(Job, Application.job_id == Job.id).join(
+        ApplicationAttempt, ApplicationAttempt.application_id == Application.id,
+    ).where(
+        Application.id == application_id, Application.user_id == owner_id,
+        Application.status.in_(statuses), Job.is_active.is_(True),
+        ApplicationAttempt.id == attempt_id, ApplicationAttempt.user_id == owner_id,
+        ApplicationAttempt.status == "running",
+        ApplicationAttempt.id == _latest_question_attempt_id(application_id, owner_id),
+    ).correlate(None).exists()
+
+
+def _question_wait_payload(blocker: Blocker, application_status: str) -> dict:
+    if not blocker.wait_attempt_id:
+        return {}
+    deadline = _question_time(blocker.wait_until)
+    return {
+        "wait_until": deadline,
+        "live_waiting": bool(blocker.status == "open" and application_status == "needs_input"
+                             and blocker.wait_attempt_id and deadline and deadline > utcnow()),
+    }
+
+
+def _registered_question_lease(db: Session, application_id: int, payload: AgentBlockerRequest):
+    owner_id = current_user_id(db)
+    latest_blocker = select(Blocker.id).where(
+        Blocker.application_id == application_id, Blocker.user_id == owner_id,
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1).correlate(None).scalar_subquery()
+    return db.execute(select(Blocker.id, Blocker.status, Blocker.wait_until).where(
+        Blocker.application_id == application_id, Blocker.user_id == owner_id,
+        Blocker.id == latest_blocker, Blocker.wait_attempt_id == payload.attempt_id,
+        Blocker.kind == payload.kind, Blocker.field_label == payload.field_label,
+        Blocker.question == payload.question, Blocker.options_json == dumps(payload.options),
+        Blocker.page_url == payload.page_url, Blocker.wait_until.is_not(None),
+    ).limit(1)).mappings().first()
+
+
+def _question_registration_payload(blocker_id: int, status: str, wait_until: datetime | None) -> dict:
+    deadline = _question_time(wait_until)
+    return {"id": blocker_id, "status": status, "wait_until": deadline,
+            "live_waiting": bool(status == "open" and deadline and deadline > utcnow())}
+
+
+def _has_live_question_wait(application: Application) -> bool:
+    return any(_question_wait_payload(blocker, application.status).get("live_waiting", False)
+               for blocker in application.blockers)
+
+
+def _reject_leased_question_failure(db: Session, application: Application, attempt: ApplicationAttempt | None):
+    if application.status in {"skipped", "saved", "new", "manual_required"}:
+        raise HTTPException(409, "Application attempt is no longer active")
+    if application.status != "applying" and attempt and db.scalar(select(Blocker.id).where(
+        Blocker.application_id == application.id, Blocker.user_id == current_user_id(db),
+        Blocker.wait_attempt_id == attempt.id, Blocker.status == "open",
+    ).limit(1)):
+        raise HTTPException(409, "The question is still waiting for a user answer")
+
+
 @app.delete("/api/jobs/{job_id}")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
     job = _active_job_or_404(db, job_id)
@@ -3802,7 +3919,9 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/jobs/{job_id}/queue")
-async def queue_job(job_id: int, payload: QueueApplicationRequest, db: Session = Depends(get_db)):
+async def queue_job(job_id: int, payload: QueueApplicationRequest, request: Request, db: Session = Depends(get_db)):
+    if payload.mode == "audit":
+        _require_guided_submission(request)
     _repair_existing_ashby_spam_blocks(db)
     if payload.mode not in {"review", "audit", "batch", "auto"}:
         raise HTTPException(400, "Invalid mode")
@@ -4291,11 +4410,20 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
     progressively slower as submission history grew.
     """
     track = normalize_track(db.scalar(select(Profile.active_career_track).order_by(Profile.id).limit(1)))
+    live_blocker = select(Blocker.wait_until).where(
+        Blocker.application_id == Application.id, Blocker.user_id == Application.user_id,
+        Blocker.status == "open", Blocker.wait_attempt_id.is_not(None),
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1).correlate(Application).scalar_subquery()
+    live_attempt = select(Blocker.wait_attempt_id).where(
+        Blocker.application_id == Application.id, Blocker.user_id == Application.user_id,
+        Blocker.status == "open", Blocker.wait_attempt_id.is_not(None),
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1).correlate(Application).scalar_subquery()
     rows = db.execute(
         select(
             Application.id, Application.status, Application.mode, Application.attempt_count,
             Application.updated_at, func.substr(Job.title, 1, 300).label("title"),
             func.substr(Job.company, 1, 200).label("company"),
+            live_blocker.label("wait_until"), live_attempt.label("wait_attempt_id"),
         )
         .join(Job, Application.job_id == Job.id)
         .where(
@@ -4321,6 +4449,10 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
         {
             "id": row.id, "status": row.status, "mode": row.mode,
             "attempt_count": int(row.attempt_count or 0), "updated_at": row.updated_at,
+            **({"wait_until": _question_time(row.wait_until),
+                "live_waiting": bool(row.status == "needs_input" and row.wait_until
+                                     and _question_time(row.wait_until) > utcnow())}
+               if row.wait_attempt_id else {}),
             "job": {"title": row.title, "company": row.company},
         }
         for row in rows
@@ -4704,7 +4836,8 @@ def application_tracking_status(application_id: int, request: Request, db: Sessi
         if latest_attempt else "0"
     )
     blocker_token = (
-        f"{latest_blocker.id}:{latest_blocker.status}" if latest_blocker else "0"
+        f"{latest_blocker.id}:{latest_blocker.status}:{latest_blocker.wait_attempt_id or 0}:"
+        f"{latest_blocker.wait_until.isoformat() if latest_blocker.wait_until else ''}" if latest_blocker else "0"
     )
     running_ids = [int(item.get("id") or 0) for item in queue.get("running") or []]
     queue_token = (
@@ -4817,16 +4950,22 @@ def update_answer_draft(draft_id: int, payload: DraftRequest, db: Session = Depe
 
 @app.post("/api/applications/{application_id}/retry")
 async def retry_application(
-    application_id: int, auto_submit: bool = False, confirm_not_submitted: bool = False,
+    application_id: int, request: Request, auto_submit: bool = False, confirm_not_submitted: bool = False,
     prefer_local: bool = False, interactive: bool = False,
     db: Session = Depends(get_db),
 ):
+    if interactive:
+        _require_guided_submission(request)
     _repair_existing_ashby_spam_blocks(db)
     application = _active_application_or_404(db, application_id)
+    if application.mode == "audit" and not auto_submit:
+        _require_guided_submission(request)
     if not application.job.is_active:
         raise HTTPException(409, "המשרה כבר אינה פעילה ולכן לא ניתן להגיש אליה שוב")
     if application.status == "submitted":
         raise HTTPException(409, "Already submitted")
+    if _has_live_question_wait(application):
+        raise HTTPException(409, "The current browser is still waiting for an answer")
     if interactive and not _application_auto_submit_supported(application):
         raise HTTPException(409, "לא ניתן לפתוח סוכן גלוי עבור המשרה הזו")
     if interactive and application.status in {"queued", "applying"} and application.mode != "audit" and not application.last_error:
@@ -5531,6 +5670,8 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
         raise HTTPException(409, "המשרה כבר אינה פעילה ולכן לא ניתן להמשיך בהגשה")
     if blocker.status != "open":
         raise HTTPException(409, "Blocker is already resolved")
+    if blocker.kind in {"email_verification_required", "account_creation_failed", "account_validation_required"}:
+        raise HTTPException(409, "יש להשלים את אימות החשבון או לתקן את פרטיו באתר החברה; אין לשמור סיסמה או קישור אימות כתשובה")
 
     application = blocker.application
     if blocker.kind == ASHBY_SPAM_BLOCKER_KIND or application.status == "manual_required":
@@ -5655,14 +5796,62 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
             raise HTTPException(400, "Choose one of the available options")
         answer = matched_option
 
+    resumed_in_place = False
+    waiting_attempt = None
+    answers[answer_key] = answer
+    if blocker.wait_attempt_id:
+        waiting_attempt = _result_attempt(db, application.id)
+        if (application.status != "needs_input" or not waiting_attempt
+                or waiting_attempt.id != blocker.wait_attempt_id):
+            raise HTTPException(409, "The worker is no longer waiting for this question")
+        deadline = _question_time(blocker.wait_until)
+        resolved_at = utcnow()
+        if deadline and resolved_at < deadline and waiting_attempt.status == "running":
+            if max(len(answer), len(answer_key)) > 2000:
+                raise HTTPException(400, "Answer exceeds the live-answer limit")
+            owner_id = current_user_id(db)
+            resumed = db.execute(update(Application).where(
+                Application.id == application.id, Application.user_id == owner_id,
+                _question_attempt_scope(application.id, waiting_attempt.id, owner_id),
+            ).values(status="applying", answers_json=dumps(answers), last_error="")
+                .execution_options(synchronize_session=False))
+            accepted = db.execute(update(Blocker).where(
+                Blocker.id == blocker.id, Blocker.user_id == owner_id, Blocker.status == "open",
+                Blocker.wait_attempt_id == waiting_attempt.id, Blocker.wait_until == blocker.wait_until,
+                Blocker.wait_until > resolved_at,
+            ).values(status="resolved", answer=answer, remember_answer=payload.remember, resolved_at=resolved_at)
+                .execution_options(synchronize_session=False)) if resumed.rowcount == 1 else None
+            if not accepted or accepted.rowcount != 1:
+                db.rollback()
+                db.refresh(blocker)
+                current_attempt = _result_attempt(db, application.id)
+                if (blocker.status != "open" or blocker.application.status != "needs_input"
+                        or not blocker.application.job.is_active or not current_attempt
+                        or current_attempt.id != waiting_attempt.id
+                        or blocker.wait_attempt_id != waiting_attempt.id):
+                    raise HTTPException(409, "The worker is no longer waiting for this question")
+                # Release won the race. Save the answer through the ordinary new-attempt path.
+                application = blocker.application
+                answers = loads(application.answers_json, {})
+                answers[answer_key] = answer
+            else:
+                resumed_in_place = True
+                for key, value in {"status": "applying", "answers_json": dumps(answers), "last_error": ""}.items():
+                    set_committed_value(application, key, value)
+                for key, value in {"status": "resolved", "answer": answer, "remember_answer": payload.remember,
+                                   "resolved_at": resolved_at}.items():
+                    set_committed_value(blocker, key, value)
+        if not resumed_in_place and waiting_attempt.status == "running":
+            waiting_attempt.status = "blocked"
+            waiting_attempt.finished_at = utcnow()
+
     blocker.answer = answer
     blocker.remember_answer = payload.remember
     blocker.status = "resolved"
-    blocker.resolved_at = utcnow()
-    answers[answer_key] = answer
+    blocker.resolved_at = blocker.resolved_at if resumed_in_place else utcnow()
     application.answers_json = dumps(answers)
-    application.status = "queued"
-    set_job_status(db, application.job, "queued")
+    application.status = "applying" if resumed_in_place else "queued"
+    set_job_status(db, application.job, application.status)
     application.last_error = ""
     # Every user-approved answer is remembered automatically for this exact company.
     # This makes repeated ATS questions disappear on later applications to the same
@@ -5681,7 +5870,9 @@ async def resolve_blocker(blocker_id: int, payload: ResolveBlockerRequest, db: S
     db.commit()
     db.refresh(blocker)
     await _dispatch_resolved_auto_application(db, application)
-    return _blocker_dict(blocker)
+    response = _blocker_dict(blocker)
+    response["resumed_in_place"] = resumed_in_place
+    return response
 
 
 @app.post("/api/applications/{application_id}/mark-submitted")
@@ -6436,7 +6627,6 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
     profile = get_user_profile(db)
     track = active_track(profile)
     if worker_type == "cloud":
-        cloud_adapters = {"aman", "one", "yael", "elad", "gstat", "applied_materials", "elbit", "greenhouse", "comeet", "lever", "ashby", "smartrecruiters", "workday"}
         # A cloud workflow is an authorization for exactly one application. Never
         # let an old or delayed GitHub run consume another queued job: doing so can
         # submit to a company the user explicitly did not select. Queue ordering is
@@ -6449,7 +6639,7 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
             and anchor.job.is_active
             and adapter_payload_for_job(anchor.job)["supports_automatic_submit"]
             and detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else "").key
-            in cloud_adapters
+            in CLOUD_ADAPTERS
             and automatic_submit_ready_for_profile(
                 detect_adapter(anchor.job.apply_url, anchor.job.source.kind if anchor.job.source else ""), profile
             )
@@ -6471,6 +6661,8 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         )), None)
     if not application:
         return {"task": None}
+    if application.mode == "audit":
+        _require_guided_application_owner(db)
     # Legacy/retried applications may predate resume selection. Hydrate the chosen
     # document before the cloud worker claims the task so a normal Resume input
     # never becomes a misleading request for an additional file.
@@ -6500,10 +6692,16 @@ def agent_next_task(request: Request, agent_id: str, token: str = "", worker_typ
         .where(
             Blocker.application_id == application.id,
             Blocker.user_id == application.user_id,
-            Blocker.kind == "security_code_required",
-            Blocker.status == "open",
+            or_(and_(Blocker.kind == "security_code_required", Blocker.status == "open"),
+                Blocker.wait_attempt_id.is_not(None)),
         )
-        .values(status="resolved", answer="", remember_answer=False, resolved_at=utcnow())
+        .values(
+            status=case((Blocker.kind == "security_code_required", "resolved"), else_=Blocker.status),
+            answer=case((Blocker.kind == "security_code_required", ""), else_=Blocker.answer),
+            remember_answer=case((Blocker.kind == "security_code_required", False), else_=Blocker.remember_answer),
+            resolved_at=case((Blocker.kind == "security_code_required", utcnow()), else_=Blocker.resolved_at),
+            wait_attempt_id=None, wait_until=None,
+        )
         .execution_options(synchronize_session=False)
     )
     db.commit()
@@ -6622,6 +6820,10 @@ def _deterministic_ats_anti_automation_block(application: Application, payload: 
         return False
     if adapter == "gstat":
         return diagnostics.get("gstat_response_outcome") == "blocked"
+    if adapter == "ness":
+        return diagnostics.get("ness_response_outcome") == "blocked"
+    if adapter == "speedata":
+        return diagnostics.get("speedata_response_outcome") == "blocked"
     if adapter == "elad":
         return diagnostics.get("elad_response_outcome") == "blocked"
     if adapter == "yael":
@@ -6652,11 +6854,86 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     _check_agent_token(db, payload.token, application_id=application_id)
     payload.page_url = str(payload.page_url or "")[:1200]
     payload.screenshot_path = str(payload.screenshot_path or "")[:700]
+    live_wait = bool(payload.wait_seconds)
+    if live_wait:
+        if payload.kind not in LIVE_QUESTION_KINDS or payload.diagnostics.get("request_sent") is True:
+            raise HTTPException(400, "This blocker cannot wait for an answer in the current browser")
+        if not payload.attempt_id:
+            raise HTTPException(409, "Application attempt is no longer active")
+        if max(len(payload.question), len(payload.field_label)) > 2000:
+            raise HTTPException(400, "Question exceeds the live-answer limit")
+        payload.options = [option.strip() for option in payload.options if option.strip()]
+        # Reserve the application row without changing its status. A response
+        # may have been lost after the user already answered this exact lease.
+        reserved = db.execute(update(Application).where(
+            Application.id == application_id, Application.user_id == current_user_id(db),
+            Application.status.in_(("applying", "needs_input")),
+            _question_attempt_scope(application_id, payload.attempt_id, current_user_id(db),
+                                    statuses=("applying", "needs_input")),
+        ).values(status=Application.status).execution_options(synchronize_session=False))
+        if reserved.rowcount != 1:
+            db.rollback()
+            raise HTTPException(409, "Application attempt is no longer active")
+        replay = _registered_question_lease(db, application_id, payload)
+        if replay:
+            db.commit()
+            return _question_registration_payload(replay["id"], replay["status"], replay["wait_until"])
     application = resolve_application(db, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
     if application.status == "submitted":
         raise HTTPException(409, "Application already submitted")
+    previous_status = application.status
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    if (not live_wait and payload.attempt_id and attempt
+            and payload.kind in LIVE_QUESTION_KINDS and payload.diagnostics.get("request_sent") is not True):
+        payload.options = [option.strip() for option in payload.options if option.strip()]
+        replay = _registered_question_lease(db, application_id, payload)
+        if replay and attempt.status != "running":
+            if replay["status"] == "resolved" and application.status == "queued":
+                return {**_question_registration_payload(replay["id"], "resolved", replay["wait_until"]),
+                        "auto_resolved": True}
+            raise HTTPException(409, "Application attempt is no longer active")
+        if replay:
+            reserved = db.execute(update(Application).where(
+                Application.id == application_id, Application.user_id == current_user_id(db),
+                Application.status.in_(("applying", "needs_input")),
+                _question_attempt_scope(application_id, attempt.id, current_user_id(db),
+                                        statuses=("applying", "needs_input")),
+            ).values(status=Application.status).execution_options(synchronize_session=False))
+            if reserved.rowcount != 1:
+                db.rollback()
+                raise HTTPException(409, "Application attempt is no longer active")
+            replay = _registered_question_lease(db, application_id, payload)
+        if replay and replay["status"] == "resolved":
+            # Both registration replies were lost and this browser is closing.
+            # Keep the saved answer and use the ordinary safe restart path.
+            application.status = "queued"
+            application.last_error = ""
+            attempt.status = "blocked"
+            attempt.finished_at = utcnow()
+            set_job_status(db, application.job, "queued")
+            _record_application_event(
+                db, application, "question_wait_restarted", from_status=previous_status, to_status="queued",
+                actor="agent", message="התשובה נשמרה; ההגשה תחודש לאחר אובדן תגובת השרת",
+                details={"attempt_id": attempt.id, "blocker_id": replay["id"]},
+            )
+            db.commit()
+            await _dispatch_resolved_auto_application(db, application)
+            return {**_question_registration_payload(replay["id"], "resolved", replay["wait_until"]),
+                    "auto_resolved": True}
+    if live_wait:
+        # The reservation above also serializes first registration against
+        # cancellation, replacement attempts and answer resolution.
+        claimed = db.execute(update(Application).where(
+            Application.id == application_id, Application.user_id == current_user_id(db),
+            _question_attempt_scope(application_id, attempt.id, current_user_id(db),
+                                    statuses=("applying", "needs_input")),
+        ).values(status="needs_input").execution_options(synchronize_session=False))
+        if claimed.rowcount != 1:
+            db.rollback()
+            raise HTTPException(409, "Application attempt is no longer active")
+        set_committed_value(application, "status", "needs_input")
     ashby_spam_blocked = classify_ashby_spam_block(
         job=application.job, kind=payload.kind, question=payload.question, explanation=payload.explanation,
     )
@@ -6692,28 +6969,29 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         db.add(blocker)
     if anti_automation_blocked:
         blocker.created_at = utcnow()
+    blocker.wait_attempt_id = attempt.id if live_wait else None
+    blocker.wait_until = utcnow() + timedelta(seconds=payload.wait_seconds) if live_wait else None
     db.flush()
-    attempt = _result_attempt(db, application_id, payload.attempt_id)
     if payload.kind == "duplicate_submission":
         _verify_existing_submission(db, application, blocker, attempt)
         db.commit()
         db.refresh(blocker)
         return _blocker_dict(blocker)
-    if _auto_requeue_greenhouse_native_url(
+    if not live_wait and _auto_requeue_greenhouse_native_url(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):
         await _dispatch_resolved_auto_application(db, application)
         payload_out = _blocker_dict(blocker)
         payload_out["auto_resolved"] = True
         return payload_out
-    if _auto_requeue_stored_grade_sheet(
+    if not live_wait and _auto_requeue_stored_grade_sheet(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):
         await _dispatch_resolved_auto_application(db, application)
         payload_out = _blocker_dict(blocker)
         payload_out["auto_resolved"] = True
         return payload_out
-    if _auto_requeue_profile_identity(
+    if not live_wait and _auto_requeue_profile_identity(
         db, application, blocker, source="agent_blocked", attempt=attempt
     ):
         await _dispatch_resolved_auto_application(db, application)
@@ -6721,7 +6999,6 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
         payload_out["auto_resolved"] = True
         return payload_out
 
-    previous_status = application.status
     uncertain_submission = effective_kind == "confirmation_missing"
     application.status = (
         "manual_required" if anti_automation_blocked
@@ -6736,12 +7013,12 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
     compact_error = f"[blocked:{effective_kind}] {blocker.explanation or blocker.question or blocker.field_label}".strip()
     application.last_error = compact_error[:2000]
     if attempt:
-        attempt.status = "pending_verification" if uncertain_submission else "blocked"
+        attempt.status = "running" if live_wait else "pending_verification" if uncertain_submission else "blocked"
         attempt.verification_state = "uncertain" if uncertain_submission else "none"
         attempt.confirmation_url = payload.page_url
         attempt.screenshot_path = payload.screenshot_path
         attempt.error = compact_error[:2000]
-        attempt.finished_at = utcnow()
+        attempt.finished_at = None if live_wait else utcnow()
     event_type = (
         "anti_automation_blocked" if anti_automation_blocked
         else "verification_pending" if uncertain_submission
@@ -6760,7 +7037,88 @@ async def agent_blocked(application_id: int, payload: AgentBlockerRequest, db: S
                     message=payload.question or payload.explanation))
     db.commit()
     db.refresh(blocker)
+    if live_wait:
+        return _question_registration_payload(blocker.id, blocker.status, blocker.wait_until)
     return _blocker_dict(blocker)
+
+
+def _question_answer_row(db: Session, application_id: int, payload: AgentQuestionAnswerRequest):
+    owner_id = current_user_id(db)
+    latest_blocker = select(Blocker.id).where(
+        Blocker.application_id == application_id, Blocker.user_id == owner_id,
+    ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1).correlate(None).scalar_subquery()
+    answer_key = case(
+        (Blocker.options_json != "[]", func.coalesce(func.nullif(Blocker.question, ""), Blocker.field_label)),
+        else_=func.coalesce(func.nullif(Blocker.field_label, ""), Blocker.question),
+    )
+    return db.execute(select(
+        Application.status.label("application_status"), Job.is_active,
+        ApplicationAttempt.status.label("attempt_status"), Blocker.status.label("blocker_status"),
+        Blocker.wait_until, Blocker.resolved_at,
+        func.substr(Blocker.answer, 1, 2001).label("answer"),
+        func.substr(answer_key, 1, 2001).label("answer_key"),
+    ).select_from(Blocker).join(Application, Blocker.application_id == Application.id).join(
+        Job, Application.job_id == Job.id,
+    ).join(ApplicationAttempt, ApplicationAttempt.application_id == Application.id).where(
+        Application.id == application_id, Application.user_id == owner_id,
+        Blocker.id == payload.blocker_id, Blocker.user_id == owner_id,
+        Blocker.wait_attempt_id == payload.attempt_id, Blocker.id == latest_blocker,
+        ApplicationAttempt.id == payload.attempt_id, ApplicationAttempt.user_id == owner_id,
+        ApplicationAttempt.id == _latest_question_attempt_id(application_id, owner_id),
+    ).limit(1)).mappings().first()
+
+
+def _timely_question_answer(row) -> dict | None:
+    if not row or not row["is_active"] or row["application_status"] != "applying" or row["attempt_status"] != "running":
+        return None
+    deadline, resolved_at = _question_time(row["wait_until"]), _question_time(row["resolved_at"])
+    if (row["blocker_status"] != "resolved" or not deadline or not resolved_at or resolved_at > deadline
+            or not row["answer"] or max(len(row["answer"]), len(row["answer_key"] or "")) > 2000):
+        return None
+    return {"state": "answered", "answer": row["answer"], "answer_key": row["answer_key"]}
+
+
+@app.post("/api/agent/tasks/{application_id}/question-answer")
+def agent_question_answer(application_id: int, payload: AgentQuestionAnswerRequest, db: Session = Depends(get_db)):
+    """Poll one leased question; never download the task, profile or job text."""
+    _check_agent_token(db, payload.token, application_id=application_id)
+    row = _question_answer_row(db, application_id, payload)
+    answered = _timely_question_answer(row)
+    if answered:
+        return answered
+    if (not row or not row["is_active"] or row["application_status"] != "needs_input"
+            or row["blocker_status"] != "open"):
+        return {"state": "stopped"}
+    deadline = _question_time(row["wait_until"])
+    if not deadline and row["attempt_status"] == "blocked":
+        return {"state": "expired"}
+    if row["attempt_status"] != "running" or not deadline:
+        return {"state": "stopped"}
+    if not payload.release and utcnow() < deadline:
+        return {"state": "waiting", "wait_until": deadline}
+
+    owner_id = current_user_id(db)
+    released = db.execute(update(Blocker).where(
+        Blocker.id == payload.blocker_id, Blocker.application_id == application_id,
+        Blocker.user_id == owner_id, Blocker.status == "open",
+        Blocker.wait_attempt_id == payload.attempt_id, Blocker.wait_until == row["wait_until"],
+        _question_attempt_scope(application_id, payload.attempt_id, owner_id),
+    ).values(wait_until=None).execution_options(synchronize_session=False))
+    if released.rowcount != 1:
+        db.rollback()
+        answered = _timely_question_answer(_question_answer_row(db, application_id, payload))
+        return answered or {"state": "stopped"}
+    finished = db.execute(update(ApplicationAttempt).where(
+        ApplicationAttempt.id == payload.attempt_id, ApplicationAttempt.application_id == application_id,
+        ApplicationAttempt.user_id == owner_id, ApplicationAttempt.status == "running",
+        _question_attempt_scope(application_id, payload.attempt_id, owner_id),
+    ).values(status="blocked", finished_at=utcnow()).execution_options(synchronize_session=False))
+    if finished.rowcount != 1:
+        db.rollback()
+        answered = _timely_question_answer(_question_answer_row(db, application_id, payload))
+        return answered or {"state": "stopped"}
+    db.commit()
+    return {"state": "expired"}
 
 
 @app.post("/api/agent/tasks/{application_id}/progress")
@@ -6850,11 +7208,15 @@ def agent_retry_stopped_application(
     submitted, active and queued rows are always excluded.
     """
     _check_agent_token(db, payload.token, application_id=application_id)
+    if payload.interactive:
+        _require_guided_application_owner(db)
     application = resolve_application(db, application_id)
     if not application:
         raise HTTPException(404, "Application not found")
     if not application.job or not application.job.is_active:
         raise HTTPException(409, "Job is no longer active")
+    if _has_live_question_wait(application):
+        raise HTTPException(409, "The current browser is still waiting for an answer")
     if not _application_auto_submit_supported(application):
         raise HTTPException(409, "Application is not eligible for automatic submission")
     if application.status == "queued":
@@ -6992,13 +7354,16 @@ def agent_failed(application_id: int, payload: AgentResultRequest, db: Session =
         raise HTTPException(404, "Application not found")
     if application.status == "submitted":
         raise HTTPException(409, "Application already submitted")
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    _reject_leased_question_failure(db, application, attempt)
+    if payload.attempt_id and application.status == "queued":
+        raise HTTPException(409, "Application attempt is no longer active")
     previous_status = application.status
     uncertain_submission = (payload.verification_state in {"uncertain", "pending"}
                             or previous_status == "verification_pending")
     application.status = "verification_pending" if uncertain_submission else "failed"
     application.last_error = payload.message[:2000]
     set_job_status(db, application.job, application.status)
-    attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "pending_verification" if uncertain_submission else "failed"
         attempt.verification_state = "uncertain" if uncertain_submission else "none"
@@ -7028,6 +7393,10 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
         raise HTTPException(409, "Job is no longer active")
     if application.status == "submitted":
         raise HTTPException(409, "Application already submitted")
+    attempt = _result_attempt(db, application_id, payload.attempt_id)
+    _reject_leased_question_failure(db, application, attempt)
+    if payload.attempt_id and (application.status != "applying" or not attempt or attempt.status != "running"):
+        raise HTTPException(409, "Application attempt is no longer active")
     previous_status = application.status
     application.last_error = ("ה־Agent זיהה חלון שלא הגיב, שמר צילום מצב והחזיר את המשרה לתור. " + payload.message)[:2000]
     if application.attempt_count < 3:
@@ -7041,7 +7410,6 @@ def agent_recover(application_id: int, payload: AgentResultRequest, db: Session 
         db.add(Blocker(application_id=application.id, kind="agent_recovery", question="ה־Agent התאושש מחלון תקוע",
                        explanation=application.last_error, page_url=payload.page_url,
                        screenshot_path=payload.screenshot_path))
-    attempt = _result_attempt(db, application_id, payload.attempt_id)
     if attempt:
         attempt.status = "failed"
         attempt.error = application.last_error
@@ -7473,6 +7841,7 @@ def _application_dict(
             "explanation": blocker_explanation,
             "page_url": active_blocker.page_url,
             "screenshot_url": f"/api/blockers/{active_blocker.id}/screenshot" if active_blocker.screenshot_path else "",
+            **_question_wait_payload(active_blocker, a.status),
         }
         blocker_options = loads(active_blocker.options_json, [])
         if blocker_options:
@@ -7708,5 +8077,6 @@ def _blocker_dict(b: Blocker) -> dict:
         "answer": "" if kind == "security_code_required" else b.answer,
         "remember_answer": b.remember_answer, "created_at": b.created_at,
         "resolved_at": b.resolved_at,
+        **_question_wait_payload(b, b.application.status if b.application else ""),
         "job": _job_dict(b.application.job) if b.application and b.application.job else None,
     }

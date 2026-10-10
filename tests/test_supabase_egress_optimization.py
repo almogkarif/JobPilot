@@ -30,6 +30,8 @@ from tests.test_application_submit_progress import sent_progress_application
 from tests.test_application_resume_recovery import resume_recovery_engine
 from tests.test_guest_dashboard import owner_guest_catalog
 from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
+from tests.test_live_question_wait_api import live_question_api, register as register_live_question
+from tests.test_guided_submission_admin_gate import guided_gate_api
 
 
 @pytest.mark.parametrize('endpoint', ['/api/jobs', '/api/dashboard'])
@@ -182,6 +184,115 @@ def test_twice_daily_due_checks_use_only_existing_bounded_metadata(monkeypatch):
         'description', 'classification_json', 'result_json', 'metadata_json', 'profiles',
     ))
     engine.dispose()
+
+
+@pytest.mark.parametrize('owner', ['admin', 'member'])
+def test_guided_worker_permission_reads_only_one_owner_role(guided_gate_api, owner):
+    ctx = guided_gate_api
+    statements = []
+
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        statements.append((' '.join(sql.lower().split()), parameters))
+
+    event.listen(ctx.engine, 'before_cursor_execute', capture)
+    try:
+        with ctx.sessions() as db:
+            set_user_scope(db, f'guided-gate-{owner}')
+            if owner == 'member':
+                with pytest.raises(main_module.HTTPException) as denied:
+                    main_module._require_guided_application_owner(db)
+                assert denied.value.status_code == 403
+            else:
+                main_module._require_guided_application_owner(db)
+    finally:
+        event.remove(ctx.engine, 'before_cursor_execute', capture)
+    assert len(statements) == 1
+    sql, parameters = statements[0]
+    assert sql.startswith('select app_identity.role from app_identity')
+    assert 'app_identity.auth_user_id = ?' in sql and 'limit ?' in sql
+    assert parameters == (f'guided-gate-{owner}', 1, 0)
+    assert not any(column in sql for column in ('description', 'profiles', 'cv_path', 'answers_json', 'select *'))
+
+
+def test_live_question_poll_projects_one_bounded_row_without_private_payloads(live_question_api):
+    from app.models import Blocker
+    ctx = live_question_api
+    blocker = register_live_question(ctx)
+    ctx.application.answers_json = json.dumps({'private': 'private profile answers ' * 50000})
+    ctx.application.job.description = 'private job description ' * 50000
+    stored = ctx.db.get(Blocker, blocker['id'])
+    stored.options_json = json.dumps(['large unreturned options ' * 50000])
+    ctx.db.commit()
+    application_id, attempt_id = ctx.application.id, ctx.attempt.id
+    ctx.db.expunge_all()
+    statements = []
+
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        statements.append(' '.join(sql.lower().split()))
+
+    event.listen(ctx.db.bind, 'before_cursor_execute', capture)
+    try:
+        for _ in range(5):
+            response = ctx.client.post(f'/api/agent/tasks/{application_id}/question-answer', json={
+                'token': 'live-question-test', 'attempt_id': attempt_id, 'blocker_id': blocker['id'],
+            })
+            assert response.status_code == 200, response.text
+            assert response.json()['state'] == 'waiting' and len(response.content) < 128
+    finally:
+        event.remove(ctx.db.bind, 'before_cursor_execute', capture)
+    assert len(statements) == 5 and all(sql.startswith('select ') for sql in statements)
+    for sql in statements:
+        assert 'limit' in sql and 'substr(blockers.answer' in sql
+        assert 'blockers.wait_attempt_id =' in sql and 'applications.user_id =' in sql
+        assert not any(field in sql for field in ('description', 'answers_json', 'profiles', 'resume_profiles',
+                                                 'evidence_json', 'application_events', 'select *'))
+        assert 'options_json as' not in sql  # CASE inspects it in SQL without returning it.
+
+
+def test_live_question_registration_replay_projects_only_lease_metadata(live_question_api):
+    from app.models import Blocker
+    ctx = live_question_api
+    first = register_live_question(ctx)
+    options = [('large unreturned option ' * 50000).strip()]
+    ctx.application.job.description = 'private job description ' * 50000
+    ctx.application.answers_json = json.dumps({'private': 'private answers ' * 50000})
+    ctx.db.get(Blocker, first['id']).options_json = main_module.dumps(options)
+    ctx.db.commit()
+    application_id, attempt_id = ctx.application.id, ctx.attempt.id
+    ctx.db.expunge_all()
+    statements = []
+
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        statements.append(' '.join(sql.lower().split()))
+
+    event.listen(ctx.db.bind, 'before_cursor_execute', capture)
+    try:
+        response = ctx.client.post(f'/api/agent/tasks/{application_id}/blocked', json={
+            'token': 'live-question-test', 'attempt_id': attempt_id, 'kind': 'choice_required',
+            'field_label': 'Office availability', 'question': 'Can you commute four days each week?',
+            'options': options, 'wait_seconds': 60,
+        })
+        assert response.status_code == 200, response.text
+        assert response.json() == {'id': first['id'], 'status': 'open',
+                                   'wait_until': first['wait_until'], 'live_waiting': True}
+        assert len(response.content) < 160
+    finally:
+        event.remove(ctx.db.bind, 'before_cursor_execute', capture)
+    reads = [sql for sql in statements if sql.startswith('select ')]
+    assert len(reads) == 1
+    assert reads[0].startswith('select blockers.id, blockers.status, blockers.wait_until from blockers')
+    assert 'limit' in reads[0] and 'blockers.user_id =' in reads[0] and 'blockers.wait_attempt_id =' in reads[0]
+    assert 'options_json =' in reads[0] and 'options_json as' not in reads[0]
+    assert not any(field in sql for sql in statements for field in (
+        'description', 'answers_json', 'profiles', 'evidence_json', 'application_events', 'select *'))
+
+
+def test_live_question_countdown_has_no_network_or_extra_ui_polling():
+    javascript = (main_module.STATIC_DIR / 'app.js').read_text()
+    countdown = javascript[javascript.index('let questionWaitCountdownTimer='):javascript.index('function blockerChoiceControlMarkup')]
+    assert 'api(' not in countdown and 'fetch(' not in countdown
+    assert 'document.visibilityState' in countdown and "surface.classList.contains('open')" in countdown
+    assert 'clearInterval(questionWaitCountdownTimer)' in countdown
 
 
 def test_owner_catalog_diagnosis_aggregates_without_catalog_or_private_payloads(owner_catalog):
@@ -1180,7 +1291,11 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
         sql = str(statement.compile(dialect=dialect, compile_kwargs={'literal_binds': True})).lower()
         assert 'careers.eladsoft.com/jobs/' in sql and 'g-stat.com/jobs/' in sql
         assert 'yaelgroup.com/jobs/order/' in sql
+        assert 'www.ness-tech.co.il/careers/job/' in sql
+        assert 'www.speedata.io/careers/' in sql
         assert 'appliedmaterials' in sql and 'myworkdayjobs' in sql
+        for host in ('www.island.io/positions/', 'www.global-e.com/careers/', 'trieye.tech/careers/co/'):
+            assert host in sql
         assert 'www.one1.co.il/?share_job_id=' in sql and 'www.one1.co.il/careers/?job_id=' in sql
         assert 'www.aman.co.il/careers/' in sql
         assert 'kaltura' in sql and 'limit 50' in sql
@@ -1188,7 +1303,7 @@ def test_verified_application_sources_use_existing_bounded_sql_metadata():
         assert 'resume_profiles' not in sql and 'application_events' not in sql
 
 
-@pytest.mark.parametrize('adapter', ['elad', 'yael', 'one', 'aman', 'applied_materials'])
+@pytest.mark.parametrize('adapter', ['elad', 'yael', 'one', 'aman', 'ness', 'speedata', 'applied_materials'])
 def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatch, adapter):
     from agent import run_agent
     def unexpected_download(*args, **kwargs):
@@ -1199,6 +1314,49 @@ def test_verified_cv_only_worker_does_not_download_unused_grade_sheet(monkeypatc
         'profile': {'grade_sheet_path': 'supabase://private/unused.pdf'},
     }
     assert run_agent.prepare_grade_sheet(task) == ''
+
+
+@pytest.mark.parametrize('headed_worker', [False, True])
+def test_applied_materials_attempt_downloads_only_its_selected_resume(monkeypatch, tmp_path, headed_worker):
+    import httpx
+    from agent import run_agent
+    monkeypatch.setattr(run_agent, 'AGENT_CACHE_DIR', tmp_path)
+    calls = []
+    selected_bytes = b'%PDF-1.4 synthetic selected resume'
+    def download(url, **kwargs):
+        calls.append(url)
+        assert url.endswith('/api/agent/tasks/42/resume')
+        return httpx.Response(200, content=selected_bytes,
+                              headers={'content-disposition': 'attachment; filename="selected.pdf"'},
+                              request=httpx.Request('GET', url))
+    monkeypatch.setattr(run_agent.httpx, 'get', download)
+    task = {
+        'submission_adapter': {'key': 'applied_materials'},
+        'application': {'id': 42, 'resume_path': 'supabase://private/selected.pdf'},
+        'profile': {'cv_path': 'supabase://private/different-primary.pdf',
+                    'grade_sheet_path': 'supabase://private/unused.pdf'},
+    }
+    def prepare(_context, current):
+        saved_files.append(run_agent.prepare_resume(current))
+        assert run_agent.prepare_grade_sheet(current) == ''
+    saved_files = []
+    if headed_worker:
+        from types import SimpleNamespace
+        monkeypatch.setattr(run_agent, 'HEADLESS', True)
+        monkeypatch.setattr(run_agent, 'INTERACTIVE_BROWSER', False)
+        task['application']['mode'] = 'auto'
+        context = SimpleNamespace(close=lambda: None)
+        playwright = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=lambda **_: context))
+        monkeypatch.setattr(run_agent, 'run_task', prepare)
+        monkeypatch.setattr(run_agent, 'api', lambda *_args, **_kwargs: pytest.fail('No extra claims or polling'))
+        run_agent.run_claimed_task(playwright, None, task)
+    else:
+        prepare(None, task)
+    assert len(saved_files) == 1
+    saved = saved_files[0]
+    assert len(calls) == 1
+    assert task['profile']['cv_path'] == task['application']['resume_path'] == saved
+    assert Path(saved).read_bytes() == selected_bytes
 
 
 def test_dashboard_scan_suggestions_project_only_three_small_rows(dashboard_diversity_catalog):
@@ -1765,10 +1923,15 @@ def test_runtime_schema_compatibility_adds_only_inert_columns_without_catalog_re
             self.statements.append(sql)
 
     connection = SchemaOnly()
-    assert len(_RUNTIME_COMPATIBILITY_COLUMNS) == 5
+    assert len(_RUNTIME_COMPATIBILITY_COLUMNS) == 6
+    assert _RUNTIME_COMPATIBILITY_COLUMNS['blockers'] == {
+        'wait_attempt_id': 'INTEGER', 'wait_until': 'TIMESTAMP WITH TIME ZONE',
+    }
     for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
         _add_runtime_compatibility_columns(connection, table, set())
-    assert len(connection.statements) == 10
+    assert len(connection.statements) == 12
+    assert 'ALTER TABLE blockers ADD COLUMN wait_attempt_id INTEGER' in connection.statements
+    assert 'ALTER TABLE blockers ADD COLUMN wait_until TIMESTAMP WITH TIME ZONE' in connection.statements
     assert "ALTER TABLE profiles ADD COLUMN color_palettes_json VARCHAR(256) NOT NULL DEFAULT '{}'" in connection.statements
     connection.statements.clear()
     for table, columns in _RUNTIME_COMPATIBILITY_COLUMNS.items():
@@ -2318,46 +2481,3 @@ def test_new_claim_retires_otp_in_one_owner_scoped_write_without_reading_codes(s
     assert 'returning' not in sql and 'select ' not in sql
     assert options['synchronize_session'] is False
     assert not any(sql.startswith('select ') and 'blockers.kind = ' in sql for sql, _, _ in statements)
-
-
-@pytest.mark.parametrize('headed_worker', [False, True])
-def test_applied_materials_attempt_downloads_only_its_selected_resume(monkeypatch, tmp_path, headed_worker):
-    import httpx
-    from agent import run_agent
-    monkeypatch.setattr(run_agent, 'AGENT_CACHE_DIR', tmp_path)
-    calls = []
-    selected_bytes = b'%PDF-1.4 synthetic selected resume'
-    def download(url, **kwargs):
-        calls.append(url)
-        assert url.endswith('/api/agent/tasks/42/resume')
-        return httpx.Response(200, content=selected_bytes,
-                              headers={'content-disposition': 'attachment; filename="selected.pdf"'},
-                              request=httpx.Request('GET', url))
-    monkeypatch.setattr(run_agent.httpx, 'get', download)
-    task = {
-        'submission_adapter': {'key': 'applied_materials'},
-        'application': {'id': 42, 'resume_path': 'supabase://private/selected.pdf'},
-        'profile': {'cv_path': 'supabase://private/different-primary.pdf',
-                    'grade_sheet_path': 'supabase://private/unused.pdf'},
-    }
-    def prepare(_context, current):
-        saved_files.append(run_agent.prepare_resume(current))
-        assert run_agent.prepare_grade_sheet(current) == ''
-    saved_files = []
-    if headed_worker:
-        from types import SimpleNamespace
-        monkeypatch.setattr(run_agent, 'HEADLESS', True)
-        monkeypatch.setattr(run_agent, 'INTERACTIVE_BROWSER', False)
-        task['application']['mode'] = 'auto'
-        context = SimpleNamespace(close=lambda: None)
-        playwright = SimpleNamespace(chromium=SimpleNamespace(launch_persistent_context=lambda **_: context))
-        monkeypatch.setattr(run_agent, 'run_task', prepare)
-        monkeypatch.setattr(run_agent, 'api', lambda *_args, **_kwargs: pytest.fail('No extra claims or polling'))
-        run_agent.run_claimed_task(playwright, None, task)
-    else:
-        prepare(None, task)
-    assert len(saved_files) == 1
-    saved = saved_files[0]
-    assert len(calls) == 1
-    assert task['profile']['cv_path'] == task['application']['resume_path'] == saved
-    assert Path(saved).read_bytes() == selected_bytes

@@ -71,6 +71,12 @@ def test_auto_apply_sql_sort_matches_adapter_support_for_known_ats_families():
         ("manual", "https://www.nextsilicon.com/careers/example"),
         ("manual", "https://www.proteantecs.com/careerinfo?job=example"),
         ("manual", "https://monday.com/careers/example-role"),
+        ("official_careers", "https://www.ness-tech.co.il/careers/job/43334"),
+        ("official_careers", "https://www.speedata.io/careers/senior-sw-engineer-%5Bcodegen%5D"),
+        ("official_careers", "https://www.island.io/positions/position-54_f67"),
+        ("official_careers", "https://www.global-e.com/careers/d9-963/"),
+        ("official_careers", "https://www.global-e.com/careers/d9-963"),
+        ("official_careers", "https://trieye.tech/careers/co/tel-aviv/7E.27B/fpga-and-embedded-sw-platform-team-lead/all"),
     ]
     token = uuid4().hex
     with TestClient(app):

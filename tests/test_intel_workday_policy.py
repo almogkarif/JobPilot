@@ -29,11 +29,13 @@ def test_intel_policy_is_scoped_to_intel_workday_and_declares_safe_defaults():
     policy = application_policy("Intel", INTEL_URL)
     assert policy["id"] == "intel_workday"
     assert policy["workday_start_method"] == "apply_manually"
+    assert policy["account_creation_first"] is True
     assert policy["profile_defaults"] == {
         "country": "Israel",
         "phone_country_code": "+972",
-        "citizenships": ["Citizen (Israel)"],
     }
+    assert not is_intel_workday("Intel", "https://intel.wd1.myworkdayjobs.com.evil.invalid/job/Engineer/apply")
+    assert not is_intel_workday("Intel", "https://another.wd1.myworkdayjobs.com/job/Engineer/apply")
 
 
 def test_all_five_intel_questions_have_stable_company_scoped_keys():

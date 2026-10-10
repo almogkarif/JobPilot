@@ -31,6 +31,8 @@ ADAPTERS = {
     "yael": ATSAdapter("yael", "Yael Group", notes="טופס מועמדות ייעודי למשרה; ההגשה מאושרת רק לאחר תשובת קבלה מפורשת מהשרת."),
     "elad": ATSAdapter("elad", "Elad Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש התואם למשרה."),
     "gstat": ATSAdapter("gstat", "G-STAT Careers", notes="טופס מועמדות ייעודי למשרה; הגשה מאומתת רק לאחר אישור קבלה מפורש."),
+    "ness": ATSAdapter("ness", "Ness Careers", notes="טופס מועמדות ייעודי למשרה; נדרש אישור קבלה מפורש לאחר שליחה יחידה."),
+    "speedata": ATSAdapter("speedata", "Speedata Careers", notes="טופס המשרה המקורי; נדרש אישור קבלה מפורש, ואימות אנושי עוצר את ההגשה."),
     "applied_materials": ATSAdapter("applied_materials", "Applied Materials Careers", notes="טופס אורח ללא חשבון קודם; הקו״ח נבחרים לכל משתמש, ונדרש אישור קבלה מפורש התואם למשרה. אימות אנושי עוצר את ההגשה."),
     "elbit": ATSAdapter("elbit", "Elbit Careers", notes="טופס הגשה ישיר וקצר בעמוד המשרה."),
     "wix": ATSAdapter(
@@ -53,7 +55,7 @@ ADAPTERS = {
 
 
 _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
-    "intel": "Intel הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
+    "intel": "Intel דורשת כרגע הגשה ידנית: הכניסה לחשבון זמינה, אך השלמת טופס ה-Workday הרב-שלבי ואישור קבלת המועמדות עדיין לא אומתו.",
     "applied materials": "הקישור אינו מזהה משרת Applied Materials נתמכת בטופס האורח; נדרשת הגשה ידנית.",
     "check point": "Check Point הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
     "servicenow": "ServiceNow הוסרה מהגשה אוטומטית: SmartRecruiters/DataDome חוסם את דפדפן ה-worker.",
@@ -61,7 +63,7 @@ _AUTOMATIC_SUBMISSION_EXCLUSIONS = {
     "claroty": "Claroty הוסרה מהגשה אוטומטית: טופס Comeet שלה מפעיל בדיקת אבטחה שדורשת השלמה ידנית.",
     "kla": "KLA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
     "medtronic": "Medtronic הוסרה מהגשה אוטומטית: טופס ה-Workday שלה ארוך ורב-שלבי.",
-    "nvidia": "NVIDIA הוסרה מהגשה אוטומטית: טופס ה-Workday שלה דורש כניסה חיצונית ורב-שלבית.",
+    "nvidia": "NVIDIA דורשת כרגע הגשה ידנית: נמצאה כניסה באימייל, אך השלמת טופס ה-Workday הרב-שלבי ואישור קבלת המועמדות עדיין לא אומתו.",
     "vast data": "VAST Data הוסרה מהגשה אוטומטית: Comeet דוחה את אימות ה-reCAPTCHA הבלתי-נראה בזמן השליחה.",
     "kaltura": "Kaltura דורשת הגשה ידנית: Comeet דחה את ההגשה האוטומטית בגלל אימות reCAPTCHA.",
 }
@@ -151,6 +153,10 @@ def automation_apply_url(job) -> str:
     applied_pid = applied_materials_pid(original)
     if applied_pid:
         return f"https://careers.appliedmaterials.com/careers/apply?pid={applied_pid}&domain=appliedmaterials.com"
+    branded = branded_comeet_job(original)
+    if branded:
+        slug, company_uid, job_uid = branded
+        return f"https://www.comeet.com/jobs/{slug}/{company_uid}/position/{job_uid}"
     if one_careers_job_id(original):
         return f"https://www.one1.co.il/careers/?job_id={one_careers_job_id(original)}"
     parsed_original = urlparse(original)
@@ -232,6 +238,25 @@ def yael_job_id(url: str) -> str:
     return match[1] if match else ""
 
 
+def ness_job_id(url: str) -> str:
+    parsed = urlparse(str(url or ""))
+    if (parsed.scheme != "https" or parsed.netloc.casefold() != "www.ness-tech.co.il"
+            or parsed.query or parsed.fragment):
+        return ""
+    match = re.fullmatch(r"/careers/job/([1-9][0-9]{0,11})", parsed.path)
+    return match[1] if match else ""
+
+
+def speedata_job_slug(url: str) -> str:
+    parsed = urlparse(str(url or ""))
+    if (parsed.scheme != "https" or parsed.netloc.casefold() != "www.speedata.io"
+            or parsed.query or parsed.fragment):
+        return ""
+    match = re.fullmatch(r"/careers/([^/]{1,200})/?", parsed.path)
+    slug = unquote(match[1]) if match else ""
+    return slug if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*(?:-\[[a-z0-9-]+\])?", slug) else ""
+
+
 def applied_materials_job_reference(url: str) -> tuple[str, str] | None:
     """Recognize exact employer-owned job identities, without making network requests."""
     try:
@@ -272,6 +297,27 @@ def applied_materials_pid(url: str) -> str:
     return reference[1] if reference and reference[0] == "pid" else ""
 
 
+def branded_comeet_job(url: str) -> tuple[str, str, str] | None:
+    """Translate only the observed employer-owned posting identities."""
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme != "https" or parsed.query or parsed.fragment:
+        return None
+    host = parsed.netloc.casefold()
+    if host in {"www.island.io", "island.io"}:
+        match = re.fullmatch(r"/positions/position-([a-zA-Z0-9]{2})_([a-zA-Z0-9]{3})/?", parsed.path)
+        if match:
+            return "island", "09.00A", f"{match[1]}.{match[2]}".upper()
+    if host in {"www.global-e.com", "global-e.com"}:
+        match = re.fullmatch(r"/(?:en/)?careers/([a-zA-Z0-9]{2})-([a-zA-Z0-9]{3})/?", parsed.path)
+        if match:
+            return "global-e", "62.002", f"{match[1]}.{match[2]}".upper()
+    if host == "trieye.tech":
+        match = re.fullmatch(r"/careers/co/[a-z0-9-]+/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})/[a-z0-9-]+/all/?", parsed.path)
+        if match:
+            return "trieye", "A6.00E", match[1].upper()
+    return None
+
+
 def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
     value = str(url or "").strip()
     host = urlparse(value).netloc.casefold()
@@ -291,6 +337,12 @@ def detect_adapter(url: str, source_kind: str = "") -> ATSAdapter:
         return ADAPTERS["elad"]
     if is_gstat_application_url(value):
         return ADAPTERS["gstat"]
+    if ness_job_id(value):
+        return ADAPTERS["ness"]
+    if speedata_job_slug(value):
+        return ADAPTERS["speedata"]
+    if branded_comeet_job(value):
+        return ADAPTERS["comeet"]
     if host in {"elbitsystemscareer.com", "www.elbitsystemscareer.com"}:
         return ADAPTERS["elbit"]
     if host in {"careers.wix.com", "www.careers.wix.com"}:
