@@ -2,7 +2,10 @@ name: JobPilot scan worker
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 8,20 * * *'
+      timezone: Asia/Jerusalem
+    - cron: '0 0-7,9-19,21-23 * * *'
+      timezone: Asia/Jerusalem
   workflow_dispatch:
     inputs:
       mode:
@@ -42,7 +45,10 @@ jobs:
       JOBPILOT_SCAN_CONCURRENCY: '2'
       JOBPILOT_SOURCE_SCAN_TIMEOUT_SECONDS: '45'
       JOBPILOT_TIMEZONE: Asia/Jerusalem
-      # The hourly scan also repairs automatic applications that were queued but
+      JOBPILOT_SCAN_HOUR: '8'
+      JOBPILOT_SCAN_EVENING_HOUR: '20'
+      JOBPILOT_SCAN_MINUTE: '0'
+      # Hourly lightweight recovery also repairs applications that were queued but
       # never claimed by a GitHub worker. The repository-scoped token is enough
       # to dispatch the per-application workflow; no extra PAT secret is needed.
       JOBPILOT_GITHUB_ACTIONS_TOKEN: ${{ github.token }}
@@ -72,21 +78,27 @@ jobs:
           beautifulsoup4==4.14.3
           httpx==0.28.1
 
-      - name: Recover stuck auto-apply queue
-        run: python scripts/run_cloud_scan.py --mode recover
-
       - name: Resolve requested scan mode
         id: mode
         env:
           REQUESTED_MODE: ${{ inputs.mode }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "schedule" ]]; then
-            MODE="scheduled"
+            if [[ "$SCHEDULE" == "0 8,20 * * *" ]]; then
+              MODE="scheduled"
+            else
+              MODE="recover"
+            fi
           else
             MODE="${REQUESTED_MODE:-queued}"
           fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "Resolved JobPilot scan mode: $MODE"
+
+      - name: Recover stuck auto-apply queue
+        if: steps.mode.outputs.mode != 'recover'
+        run: python scripts/run_cloud_scan.py --mode recover
 
       - name: Check whether scan work is due
         id: work

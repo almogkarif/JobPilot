@@ -32,6 +32,158 @@ from tests.test_guest_dashboard import owner_guest_catalog
 from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
 
 
+@pytest.mark.parametrize('endpoint', ['/api/jobs', '/api/dashboard'])
+def test_job_cards_skip_large_internal_payloads_and_preserve_details(dashboard_diversity_catalog, endpoint):
+    from app.models import Application, UserJobState
+    from app.utils import dumps
+
+    client, engine, factory, add_jobs = dashboard_diversity_catalog
+    job_id = add_jobs([{'company': 'Card Projection'}])[0]
+    explanation = {'reasons': [{'code': 'skills', 'message': 'Python matches'}],
+                   'breakdown': {'skills': {'score': 80, 'max': 100}},
+                   'eligibility': {'state': 'realistic'}, 'warnings': ['Example warning']}
+    with factory() as db:
+        set_user_scope(db, 'local-owner')
+        job = db.get(Job, job_id)
+        job.description = 'Full software job description with Python requirements. ' * 100
+        expected_description = job.description.strip()
+        job.classification_json = dumps({'internal': 'Large classification ' * 50000})
+        job.score_reasons_json = dumps(['Legacy reasons ' * 50000])
+        job.match_breakdown_json = dumps({'legacy': 'Legacy breakdown ' * 50000})
+        job.source.metadata_json = dumps({'private': 'Collector checkpoint ' * 50000})
+        job.source.last_error = 'Large collector error ' * 50000
+        db.add(Application(job_id=job_id, status='saved', mode='manual',
+                           answers_json=dumps({'private': 'Private application answers ' * 50000})))
+        db.scalar(select(UserJobState).where(UserJobState.job_id == job_id)).status = 'saved'
+        row = db.scalar(select(JobRanking).where(JobRanking.job_id == job_id))
+        row.result_json = dumps(explanation)
+        row.profile_fingerprint = 'Large fingerprint ' * 50000
+        row.job_fingerprint = 'Large digest ' * 50000
+        db.commit()
+    statements = []
+
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        if sql.lstrip().lower().startswith('select'):
+            statements.append(' '.join(sql.lower().split()))
+
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        response = client.get(endpoint)
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert response.status_code == 200, response.text
+    cards = response.json()['recent_jobs'] if endpoint.endswith('dashboard') else response.json()
+    card = next(item for item in cards if item['id'] == job_id)
+    assert card['score'] == 95 and card['status'] == 'saved' and card['application_id']
+    assert card['score_reasons'] == explanation['reasons']
+    assert card['match_breakdown'] == explanation['breakdown']
+    assert card['eligibility'] == explanation['eligibility']
+    assert card['ranking_warnings'] == explanation['warnings']
+    assert card['source']['name'] == 'Dashboard diversity'
+    assert 'description' not in card
+    projections = [sql.split(' from ', 1)[0] for sql in statements
+                   if sql.startswith(('select jobs.', 'select job_rankings.'))]
+    assert projections
+    large_columns = (
+        '.description', '.classification_json', '.score_reasons_json', '.match_breakdown_json',
+        '.metadata_json', '.answers_json', '.profile_fingerprint', '.job_fingerprint',
+    )
+    unexpected = [(column, sql[:300]) for sql in projections for column in large_columns if column in sql]
+    assert unexpected == []
+    detail = client.get(f'/api/jobs/{job_id}')
+    assert detail.status_code == 200
+    assert detail.json()['description'] == expected_description
+    assert detail.json()['match_breakdown'] == explanation['breakdown']
+
+
+def test_idle_hourly_recovery_reads_only_active_track_without_full_profiles(monkeypatch):
+    from scripts import run_cloud_scan as worker
+    from app.services import application_queue_recovery as recovery
+    from app.utils import dumps
+
+    engine, factory = _isolated_session_factory()
+    with factory() as db:
+        set_user_scope(db, 'idle-recovery-user')
+        db.add(Profile(active_career_track='computer_science',
+                       application_profile_json=dumps({'answers': 'Private answers ' * 50000}),
+                       track_profiles_json=dumps({'tracks': 'Private preferences ' * 50000})))
+        db.commit()
+
+    @contextmanager
+    def sessions(user_id):
+        with factory() as db:
+            set_user_scope(db, user_id)
+            yield db
+
+    monkeypatch.setattr(worker, 'known_user_ids', lambda: ['idle-recovery-user'])
+    monkeypatch.setattr(worker, 'user_session', sessions)
+    monkeypatch.setattr(recovery, 'get_user_profile',
+                        lambda *_: pytest.fail('An idle recovery must not load a full profile'))
+    statements = []
+    event.listen(engine, 'before_cursor_execute',
+                 lambda _c, _cu, sql, _p, _ctx, _many: statements.append(' '.join(sql.lower().split())))
+    assert worker.recover_known_user_queues() == 0
+    profile_queries = [sql for sql in statements if sql.startswith('select') and ' from profiles ' in sql]
+    assert len(profile_queries) == 1
+    assert profile_queries[0].startswith('select profiles.active_career_track from profiles')
+    assert 'limit' in profile_queries[0]
+    assert not any('application_profile_json' in sql or 'track_profiles_json' in sql for sql in statements)
+    engine.dispose()
+
+
+def test_new_rankings_store_compact_json_without_losing_explanations():
+    from types import SimpleNamespace
+    from app.services.ranking import service
+    from app.services.matching import build_match_context
+    from app.utils import dumps, loads
+    from tests.test_ranking_v2 import NOW, job, profile
+
+    class NoReadDB:
+        def scalar(self, *_args, **_kwargs):
+            pytest.fail('Ranking compaction must reuse the loaded result')
+
+    candidate = profile(skills=['python'], titles=['software engineer'])
+    opening = job('Software Engineer', 'Develop Python software. Python is required.')
+    opening.id = 7
+    context = build_match_context(candidate, career_track=candidate.active_career_track, now=NOW)
+    config = SimpleNamespace(config_version=1, config_json='{}')
+    expected = service.rank_job(opening, candidate, service.v2_config(config), context=context).to_dict()
+    row = JobRanking(job_id=7, engine='v2', engine_version=0)
+    service.persist_v2_result(NoReadDB(), opening, candidate, config, context=context, existing_row=row)
+    stored = loads(row.result_json, {})
+    assert {key: stored[key] for key in expected} == expected
+    assert stored['breakdown'] and stored['reasons']
+    assert len(row.result_json.encode('utf-8')) < len(dumps(stored).encode('utf-8'))
+
+
+def test_twice_daily_due_checks_use_only_existing_bounded_metadata(monkeypatch):
+    from zoneinfo import ZoneInfo
+    from app.config import settings
+    from app.services import scan_runtime
+
+    engine, factory = _isolated_session_factory()
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'unified_catalog_preview', True)
+    monkeypatch.setattr(settings, 'scan_hour', 8)
+    monkeypatch.setattr(settings, 'scan_evening_hour', 20)
+    statements = []
+    event.listen(engine, 'before_cursor_execute',
+                 lambda _c, _cu, sql, _p, _ctx, _many: statements.append(' '.join(sql.lower().split())))
+    with factory() as db:
+        set_user_scope(db, SHARED_CATALOG_USER_ID)
+        for hour in (8, 20):
+            now = datetime(2026, 10, 11, hour, tzinfo=ZoneInfo('Asia/Jerusalem'))
+            assert scan_runtime.scheduled_scan_due(db, 'computer_science', now)[0]
+            assert scan_runtime.next_scheduled_at(now) > now
+    assert len(statements) == 4  # One LIMIT-1 scan receipt and one timestamp aggregate per check.
+    assert sum('limit' in sql for sql in statements) == 2
+    assert sum('max(sources.last_scanned_at)' in sql for sql in statements) == 2
+    assert not any(column in sql for sql in statements for column in (
+        'description', 'classification_json', 'result_json', 'metadata_json', 'profiles',
+    ))
+    engine.dispose()
+
+
 def test_owner_catalog_diagnosis_aggregates_without_catalog_or_private_payloads(owner_catalog):
     from sqlalchemy.engine import Engine
     from scripts.diagnose_owner_catalog import run_diagnosis
@@ -476,7 +628,9 @@ def test_personal_delete_visibility_keeps_existing_bounded_job_reads():
     assert 'statement = statement.where(not_submitted)' in jobs
     assert 'location_count_statement = location_count_statement.where(not_submitted)' in jobs
     assert 'page_size: int = Query(20, ge=1, le=100)' in jobs
-    assert 'defer(Job.description)' in jobs
+    assert '*_job_card_load_options()' in jobs
+    options = source[source.index('def _job_card_load_options('):source.index('def _v2_tier_order(')]
+    assert 'defer(Job.description, raiseload=True)' in options
     dashboard = source[source.index("def dashboard("):source.index('@app.get("/api/jobs")')]
     assert 'func.coalesce(UserJobState.status, "new").notin_(["submitted", "hidden"])' in dashboard
     assert 'top_jobs_statement.limit(5)' in dashboard

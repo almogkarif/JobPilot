@@ -4,6 +4,69 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Free-tier reduction and twice-daily scans — October 11, 2026
+
+Scheduled collection/ranking now runs at **08:00 and 20:00 Asia/Jerusalem**.
+The GitHub schedule declares the IANA timezone, so the local hours survive DST.
+The other hourly launches run recovery only (22 on an ordinary day), retaining the existing safeguard
+for missing application workers; they do not install collectors/Chromium, collect
+jobs or rank the catalog. Recovery runs exactly once per launch. Manual/onboarding
+scans remain explicit and can add runs. The local scheduler and legacy cron
+endpoint use the same morning/evening due gate. Unified mode scans the catalog
+once, rather than once for each of its three job classifications.
+
+Impact check: the two scheduled scans replace up to 24 scheduled scans/day;
+this reduces scheduled collection/ranking opportunities by 12x, not total egress
+by 12x. Existing ceilings remain 20,000 incoming postings/scan, 2,000/source,
+10,000 identities/source and 50,000 stored canonical jobs. A user's bounded refresh
+still permits 5,000 jobs, 256 KiB/row and 16 MiB/refresh: two scheduled refreshes
+could request 32 MiB/user/day before the **unchanged shared 64 MiB/day reservation**
+rejects excess work. The shared monthly ceiling remains 1.875 GiB/30 days;
+manual/profile-triggered refreshes share it. No bulk scan or backfill is added.
+
+Due checks retain their existing one `LIMIT 1` receipt query and optional one
+source-timestamp aggregate. SQLite and PostgreSQL 16+ return only status (40
+characters) and three timestamps (64 characters each): <=928 UTF-8 bytes, with
+a conservative 2 KiB receipt allowance including protocol overhead. Reserving
+another 1 KiB for the aggregate gives <=6 KiB/day for two unified due checks
+(180 KiB/30 days). Older/unknown PostgreSQL versions keep the existing receipt
+read to preserve malformed-JSON handling. Production's major version was not
+queried; PostgreSQL 16 projection syntax is compile-tested, not server-executed.
+
+Recovery reads only one `Profile.active_career_track` scalar per admitted account
+and loads a full profile only when queued or active applications need support checks. It avoids a
+full-profile read in both the outer worker and the empty queued-job branch.
+For N admitted users, reserve 1 KiB/scalar including protocol overhead: N reads/hour,
+at most 25N KiB/day allowing a DST fall-back hour, or a conservative 750N KiB/30 days.
+For a planning workload of 30 accounts, this component is <=750 KiB/day
+(~22 MiB/30 days), independent of profile/answer JSON size.
+Existing recovery queries, active-queue payloads and their budgets remain separate;
+there is no new recovery cadence. Queued-job recovery also defers descriptions.
+
+Job-list and dashboard-card queries omit classifier JSON, legacy score explanations,
+source metadata/error payloads and private application answers. Source relationships
+retain only ID/name/kind/track; application relationships retain ID/status. List
+ranking reads retain score/tier/confidence/result JSON; user state retains job ID/status.
+Explanations and full job details remain available through their existing endpoints.
+List bounds remain 20/default and 100/max per paginated page, 200/default and
+1,000/max for the legacy list; the dashboard still returns five recommendation cards.
+These changes add zero queries or returned fields: the transfer delta per request is
+the negative sum of omitted field sizes, with no increase to existing payload bounds.
+They introduce no polling, Storage download, model call or startup catalog read.
+
+New/updated ranking JSON uses compact separators. Decoded scores, explanations,
+eligibility and cache semantics are unchanged. Existing rankings are not rewritten
+in bulk, and no job, application, history or document is deleted. This reduces new
+serialized payload bytes; actual PostgreSQL disk savings depend on TOAST compression
+and must be measured rather than inferred from the serialized byte count.
+
+Regression gates: `test_twice_daily_scan_schedule.py` covers scheduled/recovery
+selection, due gating, manual runs, single-catalog execution and DST. Egress tests
+exercise megabyte-sized unreturned fields, preserved card/detail explanations,
+idle recovery projections, metadata-only due checks and compact ranking round-trips.
+This change is local pending release; no production query, scan, cleanup or deployment
+was triggered. After deployment, compare daily Supabase egress before any expansion.
+
 ## Authorized-user capacity — October 5, 2026
 
 The configured admission limit increases from 10 to 20; the existing email

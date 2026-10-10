@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Text, cast, desc, func, literal, select, text, update
+from sqlalchemy import Text, case, cast, desc, func, literal, select, text, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -135,6 +135,25 @@ def _detail_field(db: Session, key: str):
     return func.json_extract(AuditLog.details_json, f"$.{key}")
 
 
+def _latest_scan_schedule_details(db: Session, career_track: str) -> dict | None:
+    """Read bounded due-check fields, preserving malformed legacy receipt handling."""
+    dialect = db.get_bind().dialect
+    if dialect.name == "postgresql" and (dialect.server_version_info or ()) < (16,):
+        # Older PostgreSQL cannot safely validate arbitrary legacy JSON in SQL.
+        log = latest_scan_log(db, career_track)
+        return _details(log) if log else None
+    valid = (func.pg_input_is_valid(AuditLog.details_json, "jsonb")
+             if dialect.name == "postgresql" else func.json_valid(AuditLog.details_json))
+    fields = []
+    for key, limit in (("status", 40), ("requested_at", 64), ("started_at", 64), ("finished_at", 64)):
+        value = case((valid, cast(_detail_field(db, key), Text)))
+        fields.append(case((func.length(value) <= limit, func.substr(value, 1, limit))).label(key))
+    row = db.execute(select(*fields).where(
+        AuditLog.event_type == SCAN_EVENT, AuditLog.entity_type == _scan_entity(career_track),
+    ).order_by(desc(AuditLog.id)).limit(1)).mappings().first()
+    return dict(row) if row is not None else None
+
+
 def _patch_scan_details(db: Session, conditions, patch: dict, message: str) -> int:
     """Patch control fields on the server, without returning old result payloads."""
     if db.get_bind().dialect.name == "postgresql":
@@ -248,31 +267,31 @@ def queued_scan_runs(db: Session) -> list[AuditLog]:
     return [row for row in rows if _details(row).get("status") == "queued" and _is_fresh_active(_details(row))]
 
 
-def _current_hour_boundary(now_local: datetime) -> datetime:
-    return now_local.replace(minute=0, second=0, microsecond=0)
+def _scheduled_boundaries(now_local: datetime | None = None) -> tuple[datetime, list[datetime]]:
+    tz = ZoneInfo(settings.timezone)
+    now_local = now_local or datetime.now(tz)
+    now_local = now_local.replace(tzinfo=tz) if now_local.tzinfo is None else now_local.astimezone(tz)
+    boundaries = [now_local.replace(hour=hour, minute=settings.scan_minute, second=0, microsecond=0)
+                  for hour in sorted({settings.scan_hour, settings.scan_evening_hour})]
+    return now_local, boundaries
 
 
 def next_scheduled_at(now_local: datetime | None = None) -> datetime:
-    """Return the next exact top-of-hour scan boundary."""
-    tz = ZoneInfo(settings.timezone)
-    now_local = now_local or datetime.now(tz)
-    if now_local.tzinfo is None:
-        now_local = now_local.replace(tzinfo=tz)
-    current = _current_hour_boundary(now_local)
-    return current + timedelta(hours=1)
+    """Return the next morning/evening boundary in the configured local timezone."""
+    now_local, boundaries = _scheduled_boundaries(now_local)
+    return next((boundary for boundary in boundaries if boundary > now_local),
+                boundaries[0] + timedelta(days=1))
 
 
 def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | None = None) -> tuple[bool, datetime, datetime | None]:
-    """Return whether the shared catalog needs its scan for the current hour."""
+    """Return whether today's current morning/evening scan is still needed."""
     career_track = normalize_track(career_track)
-    tz = ZoneInfo(settings.timezone)
-    now_local = now_local or datetime.now(tz)
-    if now_local.tzinfo is None:
-        now_local = now_local.replace(tzinfo=tz)
-    scheduled = _current_hour_boundary(now_local)
+    now_local, boundaries = _scheduled_boundaries(now_local)
+    tz = now_local.tzinfo
+    scheduled = next((boundary for boundary in reversed(boundaries) if boundary <= now_local), boundaries[0])
 
-    latest_run = latest_scan_log(db, career_track)
-    run_details = _details(latest_run)
+    latest_details = _latest_scan_schedule_details(db, career_track)
+    run_details = latest_details or {}
     if _is_fresh_active(run_details, now_local.astimezone(timezone.utc)) and run_details.get("status") == "running":
         started = _parse_dt(run_details.get("started_at"))
         return False, scheduled, started.astimezone(tz) if started else None
@@ -282,6 +301,8 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
     finished_local = finished.astimezone(tz) if finished else None
     successful_status = str(run_details.get("status") or "") in {"ok", "partial", "no_sources"}
     if finished_local and finished_local >= scheduled and successful_status:
+        return False, scheduled, finished_local
+    if now_local < scheduled:
         return False, scheduled, finished_local
 
     latest = db.scalar(select(func.max(Source.last_scanned_at)).where(
@@ -295,7 +316,7 @@ def scheduled_scan_due(db: Session, career_track: str, now_local: datetime | Non
         if latest.tzinfo is None:
             latest = latest.replace(tzinfo=timezone.utc)
         latest_local = latest.astimezone(tz)
-    already_completed = not latest_run and latest_local and latest_local >= scheduled
+    already_completed = latest_details is None and latest_local and latest_local >= scheduled
     due = now_local >= scheduled and not already_completed
     return due, scheduled, finished_local or latest_local
 

@@ -65,7 +65,7 @@ def test_scheduler_ignores_recent_timestamp_from_reviewed_source(preview_db, mon
     now = datetime(2026, 9, 27, 12, 30, tzinfo=timezone.utc)
     available = preview_db.scalar(select(Source))
     available.career_track = 'shared' if unified else 'computer_science'
-    available.last_scanned_at = now.replace(hour=11, minute=55)
+    available.last_scanned_at = now.replace(hour=7, minute=55)
     retired = Source(name='Reviewed unavailable board', kind='greenhouse', identifier='ARMISSECURITY/',
                      career_track=available.career_track, enabled=True,
                      last_scanned_at=now.replace(minute=10))
@@ -74,10 +74,10 @@ def test_scheduler_ignores_recent_timestamp_from_reviewed_source(preview_db, mon
 
     due, scheduled, latest = scheduled_scan_due(preview_db, 'computer_science', now_local=now)
     assert due
-    assert scheduled == now.replace(minute=0)
-    assert latest == now.replace(hour=11, minute=55)
+    assert scheduled == now.replace(hour=8, minute=0)
+    assert latest == now.replace(hour=7, minute=55)
 
-    # A real available board scanned this hour still suppresses the duplicate run.
+    # A real available board scanned this scheduled period suppresses the duplicate run.
     available.last_scanned_at = now.replace(minute=5)
     preview_db.commit()
     due, _, latest = scheduled_scan_due(preview_db, 'computer_science', now_local=now)

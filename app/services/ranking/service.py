@@ -224,7 +224,7 @@ def persist_v2_result(
         row.tier = result.tier
         row.confidence = result.confidence
         row.eligibility_state = result.eligibility["state"]
-        row.result_json = dumps(payload)
+        row.result_json = dumps(payload, compact=True)
         row.error = ""
         row.stale = False
         row.engine_version = RANKING_ENGINE.version

@@ -101,8 +101,9 @@ If the database password contains reserved URL characters, keep the same percent
 
 `.github/workflows/jobpilot-scan.yml` then handles both scheduled and manual work:
 
-- GitHub checks every hour at minute `07`.
-- Scheduled mode scans only when the configured local daily time is due (default `08:00`, `Asia/Jerusalem`).
+- GitHub runs scheduled scans at `08:00` and `20:00`, using the `Asia/Jerusalem` timezone, including daylight-saving transitions.
+- At the other hours, the workflow runs only lightweight application queue recovery. It does not install Chromium, collect jobs or refresh rankings.
+- Scheduled mode checks whether the current morning/evening scan has already completed before collecting jobs. Keep the workflow cron hours aligned with `JOBPILOT_SCAN_HOUR` and `JOBPILOT_SCAN_EVENING_HOUR` if changing the defaults.
 - Manual requests use `workflow_dispatch` and process durable queued requests immediately.
 - The workflow first installs only lightweight database/config dependencies and checks whether work exists. The full scanner dependencies and Chromium are installed only when an actual scan is due.
 - Scan progress/results are written to PostgreSQL, so multiple browsers/devices see the same status without relying on Render process memory.

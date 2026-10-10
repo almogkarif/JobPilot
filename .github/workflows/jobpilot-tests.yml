@@ -15,6 +15,7 @@ on:
           - full
           - user_limit
           - ranking
+          - scan_resources
       runner_mode:
         description: Runner for focused user-limit tests
         required: true
@@ -175,3 +176,59 @@ jobs:
           tests/test_supabase_egress_optimization.py::test_shared_catalog_startup_never_selects_jobs
           tests/test_supabase_egress_optimization.py::test_two_stage_ranking_uses_bounded_keyset_batches
           tests/test_supabase_egress_optimization.py::test_reusing_score_components_needs_no_additional_database_reads
+
+
+  scan-resources:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'scan_resources' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout JobPilot
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-test.txt
+
+      - name: Enable local PostgreSQL integration tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          postgres_bin=""
+          for executable in /usr/lib/postgresql/*/bin/initdb; do
+            if [ -x "$executable" ]; then postgres_bin="${executable%/initdb}"; fi
+          done
+          test -x "$postgres_bin/initdb"
+          test -x "$postgres_bin/pg_ctl"
+          echo "JOBPILOT_TEST_POSTGRES_BIN=$postgres_bin" >> "$GITHUB_ENV"
+
+      - name: Run scan and resource-budget tests
+        run: >-
+          python -m pytest -q
+          tests/test_twice_daily_scan_schedule.py
+          tests/test_external_scan_worker.py
+          tests/test_scan_worker_recovery.py
+          tests/test_source_retirement_integration.py
+          tests/test_unified_cloud_worker.py
+          tests/test_auto_apply_diagnostics_v4.py
+          tests/test_supabase_egress_optimization.py
+          tests/test_catalog_ranking_bounds.py
+          tests/test_catalog_egress_budget.py
+          tests/test_ranking_filter_first.py
+          tests/test_ranking_targeted_refresh.py
+          tests/test_ranking_refresh_performance.py
+          tests/test_ranking_v2_visibility.py
+          tests/test_preference_auto_queue.py
+          tests/test_application_queue_recovery.py
+          tests/test_dashboard_company_diversity.py
+          tests/test_guest_dashboard.py
+          tests/test_job_id_search.py
+          tests/test_ranking_v2.py

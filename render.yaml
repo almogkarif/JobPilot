@@ -16,6 +16,8 @@ services:
         value: external
       - key: JOBPILOT_SCAN_HOUR
         value: "8"
+      - key: JOBPILOT_SCAN_EVENING_HOUR
+        value: "20"
       - key: JOBPILOT_SCAN_MINUTE
         value: "0"
       - key: JOBPILOT_SCAN_CONCURRENCY

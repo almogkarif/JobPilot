@@ -337,16 +337,16 @@ def recover_stuck_auto_applications(
     superseded_attempts = _close_superseded_running_attempts(db, career_track, now=effective_now)
     repaired_unsupported: list[int] = []
     repaired_inactive: list[int] = []
-    profile = get_user_profile(db)
     legacy_rows = db.scalars(
         select(Application)
         .join(Job, Application.job_id == Job.id)
-        .options(joinedload(Application.job).joinedload(Job.source))
+        .options(joinedload(Application.job).defer(Job.description).joinedload(Job.source))
         .where(
             _application_in_track(career_track),
             Application.mode == "auto", Application.status == "queued",
         )
     ).unique().all()
+    profile = get_user_profile(db) if legacy_rows else None
     for application in legacy_rows:
         support = _queue_support_state(db, application, profile)
         reason = support["not_dispatchable_reason"]

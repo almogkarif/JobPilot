@@ -173,7 +173,7 @@ def _set_scan_finished_at(log: AuditLog, *, status: str, finished_at: datetime) 
     log.details_json = dumps(details)
 
 
-def test_scheduled_due_requires_successful_run_in_current_hour(monkeypatch):
+def test_scheduled_due_requires_successful_run_in_current_period(monkeypatch):
     _clear_scan_runs()
     tz = ZoneInfo("Asia/Jerusalem")
     monkeypatch.setattr(main.settings, "timezone", "Asia/Jerusalem")
@@ -186,7 +186,7 @@ def test_scheduled_due_requires_successful_run_in_current_hour(monkeypatch):
         db.commit()
         due, scheduled, _latest = scheduled_scan_due(db, track, now_local=now_local)
         assert due is True
-        assert scheduled.hour == 9 and scheduled.minute == 0
+        assert scheduled.hour == 8 and scheduled.minute == 0
 
         successful, _ = create_scan_run(db, track, trigger="scheduled")
         _set_scan_finished_at(successful, status="ok", finished_at=datetime(2026, 8, 12, 9, 15, tzinfo=tz))

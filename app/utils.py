@@ -15,8 +15,8 @@ if TYPE_CHECKING:
     from .models import Application, Job
 
 
-def dumps(value) -> str:
-    return json.dumps(value, ensure_ascii=False)
+def dumps(value, *, compact: bool = False) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":") if compact else None)
 
 
 def loads(value: str | None, default):

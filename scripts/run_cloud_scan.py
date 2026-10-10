@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 
 from app.database import (SHARED_CATALOG_USER_ID, SessionLocal, ensure_job_source_fingerprint_column,
                           ensure_worker_runtime_schema, get_user_profile, user_session)  # noqa: E402
-from app.models import AppIdentity, Job, Source  # noqa: E402
+from app.models import AppIdentity, Job, Profile, Source  # noqa: E402
 from app.services.career_tracks import CAREER_TRACKS, active_track, normalize_track  # noqa: E402
 from app.services.catalog_ranking import rank_shared_catalog_for_user  # noqa: E402
 from app.services.catalog_routing import unified_catalog_enabled  # noqa: E402
@@ -91,10 +91,10 @@ def recover_known_user_queues() -> int:
     for user_id in known_user_ids():
         try:
             with user_session(user_id) as db:
-                profile = get_user_profile(db)
-                if not profile:
+                track_value = db.scalar(select(Profile.active_career_track).order_by(Profile.id).limit(1))
+                if track_value is None:
                     continue
-                track = active_track(profile)
+                track = normalize_track(track_value)
                 result = recover_stuck_auto_applications(db, track)
             recovered = list(result.get("recovered") or [])
             failed = list(result.get("failed") or [])

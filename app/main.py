@@ -93,7 +93,8 @@ from .services.resume_analysis import analyze_resume, extract_resume_bytes, extr
 from .services.resume_fit import (job_skill_groups, resume_recommendation_key, resume_skill_coverage,
                                   resume_skill_evidence)
 from .services.suggestions import get_skill_suggestions, resolve_official_careers_url
-from .services.scan_runtime import create_scan_run, persistent_scan_status, scheduled_scan_due, update_scan_run
+from .services.scan_runtime import (create_scan_run, next_scheduled_at, persistent_scan_status,
+                                   scheduled_scan_due, update_scan_run)
 from .services.github_actions import (dispatch_application_workflow,
                                       dispatch_interactive_application_workflow,
                                       dispatch_scan_workflow)
@@ -365,7 +366,7 @@ def _scan_status_payload(
     if settings.scheduler_enabled and payload["search_agent_active"]:
         tz = ZoneInfo(settings.timezone)
         now = datetime.now(tz)
-        next_run = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        next_run = next_scheduled_at(now)
         payload["next_scheduled_at"] = next_run.isoformat()
     else:
         payload["next_scheduled_at"] = None
@@ -469,15 +470,19 @@ async def _run_targeted_scan(user_id: str, source_ids: set[int], career_track: s
 
 
 async def _run_shared_hourly_cycle() -> list[dict]:
-    """Refresh every career-track partition of the one shared catalog once.
+    """Refresh due catalog work once at the morning/evening boundary.
 
     `_run_scan` intentionally uses one catalog-wide lock so an admin-triggered scan
     and the scheduled cycle can never mutate the same shared tables concurrently.
     Run track partitions sequentially rather than racing them against that lock.
     """
     results: list[dict] = []
-    for track in CAREER_TRACKS:
+    tracks = CAREER_TRACKS[:1] if unified_catalog_enabled() else CAREER_TRACKS
+    for track in tracks:
         try:
+            with user_session(SHARED_CATALOG_USER_ID) as db:
+                if not scheduled_scan_due(db, track.key)[0]:
+                    continue
             results.append(await _run_scan(career_track=track.key))
         except Exception as exc:  # noqa: BLE001
             results.append({"status": "failed", "career_track": track.key, "error": str(exc)})
@@ -488,8 +493,9 @@ async def _hourly_scheduler() -> None:
     tz = ZoneInfo(settings.timezone)
     while True:
         now = datetime.now(tz)
-        next_run = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-        await asyncio.sleep(max(1, (next_run - now).total_seconds()))
+        next_run = next_scheduled_at(now)
+        delay = (next_run.astimezone(timezone.utc) - now.astimezone(timezone.utc)).total_seconds()
+        await asyncio.sleep(max(1, delay))
         await _run_shared_hourly_cycle()
 
 
@@ -974,7 +980,10 @@ def _attach_v2_rankings(db: Session, jobs: list[Job]) -> None:
     if not ids:
         return
     ranking_settings = get_ranking_settings(db)
-    rows = db.scalars(select(JobRanking).where(
+    rows = db.scalars(select(JobRanking).options(load_only(
+        JobRanking.job_id, JobRanking.score, JobRanking.tier,
+        JobRanking.confidence, JobRanking.result_json,
+    )).where(
         JobRanking.job_id.in_(ids), JobRanking.engine == "v2",
         JobRanking.engine_version == get_ranking_engine().version,
         JobRanking.config_version == ranking_settings.config_version,
@@ -983,6 +992,19 @@ def _attach_v2_rankings(db: Session, jobs: list[Job]) -> None:
     by_job = {row.job_id: row for row in rows}
     for job in jobs:
         setattr(job, "_active_v2_ranking", by_job.get(job.id))
+
+
+def _job_card_load_options():
+    # Cards use the v2 result and a few relationship fields. Keep classifier
+    # payloads, legacy explanations and private application answers in the DB.
+    return (
+        defer(Job.description, raiseload=True),
+        defer(Job.classification_json, raiseload=True),
+        defer(Job.score_reasons_json, raiseload=True),
+        defer(Job.match_breakdown_json, raiseload=True),
+        joinedload(Job.source).load_only(Source.id, Source.name, Source.kind, Source.career_track, raiseload=True),
+        joinedload(Job.application).load_only(Application.id, Application.status, raiseload=True),
+    )
 
 
 def _v2_tier_order(tier=None):
@@ -2141,9 +2163,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # Dashboard recommendations are the strongest active opportunities in the
         # entire catalog. Company diversity and then recency break ranking ties;
         # neither can displace a stronger match.
-        top_jobs_statement = select(Job).options(
-            defer(Job.description), joinedload(Job.source), joinedload(Job.application)
-        ).where(
+        top_jobs_statement = select(Job).options(*_job_card_load_options()).where(
             Job.is_active.is_(True), job_in_track(career_track),
             Job.source.has(Source.kind != "demo"),
         )
@@ -3265,9 +3285,7 @@ def list_jobs(
         ))
         location_options: list[dict] = []
         location_raw_map: dict[str, list[str]] = {}
-        statement = select(Job).options(
-            defer(Job.description), joinedload(Job.source), joinedload(Job.application)
-        ).where(
+        statement = select(Job).options(*_job_card_load_options()).where(
             job_in_track(career_track), Job.source.has(Source.kind != "demo"),
         )
         location_count_statement = select(Job.location, func.count(Job.id)).where(
@@ -3285,7 +3303,10 @@ def list_jobs(
                 & (JobRanking.error == "")
             )
             statement = select(Job, UserJobState, JobRanking).options(
-                defer(Job.description), joinedload(Job.source), joinedload(Job.application)
+                *_job_card_load_options(),
+                load_only(JobRanking.job_id, JobRanking.score, JobRanking.tier,
+                          JobRanking.confidence, JobRanking.result_json),
+                load_only(UserJobState.job_id, UserJobState.status),
             ).outerjoin(UserJobState, UserJobState.job_id == Job.id).outerjoin(
                 JobRanking, valid_ranking_join
             ).where(job_in_track(career_track), Job.source.has(Source.kind != "demo"))
@@ -6274,12 +6295,13 @@ async def cron_scan(request: Request):
         return {"status": "external_worker", "worker": "github_actions"}
 
     # Legacy/internal deployments still use this endpoint. They now follow the same
-    # shared top-of-hour contract as GitHub Actions: one catalogue scan per track,
-    # never one scan per account.
+    # morning/evening contract as GitHub Actions: one scan of the shared catalog,
+    # or each partition in legacy mode.
     due_tracks: list[str] = []
     schedule_rows: list[dict] = []
     with user_session(SHARED_CATALOG_USER_ID) as scan_db:
-        for definition in CAREER_TRACKS:
+        definitions = CAREER_TRACKS[:1] if unified_catalog_enabled() else CAREER_TRACKS
+        for definition in definitions:
             due, scheduled, latest = scheduled_scan_due(scan_db, definition.key)
             schedule_rows.append({
                 "career_track": definition.key,

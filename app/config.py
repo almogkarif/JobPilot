@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     base_url: str = "http://127.0.0.1:8000"
     agent_token: str = "change-me"
     scan_hour: int = 8
+    scan_evening_hour: int = 20
     scan_minute: int = 0
     timezone: str = "Asia/Jerusalem"
     unified_catalog_preview: bool = False
