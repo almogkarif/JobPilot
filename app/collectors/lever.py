@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 from .base import NormalizedJob, PreserveExistingJobs
+from .verified_shared_ats import is_verified_shared_board, load_verified_payload, verified_collection
 from ..utils import html_to_text, parse_datetime
 
 
@@ -18,10 +19,14 @@ class LeverCollector:
         site = raw_identifier.split(":", 1)[1] if is_eu else raw_identifier
         base_url = self.EU_BASE if is_eu else self.base_url
         url = base_url.format(site=site)
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            response = await client.get(url, params={"mode": "json"})
-            response.raise_for_status()
-            payload = response.json()
+        verified = is_verified_shared_board("lever", raw_identifier) and self.base_url == self.BASE
+        if verified:
+            payload = await load_verified_payload("lever", raw_identifier)
+        else:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                response = await client.get(url, params={"mode": "json"})
+                response.raise_for_status()
+                payload = response.json()
 
         if not isinstance(payload, list):
             raise PreserveExistingJobs("Lever returned an unrecognized job-list payload")
@@ -49,4 +54,4 @@ class LeverCollector:
                     metadata={"categories": categories, "salaryRange": item.get("salaryRange")},
                 )
             )
-        return jobs
+        return verified_collection("lever", raw_identifier, jobs, payload) if verified else jobs

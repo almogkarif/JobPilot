@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-11",
+  "scope": "local_synthetic_storage_only",
+  "assumption": "The user means database storage; clarification was pending during measurement. This change does not alter visual job-card size.",
+  "implementation": {
+    "codec": "Version-1 zlib dictionary plus base64 in existing TEXT; ORM returns the exact original JSON string.",
+    "dictionary_asset": "app/ranking_storage_dictionary_v1.txt",
+    "dictionary_bytes": 7296,
+    "dictionary_sha256": "60197a89f3e65d3f796e9897620474c5062c129881087079d6906c4a45b454da",
+    "dictionary_origin": "Fixed public string literals from eligibility.py, skills.py, roles.py and v2.py, plus an empty ranking schema. Every skeleton string was blanked, number set to zero and boolean set to false; no candidate/job/profile values were retained. It is not regenerated from code at runtime.",
+    "decoded_byte_limit": 262144,
+    "encoded_byte_limit": 262144,
+    "minimum_saving_bytes": 128,
+    "preserved": "Personalized scores, complete explanations, warnings, arbitrary JSON fields/types/Unicode/whitespace and hidden scoring caches; nine raw-SQL eligibility gates.",
+    "fallbacks": "Short, invalid, oversized, reserved-name legacy collisions and insufficiently compressible values remain plain.",
+    "budget": "The existing SQL planner accounts for at least the larger of encoded bytes and original logical UTF8 bytes n; shared 64MiB/day ledger and existing per-pass limits remain conservative.",
+    "schema_change": false,
+    "automatic_backfill": false,
+    "indexes_removed": false,
+    "existing_rows": "Plain legacy rows remain readable and are compacted only when ordinary future insert/update paths write a suitable ranking. No automatic rewriting of existing rows."
+  },
+  "full_workload": {
+    "before_report": "docs/audits/catalog_capacity_storage_before_2026-10-11.json",
+    "after_report": "docs/audits/catalog_capacity_storage_after_2026-10-11.json",
+    "jobs": 5000,
+    "owners": 30,
+    "ranking_rows": 150000,
+    "database_before_bytes": 309551619,
+    "database_after_bytes": 263471619,
+    "database_saving_bytes": 46080000,
+    "database_saving_percent": 14.89,
+    "ranking_before_bytes": 280797184,
+    "ranking_after_bytes": 234700800,
+    "ranking_saving_percent": 16.42,
+    "job_table_before_after_bytes": 17145856,
+    "includes_indexes_and_toast": true
+  },
+  "independent_holdout": {
+    "postgres_version": "14.11 (Homebrew)",
+    "rows_per_variant": 5000,
+    "disjoint_templates": 240,
+    "template_states": {
+      "excluded": 111,
+      "realistic": 114,
+      "stretch": 15
+    },
+    "variation": "Disjoint descriptions, ten title families, varying experience/degree/location/work mode, Hebrew text; dictionary fixed before evaluating holdout.",
+    "plain_table_bytes": 9445376,
+    "codec_table_bytes": 7856128,
+    "table_saving_percent": 16.83,
+    "identical_index_bytes": 1220608,
+    "plain_mean_stored_column_bytes": 1220.3,
+    "codec_mean_stored_column_bytes": 948.42,
+    "roundtrip": "All 240 original compact JSON strings roundtripped exactly; same fixture values populated both tables."
+  },
+  "rejected_alternatives": {
+    "ordinary_zlib_full_sql_summary": "Increased physical table storage by about11% in the first synthetic fixture.",
+    "ordinary_zlib_remainder_full_eligibility": "Increased physical table storage by about45%.",
+    "derived_reason_warning_omission": "Reduced UTF8 bytes without reducing actual PostgreSQL table bytes.",
+    "all_key_abbreviations": "Measured about18% reduction but added a custom field mapping without outperforming the selected lossless codec.",
+    "template_trained_dictionary": "Large apparent saving was overfitted to one full synthetic template; not selected.",
+    "index_removal": "Six scalar indexes were about2.8% of a fresh5000-row table, and global engine invalidation still uses its scalar index; no index changes proposed."
+  },
+  "verification": {
+    "command_modules": [
+      "tests/test_ranking_storage.py",
+      "tests/test_ranking_v2.py",
+      "tests/test_ranking_v2_visibility.py",
+      "tests/test_ranking_v2_job_explanation_ui.py",
+      "tests/test_canonical_postgres.py"
+    ],
+    "passed": 152,
+    "skipped": 0,
+    "failed": 0,
+    "new_storage_cases": 29,
+    "coverage": "Exact-string/unit bounds/corruption/bomb handling; real SQLite and PostgreSQL persistence; SQL diagnostics; cached hidden ranking restoration without skills recomputation; legacy+encoded coexistence; owner isolation and no extra reads; existing v2/visibility/UI contracts and PostgreSQL canonical migrations.",
+    "full_suite": "Not rerun by this specialist; parent owns broader integration gates.",
+    "cloud_connections": 0,
+    "employer_submissions": 0,
+    "deployments": 0,
+    "commits_or_pushes": 0
+  },
+  "limits": [
+    "Synthetic storage measurements are not production database usage or proof that a future catalog fits a service quota.",
+    "Savings depend on content and PostgreSQL page/TOAST compression; raw JSON byte ratios are not physical disk savings.",
+    "No general30% claim: actual full workload saved14.89% of database storage and mixed holdout saved16.83% of ranking-table storage.",
+    "Local timing changes must not be attributed causally to compression; no full-catalog ranking-throughput claim.",
+    "Existing legacy archives and historical retained tables may add storage beyond this fresh synthetic schema."
+  ]
+}

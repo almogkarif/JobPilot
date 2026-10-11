@@ -1953,8 +1953,9 @@ async function loadDashboard() {
   // active elsewhere in the catalog, so rely on the server-side aggregate.
   const pendingRankingJobs = Math.max(0, Number(dashboard.ranking_pending_jobs) || 0);
   const recommendationsPending = !dashboard.guest_catalog && pendingRankingJobs > 0;
-  const rankingFailed = !rankingRefresh.running && (Number(rankingRefresh.failed) > 0 || rankingRefresh.phase === 'failed');
-  const rankingIsLoading = !rankingFailed && Boolean(rankingRefresh.running || recommendationsPending);
+  const rankingDeferred = !rankingRefresh.running && rankingRefresh.phase === 'deferred';
+  const rankingFailed = !rankingDeferred && !rankingRefresh.running && (Number(rankingRefresh.failed) > 0 || rankingRefresh.phase === 'failed');
+  const rankingIsLoading = !rankingDeferred && !rankingFailed && Boolean(rankingRefresh.running || recommendationsPending);
   // A refresh checks eligibility before scoring. Its total includes jobs that
   // will be filtered out; without live progress only the backlog is known.
   const total=Math.max(0,Number(rankingRefresh.total)||0);
@@ -1976,10 +1977,12 @@ async function loadDashboard() {
     }
     dashboardRankingEtaTrack=rankingTrack;
   }
-  rankingStatus.hidden = !rankingIsLoading && !rankingFailed;
+  rankingStatus.hidden = !rankingIsLoading && !rankingFailed && !rankingDeferred;
   rankingStatus.innerHTML = rankingFailed ? `
     <span><strong>${rankingRefresh.phase === 'failed' ? 'רענון הדירוג נכשל' : 'חלק מהמשרות לא דורגו'}</strong><small>${esc(rankingRefresh.message || 'הדירוגים התקינים נשמרו. אפשר לנסות שוב.')}</small></span>
     <button type="button" class="btn secondary small" id="retry-failed-ranking">נסה שוב</button>
+  ` : rankingDeferred ? `
+    <span><strong>המשך הדירוג ממתין</strong><small>${esc(rankingRefresh.message || 'אפשר לעיין במשרות עכשיו. יתר ההתאמות ימשיכו ברענון הבא.')}</small></span>
   ` : rankingIsLoading ? `
     <span class="recommendations-ranking-spinner" aria-hidden="true"></span>
     <span><strong>בדיקת סינון ועדכון התאמות</strong><small id="recommendations-ranking-details"></small></span>
@@ -2009,7 +2012,7 @@ async function loadDashboard() {
     dashboardRankingEtaDeadline=0;
     dashboardRankingEtaTrack='';
   }
-  if (recommendationsPending && !rankingFailed && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
+  if (recommendationsPending && !rankingDeferred && !rankingFailed && !rankingRefresh.running && !dashboardRankingRecoveryTracks.has(dashboard.career_track)) {
     dashboardRankingRecoveryTracks.add(dashboard.career_track);
     api('/api/ranking/refresh', {method:'POST'}).catch((error) => toast(error.message));
   }
@@ -3809,7 +3812,7 @@ async function resolveBlocker(id) {
 const CHOICE_BLOCKER_KINDS=new Set(['choice_required','unknown_field','missing_profile_detail']);
 function blockerChoiceOptions(blocker={}){return CHOICE_BLOCKER_KINDS.has(blocker?.kind)&&Array.isArray(blocker?.options)?blocker.options.map(value=>String(value||'').trim()).filter(Boolean):[]}
 let questionWaitCountdownTimer=null;
-function questionWaitSeconds(blocker={}){const until=Date.parse(blocker.wait_until||'');return blocker.live_waiting&&Number.isFinite(until)?Math.max(0,Math.min(60,Math.ceil((until-Date.now())/1000))):0}
+function questionWaitSeconds(blocker={}){if(!blocker)return 0;const until=Date.parse(blocker.wait_until||'');return blocker.live_waiting&&Number.isFinite(until)?Math.max(0,Math.min(60,Math.ceil((until-Date.now())/1000))):0}
 function questionWaitCopy(seconds){return seconds>0?`נותרו ${seconds} שניות להמשך מאותה נקודה.`:'ההמתנה הסתיימה. תשובה תפעיל ניסיון חדש.'}
 function questionWaitMarkup(blocker={}){if(!CHOICE_BLOCKER_KINDS.has(blocker.kind)||!blocker.wait_until)return '';return `<small class="question-live-wait" data-question-wait-until="${esc(blocker.wait_until)}" data-question-live-wait="${Boolean(blocker.live_waiting)}">${questionWaitCopy(questionWaitSeconds(blocker))}</small>`}
 function updateQuestionWaitCountdowns(){let visibleWaiting=false;$$('[data-question-wait-until]').forEach(node=>{const seconds=questionWaitSeconds({wait_until:node.dataset.questionWaitUntil,live_waiting:node.dataset.questionLiveWait==='true'});node.textContent=questionWaitCopy(seconds);const surface=node.closest('#modal,#notification-center');if(seconds>0&&(!surface||surface.classList.contains('open'))&&node.getClientRects().length&&document.visibilityState!=='hidden')visibleWaiting=true});return visibleWaiting}
@@ -3946,7 +3949,7 @@ async function loadSources() {
       ${sourceLogoMarkup(source)}
       <div class="source-main"><strong>${esc(source.name)}</strong><span>${esc(source.kind)} · ${esc(source.identifier)}${source.last_scanned_at ? ` · ניסיון אחרון ${dateFmt(source.last_scanned_at)}` : ''}${source.disabled_until ? ` · בהשהיה עד ${dateFmt(source.disabled_until)}` : ''}</span><div class="source-health"><i><b style="width:${source.health_score}%"></b></i><strong>${esc(sourceScanLabel(source))} · ${source.health_score}% בריאות מקור</strong></div></div>
       <div class="source-item-controls" data-no-source-click>${canManageSources ? `<div class="source-actions">
-        <label class="source-toggle" title="${source.enabled ? 'המקור נסרק במסלול הזה' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
+        <label class="source-toggle" title="${source.enabled ? 'המקור נכלל בסריקה המשותפת' : 'המקור לא ייכלל בסריקות'}" onclick="event.stopPropagation()">
           <input type="checkbox" ${source.enabled ? 'checked' : ''} aria-label="${source.enabled ? 'כבה' : 'הפעל'} את ${esc(source.name)}" onchange="event.stopPropagation();toggleSource(${source.id},this.checked,this)" />
           <span class="source-toggle-track" aria-hidden="true"><i></i></span>
           <span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה' : 'לא ייסרק'}</small></span>
@@ -3969,7 +3972,7 @@ function showSource(id) {
     <div class="source-modal-heading">${sourceLogoMarkup(source, 'source-logo-modal')}<div><span class="kicker">מקור משרות</span><h2>${esc(source.name)}</h2></div></div>
     <div class="source-detail-grid"><span>מערכת</span><strong>${esc(source.kind)}</strong><span>מזהה</span><strong>${esc(source.identifier)}</strong><span>חברה</span><strong>${esc(source.company_name || 'לא הוגדרה')}</strong><span>מצב</span><strong>${source.disabled_until ? 'מושהה זמנית' : source.enabled ? 'פעיל' : 'כבוי'}</strong><span>בריאות מקור</span><strong>${source.health_score}% · ${source.consecutive_failures} כשלים רצופים</strong><span>ניסיון אחרון</span><strong>${dateFmt(source.last_scanned_at)}</strong><span>תוצאת האיסוף</span><strong>${esc(sourceScanLabel(source))}</strong><span>סריקה מלאה מאומתת</span><strong>${source.last_success_at ? dateFmt(source.last_success_at) : 'טרם אומתה'}</strong></div>
     ${source.last_error ? `<div class="warning">${esc(professionalMessage(source.last_error))}</div>` : ''}
-    ${sourceManagementAllowed() ? `<div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>` : '<div class="automation-note">המקורות מנוהלים על ידי מנהל המערכת והסריקה מתבצעת אוטומטית בכל שעה עגולה.</div>'}
+    ${sourceManagementAllowed() ? `<div class="card-actions modal-actions"><label class="source-toggle source-toggle-modal"><input type="checkbox" ${source.enabled ? 'checked' : ''} onchange="toggleSource(${source.id},this.checked,this);closeModal()" /><span class="source-toggle-track" aria-hidden="true"><i></i></span><span class="source-toggle-copy"><strong>${source.enabled ? 'פעיל' : 'כבוי'}</strong><small>${source.enabled ? 'ייכלל בסריקה הבאה' : 'לא ייסרק'}</small></span></label><button class="btn danger" type="button" onclick="deleteSource(${source.id});closeModal()">מחק מקור</button></div>` : '<div class="automation-note">המקורות מנוהלים על ידי מנהל המערכת והסריקה מתבצעת אוטומטית פעמיים ביום.</div>'}
   `);
 }
 
@@ -6088,7 +6091,13 @@ function renderOnboardingRankingStatus(status){
   const filtered=Math.max(0,Number(status.filtered)||0);
   const percent=total?Math.min(100,Math.round((checked/total)*100)):100;
   const ready=Boolean(status.ready);
-  const failed=!status.running && (Number(status.failed)>0 || status.phase==='failed');
+  const deferred=!status.running && status.phase==='deferred';
+  const failed=!deferred && !status.running && (Number(status.failed)>0 || status.phase==='failed');
+  if(deferred){
+    target.classList.remove('is-running');
+    target.innerHTML=`<span><b>אפשר להמשיך למשרות</b><small>${esc(status.message||'חלק מההתאמות כבר מוכנות. יתר הדירוג ימשיך ברענון הבא.')}</small></span>`;
+    return;
+  }
   if(failed){
     target.classList.remove('is-running');
     target.innerHTML=`<span><b>רענון הדירוג לא הושלם</b><small>${esc(status.message||'אפשר לנסות שוב; הדירוגים התקינים נשמרו.')}</small></span><button type="button" class="btn secondary small" id="onboarding-retry-ranking">נסה שוב</button>`;
@@ -6115,11 +6124,12 @@ async function onboardingWatchRanking(){
   try{
     const status=await api('/api/ranking/status');
     renderOnboardingRankingStatus(status);
-    if(!status.running && (Number(status.failed)>0 || status.phase==='failed'))return;
-    if(!status.ready){onboardingState.scanTimer=setTimeout(onboardingWatchRanking,700);return}
-    $('.onboarding-scan-stage')?.classList.add('complete');
+    if(!status.running && status.phase!=='deferred' && (Number(status.failed)>0 || status.phase==='failed'))return;
+    const deferred=!status.running && status.phase==='deferred';
+    if(!status.ready && !deferred){onboardingState.scanTimer=setTimeout(onboardingWatchRanking,700);return}
+    if(status.ready)$('.onboarding-scan-stage')?.classList.add('complete');
     const button=$('#onboarding-enter-ranked');
-    if(button){button.disabled=false;button.textContent='למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
+    if(button){button.disabled=false;button.textContent=deferred?'למשרות':'למשרות שנבחרו עבורך';button.onclick=async()=>{await onboardingFinish();switchView('jobs');await loadJobs()}}
   }catch(error){
     const target=$('#onboarding-ranking-status');
     if(target)target.innerHTML=`<span><b>לא הצלחנו לקרוא את מצב הדירוג</b><small>${esc(error.message||'נסה שוב')}</small></span><i class="scan-status-fill is-indeterminate" aria-hidden="true"></i>`;

@@ -121,3 +121,58 @@ def test_onboarding_failure_stops_polling_and_allows_retry():
         assert '0 משרות עברו סינון ודורגו עבורך · 64 סוננו' in target.inner_text()
         assert target.evaluate("el => el.style.getPropertyValue('--scan-progress')") == '100%'
         browser.close()
+
+
+def test_dashboard_deferred_budget_stops_polling_and_automatic_retry():
+    js = (Path(__file__).parents[1] / 'app/static/app.js').read_text()
+    start = js.index("  const rankingStatus = $('#recommendations-ranking-status');")
+    end = js.index('  renderRecent(dashboard.recent_jobs);', start)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content('<div id="recommendations-ranking-status"></div>')
+        page.add_script_tag(content='''
+          const $=s=>document.querySelector(s),esc=s=>String(s);
+          let dashboardRankingEtaDeadline=0,dashboardRankingEtaTrack='',dashboardRankingCountdownTimer=null;
+          let dashboardRankingRefreshTimer=null,dashboardRankingRefreshPolls=0;
+          const dashboardRankingRecoveryTracks=new Set(),state={activeView:'dashboard'};
+          window.requests=[];window.polls=0;
+          const api=async(url)=>requests.push(url),loadDashboard=async()=>{};
+          const toast=()=>{},updateDashboardRankingCountdown=()=>{};
+          const setTimeout=()=>{window.polls++},setInterval=()=>{window.polls++};
+        ''' + 'function renderRanking(dashboard){' + js[start:end] + '}')
+        page.evaluate("""() => renderRanking({career_track:'computer_science',ranking_pending_jobs:2000,
+          ranking_refresh:{running:false,phase:'deferred',deferred:2000,message:'יתרת הדירוג תמשיך ברענון הבא'}})""")
+        assert 'המשך הדירוג ממתין' in page.locator('#recommendations-ranking-status').inner_text()
+        assert 'יתרת הדירוג תמשיך ברענון הבא' in page.locator('#recommendations-ranking-status').inner_text()
+        assert page.evaluate('polls') == 0
+        assert page.evaluate('requests') == []
+        assert page.locator('#retry-failed-ranking').count() == 0
+        browser.close()
+
+
+@pytest.mark.parametrize('failed', [0, 1])
+def test_onboarding_deferred_budget_allows_jobs_without_polling(failed):
+    js = (Path(__file__).parents[1] / 'app/static/app.js').read_text()
+    start = js.index('function renderOnboardingRankingStatus(status)')
+    end = js.index('async function onboardingStartRanking()', start)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content('''<div class="onboarding-scan-stage"><div id="onboarding-ranking-status"></div>
+          <button id="onboarding-enter-ranked" disabled>מכין</button></div>''')
+        page.add_script_tag(content='''
+          const $=s=>document.querySelector(s),esc=s=>String(s),toast=()=>{};
+          const onboardingState={};window.polls=0;window.entered=false;window.loaded=false;
+          const setTimeout=()=>{window.polls++};
+          const onboardingFinish=async()=>{window.entered=true},switchView=()=>{},loadJobs=async()=>{window.loaded=true};
+          const api=async()=>window.statusResponse;
+        ''' + js[start:end])
+        page.evaluate('async failed=>{window.statusResponse={running:false,ready:false,phase:"deferred",deferred:20,failed,total:50,checked:30,ranked:30};await onboardingWatchRanking()}', failed)
+        assert page.evaluate('polls') == 0
+        assert page.locator('#onboarding-enter-ranked').is_enabled()
+        assert page.locator('.onboarding-scan-stage.complete').count() == 0
+        assert 'אפשר להמשיך למשרות' in page.locator('#onboarding-ranking-status').inner_text()
+        page.locator('#onboarding-enter-ranked').click()
+        assert page.evaluate('entered && loaded') is True
+        browser.close()

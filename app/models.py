@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base, SHARED_CATALOG_USER_ID
+from .ranking_storage import RankingResultText
 
 
 def utcnow() -> datetime:
@@ -206,7 +207,7 @@ class JobRanking(UserOwnedMixin, Base):
     tier: Mapped[str] = mapped_column(String(30), default="low_match", index=True)
     confidence: Mapped[str] = mapped_column(String(20), default="low")
     eligibility_state: Mapped[str] = mapped_column(String(20), default="realistic", index=True)
-    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    result_json: Mapped[str] = mapped_column(RankingResultText(), default="{}")
     engine_version: Mapped[int] = mapped_column(Integer, default=1)
     config_version: Mapped[int] = mapped_column(Integer, default=1)
     profile_fingerprint: Mapped[str] = mapped_column(String(64), default="")

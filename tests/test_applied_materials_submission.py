@@ -97,7 +97,8 @@ DOCUMENT = '''<!doctype html><html><head><meta name="_csrf" content="offline-fix
 <main id="root"></main><script>
 const config=__CONFIG__;
 if(config.activeController)Object.defineProperty(navigator.serviceWorker,'controller',{get:()=>({})});
-window.counts={privacy:0,fileChanges:0,submitClicks:0,loadBeacon:0,inputBeacon:0};
+window.counts={privacy:0,fileChanges:0,submitClicks:0,loadBeacon:0,inputBeacon:0,
+ uploadAttempts:0,uploadReceipts:0,uploadErrors:0};
 window.uploadedProfile={};
 window.grecaptcha={ready:callback=>callback(),execute:async()=>config.emptyCaptcha?'':'offline-native-token'};
 function renderForm(){
@@ -153,13 +154,17 @@ function confirmPrivacy(button){
  const selected=document.querySelector('#resume').files[0];
  const file=config.wrongCv?new File(['different candidate bytes'],selected.name,{type:selected.type}):selected;
  const upload=()=>{
+  const attempt=++counts.uploadAttempts;
   const xhr=new XMLHttpRequest();xhr.open('POST','/api/application/v2/resume_upload?domain=appliedmaterials.com&user_mode=logged_out_candidate');
   xhr.setRequestHeader('X-CSRF-Token','offline-fixture');
   xhr.onload=()=>{
+   counts.uploadReceipts++;
    const response=JSON.parse(xhr.responseText);
    uploadedProfile=response.data.profile;
    document.querySelector('#resumeName').textContent=uploadedProfile.resumeFilename;
+   if(config.duplicateUploadAfterReceipt && attempt===1)upload();
   };
+  xhr.onerror=()=>{counts.uploadErrors++};
   const data=new FormData();data.append('resume',file);
   if(notificationControl||config.hiddenNotifications)data.append('notifications_checkbox_accepted',String(notifications));
   for(const [key,value] of Object.entries(config.uploadMetadata||{}))data.append(key,value);
@@ -775,12 +780,38 @@ def test_final_guard_blocks_missing_token_wrong_identity_cv_answer_or_endpoint(s
 
 @pytest.mark.parametrize('flag', ['wrongCv', 'duplicateUpload'])
 def test_native_upload_cannot_send_foreign_bytes_or_upload_twice(scenario, flag):
-    _, _, state = scenario
+    _, application_task, state = scenario
     state['config'][flag] = True
-    with pytest.raises(ApplicationBlocked):
+    with pytest.raises(ApplicationBlocked) as blocked:
         run(scenario)
+    assert blocked.value.diagnostics['guard_rejected'] is True
+    assert blocked.value.diagnostics['request_sent'] is False
+    assert blocked.value.diagnostics['bootstrap_verified'] is True
+    assert blocked.value.diagnostics['position_verified'] is True
+    assert blocked.value.diagnostics['guest_profile_verified'] is True
     assert state['posts'] == []
-    assert len(state['uploads']) == (1 if flag == 'duplicateUpload' else 0)
+    # Both hashes run concurrently. A duplicate verification can reject the first
+    # reserved token before its request reaches the guard; zero uploads is safe.
+    assert len(state['uploads']) <= (1 if flag == 'duplicateUpload' else 0)
+    for upload in state['uploads']:
+        assert upload['files']['resume']['bytes'] == Path(application_task['profile']['cv_path']).read_bytes()
+    assert not state.get('unexpected')
+
+
+def test_second_native_upload_after_first_receipt_is_denied_before_final_submission(scenario):
+    page, application_task, state = scenario
+    state['config']['duplicateUploadAfterReceipt'] = True
+    with pytest.raises(ApplicationBlocked) as blocked:
+        run(scenario)
+    page.wait_for_function('counts.uploadReceipts + counts.uploadErrors === counts.uploadAttempts')
+    assert page.evaluate('[counts.uploadAttempts, counts.uploadReceipts, counts.uploadErrors]') == [2, 1, 1]
+    assert len(state['uploads']) == 1
+    assert state['uploads'][0]['files']['resume']['bytes'] == Path(application_task['profile']['cv_path']).read_bytes()
+    assert blocked.value.diagnostics['cv_upload_sent'] is True
+    assert blocked.value.diagnostics['guard_rejected'] is True
+    assert blocked.value.diagnostics['request_sent'] is False
+    assert state['posts'] == []
+    assert not state.get('unexpected')
 
 
 def test_duplicate_final_native_request_never_reaches_employer_twice(scenario):

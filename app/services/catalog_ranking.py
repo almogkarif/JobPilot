@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from sqlalchemy import LargeBinary, String, case, cast, func, or_, select
+from sqlalchemy import Integer, LargeBinary, String, case, cast, func, or_, select
+from sqlalchemy.orm import load_only
 
 from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
@@ -19,27 +20,102 @@ MAX_RANKING_JOBS = 5000
 MAX_RANKING_ROW_BYTES = 256 * 1024
 MAX_RANKING_REFRESH_BYTES = 16 * 1024 * 1024
 
+# Ranking derives skills/classification from source text. Legacy scores, saved
+# classification, application URLs and alternate links are not ranking inputs.
+RANKING_JOB_COLUMNS = (
+    Job.id, Job.user_id, Job.career_track, Job.title, Job.description,
+    Job.location, Job.workplace, Job.source_fingerprint,
+    Job.published_at, Job.discovered_at, Job.experience_min, Job.experience_max,
+    Job.degree_requirement, Job.degree_required, Job.degree_experience_alternative,
+)
+
+
+def _ranking_result_bytes(postgres):
+    """Keep decoded payloads inside the existing budget without downloading them."""
+    value = JobRanking.result_json
+    physical = (func.octet_length(value) if postgres
+                else func.length(cast(value, LargeBinary)))
+    # Version 1 writes this exact prefix. Prefix/regex extraction avoids parsing
+    # malformed legacy JSON and works on PostgreSQL 14 as well as SQLite.
+    prefix = '{"_jp_rank":1,"n":'
+    logical = (cast(func.substring(value, r'^\{"_jp_rank":1,"n":([0-9]{1,6}),'), Integer)
+               if postgres else case(
+                   (func.substr(value, 1, len(prefix)) == prefix,
+                    cast(func.substr(value, len(prefix) + 1, 6), Integer)),
+                   else_=0,
+               ))
+    return case((logical > physical, logical), else_=physical)
+
 
 def _ranking_row_bytes(db):
-    """SQL-only UTF-8 payload bound, including every loaded text/JSON column."""
+    """SQL-only UTF-8 bound, including decoded ranking JSON and loaded text."""
     postgres = db.get_bind().dialect.name == "postgresql"
     size = 2048  # Numeric/timestamp fields and conservative per-row framing.
-    for model in (Job, JobRanking):
-        for column in model.__table__.columns:
-            if isinstance(column.type, String):
-                value = getattr(model, column.key)
-                length = func.octet_length(value) if postgres else func.length(cast(value, LargeBinary))
-                size = size + func.coalesce(length, 0)
+    values = list(RANKING_JOB_COLUMNS) + [getattr(JobRanking, column.key)
+                                        for column in JobRanking.__table__.columns]
+    for value in values:
+        if (isinstance(value.type, String)
+                or isinstance(getattr(value.type, "impl", None), String)):
+            length = (_ranking_result_bytes(postgres)
+                      if value.table.name == "job_rankings" and value.key == "result_json" else
+                      func.octet_length(value) if postgres else func.length(cast(value, LargeBinary)))
+            size = size + func.coalesce(length, 0)
     return size
 
 
-def _record_ranking_deferral(db, track, count, reason):
+def _resume_skills_bytes(db):
+    value = ResumeProfile.skills_json
+    length = (func.octet_length(value) if db.get_bind().dialect.name == "postgresql"
+              else func.length(cast(value, LargeBinary)))
+    return 2048 + func.coalesce(length, 0)
+
+
+def _load_default_resume_skills(db, track, *, bounded=True):
+    """Plan and reserve the owned default CV before transferring its skills.
+
+    The returned byte allowance is part of the existing refresh ceiling. ORM
+    loading preserves pending edits in the caller's identity map without commit.
+    A missing default CV is valid; an unreadable planned CV defers ranking.
+    """
+    predicate = (ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track)
+    if not bounded:
+        resume = db.scalar(select(ResumeProfile).where(*predicate).limit(1).options(
+            load_only(ResumeProfile.skills_json, raiseload=True)))
+        return (loads(resume.skills_json, []) if resume else []), "", 0
+    size = _resume_skills_bytes(db)
+    plan = db.execute(select(ResumeProfile.id, size).where(*predicate).limit(1)).first()
+    if plan is None:
+        return [], "", 0
+    resume_id, planned_bytes = plan
+    if planned_bytes > MAX_RANKING_ROW_BYTES:
+        return [], "resume_skills_row_limit", 0
+    if planned_bytes > MAX_RANKING_REFRESH_BYTES:
+        return [], "refresh_byte_limit", 0
+    if not reserve_catalog_egress(2 * planned_bytes):
+        return [], "daily_catalog_byte_limit", 0
+    resume = db.scalar(select(ResumeProfile).where(
+        *predicate, ResumeProfile.id == resume_id, size <= planned_bytes,
+    ).limit(1).options(load_only(ResumeProfile.skills_json, raiseload=True)))
+    if resume is None:
+        return [], "resume_skills_changed", 0
+    # Pending edits are not overwritten by the bounded ORM query. They may be
+    # larger than the saved value, so retain their meaning and check their cap.
+    actual_bytes = 2048 + len((resume.skills_json or "").encode("utf-8"))
+    if actual_bytes > MAX_RANKING_ROW_BYTES:
+        return [], "resume_skills_row_limit", planned_bytes
+    if actual_bytes > MAX_RANKING_REFRESH_BYTES:
+        return [], "refresh_byte_limit", planned_bytes
+    return loads(resume.skills_json, []), "", max(planned_bytes, actual_bytes)
+
+
+def _record_ranking_deferral(db, track, count, reason, *, commit=True):
     db.add(AuditLog(
         event_type="ranking_v2_deferred", entity_type="ranking", entity_id=track,
-        message="Hourly ranking deferred by catalog transfer budget",
+        message="Ranking deferred by catalog transfer budget",
         details_json=dumps({"career_track": track, "deferred": count, "reason": reason}),
     ))
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only: bool = False) -> dict:
@@ -51,11 +127,6 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
             return {"status": "inactive", "career_track": track, "ranked": 0}
         if unified_catalog_enabled():
             db.info["ranking_track"] = track
-        default_resume = db.scalar(select(ResumeProfile).where(
-            ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
-        ))
-        resume_skills = loads(default_resume.skills_json, []) if default_resume else []
-        context = build_match_context(profile, resume_skills, career_track=track)
         settings = get_ranking_settings(db)
         current_profile_fingerprint = profile_fingerprint(profile, track)
         ranking_join = (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
@@ -89,8 +160,14 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         )).one()
 
         ranked = failed = processed = planned = transferred = last_id = 0
+        resume_reason = ""
+        if total:
+            resume_skills, resume_reason, transferred = _load_default_resume_skills(db, track)
+            if not resume_reason:
+                context = build_match_context(profile, resume_skills, career_track=track)
         daily_budget_exhausted = False
-        while total and planned < MAX_RANKING_JOBS and transferred < MAX_RANKING_REFRESH_BYTES:
+        while (total and not resume_reason and planned < MAX_RANKING_JOBS
+               and transferred < MAX_RANKING_REFRESH_BYTES):
             remaining = MAX_RANKING_REFRESH_BYTES - transferred
             page_size = min(RANKING_PAGE_SIZE, MAX_RANKING_JOBS - planned,
                             max(1, remaining // MAX_RANKING_ROW_BYTES))
@@ -111,7 +188,7 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
             rows = db.execute(page.add_columns(row_bytes).where(
                 Job.id.in_(planned_sizes),
                 row_bytes <= case(planned_sizes, value=Job.id, else_=0),
-            )).unique().all()
+            ).options(load_only(*RANKING_JOB_COLUMNS, raiseload=True))).unique().all()
             for job, row, payload_bytes in rows:
                 transferred += payload_bytes
                 processed += 1
@@ -139,6 +216,8 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
                   "job_count_limit" if planned >= MAX_RANKING_JOBS else "refresh_byte_limit")
         if daily_budget_exhausted:
             reason = "daily_catalog_byte_limit"
+        if resume_reason:
+            reason = resume_reason
         if deferred:
             _record_ranking_deferral(db, track, deferred, reason)
         db.commit()

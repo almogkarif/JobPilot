@@ -22,6 +22,7 @@ def test_new_verified_default_is_promoted_once_without_overriding_admin(preview_
     definitions = tuple(dict(name=row.name, kind=row.kind, identifier=row.identifier,
                              company_name='Example', enabled=True, validation_status='verified') for row in sources)
     monkeypatch.setattr(source_catalog, 'RECOMMENDED_SOURCES_BY_TRACK', {'computer_science': definitions})
+    monkeypatch.setattr(source_catalog, 'SHARED_RECOMMENDED_SOURCES', ())
     assert unified_catalog.install_unified_sources(preview_db) == 0
     assert [row.enabled for row in sources] == [True, False, False]
     assert all(json.loads(row.metadata_json)['validation_status'] == 'verified' for row in sources)

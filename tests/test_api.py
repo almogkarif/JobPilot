@@ -47,6 +47,7 @@ def test_health_and_dashboard():
             "running": False, "message": "", "phase": "", "completed": 0,
             "checked": 0, "eligible": 0, "filtered": 0,
             "total": 0, "eta_seconds": None, "failed": 0,
+            "deferred": 0, "reason": "",
         }
         assert set(dashboard["readiness"]) >= {
             "ready", "profile_complete", "resume_uploaded", "sources_enabled", "agent_token_secure"

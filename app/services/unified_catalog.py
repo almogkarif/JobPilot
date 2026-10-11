@@ -100,16 +100,9 @@ def ensure_source_bindings(db):
 
 
 def install_unified_sources(db):
-    from .source_catalog import RECOMMENDED_SOURCES_BY_TRACK
+    from .source_catalog import shared_recommended_sources
     existing = {_source_key(row): row for row in unified_sources(db)}
-    definitions = {}
-    for catalog in RECOMMENDED_SOURCES_BY_TRACK.values():
-        for item in catalog:
-            if retirement_reason(item['kind'], item['identifier']):
-                continue
-            key = _source_key(item)
-            if key not in definitions or item.get('enabled', True):
-                definitions[key] = item
+    definitions = {_source_key(item): item for item in shared_recommended_sources()}
     added = 0
     for key, item in definitions.items():
         if key in existing:
@@ -121,7 +114,7 @@ def install_unified_sources(db):
                     and item.get('validation_status') == 'verified'):
                 metadata['validation_status'] = 'verified'
                 metadata['adapter_verified_release'] = '2026-09-27'
-                if 'enabled_override' not in metadata:
+                if 'enabled_override' not in metadata and item.get('enabled', True):
                     source.enabled = True
                     source.disabled_until = None
                     source.consecutive_failures = 0

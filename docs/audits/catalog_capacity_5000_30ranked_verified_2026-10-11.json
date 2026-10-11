@@ -1,0 +1,125 @@
+{
+  "mode": "synthetic_disposable_local_only",
+  "backend": "postgresql",
+  "generated_at": "2026-10-10T22:39:41.500119+00:00",
+  "workload": {
+    "backend": "postgresql",
+    "jobs": 5000,
+    "users": 30,
+    "ranked_users": 30,
+    "sources": 300,
+    "description_bytes": 8192,
+    "requests": 90,
+    "concurrency": 10,
+    "report": "docs/audits/catalog_capacity_5000_30ranked_verified_2026-10-11.json"
+  },
+  "seed_seconds": 53.929,
+  "storage": {
+    "database_bytes": 309559811,
+    "tables_bytes_including_indexes_toast": {
+      "agent_devices": 32768,
+      "answer_memories": 32768,
+      "app_identity": 32768,
+      "application_attempts": 73728,
+      "application_campaigns": 40960,
+      "application_events": 57344,
+      "applications": 57344,
+      "audit_logs": 40960,
+      "blockers": 40960,
+      "campaign_runs": 49152,
+      "catalog_migration_archive": 16384,
+      "collection_observations": 16384,
+      "email_connections": 32768,
+      "job_rankings": 280797184,
+      "job_source_identities": 24576,
+      "job_tracks": 942080,
+      "jobs": 17145856,
+      "open_answer_drafts": 32768,
+      "profiles": 114688,
+      "ranking_settings": 32768,
+      "resume_profiles": 40960,
+      "sources": 188416,
+      "user_job_states": 65536
+    }
+  },
+  "row_counts": {
+    "jobs": 5000,
+    "job_tracks": 5000,
+    "job_rankings": 150000,
+    "profiles": 30
+  },
+  "ranking_json_bytes": {
+    "minimum": 3064,
+    "maximum": 3228,
+    "mean": 3147
+  },
+  "ranking_template_sample": {
+    "evaluations": 600,
+    "p50_ms": 66.917,
+    "p95_ms": 72.845
+  },
+  "sql_timings": {
+    "profile_or_settings": {
+      "count": 180,
+      "p50_ms": 0.485,
+      "p95_ms": 9.302
+    },
+    "location_aggregate": {
+      "count": 90,
+      "p50_ms": 12.331,
+      "p95_ms": 21.161
+    },
+    "job_page": {
+      "count": 90,
+      "p50_ms": 30.145,
+      "p95_ms": 32.983
+    }
+  },
+  "isolated_explain_samples": {
+    "profile_or_settings": {
+      "planning_ms": 0.063,
+      "execution_ms": 0.022,
+      "total_cost": 2.39,
+      "rows": 1,
+      "jit_functions": 0,
+      "jit_total_ms": 0
+    },
+    "location_aggregate": {
+      "planning_ms": 0.465,
+      "execution_ms": 19.274,
+      "total_cost": 14325.18,
+      "rows": 1,
+      "jit_functions": 0,
+      "jit_total_ms": 0
+    },
+    "job_page": {
+      "planning_ms": 2.432,
+      "execution_ms": 28.86,
+      "total_cost": 14647.62,
+      "rows": 20,
+      "jit_functions": 0,
+      "jit_total_ms": 0
+    }
+  },
+  "list_handler": {
+    "requests": 90,
+    "owners_checked": 30,
+    "concurrency": 10,
+    "p50_ms": 526.57,
+    "p95_ms": 616.707,
+    "max_ms": 686.715,
+    "max_response_bytes": 86058,
+    "max_selects": 4,
+    "max_job_rows_loaded": 20,
+    "catalog_body_reads": 0
+  },
+  "ranking_ownership_verified": true,
+  "limitations": [
+    "Synthetic vacancies are not real employer inventory.",
+    "Only the configured ranked_users have cached rankings; other owners exercise the pending-ranking path.",
+    "Twenty real classification/ranking templates and word distribution affect compression; this does not measure full-catalog ranking throughput.",
+    "List handler measurements omit HTTP, authentication, internet latency, cold starts and free-host CPU limits.",
+    "This is not a measured production/Supabase quota or protocol-byte result.",
+    "No real account, CV, application submission, source scan or production database was accessed."
+  ]
+}

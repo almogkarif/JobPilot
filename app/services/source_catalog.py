@@ -10,8 +10,8 @@ from ..utils import dumps, loads
 from .source_retirements import retirement_reason
 
 # Public ATS boards that regularly publish relevant roles in Israel.
-# Source rows are track-scoped: the same company may exist in both tracks with
-# independent enable/error state, while only the active track is ever scanned.
+# These legacy groupings remain for compatibility. The unified catalog installs
+# their identities into one shared pool; new sources have no study-track owner.
 CS_RECOMMENDED_SOURCES: tuple[dict[str, str], ...] = (
     {"name": "Google Careers Israel", "kind": "google_careers", "identifier": "israel", "company_name": "Google"},
     {"name": "Apple Careers Israel", "kind": "official_careers", "identifier": "apple", "company_name": "Apple"},
@@ -315,11 +315,93 @@ RECOMMENDED_SOURCES_BY_TRACK = {
 # Backward-compatible symbol used by older tests/imports.
 RECOMMENDED_SOURCES = CS_RECOMMENDED_SOURCES
 
+# Public boards checked on 2026-10-11 (Israel time). No study-track ownership:
+# classification of the collected jobs happens separately in the shared catalog.
+SHARED_RECOMMENDED_SOURCES = (
+    {"name": "PointFive Careers", "kind": "ashby", "identifier": "pointfive", "company_name": "PointFive", "logo_domain": "pointfive.co", "validation_status": "verified"},
+    {"name": "Pi Security Careers", "kind": "ashby", "identifier": "pi-security", "company_name": "Pi Security", "logo_domain": "pi.security", "validation_status": "verified"},
+    {"name": "Stigg Careers", "kind": "ashby", "identifier": "stigg", "company_name": "Stigg", "logo_domain": "stigg.io", "validation_status": "verified"},
+    {"name": "Parallel Wireless Careers", "kind": "lever", "identifier": "parallelwireless", "company_name": "Parallel Wireless", "logo_domain": "parallelwireless.com", "validation_status": "verified"},
+    {"name": "Dream Careers", "kind": "official_careers", "identifier": "dream", "company_name": "Dream", "logo_domain": "dreamgroup.com", "validation_status": "verified"},
+    {"name": "Riverside Careers", "kind": "official_careers", "identifier": "riverside", "company_name": "Riverside", "logo_domain": "riverside.com", "validation_status": "verified"},
+    {"name": "8fig Careers", "kind": "official_careers", "identifier": "8fig", "company_name": "8fig", "logo_domain": "8fig.co", "validation_status": "verified"},
+    {"name": "IVIX Careers", "kind": "official_careers", "identifier": "ivix", "company_name": "IVIX", "logo_domain": "ivix.ai", "validation_status": "verified"},
+    {"name": "Encore Careers", "kind": "official_careers", "identifier": "encore", "company_name": "Encore AI", "logo_domain": "gainencore.ai", "validation_status": "verified"},
+    {"name": "Sygnia Careers", "kind": "official_careers", "identifier": "sygnia", "company_name": "Sygnia", "logo_domain": "sygnia.co", "validation_status": "verified"},
+    {"name": "Zenity Careers", "kind": "official_careers", "identifier": "zenity", "company_name": "Zenity", "logo_domain": "zenity.io", "validation_status": "verified"},
+    {"name": "Nanit Careers", "kind": "greenhouse", "identifier": "nanit", "company_name": "Nanit", "logo_domain": "nanit.com", "validation_status": "verified"},
+    {"name": "DriveNets Careers", "kind": "official_careers", "identifier": "drivenets", "company_name": "DriveNets", "logo_domain": "drivenets.com", "validation_status": "verified"},
+    # Additional native boards verified against full Israel vacancies on 2026-10-11.
+    {"name": "Buildots Careers", "kind": "official_careers", "identifier": "buildots", "company_name": "Buildots", "logo_domain": "buildots.com", "validation_status": "verified"},
+    {"name": "Checkmarx Careers", "kind": "official_careers", "identifier": "checkmarx", "company_name": "Checkmarx", "logo_domain": "checkmarx.com", "validation_status": "verified"},
+    {"name": "Elementor Careers", "kind": "official_careers", "identifier": "elementor", "company_name": "Elementor", "logo_domain": "elementor.com", "validation_status": "verified"},
+    {"name": "PlainID Careers", "kind": "official_careers", "identifier": "plainid", "company_name": "PlainID", "logo_domain": "plainid.com", "validation_status": "verified"},
+    {"name": "Lusha Careers", "kind": "official_careers", "identifier": "lusha", "company_name": "Lusha", "logo_domain": "lusha.com", "validation_status": "verified"},
+    {"name": "CHEQ Careers", "kind": "official_careers", "identifier": "cheq", "company_name": "CHEQ", "logo_domain": "cheq.ai", "validation_status": "verified"},
+    {"name": "GeoEdge Careers", "kind": "official_careers", "identifier": "geoedge", "company_name": "GeoEdge", "logo_domain": "geoedge.com", "validation_status": "verified"},
+    {"name": "Insightec Careers", "kind": "official_careers", "identifier": "insightec", "company_name": "Insightec", "logo_domain": "insightec.com", "validation_status": "verified"},
+    {"name": "SuperPlay Careers", "kind": "official_careers", "identifier": "superplay", "company_name": "SuperPlay", "logo_domain": "superplay.co", "validation_status": "verified"},
+    {"name": "Skai Careers", "kind": "official_careers", "identifier": "skai", "company_name": "Skai", "logo_domain": "skai.io", "validation_status": "verified"},
+    {"name": "OX Security Careers", "kind": "official_careers", "identifier": "ox-security", "company_name": "OX Security", "logo_domain": "ox.security", "validation_status": "verified"},
+    {"name": "Evinced Careers", "kind": "official_careers", "identifier": "evinced", "company_name": "Evinced", "logo_domain": "evinced.com", "validation_status": "verified"},
+    {"name": "Optibus Careers", "kind": "official_careers", "identifier": "optibus", "company_name": "Optibus", "logo_domain": "optibus.com", "validation_status": "verified"},
+    {"name": "Cycode Careers", "kind": "official_careers", "identifier": "cycode", "company_name": "Cycode", "logo_domain": "cycode.com", "validation_status": "verified"},
+    {"name": "Percepto Careers", "kind": "official_careers", "identifier": "percepto", "company_name": "Percepto", "logo_domain": "percepto.com", "validation_status": "verified"},
+    {"name": "Port Careers", "kind": "official_careers", "identifier": "port", "company_name": "Port", "logo_domain": "port.io", "validation_status": "verified"},
+    {"name": "Cross River Careers", "kind": "official_careers", "identifier": "crossriver", "company_name": "Cross River", "logo_domain": "crossriver.com", "validation_status": "verified"},
+    {"name": "CommIT Careers", "kind": "official_careers", "identifier": "comm-it", "company_name": "CommIT", "logo_domain": "comm-it.com", "validation_status": "verified"},
+    {"name": "Hypernative Careers", "kind": "official_careers", "identifier": "hypernative", "company_name": "Hypernative", "logo_domain": "hypernative.io", "validation_status": "verified"},
+    {"name": "CodeValue Careers", "kind": "official_careers", "identifier": "codevalue", "company_name": "CodeValue", "logo_domain": "codevalue.com", "validation_status": "verified"},
+    {"name": "Stampli Careers", "kind": "official_careers", "identifier": "stampli", "company_name": "Stampli", "logo_domain": "stampli.com", "validation_status": "verified"},
+    {"name": "INFINIDAT Careers", "kind": "official_careers", "identifier": "infinidat", "company_name": "INFINIDAT", "logo_domain": "infinidat.com", "validation_status": "verified"},
+    {"name": "Sensi.AI Careers", "kind": "official_careers", "identifier": "sensi-ai", "company_name": "Sensi.AI", "logo_domain": "sensi.ai", "validation_status": "verified"},
+    {"name": "Cardo Systems Careers", "kind": "official_careers", "identifier": "cardosystems", "company_name": "Cardo Systems", "logo_domain": "cardosystems.com", "validation_status": "verified"},
+    {"name": "EasySend Careers", "kind": "official_careers", "identifier": "easysend", "company_name": "EasySend", "logo_domain": "easysend.io", "validation_status": "verified"},
+    {"name": "Dualbird Careers", "kind": "official_careers", "identifier": "dualbird", "company_name": "Dualbird", "logo_domain": "dualbird.io", "validation_status": "verified"},
+    {"name": "inManage Careers", "kind": "official_careers", "identifier": "inmanage", "company_name": "inManage", "logo_domain": "inmanage.co.il", "validation_status": "verified"},
+    {"name": "Final Careers", "kind": "official_careers", "identifier": "final", "company_name": "Final", "logo_domain": "final.co.il", "validation_status": "verified"},
+    {"name": "Sentra Careers", "kind": "official_careers", "identifier": "sentra", "company_name": "Sentra", "logo_domain": "sentra.io", "validation_status": "verified"},
+    {"name": "Zero Networks Careers", "kind": "official_careers", "identifier": "zeronetworks", "company_name": "Zero Networks", "logo_domain": "zeronetworks.com", "validation_status": "verified"},
+    {"name": "Mind Security Inc. Careers", "kind": "official_careers", "identifier": "mindsecurity", "company_name": "Mind Security Inc.", "logo_domain": "mind.io", "validation_status": "verified"},
+    {"name": "Noma Security Careers", "kind": "official_careers", "identifier": "noma-security", "company_name": "Noma Security", "logo_domain": "noma.security", "validation_status": "verified"},
+    {"name": "Ownera Careers", "kind": "official_careers", "identifier": "ownera", "company_name": "Ownera", "logo_domain": "ownera.io", "validation_status": "verified"},
+    {"name": "Seeking Alpha Careers", "kind": "official_careers", "identifier": "seekingalpha", "company_name": "Seeking Alpha", "logo_domain": "seekingalpha.com", "validation_status": "verified"},
+    {"name": "Trullion Careers", "kind": "official_careers", "identifier": "trullion", "company_name": "Trullion", "logo_domain": "trullion.com", "validation_status": "verified"},
+    {"name": "WSC Sports Careers", "kind": "official_careers", "identifier": "wsc-sports", "company_name": "WSC Sports", "logo_domain": "wsc-sports.com", "validation_status": "verified"},
+    {"name": "Trigo Careers", "kind": "official_careers", "identifier": "trigo", "company_name": "Trigo", "logo_domain": "trigoretail.com", "validation_status": "verified"},
+    {"name": "G2 Risk Solutions Careers", "kind": "official_careers", "identifier": "g2risksolutions", "company_name": "G2 Risk Solutions", "logo_domain": "g2risksolutions.com", "validation_status": "verified"},
+    {"name": "Incredibuild Careers", "kind": "official_careers", "identifier": "incredibuild", "company_name": "Incredibuild", "logo_domain": "incredibuild.com", "validation_status": "verified"},
+    {"name": "Upstream Security Careers", "kind": "official_careers", "identifier": "upstream", "company_name": "Upstream Security", "logo_domain": "upstream.auto", "validation_status": "verified"},
+    {"name": "Artlist Careers", "kind": "official_careers", "identifier": "artlist", "company_name": "Artlist", "logo_domain": "artlist.io", "validation_status": "verified"},
+    {"name": "Navina Careers", "kind": "official_careers", "identifier": "navina", "company_name": "Navina", "logo_domain": "navina.ai", "validation_status": "verified"},
+    {"name": "Qodo Careers", "kind": "official_careers", "identifier": "qodo", "company_name": "Qodo", "logo_domain": "qodo.ai", "validation_status": "verified"},
+    {"name": "Fetcherr Careers", "kind": "official_careers", "identifier": "fetcherr", "company_name": "Fetcherr", "logo_domain": "fetcherr.io", "validation_status": "verified"},
+    {"name": "evoke Careers", "kind": "official_careers", "identifier": "evoke", "company_name": "evoke", "logo_domain": "evokeplc.com", "validation_status": "verified"},
+    {"name": "Finout Careers", "kind": "ashby", "identifier": "finout", "company_name": "Finout", "logo_domain": "finout.io", "validation_status": "verified"},
+    {"name": "April Careers", "kind": "ashby", "identifier": "april", "company_name": "April", "logo_domain": "getapril.com", "validation_status": "verified"},
+)
+# Fresh installs stay paused until production capacity has been reviewed.
+# Reconciliation preserves existing source enable choices.
+SHARED_RECOMMENDED_SOURCES = tuple({**item, "enabled": False} for item in SHARED_RECOMMENDED_SOURCES)
+
 
 def _source_key(source: Source | dict[str, str]) -> tuple[str, str]:
     kind = str(source.kind if isinstance(source, Source) else source.get("kind", "")).strip().casefold()
     identifier = str(source.identifier if isinstance(source, Source) else source.get("identifier", "")).strip().casefold()
     return kind, identifier
+
+
+def shared_recommended_sources() -> tuple[dict, ...]:
+    """Deduplicated shared definitions, including legacy catalogs and new boards."""
+    definitions = {}
+    for catalog in (*RECOMMENDED_SOURCES_BY_TRACK.values(), SHARED_RECOMMENDED_SOURCES):
+        for item in catalog:
+            if retirement_reason(item["kind"], item["identifier"]):
+                continue
+            key = _source_key(item)
+            if key not in definitions or item.get("enabled", True):
+                definitions[key] = item
+    return tuple(definitions.values())
 
 
 def _company_key(source: Source | dict[str, str]) -> str:
@@ -490,8 +572,7 @@ def recommended_source_status(db: Session, career_track: str = DEFAULT_TRACK) ->
     if unified_catalog_enabled():
         from .unified_catalog import unified_sources
         existing = {_source_key(s): s for s in unified_sources(db)}
-        catalog = {_source_key(item): item for items in RECOMMENDED_SOURCES_BY_TRACK.values() for item in items
-                   if not retirement_reason(item['kind'], item['identifier'])}
+        catalog = {_source_key(item): item for item in shared_recommended_sources()}
         return [{**item, 'career_track': 'shared', 'installed': key in existing,
                  'enabled': bool(existing[key].enabled) if key in existing else False}
                 for key, item in catalog.items()]

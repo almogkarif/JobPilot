@@ -1,0 +1,4041 @@
+{
+  "generated_at": "2026-10-10T22:53:37.510603+00:00",
+  "mode": "offline_public_feed_sqlite_replay",
+  "scope": "13 newly configured shared sources; no Supabase, candidate files, production writes, live submissions or live scan",
+  "public_reads": {
+    "native_feed_requests": 13,
+    "official_page_requests": 13,
+    "native_response_bytes": 2674332,
+    "official_response_bytes": 2604754,
+    "retries_on_403_429": 0
+  },
+  "bounds": {
+    "requests_per_source_per_scan": 1,
+    "decompressed_response_bytes": 4000000,
+    "feed_rows": 200,
+    "description_chars": 24000,
+    "generic_metadata_bytes": 4096,
+    "snapshots_complete": false,
+    "shared_catalog_daily_budget_bytes": 67108864
+  },
+  "verification": {
+    "source_native_route_and_job_text_tests_passed": 133,
+    "retirement_rollout_sqlite_postgresql_tests_passed": 33,
+    "distinct_tests_passed": 166,
+    "tests_skipped": 0,
+    "real_applications_attempted": 0
+  },
+  "local_setup_effect": {
+    "database_path": "data/jobpilot.db",
+    "reason": "Initial disposable driver used unprefixed environment variables instead of JOBPILOT_ prefix.",
+    "source_rows_added": 13,
+    "source_ids": [
+      414,
+      415,
+      416,
+      417,
+      418,
+      419,
+      420,
+      421,
+      422,
+      423,
+      424,
+      425,
+      426
+    ],
+    "source_career_track": "shared",
+    "jobs_under_added_sources": 0,
+    "scan_attempted": false,
+    "cleanup_performed": false,
+    "corrected_replay_database": "Separate disposable SQLite with exact-path assertions and network blocked; removed after replay."
+  },
+  "warning_diagnostic": {
+    "category": "MarkupResemblesLocatorWarning",
+    "source": "drivenets",
+    "external_id": "89.E64",
+    "stage": "degree requirement normalization",
+    "value": "https://drivenets.com/company/",
+    "outcome": "Fixed narrowly: whole HTTP(S) URLs remain plain text before HTML parsing; replay now emits no warning. Actual/escaped HTML unchanged; no global suppression or employer retry."
+  },
+  "sqlite_replay": {
+    "installed_sources": 13,
+    "first_scan": {
+      "sources": 13,
+      "collected": 239,
+      "found": 86,
+      "new": 143,
+      "updated": 0,
+      "unchanged": 0,
+      "israel_found": 143,
+      "removed": 0,
+      "filtered_foreign": 96,
+      "filtered_mismatch": 57,
+      "duplicates_merged": 0,
+      "auto_queued": 0,
+      "successful_sources": 0,
+      "deferred_sources": 0,
+      "partial_sources": 13,
+      "failed_sources": 0,
+      "expired": 0,
+      "status": "partial",
+      "unified_catalog": true,
+      "errors": [],
+      "per_source": [
+        {
+          "source": "Pi Security Careers",
+          "collected": 8,
+          "israel_found": 1,
+          "found": 1,
+          "new": 1,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "PointFive Careers",
+          "collected": 13,
+          "israel_found": 9,
+          "found": 4,
+          "new": 9,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Stigg Careers",
+          "collected": 3,
+          "israel_found": 3,
+          "found": 2,
+          "new": 3,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Nanit Careers",
+          "collected": 9,
+          "israel_found": 4,
+          "found": 2,
+          "new": 4,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Parallel Wireless Careers",
+          "collected": 46,
+          "israel_found": 18,
+          "found": 16,
+          "new": 18,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "8fig Careers",
+          "collected": 2,
+          "israel_found": 2,
+          "found": 2,
+          "new": 2,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Dream Careers",
+          "collected": 30,
+          "israel_found": 30,
+          "found": 17,
+          "new": 30,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "DriveNets Careers",
+          "collected": 44,
+          "israel_found": 31,
+          "found": 23,
+          "new": 31,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Encore Careers",
+          "collected": 6,
+          "israel_found": 3,
+          "found": 2,
+          "new": 3,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "IVIX Careers",
+          "collected": 5,
+          "israel_found": 5,
+          "found": 4,
+          "new": 5,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Riverside Careers",
+          "collected": 23,
+          "israel_found": 11,
+          "found": 2,
+          "new": 11,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Sygnia Careers",
+          "collected": 23,
+          "israel_found": 14,
+          "found": 6,
+          "new": 14,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Zenity Careers",
+          "collected": 27,
+          "israel_found": 12,
+          "found": 5,
+          "new": 12,
+          "updated": 0,
+          "unchanged": 0,
+          "partial": true,
+          "error": ""
+        }
+      ],
+      "stale_deleted": 0
+    },
+    "unchanged_replay": {
+      "sources": 13,
+      "collected": 239,
+      "found": 86,
+      "new": 0,
+      "updated": 0,
+      "unchanged": 143,
+      "israel_found": 143,
+      "removed": 0,
+      "filtered_foreign": 96,
+      "filtered_mismatch": 57,
+      "duplicates_merged": 0,
+      "auto_queued": 0,
+      "successful_sources": 0,
+      "deferred_sources": 0,
+      "partial_sources": 13,
+      "failed_sources": 0,
+      "expired": 0,
+      "status": "partial",
+      "unified_catalog": true,
+      "errors": [],
+      "per_source": [
+        {
+          "source": "Pi Security Careers",
+          "collected": 8,
+          "israel_found": 1,
+          "found": 1,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 1,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "PointFive Careers",
+          "collected": 13,
+          "israel_found": 9,
+          "found": 4,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 9,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Stigg Careers",
+          "collected": 3,
+          "israel_found": 3,
+          "found": 2,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 3,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Nanit Careers",
+          "collected": 9,
+          "israel_found": 4,
+          "found": 2,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 4,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Parallel Wireless Careers",
+          "collected": 46,
+          "israel_found": 18,
+          "found": 16,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 18,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "8fig Careers",
+          "collected": 2,
+          "israel_found": 2,
+          "found": 2,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 2,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Dream Careers",
+          "collected": 30,
+          "israel_found": 30,
+          "found": 17,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 30,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "DriveNets Careers",
+          "collected": 44,
+          "israel_found": 31,
+          "found": 23,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 31,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Encore Careers",
+          "collected": 6,
+          "israel_found": 3,
+          "found": 2,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 3,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "IVIX Careers",
+          "collected": 5,
+          "israel_found": 5,
+          "found": 4,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 5,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Riverside Careers",
+          "collected": 23,
+          "israel_found": 11,
+          "found": 2,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 11,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Sygnia Careers",
+          "collected": 23,
+          "israel_found": 14,
+          "found": 6,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 14,
+          "partial": true,
+          "error": ""
+        },
+        {
+          "source": "Zenity Careers",
+          "collected": 27,
+          "israel_found": 12,
+          "found": 5,
+          "new": 0,
+          "updated": 0,
+          "unchanged": 12,
+          "partial": true,
+          "error": ""
+        }
+      ],
+      "stale_deleted": 0
+    },
+    "canonical_jobs": 143,
+    "track_counts": {
+      "computer_science": 70,
+      "electrical_engineering": 31,
+      "industrial_engineering": 23
+    },
+    "classification_version": "shadow-9",
+    "auto_queued": 0,
+    "applications": 0,
+    "personal_ranking_rows": 0
+  },
+  "sources": [
+    {
+      "key": "pointfive",
+      "url": "https://api.ashbyhq.com/posting-api/job-board/pointfive?includeCompensation=true",
+      "observed_at": "2026-10-10T22:11:51.255834+00:00",
+      "status": 200,
+      "bytes": 195674,
+      "sha256": "abc344d12a40c7c20512f067e8654a4028cb8c42bb606ec0ff347008cab04d12",
+      "rows": 13,
+      "israel_canonical_count": 9,
+      "matched_track_counts": {
+        "computer_science": 3,
+        "industrial_engineering": 1
+      }
+    },
+    {
+      "key": "pi-security",
+      "url": "https://api.ashbyhq.com/posting-api/job-board/pi-security?includeCompensation=true",
+      "observed_at": "2026-10-10T22:11:51.698719+00:00",
+      "status": 200,
+      "bytes": 138325,
+      "sha256": "2707194d1ea11ae973720fba9d90d81d22278ab8cc6f658cd4600c1f1e68827d",
+      "rows": 8,
+      "israel_canonical_count": 1,
+      "matched_track_counts": {
+        "computer_science": 1
+      }
+    },
+    {
+      "key": "stigg",
+      "url": "https://api.ashbyhq.com/posting-api/job-board/stigg?includeCompensation=true",
+      "observed_at": "2026-10-10T22:11:51.876940+00:00",
+      "status": 200,
+      "bytes": 34317,
+      "sha256": "3df8051606d0b6adee86a8b38cdd07c4b7f0dca2724aea9a58ffaafc2c655fb9",
+      "rows": 3,
+      "israel_canonical_count": 3,
+      "matched_track_counts": {
+        "industrial_engineering": 1,
+        "computer_science": 1
+      }
+    },
+    {
+      "key": "parallelwireless",
+      "url": "https://api.lever.co/v0/postings/parallelwireless?mode=json",
+      "observed_at": "2026-10-10T22:11:52.048191+00:00",
+      "status": 200,
+      "bytes": 522505,
+      "sha256": "230c348b7c197b09d4be348182644dfa9f92b12e290cce92a51ab54a231f850a",
+      "rows": 46,
+      "israel_canonical_count": 18,
+      "matched_track_counts": {
+        "computer_science": 13,
+        "electrical_engineering": 12,
+        "industrial_engineering": 9
+      }
+    },
+    {
+      "key": "dream",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002",
+      "observed_at": "2026-10-10T22:11:54.252010+00:00",
+      "status": 200,
+      "bytes": 222916,
+      "sha256": "e65265de2b4cf427c51c91809dc4885117c3daf7adba3d13b65bcce74b1815b0",
+      "company": {
+        "name": "Dream",
+        "website": "www.dreamgroup.com",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/dreamgroup/99.002"
+      },
+      "rows": 30,
+      "israel_canonical_count": 30,
+      "matched_track_counts": {
+        "computer_science": 15,
+        "electrical_engineering": 2,
+        "industrial_engineering": 3
+      }
+    },
+    {
+      "key": "riverside",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009",
+      "observed_at": "2026-10-10T22:11:55.820137+00:00",
+      "status": 200,
+      "bytes": 172978,
+      "sha256": "bea807c22fc81a5fae6a9977237a4dafe04385fea4092086902b299a1ad551b3",
+      "company": {
+        "name": "riverside.fm",
+        "website": "https://riverside.com",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/riverside-fm/66.009"
+      },
+      "rows": 23,
+      "israel_canonical_count": 11,
+      "matched_track_counts": {
+        "computer_science": 2
+      }
+    },
+    {
+      "key": "8fig",
+      "url": "https://www.comeet.com/jobs/8fig/08.004",
+      "observed_at": "2026-10-10T22:11:56.471131+00:00",
+      "status": 200,
+      "bytes": 127102,
+      "sha256": "a4789cad7761ca1062632edac144f6e14e7fc6c33361b880c551936a553d43c0",
+      "company": {
+        "name": "8fig",
+        "website": "https://www.8fig.co/",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/8fig/08.004"
+      },
+      "rows": 2,
+      "israel_canonical_count": 2,
+      "matched_track_counts": {
+        "computer_science": 2,
+        "electrical_engineering": 1,
+        "industrial_engineering": 1
+      }
+    },
+    {
+      "key": "ivix",
+      "url": "https://www.comeet.com/jobs/ivix/09.002",
+      "observed_at": "2026-10-10T22:11:57.040000+00:00",
+      "status": 200,
+      "bytes": 146199,
+      "sha256": "ff52cc003da9d910f2aa66e00de4c33dc76a511f25a95408d2fd79877b3d59af",
+      "company": {
+        "name": "Ivix",
+        "website": "www.ivix.ai",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/ivix/09.002"
+      },
+      "rows": 5,
+      "israel_canonical_count": 5,
+      "matched_track_counts": {
+        "computer_science": 4,
+        "electrical_engineering": 2,
+        "industrial_engineering": 2
+      }
+    },
+    {
+      "key": "encore",
+      "url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C",
+      "observed_at": "2026-10-10T22:11:57.649646+00:00",
+      "status": 200,
+      "bytes": 155386,
+      "sha256": "fb6d5ccf6330e968ea800b1bda9cfb507ead14661a1ecff8a6ff8f91e0863f6a",
+      "company": {
+        "name": "Encore AI",
+        "website": "https://www.gainencore.ai/",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/gainencore_ai/0B.00C"
+      },
+      "rows": 6,
+      "israel_canonical_count": 3,
+      "matched_track_counts": {
+        "computer_science": 2
+      }
+    },
+    {
+      "key": "sygnia",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A",
+      "observed_at": "2026-10-10T22:18:55.772003+00:00",
+      "status": 200,
+      "bytes": 217942,
+      "sha256": "00e19d2b3982fd5eb1f612fd60dab64339efb4145ccd74f8c542de1e0c9fabe0",
+      "company": {
+        "name": "Sygnia",
+        "website": "https://www.sygnia.co/",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/sygnia/78.00A"
+      },
+      "rows": 23,
+      "israel_canonical_count": 14,
+      "matched_track_counts": {
+        "computer_science": 6
+      }
+    },
+    {
+      "key": "zenity",
+      "url": "https://www.comeet.com/jobs/zenity/19.000",
+      "observed_at": "2026-10-10T22:18:56.638501+00:00",
+      "status": 200,
+      "bytes": 251840,
+      "sha256": "aecfc262057cf5fb5ee687c4fb319efa26d00892df1a0d7bf74229706f9e952d",
+      "company": {
+        "name": "Zenity",
+        "website": "www.zenity.io",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/zenity/19.000"
+      },
+      "rows": 27,
+      "israel_canonical_count": 12,
+      "matched_track_counts": {
+        "industrial_engineering": 1,
+        "computer_science": 4
+      }
+    },
+    {
+      "key": "nanit",
+      "url": "https://boards-api.greenhouse.io/v1/boards/nanit/jobs?content=true",
+      "observed_at": "2026-10-10T22:18:57.201379+00:00",
+      "status": 200,
+      "bytes": 115001,
+      "sha256": "841a60d47e6b734ed96f3e12a8d91325ae5288a1b422e05007737fa18f082cfa",
+      "rows": 9,
+      "israel_canonical_count": 4,
+      "matched_track_counts": {
+        "computer_science": 2
+      }
+    },
+    {
+      "key": "drivenets",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006",
+      "observed_at": "2026-10-10T22:23:33.094922+00:00",
+      "status": 200,
+      "bytes": 374147,
+      "sha256": "82e0021123ebf191f20cc6562b099d2ec6a59022a714e1fd522805ea541dd941",
+      "company": {
+        "name": "DRIVENETS",
+        "website": "http://drivenets.com/",
+        "uid": null,
+        "url_comeet_hosted_page": "https://www.comeet.com/jobs/drivenets/72.006"
+      },
+      "rows": 44,
+      "israel_canonical_count": 31,
+      "matched_track_counts": {
+        "computer_science": 15,
+        "electrical_engineering": 14,
+        "industrial_engineering": 5
+      }
+    }
+  ],
+  "official_evidence": [
+    {
+      "key": "chargeafter-official",
+      "url": "https://chargeafter.com/careers/",
+      "observed_at": "2026-10-10T22:12:57.485441+00:00",
+      "status": 403,
+      "redirect": null
+    },
+    {
+      "key": "razor-labs-official",
+      "url": "https://www.razor-labs.com/careers/",
+      "observed_at": "2026-10-10T22:12:58.113457+00:00",
+      "status": 403,
+      "redirect": null
+    },
+    {
+      "key": "sygnia-official",
+      "url": "https://www.sygnia.co/careers/",
+      "observed_at": "2026-10-10T22:12:58.911924+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 306166,
+      "sha256": "df4529f87e2170565e96ee5e3ec2d859bea788e99842634ab5ac93876dc494f2",
+      "ats_links": [
+        "https://cdn.sygnia.co/wp-content/themes/sygnia-theme/styles/comeet_form.css?1791646616",
+        "https://www.sygnia.co/wp-content/cache/min/1/wp-content/plugins/comeet-wp-plugin-master/js/comeet.js?ver=1791375027",
+        "https://www.sygnia.co/wp-content/cache/min/1/wp-content/plugins/comeet-wp-plugin-master/js/comeet-src.js?ver=1791375027",
+        "https://www.sygnia.co/wp-content/cache/min/1/wp-content/plugins/comeet-wp-plugin-master/css/comeet-cards.css?ver=1791375027",
+        "https://www.sygnia.co/wp-content/cache/min/1/wp-content/plugins/comeet-wp-plugin-master/css/comeet-reset.css?ver=1791375027"
+      ]
+    },
+    {
+      "key": "zenity-official",
+      "url": "https://zenity.io/careers",
+      "observed_at": "2026-10-10T22:12:59.588947+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 1059070,
+      "sha256": "10c898a50fd5ddb518cecd14d1da1c071fcebf7ac61c4b3d59f71751498b8bbd",
+      "ats_links": [
+        "https://www.comeet.co/careers-api/api.js\\\\\\",
+        "https://www.comeet.com/jobs/zenity/19.000/ai-red-team-researcher/C5.07D\\",
+        "https://www.comeet.co/careers-api/2.0/company/19.000/positions/C5.07D?token=9103660519012202D5024401B3091024403660\\",
+        "https://www.comeet.com/jobs/zenity/19.000/cto-office-team-member/74.270\\",
+        "https://www.comeet.co/careers-api/2.0/company/19.000/positions/74.270?token=9103660519012202D5024401B3091024403660\\",
+        "https://www.comeet.com/jobs/zenity/19.000/director-of-platform-engineering/8D.273\\",
+        "https://www.comeet.co/careers-api/2.0/company/19.000/positions/8D.273?token=9103660519012202D5024401B3091024403660\\",
+        "https://www.comeet.com/jobs/zenity/19.000/enterprise-account-executive/54.76C\\",
+        "https://www.comeet.co/careers-api/2.0/company/19.000/positions/54.76C?token=9103660519012202D5024401B3091024403660\\",
+        "https://www.comeet.com/jobs/zenity/19.000/enterprise-account-executive/5E.073\\",
+        "https://www.comeet.co/careers-api/2.0/company/19.000/positions/5E.073?token=9103660519012202D5024401B3091024403660\\",
+        "https://www.comeet.com/jobs/zenity/19.000/enterprise-account-executive/8A.27E\\"
+      ]
+    },
+    {
+      "key": "drivenets-official",
+      "url": "https://drivenets.com/careers/",
+      "observed_at": "2026-10-10T22:13:00.835326+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 206626,
+      "sha256": "d793db7ccdd857a9e5eed94c9ccb9bb4ecf36eb7227f92fcbf7b1c24714c85ef",
+      "ats_links": []
+    },
+    {
+      "key": "nanit-official",
+      "url": "https://www.nanit.com/pages/careers",
+      "observed_at": "2026-10-10T22:13:01.342675+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 272912,
+      "sha256": "b4cfa35c0344ad4d2991edce6cd8205ec8dcb791b5787b1c1d691c7afe7e9755",
+      "ats_links": [
+        "https://boards.greenhouse.io/embed/job_board/js?for=nanit"
+      ]
+    },
+    {
+      "key": "wayve-official",
+      "url": "https://wayve.ai/careers/",
+      "observed_at": "2026-10-10T22:13:01.953185+00:00",
+      "status": 403,
+      "redirect": null
+    },
+    {
+      "key": "stigg-official",
+      "url": "https://www.stigg.io/careers",
+      "observed_at": "2026-10-10T22:13:02.290739+00:00",
+      "status": 301,
+      "redirect": "/"
+    },
+    {
+      "key": "pi-security-official",
+      "url": "https://www.pi.security/careers",
+      "observed_at": "2026-10-10T22:13:02.754060+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 30093,
+      "sha256": "43d66a3f5a146e856e405e1cd00e08bfae91eb836ebf2d9c68d63a0ded8d2a2c",
+      "ats_links": [
+        "https://jobs.ashbyhq.com/pi-security",
+        "https://jobs.ashbyhq.com/pi-security/embed?version=2"
+      ]
+    },
+    {
+      "key": "pointfive-official",
+      "url": "https://www.pointfive.co/careers",
+      "observed_at": "2026-10-10T22:13:03.085071+00:00",
+      "status": 302,
+      "redirect": "https://www.pointfive.co/careers/il"
+    },
+    {
+      "key": "pointfive-canonical",
+      "url": "https://www.pointfive.co/careers/il",
+      "observed_at": "2026-10-10T22:21:09.781719+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 208236,
+      "sha256": "4523054ff7baed7e2427205d5098dc917c2c5cc6be973db721356b3a62d4e2ff",
+      "ats_links": [
+        "https://jobs.ashbyhq.com/pointfive/6e1c4d79-a7c3-473d-bb25-c670dca0b3e4/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/6e1c4d79-a7c3-473d-bb25-c670dca0b3e4?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/7772cf77-a47d-4852-b09f-c286ed0ddb3a/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/7772cf77-a47d-4852-b09f-c286ed0ddb3a?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/1098c46b-4cf6-43e8-a342-58ed8e0b3f5c/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/1098c46b-4cf6-43e8-a342-58ed8e0b3f5c?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/943baa93-67da-4c72-b610-a6b9aec48f7c/application?utm_source=PointFiveCareerPage\\",
+        "https://jobs.ashbyhq.com/pointfive/943baa93-67da-4c72-b610-a6b9aec48f7c?utm_source=PointFiveCareerPage\\"
+      ]
+    },
+    {
+      "key": "stigg-canonical",
+      "url": "https://www.stigg.io/",
+      "observed_at": "2026-10-10T22:21:10.265668+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 356383,
+      "sha256": "52d22a87186a811774f9d7f496bf875fcad0c11e6f78e9f4c8c8ef4fd7699424",
+      "ats_links": []
+    },
+    {
+      "key": "drivenets-detail",
+      "url": "https://drivenets.com/career/AA.B6C/",
+      "observed_at": "2026-10-10T22:21:10.701075+00:00",
+      "status": 200,
+      "redirect": null,
+      "bytes": 165268,
+      "sha256": "fc4bcaa589ca79e88381012296f98346cae8714395e845d700383037e99101f2",
+      "ats_links": [
+        "https://www.comeet.com/jobs/drivenets/72.006/ai-platform-software-engineer/AA.B6C"
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "local_job_id": 1,
+      "source_identifier": "pi-security",
+      "source_kind": "ashby",
+      "external_id": "a3203d1b-93fe-4898-8808-86863fc11586",
+      "title": "Security Researcher",
+      "company": "Pi Security",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pi-security/a3203d1b-93fe-4898-8808-86863fc11586/application",
+      "source_url": "https://jobs.ashbyhq.com/pi-security/a3203d1b-93fe-4898-8808-86863fc11586",
+      "description_bytes": 5240,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pi-security/a3203d1b-93fe-4898-8808-86863fc11586/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 2,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "6e1c4d79-a7c3-473d-bb25-c670dca0b3e4",
+      "title": "Lead Endpoint Researcher",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/6e1c4d79-a7c3-473d-bb25-c670dca0b3e4/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/6e1c4d79-a7c3-473d-bb25-c670dca0b3e4",
+      "description_bytes": 7546,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/6e1c4d79-a7c3-473d-bb25-c670dca0b3e4/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 3,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "d421e4e5-85cd-4ebb-a480-442e83057c6f",
+      "title": "Staff Backend Engineer",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f",
+      "description_bytes": 3857,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 4,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "f3e101d7-7ce7-4280-8eb4-f6ccde097472",
+      "title": "Backend Tech Lead",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472",
+      "description_bytes": 3806,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 5,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "5cee7d05-e155-4a9a-a6ae-27068e251d2b",
+      "title": "Head of LLM Research",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/5cee7d05-e155-4a9a-a6ae-27068e251d2b/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/5cee7d05-e155-4a9a-a6ae-27068e251d2b",
+      "description_bytes": 10243,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/5cee7d05-e155-4a9a-a6ae-27068e251d2b/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 6,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "4e3fda32-c387-46bd-ab47-bb8cb6937918",
+      "title": "Controller",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/4e3fda32-c387-46bd-ab47-bb8cb6937918/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/4e3fda32-c387-46bd-ab47-bb8cb6937918",
+      "description_bytes": 3286,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/4e3fda32-c387-46bd-ab47-bb8cb6937918/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 7,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "26ed9572-2119-48fd-a9b2-3e17e5c73ce8",
+      "title": "Integrated Marketing Lead",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/26ed9572-2119-48fd-a9b2-3e17e5c73ce8/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/26ed9572-2119-48fd-a9b2-3e17e5c73ce8",
+      "description_bytes": 6844,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/26ed9572-2119-48fd-a9b2-3e17e5c73ce8/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 8,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "bf0b9450-79ff-4234-a690-17ffafcece86",
+      "title": "Senior Software Engineer - Endpoint",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/bf0b9450-79ff-4234-a690-17ffafcece86/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/bf0b9450-79ff-4234-a690-17ffafcece86",
+      "description_bytes": 4360,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/bf0b9450-79ff-4234-a690-17ffafcece86/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 9,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "dd08d676-3748-4346-9b8e-118619c432a5",
+      "title": "Creative Growth Lead",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/dd08d676-3748-4346-9b8e-118619c432a5/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/dd08d676-3748-4346-9b8e-118619c432a5",
+      "description_bytes": 5735,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/dd08d676-3748-4346-9b8e-118619c432a5/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 10,
+      "source_identifier": "pointfive",
+      "source_kind": "ashby",
+      "external_id": "a24e482d-6e8c-4bf2-8f81-cefc63dccbcf",
+      "title": "Senior Product Manager",
+      "company": "PointFive",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/pointfive/a24e482d-6e8c-4bf2-8f81-cefc63dccbcf/application",
+      "source_url": "https://jobs.ashbyhq.com/pointfive/a24e482d-6e8c-4bf2-8f81-cefc63dccbcf",
+      "description_bytes": 4106,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/pointfive/a24e482d-6e8c-4bf2-8f81-cefc63dccbcf/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 11,
+      "source_identifier": "stigg",
+      "source_kind": "ashby",
+      "external_id": "6a02b40d-ce1f-41eb-b47e-d60b1787babc",
+      "title": "Product Manager",
+      "company": "Stigg",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/stigg/6a02b40d-ce1f-41eb-b47e-d60b1787babc/application",
+      "source_url": "https://jobs.ashbyhq.com/stigg/6a02b40d-ce1f-41eb-b47e-d60b1787babc",
+      "description_bytes": 4397,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/stigg/6a02b40d-ce1f-41eb-b47e-d60b1787babc/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 12,
+      "source_identifier": "stigg",
+      "source_kind": "ashby",
+      "external_id": "e89ce0fe-e129-40f7-9803-d9c01342d322",
+      "title": "Full Stack Engineer",
+      "company": "Stigg",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/stigg/e89ce0fe-e129-40f7-9803-d9c01342d322/application",
+      "source_url": "https://jobs.ashbyhq.com/stigg/e89ce0fe-e129-40f7-9803-d9c01342d322",
+      "description_bytes": 3965,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/stigg/e89ce0fe-e129-40f7-9803-d9c01342d322/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 13,
+      "source_identifier": "stigg",
+      "source_kind": "ashby",
+      "external_id": "05d790cf-760f-427d-a93a-0a5fc65f1cf3",
+      "title": "Head of Growth, Self-Serve & Agents",
+      "company": "Stigg",
+      "location": "Tel Aviv, Israel",
+      "url": "https://jobs.ashbyhq.com/stigg/05d790cf-760f-427d-a93a-0a5fc65f1cf3/application",
+      "source_url": "https://jobs.ashbyhq.com/stigg/05d790cf-760f-427d-a93a-0a5fc65f1cf3",
+      "description_bytes": 4883,
+      "tracks": [],
+      "adapter": "ashby",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.ashbyhq.com/stigg/05d790cf-760f-427d-a93a-0a5fc65f1cf3/application",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 14,
+      "source_identifier": "nanit",
+      "source_kind": "greenhouse",
+      "external_id": "6217971004",
+      "title": "Backend Platform Team Leader ",
+      "company": "Nanit",
+      "location": "Ramat Gan (Hybrid)",
+      "url": "https://www.nanit.com/pages/careers?gh_jid=6217971004",
+      "source_url": "https://www.nanit.com/pages/careers?gh_jid=6217971004",
+      "description_bytes": 4868,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "greenhouse",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://job-boards.greenhouse.io/embed/job_app?for=nanit&token=6217971004",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 15,
+      "source_identifier": "nanit",
+      "source_kind": "greenhouse",
+      "external_id": "6136010004",
+      "title": "Backend Team Lead",
+      "company": "Nanit",
+      "location": "Ramat Gan (Hybrid)",
+      "url": "https://www.nanit.com/pages/careers?gh_jid=6136010004",
+      "source_url": "https://www.nanit.com/pages/careers?gh_jid=6136010004",
+      "description_bytes": 4536,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "greenhouse",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://job-boards.greenhouse.io/embed/job_app?for=nanit&token=6136010004",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 16,
+      "source_identifier": "nanit",
+      "source_kind": "greenhouse",
+      "external_id": "5977521004",
+      "title": "MLOps Team Lead",
+      "company": "Nanit",
+      "location": "Ramat Gan (Hybrid)",
+      "url": "https://www.nanit.com/pages/careers?gh_jid=5977521004",
+      "source_url": "https://www.nanit.com/pages/careers?gh_jid=5977521004",
+      "description_bytes": 5197,
+      "tracks": [],
+      "adapter": "greenhouse",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://job-boards.greenhouse.io/embed/job_app?for=nanit&token=5977521004",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 17,
+      "source_identifier": "nanit",
+      "source_kind": "greenhouse",
+      "external_id": "6206303004",
+      "title": "Talent Acquisition Specialist – 12 Months Contract (Maternity Leave Cover)",
+      "company": "Nanit",
+      "location": "Ramat Gan (Hybrid)",
+      "url": "https://www.nanit.com/pages/careers?gh_jid=6206303004",
+      "source_url": "https://www.nanit.com/pages/careers?gh_jid=6206303004",
+      "description_bytes": 3099,
+      "tracks": [],
+      "adapter": "greenhouse",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://job-boards.greenhouse.io/embed/job_app?for=nanit&token=6206303004",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 18,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "6a2da84e-9d36-4c7f-9713-5492dd72c338",
+      "title": "AI Engineering Team Manager",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/6a2da84e-9d36-4c7f-9713-5492dd72c338/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/6a2da84e-9d36-4c7f-9713-5492dd72c338",
+      "description_bytes": 5064,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/6a2da84e-9d36-4c7f-9713-5492dd72c338/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 19,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "eea71a03-fc42-4a29-a9a7-7cf6f3fb1afd",
+      "title": "AI-Driven 4G PHY SW Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/eea71a03-fc42-4a29-a9a7-7cf6f3fb1afd/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/eea71a03-fc42-4a29-a9a7-7cf6f3fb1afd",
+      "description_bytes": 3250,
+      "tracks": [],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/eea71a03-fc42-4a29-a9a7-7cf6f3fb1afd/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 20,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "4c12fa4a-088d-4ecb-977b-67ff5728bd82",
+      "title": "AI-Driven 4G PHY SW Tech Lead",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/4c12fa4a-088d-4ecb-977b-67ff5728bd82/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/4c12fa4a-088d-4ecb-977b-67ff5728bd82",
+      "description_bytes": 2285,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/4c12fa4a-088d-4ecb-977b-67ff5728bd82/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 21,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "aae3fb69-b696-4925-a7fe-5ca6b3aee726",
+      "title": "Automation Tech Lead",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/aae3fb69-b696-4925-a7fe-5ca6b3aee726/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/aae3fb69-b696-4925-a7fe-5ca6b3aee726",
+      "description_bytes": 3924,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/aae3fb69-b696-4925-a7fe-5ca6b3aee726/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 22,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "846f8f4b-2c12-42f8-9822-00f7542f0d26",
+      "title": "Junior Automation Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/846f8f4b-2c12-42f8-9822-00f7542f0d26/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/846f8f4b-2c12-42f8-9822-00f7542f0d26",
+      "description_bytes": 2928,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/846f8f4b-2c12-42f8-9822-00f7542f0d26/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 23,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "22903dae-4ee6-4aa5-b22c-eb66ab0565dd",
+      "title": "PHY Algorithms Senior Engineer - AI/ML",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/22903dae-4ee6-4aa5-b22c-eb66ab0565dd/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/22903dae-4ee6-4aa5-b22c-eb66ab0565dd",
+      "description_bytes": 4098,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/22903dae-4ee6-4aa5-b22c-eb66ab0565dd/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 24,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "b4b602b6-c32d-4868-af7e-2bfa41623d74",
+      "title": "PHY/RF Algorithms Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/b4b602b6-c32d-4868-af7e-2bfa41623d74/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/b4b602b6-c32d-4868-af7e-2bfa41623d74",
+      "description_bytes": 4807,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/b4b602b6-c32d-4868-af7e-2bfa41623d74/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 25,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "51a23cf6-8341-49eb-8404-58e6bee73cf9",
+      "title": "Senior Applied AI Evaluation Engineer - RAN Ticket Intelligence",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/51a23cf6-8341-49eb-8404-58e6bee73cf9/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/51a23cf6-8341-49eb-8404-58e6bee73cf9",
+      "description_bytes": 6103,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/51a23cf6-8341-49eb-8404-58e6bee73cf9/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 26,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "efe78ca8-887d-40d6-8895-142bf636947c",
+      "title": "Senior Automation Engineer - North",
+      "company": "Parallel Wireless",
+      "location": "Kinneret, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/efe78ca8-887d-40d6-8895-142bf636947c/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/efe78ca8-887d-40d6-8895-142bf636947c",
+      "description_bytes": 3538,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/efe78ca8-887d-40d6-8895-142bf636947c/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 27,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "660174e6-d315-4eaf-9b3e-d400a177d8e2",
+      "title": "Senior Software Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/660174e6-d315-4eaf-9b3e-d400a177d8e2/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/660174e6-d315-4eaf-9b3e-d400a177d8e2",
+      "description_bytes": 4792,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/660174e6-d315-4eaf-9b3e-d400a177d8e2/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 28,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "a3cd46c2-8aee-4fd8-a5aa-cde6a19f4597",
+      "title": "Senior Validation Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kinneret, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/a3cd46c2-8aee-4fd8-a5aa-cde6a19f4597/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/a3cd46c2-8aee-4fd8-a5aa-cde6a19f4597",
+      "description_bytes": 3178,
+      "tracks": [],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/a3cd46c2-8aee-4fd8-a5aa-cde6a19f4597/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 29,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "233858ab-104d-42fe-8b5b-f9d86aa8f5a4",
+      "title": "Senior/Principal Language Model Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/233858ab-104d-42fe-8b5b-f9d86aa8f5a4/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/233858ab-104d-42fe-8b5b-f9d86aa8f5a4",
+      "description_bytes": 9798,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/233858ab-104d-42fe-8b5b-f9d86aa8f5a4/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 30,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "870976cd-2100-47c6-af9b-6fa347073189",
+      "title": "Senior/Principal RAN Digital Twin & AI Simulation Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/870976cd-2100-47c6-af9b-6fa347073189/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/870976cd-2100-47c6-af9b-6fa347073189",
+      "description_bytes": 6913,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/870976cd-2100-47c6-af9b-6fa347073189/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 31,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "c463a312-8daf-492d-922b-760449509793",
+      "title": "Sr. AI PHY System Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/c463a312-8daf-492d-922b-760449509793/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/c463a312-8daf-492d-922b-760449509793",
+      "description_bytes": 4648,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/c463a312-8daf-492d-922b-760449509793/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 32,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "d47fdbd3-a0d5-45a8-94a0-19d2a640e3ae",
+      "title": "Sr. Principal, DevOps",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/d47fdbd3-a0d5-45a8-94a0-19d2a640e3ae/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/d47fdbd3-a0d5-45a8-94a0-19d2a640e3ae",
+      "description_bytes": 5274,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/d47fdbd3-a0d5-45a8-94a0-19d2a640e3ae/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 33,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "5cf0faeb-0216-4850-91f2-d81bd7e6dc0e",
+      "title": "System Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/5cf0faeb-0216-4850-91f2-d81bd7e6dc0e/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/5cf0faeb-0216-4850-91f2-d81bd7e6dc0e",
+      "description_bytes": 3548,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/5cf0faeb-0216-4850-91f2-d81bd7e6dc0e/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 34,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "d1f8165d-a13b-47d4-b4e4-9c22d12cd6ba",
+      "title": "Technical Lead, Artificial Intelligence",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/d1f8165d-a13b-47d4-b4e4-9c22d12cd6ba/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/d1f8165d-a13b-47d4-b4e4-9c22d12cd6ba",
+      "description_bytes": 2923,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/d1f8165d-a13b-47d4-b4e4-9c22d12cd6ba/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 35,
+      "source_identifier": "parallelwireless",
+      "source_kind": "lever",
+      "external_id": "69161322-74af-4dbb-8060-ca7d8bf7cedd",
+      "title": "Wireless Systems Software Engineer",
+      "company": "Parallel Wireless",
+      "location": "Kfar Saba, Israel",
+      "url": "https://jobs.lever.co/parallelwireless/69161322-74af-4dbb-8060-ca7d8bf7cedd/apply",
+      "source_url": "https://jobs.lever.co/parallelwireless/69161322-74af-4dbb-8060-ca7d8bf7cedd",
+      "description_bytes": 5684,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "lever",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://jobs.lever.co/parallelwireless/69161322-74af-4dbb-8060-ca7d8bf7cedd/apply",
+      "official_alias_urls": []
+    },
+    {
+      "local_job_id": 36,
+      "source_identifier": "8fig",
+      "source_kind": "official_careers",
+      "external_id": "8D.F6E",
+      "title": "Data scientist",
+      "company": "8fig",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/8fig/08.004/data-scientist/8D.F6E",
+      "source_url": "https://www.comeet.com/jobs/8fig/08.004/data-scientist/8D.F6E",
+      "description_bytes": 2704,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/8fig/08.004/data-scientist/8D.F6E",
+      "official_alias_urls": [
+        "https://www.8fig.co/jobs/comeet/tel-aviv-israel/8D.F6E/data-scientist/all/",
+        "https://www.8fig.co/jobs/comeet/tel-aviv-israel/8D.F6E/data-scientist/all/",
+        "https://www.comeet.com/jobs/8fig/08.004/data-scientist/8D.F6E"
+      ]
+    },
+    {
+      "local_job_id": 37,
+      "source_identifier": "8fig",
+      "source_kind": "official_careers",
+      "external_id": "2B.37B",
+      "title": "Senior Software Engineer",
+      "company": "8fig",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/8fig/08.004/senior-software-engineer/2B.37B",
+      "source_url": "https://www.comeet.com/jobs/8fig/08.004/senior-software-engineer/2B.37B",
+      "description_bytes": 2701,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/8fig/08.004/senior-software-engineer/2B.37B",
+      "official_alias_urls": [
+        "https://www.8fig.co/jobs/comeet/tel-aviv-israel/2B.37B/senior-software-engineer/all/",
+        "https://www.8fig.co/jobs/comeet/tel-aviv-israel/2B.37B/senior-software-engineer/all/",
+        "https://www.comeet.com/jobs/8fig/08.004/senior-software-engineer/2B.37B"
+      ]
+    },
+    {
+      "local_job_id": 38,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "3B.374",
+      "title": "Applied Science Team Lead",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/applied-science-team-lead/3B.374",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/applied-science-team-lead/3B.374",
+      "description_bytes": 3636,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/applied-science-team-lead/3B.374",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/applied-science-team-lead-3b374",
+        "https://dreamgroup.com/comeet-positions/applied-science-team-lead-3b374",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/applied-science-team-lead/3B.374"
+      ]
+    },
+    {
+      "local_job_id": 39,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "7E.F61",
+      "title": "Engineering Team Lead (Triage)",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/engineering-team-lead-triage/7E.F61",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/engineering-team-lead-triage/7E.F61",
+      "description_bytes": 2975,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/engineering-team-lead-triage/7E.F61",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/engineering-team-lead-triage-7ef61",
+        "https://dreamgroup.com/comeet-positions/engineering-team-lead-triage-7ef61",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/engineering-team-lead-triage/7E.F61"
+      ]
+    },
+    {
+      "local_job_id": 40,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "F2.D59",
+      "title": "Lead Product Designer",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/lead-product-designer/F2.D59",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/lead-product-designer/F2.D59",
+      "description_bytes": 4107,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/lead-product-designer/F2.D59",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/lead-product-designer-f2d59",
+        "https://dreamgroup.com/comeet-positions/lead-product-designer-f2d59",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/lead-product-designer/F2.D59"
+      ]
+    },
+    {
+      "local_job_id": 41,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "96.276",
+      "title": "Motion, Video & Brand Designer",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/motion-video--brand-designer/96.276",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/motion-video--brand-designer/96.276",
+      "description_bytes": 5468,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/motion-video--brand-designer/96.276",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/motion-video-brand-designer-96276",
+        "https://dreamgroup.com/comeet-positions/motion-video-brand-designer-96276",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/motion-video--brand-designer/96.276"
+      ]
+    },
+    {
+      "local_job_id": 42,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "3B.568",
+      "title": "Research Infra Engineer",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/research-infra-engineer/3B.568",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/research-infra-engineer/3B.568",
+      "description_bytes": 3005,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/research-infra-engineer/3B.568",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/research-infra-engineer-3b568",
+        "https://dreamgroup.com/comeet-positions/research-infra-engineer-3b568",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/research-infra-engineer/3B.568"
+      ]
+    },
+    {
+      "local_job_id": 43,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "37.640",
+      "title": "Security Researcher",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/security-researcher/37.640",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/security-researcher/37.640",
+      "description_bytes": 2678,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/security-researcher/37.640",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/security-researcher-37640",
+        "https://dreamgroup.com/comeet-positions/security-researcher-37640",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/security-researcher/37.640"
+      ]
+    },
+    {
+      "local_job_id": 44,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "ED.07D",
+      "title": "Senior Application Security Engineer",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-application-security-engineer/ED.07D",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-application-security-engineer/ED.07D",
+      "description_bytes": 4626,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-application-security-engineer/ED.07D",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-application-security-engineer-ed07d",
+        "https://dreamgroup.com/comeet-positions/senior-application-security-engineer-ed07d",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-application-security-engineer/ED.07D"
+      ]
+    },
+    {
+      "local_job_id": 45,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "64.A62",
+      "title": "Senior Applied AI Researcher— Sovereign AI Research",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-ai-researcher-sovereign-ai-research/64.A62",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-ai-researcher-sovereign-ai-research/64.A62",
+      "description_bytes": 4582,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-ai-researcher-sovereign-ai-research/64.A62",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-applied-ai-researcher-sovereign-ai-research-64a62",
+        "https://dreamgroup.com/comeet-positions/senior-applied-ai-researcher-sovereign-ai-research-64a62",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-ai-researcher-sovereign-ai-research/64.A62"
+      ]
+    },
+    {
+      "local_job_id": 46,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "26.767",
+      "title": "Senior Applied Researcher- AI Research",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-researcher--ai-research/26.767",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-researcher--ai-research/26.767",
+      "description_bytes": 3273,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-researcher--ai-research/26.767",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-applied-researcher-ai-research-26767",
+        "https://dreamgroup.com/comeet-positions/senior-applied-researcher-ai-research-26767",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-applied-researcher--ai-research/26.767"
+      ]
+    },
+    {
+      "local_job_id": 47,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "14.962",
+      "title": "Senior Automation Engineer – Cyber & AI",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-automation-engineer--cyber--ai/14.962",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-automation-engineer--cyber--ai/14.962",
+      "description_bytes": 2991,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-automation-engineer--cyber--ai/14.962",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-automation-engineer-cyber-ai-14962",
+        "https://dreamgroup.com/comeet-positions/senior-automation-engineer-cyber-ai-14962",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-automation-engineer--cyber--ai/14.962"
+      ]
+    },
+    {
+      "local_job_id": 48,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "46.379",
+      "title": "Senior Backend Engineer – Agentic AI",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--agentic-ai/46.379",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--agentic-ai/46.379",
+      "description_bytes": 3459,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--agentic-ai/46.379",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-backend-engineer-agentic-ai-46379",
+        "https://dreamgroup.com/comeet-positions/senior-backend-engineer-agentic-ai-46379",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--agentic-ai/46.379"
+      ]
+    },
+    {
+      "local_job_id": 49,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "59.F5A",
+      "title": "Senior Backend Engineer- CTI",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--cti/59.F5A",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--cti/59.F5A",
+      "description_bytes": 3067,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--cti/59.F5A",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-backend-engineer-cti-59f5a",
+        "https://dreamgroup.com/comeet-positions/senior-backend-engineer-cti-59f5a",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-backend-engineer--cti/59.F5A"
+      ]
+    },
+    {
+      "local_job_id": 50,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "B5.273",
+      "title": "Senior DevOps Platform Engineer- CTI",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devops-platform-engineer--cti/B5.273",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devops-platform-engineer--cti/B5.273",
+      "description_bytes": 3776,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devops-platform-engineer--cti/B5.273",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-devops-platform-engineer-cti-b5273",
+        "https://dreamgroup.com/comeet-positions/senior-devops-platform-engineer-cti-b5273",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devops-platform-engineer--cti/B5.273"
+      ]
+    },
+    {
+      "local_job_id": 51,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "ED.865",
+      "title": "Senior DevSecOps Engineer",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devsecops-engineer/ED.865",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devsecops-engineer/ED.865",
+      "description_bytes": 4120,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devsecops-engineer/ED.865",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-devsecops-engineer-ed865",
+        "https://dreamgroup.com/comeet-positions/senior-devsecops-engineer-ed865",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-devsecops-engineer/ED.865"
+      ]
+    },
+    {
+      "local_job_id": 52,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "31.260",
+      "title": "Senior Malware Researcher",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-malware-researcher/31.260",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-malware-researcher/31.260",
+      "description_bytes": 3059,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-malware-researcher/31.260",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-malware-researcher-31260",
+        "https://dreamgroup.com/comeet-positions/senior-malware-researcher-31260",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-malware-researcher/31.260"
+      ]
+    },
+    {
+      "local_job_id": 53,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "CD.761",
+      "title": "Senior Product Manager - Cybersecurity",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---cybersecurity/CD.761",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---cybersecurity/CD.761",
+      "description_bytes": 2435,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---cybersecurity/CD.761",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-product-manager-cybersecurity-cd761",
+        "https://dreamgroup.com/comeet-positions/senior-product-manager-cybersecurity-cd761",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---cybersecurity/CD.761"
+      ]
+    },
+    {
+      "local_job_id": 54,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "EA.377",
+      "title": "Senior Product Manager - Sovereign AI",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---sovereign-ai/EA.377",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---sovereign-ai/EA.377",
+      "description_bytes": 4486,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---sovereign-ai/EA.377",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-product-manager-sovereign-ai-ea377",
+        "https://dreamgroup.com/comeet-positions/senior-product-manager-sovereign-ai-ea377",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-product-manager---sovereign-ai/EA.377"
+      ]
+    },
+    {
+      "local_job_id": 55,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "25.A5E",
+      "title": "Senior Program Manager",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-program-manager/25.A5E",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-program-manager/25.A5E",
+      "description_bytes": 2724,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-program-manager/25.A5E",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-program-manager-25a5e",
+        "https://dreamgroup.com/comeet-positions/senior-program-manager-25a5e",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-program-manager/25.A5E"
+      ]
+    },
+    {
+      "local_job_id": 56,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "CB.D62",
+      "title": "Senior QA Engineer – Cyber & AI",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-qa-engineer--cyber--ai/CB.D62",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-qa-engineer--cyber--ai/CB.D62",
+      "description_bytes": 4745,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-qa-engineer--cyber--ai/CB.D62",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-qa-engineer-cyber-ai-cbd62",
+        "https://dreamgroup.com/comeet-positions/senior-qa-engineer-cyber-ai-cbd62",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-qa-engineer--cyber--ai/CB.D62"
+      ]
+    },
+    {
+      "local_job_id": 57,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "54.A6F",
+      "title": "Senior Research Scientist — Sovereign AI Research",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-research-scientist--sovereign-ai-research/54.A6F",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-research-scientist--sovereign-ai-research/54.A6F",
+      "description_bytes": 3712,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-research-scientist--sovereign-ai-research/54.A6F",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-research-scientist-sovereign-ai-research-54a6f",
+        "https://dreamgroup.com/comeet-positions/senior-research-scientist-sovereign-ai-research-54a6f",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-research-scientist--sovereign-ai-research/54.A6F"
+      ]
+    },
+    {
+      "local_job_id": 58,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "A8.F5D",
+      "title": "Senior Software Engineer - Posture",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-software-engineer---posture/A8.F5D",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-software-engineer---posture/A8.F5D",
+      "description_bytes": 2710,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-software-engineer---posture/A8.F5D",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-software-engineer-posture-a8f5d",
+        "https://dreamgroup.com/comeet-positions/senior-software-engineer-posture-a8f5d",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-software-engineer---posture/A8.F5D"
+      ]
+    },
+    {
+      "local_job_id": 59,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "21.26D",
+      "title": "Senior Threat Intelligence Researcher",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-threat-intelligence-researcher/21.26D",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-threat-intelligence-researcher/21.26D",
+      "description_bytes": 3177,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-threat-intelligence-researcher/21.26D",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-threat-intelligence-researcher-2126d",
+        "https://dreamgroup.com/comeet-positions/senior-threat-intelligence-researcher-2126d",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-threat-intelligence-researcher/21.26D"
+      ]
+    },
+    {
+      "local_job_id": 60,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "48.645",
+      "title": "Senior Windows Kernel Engineer- Detection",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-windows-kernel-engineer--detection/48.645",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-windows-kernel-engineer--detection/48.645",
+      "description_bytes": 2960,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/senior-windows-kernel-engineer--detection/48.645",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/senior-windows-kernel-engineer-detection-48645",
+        "https://dreamgroup.com/comeet-positions/senior-windows-kernel-engineer-detection-48645",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/senior-windows-kernel-engineer--detection/48.645"
+      ]
+    },
+    {
+      "local_job_id": 61,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "18.062",
+      "title": "Sensor Team Lead- Detection",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/sensor-team-lead--detection/18.062",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/sensor-team-lead--detection/18.062",
+      "description_bytes": 2498,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/sensor-team-lead--detection/18.062",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/sensor-team-lead-detection-18062",
+        "https://dreamgroup.com/comeet-positions/sensor-team-lead-detection-18062",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/sensor-team-lead--detection/18.062"
+      ]
+    },
+    {
+      "local_job_id": 62,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "C9.E64",
+      "title": "Site Reliability Engineer (SRE) On-Prem",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/site-reliability-engineer-sre-on-prem/C9.E64",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/site-reliability-engineer-sre-on-prem/C9.E64",
+      "description_bytes": 5192,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/site-reliability-engineer-sre-on-prem/C9.E64",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/site-reliability-engineer-sre-on-prem-c9e64",
+        "https://dreamgroup.com/comeet-positions/site-reliability-engineer-sre-on-prem-c9e64",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/site-reliability-engineer-sre-on-prem/C9.E64"
+      ]
+    },
+    {
+      "local_job_id": 63,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "72.96B",
+      "title": "Software Engineer- Posture",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/software-engineer--posture/72.96B",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/software-engineer--posture/72.96B",
+      "description_bytes": 2241,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/software-engineer--posture/72.96B",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/software-engineer-posture-7296b",
+        "https://dreamgroup.com/comeet-positions/software-engineer-posture-7296b",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/software-engineer--posture/72.96B"
+      ]
+    },
+    {
+      "local_job_id": 64,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "D6.075",
+      "title": "Solution Architect",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/solution-architect/D6.075",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/solution-architect/D6.075",
+      "description_bytes": 3935,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/solution-architect/D6.075",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/solution-architect-d6075",
+        "https://dreamgroup.com/comeet-positions/solution-architect-d6075",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/solution-architect/D6.075"
+      ]
+    },
+    {
+      "local_job_id": 65,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "AC.75A",
+      "title": "Talent Acquisition Partner",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/talent-acquisition-partner/AC.75A",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/talent-acquisition-partner/AC.75A",
+      "description_bytes": 2189,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/talent-acquisition-partner/AC.75A",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/talent-acquisition-partner-ac75a",
+        "https://dreamgroup.com/comeet-positions/talent-acquisition-partner-ac75a",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/talent-acquisition-partner/AC.75A"
+      ]
+    },
+    {
+      "local_job_id": 66,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "4A.37D",
+      "title": "Technology Alliances Manager",
+      "company": "Dream",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/technology-alliances-manager/4A.37D",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/technology-alliances-manager/4A.37D",
+      "description_bytes": 4134,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/technology-alliances-manager/4A.37D",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/technology-alliances-manager-4a37d",
+        "https://dreamgroup.com/comeet-positions/technology-alliances-manager-4a37d",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/technology-alliances-manager/4A.37D"
+      ]
+    },
+    {
+      "local_job_id": 67,
+      "source_identifier": "dream",
+      "source_kind": "official_careers",
+      "external_id": "A9.66C",
+      "title": "Threat Research - Solution Team",
+      "company": "Dream",
+      "location": "TLV - ISR, Israel",
+      "url": "https://www.comeet.com/jobs/dreamgroup/99.002/threat-research---solution-team/A9.66C",
+      "source_url": "https://www.comeet.com/jobs/dreamgroup/99.002/threat-research---solution-team/A9.66C",
+      "description_bytes": 3560,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/dreamgroup/99.002/threat-research---solution-team/A9.66C",
+      "official_alias_urls": [
+        "https://dreamgroup.com/comeet-positions/threat-research-solution-team-a966c",
+        "https://dreamgroup.com/comeet-positions/threat-research-solution-team-a966c",
+        "https://www.comeet.com/jobs/dreamgroup/99.002/threat-research---solution-team/A9.66C"
+      ]
+    },
+    {
+      "local_job_id": 68,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "9D.660",
+      "title": "AI Specialist Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/ai-specialist-engineer/9D.660",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/ai-specialist-engineer/9D.660",
+      "description_bytes": 2599,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/ai-specialist-engineer/9D.660",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=9D.660",
+        "https://drivenets.com/job/?id=9D.660",
+        "https://www.comeet.com/jobs/drivenets/72.006/ai-specialist-engineer/9D.660"
+      ]
+    },
+    {
+      "local_job_id": 69,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "95.271",
+      "title": "ATE Software Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/ate-software-engineer/95.271",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/ate-software-engineer/95.271",
+      "description_bytes": 6497,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/ate-software-engineer/95.271",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=95.271",
+        "https://drivenets.com/job/?id=95.271",
+        "https://www.comeet.com/jobs/drivenets/72.006/ate-software-engineer/95.271"
+      ]
+    },
+    {
+      "local_job_id": 70,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "4A.065",
+      "title": "Board Design Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/board-design-engineer/4A.065",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/board-design-engineer/4A.065",
+      "description_bytes": 2610,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/board-design-engineer/4A.065",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=4A.065",
+        "https://drivenets.com/job/?id=4A.065",
+        "https://www.comeet.com/jobs/drivenets/72.006/board-design-engineer/4A.065"
+      ]
+    },
+    {
+      "local_job_id": 71,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "89.E64",
+      "title": "Controller",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/controller/89.E64",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/controller/89.E64",
+      "description_bytes": 3236,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/controller/89.E64",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=89.E64",
+        "https://drivenets.com/job/?id=89.E64",
+        "https://www.comeet.com/jobs/drivenets/72.006/controller/89.E64"
+      ]
+    },
+    {
+      "local_job_id": 72,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "40.F61",
+      "title": "Data Center Manager",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/data-center-manager/40.F61",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/data-center-manager/40.F61",
+      "description_bytes": 6676,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/data-center-manager/40.F61",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=40.F61",
+        "https://drivenets.com/job/?id=40.F61",
+        "https://www.comeet.com/jobs/drivenets/72.006/data-center-manager/40.F61"
+      ]
+    },
+    {
+      "local_job_id": 73,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "57.F57",
+      "title": "Fronted Engineer – AI Datacenter Orchestration Platform",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/fronted-engineer--ai-datacenter-orchestration-platform/57.F57",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/fronted-engineer--ai-datacenter-orchestration-platform/57.F57",
+      "description_bytes": 2472,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/fronted-engineer--ai-datacenter-orchestration-platform/57.F57",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=57.F57",
+        "https://drivenets.com/job/?id=57.F57",
+        "https://www.comeet.com/jobs/drivenets/72.006/fronted-engineer--ai-datacenter-orchestration-platform/57.F57"
+      ]
+    },
+    {
+      "local_job_id": 74,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "86.161",
+      "title": "IT Devops Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/86.161",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/86.161",
+      "description_bytes": 4269,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/86.161",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=86.161",
+        "https://drivenets.com/job/?id=86.161",
+        "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/86.161"
+      ]
+    },
+    {
+      "local_job_id": 75,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "2B.271",
+      "title": "IT DevOps Engineer",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/2B.271",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/2B.271",
+      "description_bytes": 4269,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/2B.271",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=2B.271",
+        "https://drivenets.com/job/?id=2B.271",
+        "https://www.comeet.com/jobs/drivenets/72.006/it-devops-engineer/2B.271"
+      ]
+    },
+    {
+      "local_job_id": 76,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "80.375",
+      "title": "Logistics Specialist",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/logistics-specialist/80.375",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/logistics-specialist/80.375",
+      "description_bytes": 2467,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/logistics-specialist/80.375",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/logistics-specialist/80.375"
+      ]
+    },
+    {
+      "local_job_id": 77,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "95.277",
+      "title": "Mechanical NPI & Manufacturing Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/mechanical-npi--manufacturing-engineer/95.277",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/mechanical-npi--manufacturing-engineer/95.277",
+      "description_bytes": 6449,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/mechanical-npi--manufacturing-engineer/95.277",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=95.277",
+        "https://drivenets.com/job/?id=95.277",
+        "https://www.comeet.com/jobs/drivenets/72.006/mechanical-npi--manufacturing-engineer/95.277"
+      ]
+    },
+    {
+      "local_job_id": 78,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "07.077",
+      "title": "NetSuite Logistics & Supply Chain Specialist",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/netsuite-logistics--supply-chain-specialist/07.077",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/netsuite-logistics--supply-chain-specialist/07.077",
+      "description_bytes": 3511,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/netsuite-logistics--supply-chain-specialist/07.077",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=07.077",
+        "https://drivenets.com/job/?id=07.077",
+        "https://www.comeet.com/jobs/drivenets/72.006/netsuite-logistics--supply-chain-specialist/07.077"
+      ]
+    },
+    {
+      "local_job_id": 79,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "3D.27D",
+      "title": "NPI & System Product Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/npi--system-product-engineer/3D.27D",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/npi--system-product-engineer/3D.27D",
+      "description_bytes": 4884,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/npi--system-product-engineer/3D.27D",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/npi--system-product-engineer/3D.27D"
+      ]
+    },
+    {
+      "local_job_id": 80,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "0B.163",
+      "title": "Principal Software Engineer",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/principal-software-engineer/0B.163",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/principal-software-engineer/0B.163",
+      "description_bytes": 2844,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/principal-software-engineer/0B.163",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=0B.163",
+        "https://drivenets.com/job/?id=0B.163",
+        "https://www.comeet.com/jobs/drivenets/72.006/principal-software-engineer/0B.163"
+      ]
+    },
+    {
+      "local_job_id": 81,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "9F.278",
+      "title": "Principal Technologist AI Compute",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/principal-technologist-ai-compute/9F.278",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/principal-technologist-ai-compute/9F.278",
+      "description_bytes": 7138,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/principal-technologist-ai-compute/9F.278",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/principal-technologist-ai-compute/9F.278"
+      ]
+    },
+    {
+      "local_job_id": 82,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "2C.F69",
+      "title": "QA / E2E engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/qa--e2e-engineer/2C.F69",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/qa--e2e-engineer/2C.F69",
+      "description_bytes": 4882,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/qa--e2e-engineer/2C.F69",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/qa--e2e-engineer/2C.F69"
+      ]
+    },
+    {
+      "local_job_id": 83,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "4A.371",
+      "title": "Receptionist & People Operations Coordinator",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/receptionist--people-operations-coordinator/4A.371",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/receptionist--people-operations-coordinator/4A.371",
+      "description_bytes": 2502,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/receptionist--people-operations-coordinator/4A.371",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/receptionist--people-operations-coordinator/4A.371"
+      ]
+    },
+    {
+      "local_job_id": 84,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "D2.666",
+      "title": "Senior DevOps Engineer Platform Engineering",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer-platform-engineering/D2.666",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer-platform-engineering/D2.666",
+      "description_bytes": 4367,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer-platform-engineering/D2.666",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=D2.666",
+        "https://drivenets.com/job/?id=D2.666",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer-platform-engineering/D2.666"
+      ]
+    },
+    {
+      "local_job_id": 85,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "86.277",
+      "title": "Senior DevOps Engineer — Cybersecurity business unit",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer--cybersecurity-business-unit/86.277",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer--cybersecurity-business-unit/86.277",
+      "description_bytes": 4226,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer--cybersecurity-business-unit/86.277",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=86.277",
+        "https://drivenets.com/job/?id=86.277",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-devops-engineer--cybersecurity-business-unit/86.277"
+      ]
+    },
+    {
+      "local_job_id": 86,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "B5.F62",
+      "title": "Senior Finance Systems & AI Implementation Manager",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-finance-systems--ai-implementation-manager/B5.F62",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-finance-systems--ai-implementation-manager/B5.F62",
+      "description_bytes": 6106,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-finance-systems--ai-implementation-manager/B5.F62",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=B5.F62",
+        "https://drivenets.com/job/?id=B5.F62",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-finance-systems--ai-implementation-manager/B5.F62"
+      ]
+    },
+    {
+      "local_job_id": 87,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "52.C6E",
+      "title": "Senior Hardware Project Manager",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-hardware-project-manager/52.C6E",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-hardware-project-manager/52.C6E",
+      "description_bytes": 5612,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-hardware-project-manager/52.C6E",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=52.C6E",
+        "https://drivenets.com/job/?id=52.C6E",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-hardware-project-manager/52.C6E"
+      ]
+    },
+    {
+      "local_job_id": 88,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "F9.C6B",
+      "title": "Senior Network & Security Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/F9.C6B",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/F9.C6B",
+      "description_bytes": 3210,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/F9.C6B",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=F9.C6B",
+        "https://drivenets.com/job/?id=F9.C6B",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/F9.C6B"
+      ]
+    },
+    {
+      "local_job_id": 89,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "2B.273",
+      "title": "Senior Network & Security Engineer",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/2B.273",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/2B.273",
+      "description_bytes": 3210,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/2B.273",
+      "official_alias_urls": [
+        "https://drivenets.com/career/2B.273/",
+        "https://drivenets.com/job/?id=2B.273",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-network--security-engineer/2B.273"
+      ]
+    },
+    {
+      "local_job_id": 90,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "F1.C6D",
+      "title": "Senior Power Integrity Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-power-integrity-engineer/F1.C6D",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-power-integrity-engineer/F1.C6D",
+      "description_bytes": 5424,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-power-integrity-engineer/F1.C6D",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=F1.C6D",
+        "https://drivenets.com/job/?id=F1.C6D",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-power-integrity-engineer/F1.C6D"
+      ]
+    },
+    {
+      "local_job_id": 91,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "9A.37C",
+      "title": "Senior Product Manager - Switch Network Operating System",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-product-manager---switch-network-operating-system/9A.37C",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-product-manager---switch-network-operating-system/9A.37C",
+      "description_bytes": 7125,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-product-manager---switch-network-operating-system/9A.37C",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-product-manager---switch-network-operating-system/9A.37C"
+      ]
+    },
+    {
+      "local_job_id": 92,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "C8.45B",
+      "title": "Senior Signal Integrity Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/senior-signal-integrity-engineer/C8.45B",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-signal-integrity-engineer/C8.45B",
+      "description_bytes": 3109,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/senior-signal-integrity-engineer/C8.45B",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=C8.45B",
+        "https://drivenets.com/job/?id=C8.45B",
+        "https://www.comeet.com/jobs/drivenets/72.006/senior-signal-integrity-engineer/C8.45B"
+      ]
+    },
+    {
+      "local_job_id": 93,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "F6.93A",
+      "title": "Software Engineer",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer/F6.93A",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer/F6.93A",
+      "description_bytes": 1803,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer/F6.93A",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=F6.93A",
+        "https://drivenets.com/job/?id=F6.93A",
+        "https://www.comeet.com/jobs/drivenets/72.006/software-engineer/F6.93A"
+      ]
+    },
+    {
+      "local_job_id": 94,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "EE.277",
+      "title": "Software Engineer- AI Datacenter Orchestration Platform",
+      "company": "DriveNets",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer--ai-datacenter-orchestration-platform/EE.277",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer--ai-datacenter-orchestration-platform/EE.277",
+      "description_bytes": 3067,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/software-engineer--ai-datacenter-orchestration-platform/EE.277",
+      "official_alias_urls": [
+        "https://drivenets.com/careers/",
+        "https://www.comeet.com/jobs/drivenets/72.006/software-engineer--ai-datacenter-orchestration-platform/EE.277"
+      ]
+    },
+    {
+      "local_job_id": 95,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "33.E51",
+      "title": "System Architect",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect/33.E51",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect/33.E51",
+      "description_bytes": 4870,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect/33.E51",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=33.E51",
+        "https://drivenets.com/job/?id=33.E51",
+        "https://www.comeet.com/jobs/drivenets/72.006/system-architect/33.E51"
+      ]
+    },
+    {
+      "local_job_id": 96,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "B5.117",
+      "title": "System Architect – Routing and Data Path",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect--routing-and-data-path/B5.117",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect--routing-and-data-path/B5.117",
+      "description_bytes": 1632,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/system-architect--routing-and-data-path/B5.117",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=B5.117",
+        "https://drivenets.com/job/?id=B5.117",
+        "https://www.comeet.com/jobs/drivenets/72.006/system-architect--routing-and-data-path/B5.117"
+      ]
+    },
+    {
+      "local_job_id": 97,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "8C.067",
+      "title": "System Validation Engineer",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/system-validation-engineer/8C.067",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/system-validation-engineer/8C.067",
+      "description_bytes": 3545,
+      "tracks": [
+        "electrical_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/system-validation-engineer/8C.067",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=8C.067",
+        "https://drivenets.com/job/?id=8C.067",
+        "https://www.comeet.com/jobs/drivenets/72.006/system-validation-engineer/8C.067"
+      ]
+    },
+    {
+      "local_job_id": 98,
+      "source_identifier": "drivenets",
+      "source_kind": "official_careers",
+      "external_id": "F1.C65",
+      "title": "Vendor Managment",
+      "company": "DriveNets",
+      "location": "Raanana, Israel",
+      "url": "https://www.comeet.com/jobs/drivenets/72.006/vendor-managment/F1.C65",
+      "source_url": "https://www.comeet.com/jobs/drivenets/72.006/vendor-managment/F1.C65",
+      "description_bytes": 3401,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/drivenets/72.006/vendor-managment/F1.C65",
+      "official_alias_urls": [
+        "https://drivenets.com/job/?id=F1.C65",
+        "https://drivenets.com/job/?id=F1.C65",
+        "https://www.comeet.com/jobs/drivenets/72.006/vendor-managment/F1.C65"
+      ]
+    },
+    {
+      "local_job_id": 99,
+      "source_identifier": "encore",
+      "source_kind": "official_careers",
+      "external_id": "B6.072",
+      "title": "Forward Deployed Engineer (FDE)",
+      "company": "Encore AI",
+      "location": "Encore AI - TLV, Israel",
+      "url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/forward-deployed-engineer-fde/B6.072",
+      "source_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/forward-deployed-engineer-fde/B6.072",
+      "description_bytes": 2873,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/forward-deployed-engineer-fde/B6.072",
+      "official_alias_urls": [
+        "https://www.gainencore.ai/careers",
+        "https://www.gainencore.ai/careers",
+        "https://www.comeet.com/jobs/gainencore_ai/0B.00C/forward-deployed-engineer-fde/B6.072"
+      ]
+    },
+    {
+      "local_job_id": 100,
+      "source_identifier": "encore",
+      "source_kind": "official_careers",
+      "external_id": "D5.07D",
+      "title": "Head of Forward Deployed Engineering",
+      "company": "Encore AI",
+      "location": "Encore AI - TLV, Israel",
+      "url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/head-of-forward-deployed-engineering/D5.07D",
+      "source_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/head-of-forward-deployed-engineering/D5.07D",
+      "description_bytes": 2803,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/head-of-forward-deployed-engineering/D5.07D",
+      "official_alias_urls": [
+        "https://www.gainencore.ai",
+        "https://www.comeet.com/jobs/gainencore_ai/0B.00C/head-of-forward-deployed-engineering/D5.07D"
+      ]
+    },
+    {
+      "local_job_id": 101,
+      "source_identifier": "encore",
+      "source_kind": "official_careers",
+      "external_id": "B7.76D",
+      "title": "Senior Software Engineer",
+      "company": "Encore AI",
+      "location": "Encore AI - TLV, Israel",
+      "url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/senior-software-engineer/B7.76D",
+      "source_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/senior-software-engineer/B7.76D",
+      "description_bytes": 2578,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/senior-software-engineer/B7.76D",
+      "official_alias_urls": [
+        "https://www.gainencore.ai",
+        "https://www.comeet.com/jobs/gainencore_ai/0B.00C/senior-software-engineer/B7.76D"
+      ]
+    },
+    {
+      "local_job_id": 102,
+      "source_identifier": "ivix",
+      "source_kind": "official_careers",
+      "external_id": "5B.C5C",
+      "title": "AI Team Lead",
+      "company": "IVIX",
+      "location": "Tel Aviv Office, Israel",
+      "url": "https://www.comeet.com/jobs/ivix/09.002/ai-team-lead/5B.C5C",
+      "source_url": "https://www.comeet.com/jobs/ivix/09.002/ai-team-lead/5B.C5C",
+      "description_bytes": 3180,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/ivix/09.002/ai-team-lead/5B.C5C",
+      "official_alias_urls": [
+        "https://www.comeet.com/jobs/ivix/09.002/ai-team-lead/5B.C5C",
+        "https://www.comeet.com/jobs/ivix/09.002/ai-team-lead/5B.C5C"
+      ]
+    },
+    {
+      "local_job_id": 103,
+      "source_identifier": "ivix",
+      "source_kind": "official_careers",
+      "external_id": "92.A5F",
+      "title": "AI,ML Engineer",
+      "company": "IVIX",
+      "location": "Tel Aviv Office, Israel",
+      "url": "https://www.comeet.com/jobs/ivix/09.002/aiml-engineer/92.A5F",
+      "source_url": "https://www.comeet.com/jobs/ivix/09.002/aiml-engineer/92.A5F",
+      "description_bytes": 2713,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/ivix/09.002/aiml-engineer/92.A5F",
+      "official_alias_urls": [
+        "https://www.comeet.com/jobs/ivix/09.002/aiml-engineer/92.A5F",
+        "https://www.comeet.com/jobs/ivix/09.002/aiml-engineer/92.A5F"
+      ]
+    },
+    {
+      "local_job_id": 104,
+      "source_identifier": "ivix",
+      "source_kind": "official_careers",
+      "external_id": "4B.275",
+      "title": "FullStack Software Engineer",
+      "company": "IVIX",
+      "location": "Tel Aviv Office, Israel",
+      "url": "https://www.comeet.com/jobs/ivix/09.002/fullstack-software-engineer/4B.275",
+      "source_url": "https://www.comeet.com/jobs/ivix/09.002/fullstack-software-engineer/4B.275",
+      "description_bytes": 2842,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/ivix/09.002/fullstack-software-engineer/4B.275",
+      "official_alias_urls": [
+        "https://www.comeet.com/jobs/ivix/09.002/fullstack-software-engineer/4B.275",
+        "https://www.comeet.com/jobs/ivix/09.002/fullstack-software-engineer/4B.275"
+      ]
+    },
+    {
+      "local_job_id": 105,
+      "source_identifier": "ivix",
+      "source_kind": "official_careers",
+      "external_id": "95.27B",
+      "title": "Senior DevOps Engineer",
+      "company": "IVIX",
+      "location": "Tel Aviv Office, Israel",
+      "url": "https://www.comeet.com/jobs/ivix/09.002/senior-devops-engineer/95.27B",
+      "source_url": "https://www.comeet.com/jobs/ivix/09.002/senior-devops-engineer/95.27B",
+      "description_bytes": 3859,
+      "tracks": [
+        "computer_science",
+        "electrical_engineering",
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/ivix/09.002/senior-devops-engineer/95.27B",
+      "official_alias_urls": [
+        "https://www.comeet.com/jobs/ivix/09.002/senior-devops-engineer/95.27B",
+        "https://www.comeet.com/jobs/ivix/09.002/senior-devops-engineer/95.27B"
+      ]
+    },
+    {
+      "local_job_id": 106,
+      "source_identifier": "ivix",
+      "source_kind": "official_careers",
+      "external_id": "2B.379",
+      "title": "Software Engineer",
+      "company": "IVIX",
+      "location": "Tel Aviv Office, Israel",
+      "url": "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379",
+      "source_url": "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379",
+      "description_bytes": 3297,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379",
+      "official_alias_urls": [
+        "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379",
+        "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379"
+      ]
+    },
+    {
+      "local_job_id": 107,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "99.E6A",
+      "title": "Account Executive",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/account-executive/99.E6A",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/account-executive/99.E6A",
+      "description_bytes": 2841,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/account-executive/99.E6A",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/account-executive",
+        "https://careers.riverside.com/careers/account-executive",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/account-executive/99.E6A"
+      ]
+    },
+    {
+      "local_job_id": 108,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "7B.378",
+      "title": "Full Stack Engineer, AI Agents",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/full-stack-engineer-ai-agents/7B.378",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/full-stack-engineer-ai-agents/7B.378",
+      "description_bytes": 3218,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/full-stack-engineer-ai-agents/7B.378",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/full-stack-engineer-ai-agents",
+        "https://careers.riverside.com/careers/full-stack-engineer-ai-agents",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/full-stack-engineer-ai-agents/7B.378"
+      ]
+    },
+    {
+      "local_job_id": 109,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "DF.27F",
+      "title": "Marketing Designer – Maternity Leave Replacement",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/marketing-designer--maternity-leave-replacement/DF.27F",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/marketing-designer--maternity-leave-replacement/DF.27F",
+      "description_bytes": 3211,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/marketing-designer--maternity-leave-replacement/DF.27F",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/marketing-designer-maternity-leave-replacement",
+        "https://careers.riverside.com/careers/marketing-designer-maternity-leave-replacement",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/marketing-designer--maternity-leave-replacement/DF.27F"
+      ]
+    },
+    {
+      "local_job_id": 110,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "F6.E64",
+      "title": "Senior Affiliate Manager",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-affiliate-manager/F6.E64",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-affiliate-manager/F6.E64",
+      "description_bytes": 3188,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-affiliate-manager/F6.E64",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-affiliate-manager",
+        "https://careers.riverside.com/careers/senior-affiliate-manager",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-affiliate-manager/F6.E64"
+      ]
+    },
+    {
+      "local_job_id": 111,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "FD.270",
+      "title": "Senior Marketing Designer",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-marketing-designer/FD.270",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-marketing-designer/FD.270",
+      "description_bytes": 3242,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-marketing-designer/FD.270",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-marketing-designer",
+        "https://careers.riverside.com/careers/senior-marketing-designer",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-marketing-designer/FD.270"
+      ]
+    },
+    {
+      "local_job_id": 112,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "D7.373",
+      "title": "Senior Mobile Product Designer",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-mobile-product-designer/D7.373",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-mobile-product-designer/D7.373",
+      "description_bytes": 3040,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-mobile-product-designer/D7.373",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-mobile-product-designer",
+        "https://careers.riverside.com/careers/senior-mobile-product-designer",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-mobile-product-designer/D7.373"
+      ]
+    },
+    {
+      "local_job_id": 113,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "0A.568",
+      "title": "Senior Product Designer",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-designer/0A.568",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-designer/0A.568",
+      "description_bytes": 3013,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-designer/0A.568",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-product-designer",
+        "https://careers.riverside.com/careers/senior-product-designer",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-designer/0A.568"
+      ]
+    },
+    {
+      "local_job_id": 114,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "99.667",
+      "title": "Senior Product Manager",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-manager/99.667",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-manager/99.667",
+      "description_bytes": 2591,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-manager/99.667",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-product-manager",
+        "https://careers.riverside.com/careers/senior-product-manager",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-product-manager/99.667"
+      ]
+    },
+    {
+      "local_job_id": 115,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "34.D6E",
+      "title": "Senior Software Engineer, Live Call Team",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-software-engineer-live-call-team/34.D6E",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-software-engineer-live-call-team/34.D6E",
+      "description_bytes": 3053,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/senior-software-engineer-live-call-team/34.D6E",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/senior-software-engineer-live-call-team",
+        "https://careers.riverside.com/careers/senior-software-engineer-live-call-team",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/senior-software-engineer-live-call-team/34.D6E"
+      ]
+    },
+    {
+      "local_job_id": 116,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "BD.174",
+      "title": "Video Education Manager (Israel)",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/video-education-manager-israel/BD.174",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/video-education-manager-israel/BD.174",
+      "description_bytes": 3191,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/video-education-manager-israel/BD.174",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/video-education-manager-israel",
+        "https://careers.riverside.com/careers/video-education-manager-israel",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/video-education-manager-israel/BD.174"
+      ]
+    },
+    {
+      "local_job_id": 117,
+      "source_identifier": "riverside",
+      "source_kind": "official_careers",
+      "external_id": "17.27F",
+      "title": "VP Marketing",
+      "company": "Riverside",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/riverside-fm/66.009/vp-marketing/17.27F",
+      "source_url": "https://www.comeet.com/jobs/riverside-fm/66.009/vp-marketing/17.27F",
+      "description_bytes": 3134,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/riverside-fm/66.009/vp-marketing/17.27F",
+      "official_alias_urls": [
+        "https://careers.riverside.com/careers/vp-marketing",
+        "https://careers.riverside.com/careers/vp-marketing",
+        "https://www.comeet.com/jobs/riverside-fm/66.009/vp-marketing/17.27F"
+      ]
+    },
+    {
+      "local_job_id": 118,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "1B.376",
+      "title": "AI Solutions Engineer",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/ai-solutions-engineer/1B.376",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/ai-solutions-engineer/1B.376",
+      "description_bytes": 3979,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/ai-solutions-engineer/1B.376",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/1B.376/ai-solutions-engineer/all/",
+        "https://www.sygnia.co/careers/co/israel/1B.376/ai-solutions-engineer/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/ai-solutions-engineer/1B.376"
+      ]
+    },
+    {
+      "local_job_id": 119,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "B2.D6A",
+      "title": "Director of Product Management",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/director-of-product-management/B2.D6A",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/director-of-product-management/B2.D6A",
+      "description_bytes": 5234,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/director-of-product-management/B2.D6A",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/B2.D6A/director-of-product-management/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.sygnia.co/careers/co/israel/B2.D6A/director-of-product-management/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.comeet.com/jobs/sygnia/78.00A/director-of-product-management/B2.D6A"
+      ]
+    },
+    {
+      "local_job_id": 120,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "6E.F66",
+      "title": "Director, Account Executive for IL & MENA",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/director-account-executive-for-il--mena/6E.F66",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/director-account-executive-for-il--mena/6E.F66",
+      "description_bytes": 3804,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/director-account-executive-for-il--mena/6E.F66",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/6E.F66/director-account-executive-for-il-mena/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.sygnia.co/careers/co/israel/6E.F66/director-account-executive-for-il-mena/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.comeet.com/jobs/sygnia/78.00A/director-account-executive-for-il--mena/6E.F66"
+      ]
+    },
+    {
+      "local_job_id": 121,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "76.271",
+      "title": "Help Desk Administrator",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/help-desk-administrator/76.271",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/help-desk-administrator/76.271",
+      "description_bytes": 3558,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/help-desk-administrator/76.271",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/76.271/help-desk-administrator/all/",
+        "https://www.sygnia.co/careers/co/israel/76.271/help-desk-administrator/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/help-desk-administrator/76.271"
+      ]
+    },
+    {
+      "local_job_id": 122,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "CF.53A",
+      "title": "Incident Response Expert",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-expert/CF.53A",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-expert/CF.53A",
+      "description_bytes": 4068,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-expert/CF.53A",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/CF.53A/incident-response-expert/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.sygnia.co/careers/co/israel/CF.53A/incident-response-expert/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-expert/CF.53A"
+      ]
+    },
+    {
+      "local_job_id": 123,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "8C.27D",
+      "title": "Incident Response Manager",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-manager/8C.27D",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-manager/8C.27D",
+      "description_bytes": 4935,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-manager/8C.27D",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/8C.27D/incident-response-manager/all/",
+        "https://www.sygnia.co/careers/co/israel/8C.27D/incident-response-manager/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-manager/8C.27D"
+      ]
+    },
+    {
+      "local_job_id": 124,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "EA.370",
+      "title": "Incident Response Team Lead",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-team-lead/EA.370",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-team-lead/EA.370",
+      "description_bytes": 4545,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-team-lead/EA.370",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/EA.370/incident-response-team-lead/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.sygnia.co/careers/co/israel/EA.370/incident-response-team-lead/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.comeet.com/jobs/sygnia/78.00A/incident-response-team-lead/EA.370"
+      ]
+    },
+    {
+      "local_job_id": 125,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "C6.279",
+      "title": "Senior AI Engineer",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-ai-engineer/C6.279",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-ai-engineer/C6.279",
+      "description_bytes": 3722,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-ai-engineer/C6.279",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/C6.279/senior-ai-engineer/all/",
+        "https://www.sygnia.co/careers/co/israel/C6.279/senior-ai-engineer/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/senior-ai-engineer/C6.279"
+      ]
+    },
+    {
+      "local_job_id": 126,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "5B.A63",
+      "title": "Senior Backend Engineer – Endpoint",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-backend-engineer--endpoint/5B.A63",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-backend-engineer--endpoint/5B.A63",
+      "description_bytes": 2900,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-backend-engineer--endpoint/5B.A63",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/5B.A63/senior-backend-engineer-agent/all/",
+        "https://www.sygnia.co/careers/co/israel/5B.A63/senior-backend-engineer-agent/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/senior-backend-engineer--endpoint/5B.A63"
+      ]
+    },
+    {
+      "local_job_id": 127,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "0C.278",
+      "title": "Senior DevOps Engineer",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devops-engineer/0C.278",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devops-engineer/0C.278",
+      "description_bytes": 4936,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devops-engineer/0C.278",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/0C.278/senior-devops-engineer/all/",
+        "https://www.sygnia.co/careers/co/israel/0C.278/senior-devops-engineer/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/senior-devops-engineer/0C.278"
+      ]
+    },
+    {
+      "local_job_id": 128,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "EF.868",
+      "title": "Senior DevSecOps Engineer",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devsecops-engineer/EF.868",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devsecops-engineer/EF.868",
+      "description_bytes": 4913,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-devsecops-engineer/EF.868",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/EF.868/senior-devsecops-engineer/all/",
+        "https://www.sygnia.co/careers/co/israel/EF.868/senior-devsecops-engineer/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/senior-devsecops-engineer/EF.868"
+      ]
+    },
+    {
+      "local_job_id": 129,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "CB.27E",
+      "title": "Senior Full Stack Engineer",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-full-stack-engineer/CB.27E",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-full-stack-engineer/CB.27E",
+      "description_bytes": 3333,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/senior-full-stack-engineer/CB.27E",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/CB.27E/senior-full-stack-engineer/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.sygnia.co/careers/co/israel/CB.27E/senior-full-stack-engineer/all/?_gl=1*10pve2h*_ga*MTM3MDQyMjAxMS4xNjYwNTk4MDEz*_ga_3XBPCMRFD6*MTczMzE2MTAxMC40NS4xLjE3MzMxNjE5NjguNDMuMC4w*_gcl_au*ODU2NTYzNjg2LjE3MzIwMjYxODc.&category=98&service_filter=&%20Response%20Webinar_Forrester&vertical_filter=",
+        "https://www.comeet.com/jobs/sygnia/78.00A/senior-full-stack-engineer/CB.27E"
+      ]
+    },
+    {
+      "local_job_id": 130,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "07.F44",
+      "title": "SOC Analyst",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/soc-analyst/07.F44",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/soc-analyst/07.F44",
+      "description_bytes": 3667,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/soc-analyst/07.F44",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/07.F44/soc-analyst/all/",
+        "https://www.sygnia.co/careers/co/israel/07.F44/soc-analyst/all/",
+        "https://www.comeet.com/jobs/sygnia/78.00A/soc-analyst/07.F44"
+      ]
+    },
+    {
+      "local_job_id": 131,
+      "source_identifier": "sygnia",
+      "source_kind": "official_careers",
+      "external_id": "F8.E62",
+      "title": "Threat Intelligence Researcher",
+      "company": "Sygnia",
+      "location": "Israel",
+      "url": "https://www.comeet.com/jobs/sygnia/78.00A/threat-intelligence-researcher/F8.E62",
+      "source_url": "https://www.comeet.com/jobs/sygnia/78.00A/threat-intelligence-researcher/F8.E62",
+      "description_bytes": 4666,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/sygnia/78.00A/threat-intelligence-researcher/F8.E62",
+      "official_alias_urls": [
+        "https://www.sygnia.co/careers/co/israel/F8.E62/threat-intelligence-researcher/all/?ref=linuxmint.hu",
+        "https://www.sygnia.co/careers/co/israel/F8.E62/threat-intelligence-researcher/all/?ref=linuxmint.hu",
+        "https://www.comeet.com/jobs/sygnia/78.00A/threat-intelligence-researcher/F8.E62"
+      ]
+    },
+    {
+      "local_job_id": 132,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "C5.07D",
+      "title": "AI Red Team Researcher",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/ai-red-team-researcher/C5.07D",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/ai-red-team-researcher/C5.07D",
+      "description_bytes": 2515,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/ai-red-team-researcher/C5.07D",
+      "official_alias_urls": [
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/ai-red-team-researcher/C5.07D",
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/ai-red-team-researcher/C5.07D",
+        "https://www.comeet.com/jobs/zenity/19.000/ai-red-team-researcher/C5.07D"
+      ]
+    },
+    {
+      "local_job_id": 133,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "74.270",
+      "title": "CTO Office Team Member",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/cto-office-team-member/74.270",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/cto-office-team-member/74.270",
+      "description_bytes": 3721,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/cto-office-team-member/74.270",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/cto-office-team-member/74.270",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/cto-office-team-member/74.270",
+        "https://www.comeet.com/jobs/zenity/19.000/cto-office-team-member/74.270"
+      ]
+    },
+    {
+      "local_job_id": 134,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "8D.273",
+      "title": "Director of Platform Engineering",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/director-of-platform-engineering/8D.273",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/director-of-platform-engineering/8D.273",
+      "description_bytes": 2567,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/director-of-platform-engineering/8D.273",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/director-of-platform-engineering/8D.273",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/director-of-platform-engineering/8D.273",
+        "https://www.comeet.com/jobs/zenity/19.000/director-of-platform-engineering/8D.273"
+      ]
+    },
+    {
+      "local_job_id": 135,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "D1.C6F",
+      "title": "Member Of Technical Staff, CTO Office",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/member-of-technical-staff-cto-office/D1.C6F",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/member-of-technical-staff-cto-office/D1.C6F",
+      "description_bytes": 3549,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/member-of-technical-staff-cto-office/D1.C6F",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/member-of-the-technical-staff-cto-office/D1.C6F",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/member-of-the-technical-staff-cto-office/D1.C6F",
+        "https://www.comeet.com/jobs/zenity/19.000/member-of-technical-staff-cto-office/D1.C6F"
+      ]
+    },
+    {
+      "local_job_id": 136,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "57.941",
+      "title": "Principal Product Manager",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/principal-product-manager/57.941",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/principal-product-manager/57.941",
+      "description_bytes": 3327,
+      "tracks": [
+        "industrial_engineering"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/principal-product-manager/57.941",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/principal-product-manager/57.941",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/principal-product-manager/57.941",
+        "https://www.comeet.com/jobs/zenity/19.000/principal-product-manager/57.941"
+      ]
+    },
+    {
+      "local_job_id": 137,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "77.067",
+      "title": "Senior AI Researcher",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/senior-ai-researcher/77.067",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/senior-ai-researcher/77.067",
+      "description_bytes": 3424,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/senior-ai-researcher/77.067",
+      "official_alias_urls": [
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/senior-ai-researcher/77.067",
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/senior-ai-researcher/77.067",
+        "https://www.comeet.com/jobs/zenity/19.000/senior-ai-researcher/77.067"
+      ]
+    },
+    {
+      "local_job_id": 138,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "7B.D66",
+      "title": "Senior Applied AI Scientist",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/senior-applied-ai-scientist/7B.D66",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/senior-applied-ai-scientist/7B.D66",
+      "description_bytes": 2981,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/senior-applied-ai-scientist/7B.D66",
+      "official_alias_urls": [
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/senior-applied-ai-scientist/7B.D66",
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/senior-applied-ai-scientist/7B.D66",
+        "https://www.comeet.com/jobs/zenity/19.000/senior-applied-ai-scientist/7B.D66"
+      ]
+    },
+    {
+      "local_job_id": 139,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "75.273",
+      "title": "Senior FP&A Analyst",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/senior-fpa-analyst/75.273",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/senior-fpa-analyst/75.273",
+      "description_bytes": 2751,
+      "tracks": [],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/senior-fpa-analyst/75.273",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-fpa-analyst/75.273",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-fpa-analyst/75.273",
+        "https://www.comeet.com/jobs/zenity/19.000/senior-fpa-analyst/75.273"
+      ]
+    },
+    {
+      "local_job_id": 140,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "6A.D32",
+      "title": "Senior Security Researcher",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/senior-security-researcher/6A.D32",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/senior-security-researcher/6A.D32",
+      "description_bytes": 2358,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/senior-security-researcher/6A.D32",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-security-researcher/6A.D32",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-security-researcher/6A.D32",
+        "https://www.comeet.com/jobs/zenity/19.000/senior-security-researcher/6A.D32"
+      ]
+    },
+    {
+      "local_job_id": 141,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "48.947",
+      "title": "Senior Software Engineer",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/senior-software-engineer/48.947",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/senior-software-engineer/48.947",
+      "description_bytes": 2473,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/senior-software-engineer/48.947",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-software-engineer/48.947",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/senior-software-engineer/48.947",
+        "https://www.comeet.com/jobs/zenity/19.000/senior-software-engineer/48.947"
+      ]
+    },
+    {
+      "local_job_id": 142,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "1C.072",
+      "title": "Software Architect",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/software-architect/1C.072",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/software-architect/1C.072",
+      "description_bytes": 3373,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/software-architect/1C.072",
+      "official_alias_urls": [
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/software-architect/1C.072",
+        "https://zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/software-architect/1C.072",
+        "https://www.comeet.com/jobs/zenity/19.000/software-architect/1C.072"
+      ]
+    },
+    {
+      "local_job_id": 143,
+      "source_identifier": "zenity",
+      "source_kind": "official_careers",
+      "external_id": "73.D6E",
+      "title": "Tech Lead Engineer - Device Agent",
+      "company": "Zenity",
+      "location": "Tel Aviv, Israel",
+      "url": "https://www.comeet.com/jobs/zenity/19.000/tech-lead-engineer---device-agent/73.D6E",
+      "source_url": "https://www.comeet.com/jobs/zenity/19.000/tech-lead-engineer---device-agent/73.D6E",
+      "description_bytes": 3649,
+      "tracks": [
+        "computer_science"
+      ],
+      "adapter": "comeet",
+      "automatic_route_reason": "",
+      "native_automation_url": "https://www.comeet.com/jobs/zenity/19.000/tech-lead-engineer---device-agent/73.D6E",
+      "official_alias_urls": [
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/tech-lead-engineer-device-agent/73.D6E",
+        "https://zenity.io/careers/tel-aviv-jaffa-tel-aviv-district-israel/tech-lead-engineer-device-agent/73.D6E",
+        "https://www.comeet.com/jobs/zenity/19.000/tech-lead-engineer---device-agent/73.D6E"
+      ]
+    }
+  ],
+  "preserved_goozali_sample_comparison": {
+    "sample_count": 100,
+    "historical_collected_lower_bound": 24,
+    "matches": [
+      {
+        "sample_id": "g007",
+        "sample_url": "https://dreamgroup.com/comeet-positions/applied-science-team-lead-3b374",
+        "local_job_id": 38,
+        "source_identifier": "dream",
+        "external_id": "3B.374",
+        "method": "exact_native_feed_official_alias",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g010",
+        "sample_url": "https://jobs.ashbyhq.com/pointfive/d421e4e5-85cd-4ebb-a480-442e83057c6f",
+        "local_job_id": 3,
+        "source_identifier": "pointfive",
+        "external_id": "d421e4e5-85cd-4ebb-a480-442e83057c6f",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g014",
+        "sample_url": "https://www.comeet.com/jobs/riverside-fm/66.009/full-stack-engineer-ai-agents/7B.378",
+        "local_job_id": 108,
+        "source_identifier": "riverside",
+        "external_id": "7B.378",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g017",
+        "sample_url": "https://careers.riverside.com/careers/full-stack-engineer-ai-agents",
+        "local_job_id": 108,
+        "source_identifier": "riverside",
+        "external_id": "7B.378",
+        "method": "exact_native_feed_official_alias",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g021",
+        "sample_url": "https://jobs.ashbyhq.com/pointfive/f3e101d7-7ce7-4280-8eb4-f6ccde097472",
+        "local_job_id": 4,
+        "source_identifier": "pointfive",
+        "external_id": "f3e101d7-7ce7-4280-8eb4-f6ccde097472",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g024",
+        "sample_url": "https://dreamgroup.com/comeet-positions/engineering-team-lead-triage-7ef61?_hsenc=p2ANqtz-97ZMbbKK03fNvFkjMLu0udvLqZ4PxayCeRSrU5HrVwVcJq7XMadwxmnFa68EBg2glBcJ2re8lzIVAMjxI4DsEpDC7q_Q&_hsmi=145946727",
+        "local_job_id": 39,
+        "source_identifier": "dream",
+        "external_id": "7E.F61",
+        "method": "exact_native_feed_official_alias",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g026",
+        "sample_url": "https://jobs.ashbyhq.com/pointfive/bf0b9450-79ff-4234-a690-17ffafcece86",
+        "local_job_id": 8,
+        "source_identifier": "pointfive",
+        "external_id": "bf0b9450-79ff-4234-a690-17ffafcece86",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g028",
+        "sample_url": "https://jobs.lever.co/parallelwireless/5cf0faeb-0216-4850-91f2-d81bd7e6dc0e",
+        "local_job_id": 33,
+        "source_identifier": "parallelwireless",
+        "external_id": "5cf0faeb-0216-4850-91f2-d81bd7e6dc0e",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g030",
+        "sample_url": "https://www.sygnia.co/careers/co/israel/1B.376/ai-solutions-engineer/all",
+        "local_job_id": 118,
+        "source_identifier": "sygnia",
+        "external_id": "1B.376",
+        "method": "exact_native_feed_official_alias",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g043",
+        "sample_url": "https://www.comeet.com/jobs/8fig/08.004/senior-software-engineer/2B.37B",
+        "local_job_id": 37,
+        "source_identifier": "8fig",
+        "external_id": "2B.37B",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g046",
+        "sample_url": "https://jobs.ashbyhq.com/stigg/05d790cf-760f-427d-a93a-0a5fc65f1cf3",
+        "local_job_id": 13,
+        "source_identifier": "stigg",
+        "external_id": "05d790cf-760f-427d-a93a-0a5fc65f1cf3",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g050",
+        "sample_url": "https://www.comeet.com/jobs/dreamgroup/99.002/applied-science-team-lead/3B.374",
+        "local_job_id": 38,
+        "source_identifier": "dream",
+        "external_id": "3B.374",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g058",
+        "sample_url": "https://www.comeet.com/jobs/ivix/09.002/software-engineer/2B.379",
+        "local_job_id": 106,
+        "source_identifier": "ivix",
+        "external_id": "2B.379",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g059",
+        "sample_url": "https://www.zenity.io/careers/hybrid-tel-aviv-jaffa-tel-aviv-district-israel/cto-office-team-member/74.270",
+        "local_job_id": 133,
+        "source_identifier": "zenity",
+        "external_id": "74.270",
+        "method": "exact_native_feed_official_alias",
+        "historically_verified_collected": false
+      },
+      {
+        "sample_id": "g085",
+        "sample_url": "https://www.comeet.com/jobs/gainencore_ai/0B.00C/senior-software-engineer/B7.76D",
+        "local_job_id": 101,
+        "source_identifier": "encore",
+        "external_id": "B7.76D",
+        "method": "native_board_and_posting_id",
+        "historically_verified_collected": false
+      }
+    ],
+    "additional_sample_records_replayed": 15,
+    "additional_distinct_job_identities": 13,
+    "limits": [
+      "Offline new-source replay does not change or establish current production coverage.",
+      "Only native board/posting identity or URL aliases explicitly returned by that posting were counted; no title-only matches.",
+      "Known official www and tracking-query variants retain the exact posting path; LinkedIn is unresolved.",
+      "The preserved feed sample is not the entire market or a Goozali Airtable export."
+    ]
+  },
+  "unverified": [
+    "No real employer application attempted for these new sources.",
+    "Manual-only, blocked or unverified employer routes were not enabled.",
+    "ChargeAfter, Razor Labs and Wayve official pages returned403 once and were not retried or added."
+  ],
+  "persistent_preview": {
+    "database_path": "/Users/AlmogKarif/Downloads/jobpilot/data/catalog_expansion_preview_2026-10-11.db",
+    "sqlite_bytes": 1589248,
+    "sqlite_sha256": "3cad872212aa807b29527a717c6121736af34d8e3876df96f7157801d5136f99",
+    "canonical_jobs": 143,
+    "shared_sources": 13,
+    "track_counts": {
+      "computer_science": 70,
+      "electrical_engineering": 31,
+      "industrial_engineering": 23
+    },
+    "second_pass_unchanged": 143,
+    "second_pass_new": 0,
+    "second_pass_removed": 0,
+    "synthetic_profiles": 1,
+    "real_profiles": 0,
+    "cv_files": 0,
+    "applications": 0,
+    "auto_queued": 0,
+    "personal_ranking_rows": 0,
+    "scheduler_enabled": false,
+    "worker_tasks_disabled_by_unified_preview": true,
+    "network_requests_during_replay": 0,
+    "server_started": false,
+    "launch_command": ".venv/bin/python data/run_catalog_expansion_preview_2026-10-11.py",
+    "preview_url_when_launched": "http://127.0.0.1:8001",
+    "launch_notes": "Uses only this SQLite, isolated preview file directory, synthetic profile, local auth/storage, blank cloud credentials, scheduler off, agent tasks disabled. Legacy catalog definitions omitted in-process; no user server is stopped. Launching is explicit and was not done by this task."
+  }
+}

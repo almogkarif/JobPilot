@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import desc, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from ..models import Application, Blocker, Job, Source, utcnow
 from .application_submission import detect_adapter
@@ -57,6 +57,7 @@ def ashby_spam_cooldown_until(db: Session, *, now: datetime | None = None) -> da
     current = _aware(now) or utcnow()
     recent = db.scalar(
         select(Blocker)
+        .options(load_only(Blocker.created_at, raiseload=True))
         .join(Application, Blocker.application_id == Application.id)
         .join(Job, Application.job_id == Job.id)
         .outerjoin(Source, Job.source_id == Source.id)

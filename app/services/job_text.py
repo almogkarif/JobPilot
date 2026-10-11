@@ -15,12 +15,19 @@ GENERIC_DESCRIPTIONS = {
 
 def clean_job_text(value: object) -> str:
     """Turn ATS HTML/escaped payloads into readable job text without UI noise."""
-    raw = html.unescape(str(value or "")).replace("\\/", "/")
-    raw = raw.replace("\\n", "\n").replace("\\r", "\n").replace("\\t", " ")
-    soup = BeautifulSoup(raw, "html.parser")
-    for node in soup.select("script,style,noscript,svg,form,nav,footer"):
-        node.decompose()
-    text = soup.get_text("\n", strip=True)
+    original = str(value or "")
+    url_text = original.replace("\\/", "/").replace("\\n", "\n").replace("\\r", "\n").replace("\\t", " ").strip()
+    if re.fullmatch(r"https?://[^\s/<>]+(?:[/?#][^\s<>]*)?", url_text, re.I):
+        # Plain URLs are data, not markup. General HTML unescaping can also
+        # corrupt real query keys such as &lang= through legacy entity names.
+        text = url_text.replace("&amp;", "&")
+    else:
+        raw = html.unescape(original).replace("\\/", "/")
+        raw = raw.replace("\\n", "\n").replace("\\r", "\n").replace("\\t", " ")
+        soup = BeautifulSoup(raw, "html.parser")
+        for node in soup.select("script,style,noscript,svg,form,nav,footer"):
+            node.decompose()
+        text = soup.get_text("\n", strip=True)
     text = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060\ufeff]", "", text)
     lines: list[str] = []
     seen: set[str] = set()

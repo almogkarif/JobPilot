@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 from .base import NormalizedJob, PreserveExistingJobs
+from .verified_shared_ats import is_verified_shared_board, load_verified_payload, verified_collection
 from ..utils import html_to_text, parse_datetime
 
 
@@ -21,10 +22,14 @@ class GreenhouseCollector:
         # Greenhouse EU boards use the same documented public Job Board API host.
         # ``eu:`` is accepted only for backward compatibility with v0.1.13 previews.
         url = self.BASE.format(token=token)
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            response = await client.get(url, params={"content": "true"})
-            response.raise_for_status()
-            payload = response.json()
+        verified = is_verified_shared_board("greenhouse", raw_identifier)
+        if verified:
+            payload = await load_verified_payload("greenhouse", raw_identifier)
+        else:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                response = await client.get(url, params={"content": "true"})
+                response.raise_for_status()
+                payload = response.json()
 
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise PreserveExistingJobs("Greenhouse returned an unrecognized job-list payload")
@@ -51,7 +56,7 @@ class GreenhouseCollector:
                     metadata={"metadata": metadata, "departments": item.get("departments", [])},
                 )
             )
-        return jobs
+        return verified_collection("greenhouse", raw_identifier, jobs, payload) if verified else jobs
 
 
 def _detect_workplace(location: str, description: str) -> str:

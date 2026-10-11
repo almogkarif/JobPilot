@@ -13,7 +13,9 @@ def get_user_job_state(db: Session, job_id: int, *, create: bool = False) -> Use
         if canonical is None:
             return None
         job_id = canonical.id
-    state = db.scalar(select(UserJobState).where(UserJobState.job_id == job_id))
+    state = db.scalar(select(UserJobState).options(load_only(
+        UserJobState.id, UserJobState.job_id, UserJobState.status,
+    )).where(UserJobState.job_id == job_id))
     if state is None and create:
         state = UserJobState(job_id=job_id)
         db.add(state)

@@ -1,3 +1,4 @@
+import json
 import shutil
 import time
 
@@ -740,6 +741,84 @@ def test_greenhouse_split_security_code_uses_keyboard_events():
         assert [item.input_value() for item in inputs] == ["2", "T", "X", "8"]
         assert page.evaluate("window.keydowns") >= 4
         browser.close()
+
+
+def test_greenhouse_email_verification_keeps_session_and_recognizes_nanit_confirmation():
+    url = "https://job-boards.greenhouse.io/embed/job_app?for=offline-example&token=123"
+    confirmation_url = "https://job-boards.greenhouse.io/embed/job_app/confirmation"
+    state = {"form_loads": 0, "codes": [], "provider_calls": 0}
+    stages = []
+    with sync_playwright() as playwright:
+        browser = _launch(playwright)
+        context = browser.new_context(service_workers="block")
+        page = context.new_page()
+
+        def serve(route):
+            request = route.request
+            if request.url == url and request.method == "GET":
+                state["form_loads"] += 1
+                route.fulfill(content_type="text/html", body='''
+                  <form id="application">
+                    <label>Email<input name="email" type="email" required></label>
+                    <button type="submit">Submit Application</button>
+                  </form>
+                  <script>
+                    application.onsubmit = async event => {
+                      event.preventDefault();
+                      const code = document.querySelector('[name=security_code]');
+                      const response = await fetch(location.href, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({code: code ? code.value : ''})
+                      });
+                      await response.text();
+                      if (response.status === 428) {
+                        application.insertAdjacentHTML('beforeend',
+                          '<p>We sent a security code to your email. Check your inbox.</p>' +
+                          '<label>Security code<input name="security_code" required></label>');
+                      } else if (response.status === 200) {
+                        document.body.innerHTML = '<p>Thank you for your application!</p>' +
+                          '<p>The Nanit team</p><button>Track your application</button>';
+                        history.replaceState({}, '', '/embed/job_app/confirmation');
+                      }
+                    };
+                  </script>
+                ''')
+            elif request.url == url and request.method == "POST":
+                code = json.loads(request.post_data)["code"]
+                state["codes"].append(code)
+                route.fulfill(status=200 if code == "Test1234" else 428, body="")
+            else:
+                route.abort()
+
+        def security_code():
+            state["provider_calls"] += 1
+            assert state["codes"] == [""]
+            assert state["form_loads"] == len(context.pages) == 1
+            assert page.locator('[name=email]').input_value() == "candidate@example.invalid"
+            return "Test1234"
+
+        context.route("**/*", serve)
+        try:
+            result = fill_application(page, {
+                "job": {"apply_url": url},
+                "profile": {"email": "candidate@example.invalid"},
+                "answers": {}, "answer_memories": [],
+            }, auto_submit=True, security_code_provider=security_code,
+                progress=lambda stage, _message, _url: stages.append(stage))
+            assert result["submitted"] is True
+            assert result["page_url"] == confirmation_url
+            assert "Thank you for your application!" in result["confirmation_text"]
+            assert result["evidence"][0]["type"] == "confirmation_page"
+            assert state == {"form_loads": 1, "codes": ["", "Test1234"], "provider_calls": 1}
+            assert stages.count("page_opened") == 1
+            assert stages.count("security_code_waiting") == stages.count("security_code_filled") == 1
+            # A bare HTTP 200 or an email challenge alone still cannot prove acceptance.
+            assert _hosted_ats_submission_response_result(url, 200, "") == ("", "", "")
+            assert _hosted_ats_submission_response_result(url, 428, "") == ("", "", "")
+            assert _hosted_ats_submission_response_result(url, 428, "Thank you for your application!") == ("", "", "")
+            assert _hosted_ats_submission_response_result(url, 400, "Thank you for your application!")[2]
+        finally:
+            browser.close()
 
 
 def test_security_code_waiting_requires_visible_proof_that_email_was_sent():

@@ -43,6 +43,7 @@ def test_recommended_install_does_not_add_or_resurrect_retired_sources(preview_d
     definitions = (dict(name='Retired Armis', kind='greenhouse', identifier='armissecurity', company_name='Armis'),
                    dict(name='Retired CyberArk', kind='smartrecruiters', identifier='Cyberark1', company_name='CyberArk'))
     monkeypatch.setattr(source_catalog, 'RECOMMENDED_SOURCES_BY_TRACK', {'computer_science': definitions})
+    monkeypatch.setattr(source_catalog, 'SHARED_RECOMMENDED_SOURCES', ())
     assert unified_catalog.install_unified_sources(preview_db) == 0
     assert len(preview_db.scalars(select(Source)).all()) == before
     assert source_catalog.recommended_sources_for_track('computer_science') == ()

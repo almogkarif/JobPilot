@@ -65,6 +65,116 @@ COMEET_ROUTES = {
     "classiq": ("classiq", "F7.008", "7F82FD01FE03FC037C87F87F82FD017E847B8"),
     "oligo-security": ("oligosecurity", "5A.00B", "A5B487D296C487D01F1152D852D852D8487D"),
     "quantum-machines": ("quantummachines", "D6.000", ""),
+    # Shared source expansion, checked against native public company metadata.
+    "dream": ("dreamgroup", "99.002", ""),
+    "riverside": ("riverside-fm", "66.009", ""),
+    "8fig": ("8fig", "08.004", ""),
+    "ivix": ("ivix", "09.002", ""),
+    "encore": ("gainencore_ai", "0B.00C", ""),
+    "sygnia": ("sygnia", "78.00A", ""),
+    "zenity": ("zenity", "19.000", ""),
+    "drivenets": ("drivenets", "72.006", ""),
+    # Shared expansion: exact public native boards, one bounded response each.
+    "buildots": ("buildots", "36.004", ""),
+    "checkmarx": ("checkmarx", "C0.008", ""),
+    "elementor": ("Elementor", "A3.00F", ""),
+    "plainid": ("plainid", "C4.00C", ""),
+    "lusha": ("lusha", "73.00B", ""),
+    "cheq": ("cheq", "65.005", ""),
+    "geoedge": ("geoedge.com", "82.00A", ""),
+    "insightec": ("insightec", "4A.004", ""),
+    "superplay": ("superplay", "28.003", ""),
+    "skai": ("skai", "22.00A", ""),
+    "ox-security": ("ox_security", "F8.006", ""),
+    "evinced": ("evinced", "28.000", ""),
+    "optibus": ("optibus", "D1.00C", ""),
+    "cycode": ("cycode", "A8.00D", ""),
+    "percepto": ("percepto", "44.000", ""),
+    "port": ("port", "59.004", ""),
+    "crossriver": ("crossriver", "C7.00F", ""),
+    "comm-it": ("comm-it", "76.008", ""),
+    "hypernative": ("hypernative", "8A.00E", ""),
+    "codevalue": ("codevalue", "81.009", ""),
+    "stampli": ("stampli", "F6.007", ""),
+    "infinidat": ("infinidat", "D6.003", ""),
+    "sensi-ai": ("sensi", "E7.00F", ""),
+    "cardosystems": ("cardosystems", "F2.003", ""),
+    "easysend": ("easysend", "D5.009", ""),
+    "dualbird": ("dualbird", "2B.00C", ""),
+    "inmanage": ("inmanage", "B7.006", ""),
+    "final": ("final", "C0.009", ""),
+    "sentra": ("sentra", "87.00B", ""),
+    "zeronetworks": ("zeronetworks", "39.00F", ""),
+    "mindsecurity": ("mindsecurity", "4A.00D", ""),
+    "noma-security": ("noma_security", "3A.005", ""),
+    "ownera": ("ownera", "59.003", ""),
+    "seekingalpha": ("seekingalpha", "46.006", ""),
+    "trullion": ("trullion", "07.000", ""),
+    "wsc-sports": ("wsc-sports", "93.007", ""),
+    "trigo": ("trigo", "A6.005", ""),
+    "g2risksolutions": ("g2risksolutions", "C9.003", ""),
+    "incredibuild": ("incredibuild", "66.00F", ""),
+    "upstream": ("upstream", "E4.003", ""),
+    "artlist": ("artlist", "85.003", ""),
+    "navina": ("navina", "E6.00C", ""),
+    "qodo": ("qodo", "B8.00B", ""),
+    "fetcherr": ("fetcherr", "68.006", ""),
+    "evoke": ("evoke", "E2.001", ""),
+}
+SHARED_COMEET_COMPANIES = {
+    "dream": ("Dream", "www.dreamgroup.com"),
+    "riverside": ("riverside.fm", "https://riverside.com"),
+    "8fig": ("8fig", "https://www.8fig.co/"),
+    "ivix": ("Ivix", "www.ivix.ai"),
+    "encore": ("Encore AI", "https://www.gainencore.ai/"),
+    "sygnia": ("Sygnia", "https://www.sygnia.co/"),
+    "zenity": ("Zenity", "www.zenity.io"),
+    "drivenets": ("DRIVENETS", "http://drivenets.com/"),
+    "buildots": ("Buildots", 'www.buildots.com'),
+    "checkmarx": ("Checkmarx", 'http://www.checkmarx.com'),
+    "elementor": ("Elementor", 'https://elementor.com/'),
+    "plainid": ("PlainID", 'www.plainid.com'),
+    "lusha": ("Lusha", 'www.lusha.com'),
+    "cheq": ("CHEQ", 'www.cheq.ai'),
+    "geoedge": ("GeoEdge", 'www.geoedge.com'),
+    "insightec": ("Insightec", None),
+    "superplay": ("SuperPlay", 'https://www.superplay.co/'),
+    "skai": ("Skai", 'www.skai.io'),
+    "ox-security": ("OX Security", 'https://www.ox.security/'),
+    "evinced": ("Evinced", 'www.evinced.com'),
+    "optibus": ("Optibus", 'www.optibus.com'),
+    "cycode": ("Cycode", 'https://cycode.com/'),
+    "percepto": ("Percepto", 'https://percepto.com/'),
+    "port": ("Port", 'https://www.port.io/'),
+    "crossriver": ("Cross River", 'crossriver.com'),
+    "comm-it": ("CommIT", 'www.comm-it.com'),
+    "hypernative": ("Hypernative", 'https://www.hypernative.io/'),
+    "codevalue": ("CodeValue", 'https://codevalue1.webflow.io'),
+    "stampli": ("Stampli", 'https://www.stampli.com/'),
+    "infinidat": ("INFINIDAT", 'https://www.infinidat.com/en/careers'),
+    "sensi-ai": ("Sensi.AI", 'https://sensi.ai/'),
+    "cardosystems": ("Cardo Systems", 'www.cardosystems.com'),
+    "easysend": ("EasySend", 'https://www.easysend.io/'),
+    "dualbird": ("Dualbird", 'www.dualbird.io'),
+    "inmanage": ("inManage", 'https://www.inmanage.co.il/'),
+    "final": ("Final", 'www.final.co.il'),
+    "sentra": ("Sentra", 'www.sentra.io'),
+    "zeronetworks": ("Zero Networks", 'https://zeronetworks.com/'),
+    "mindsecurity": ("Mind Security Inc.", 'www.mind.io'),
+    "noma-security": ("Noma Security", 'https://noma.security/'),
+    "ownera": ("Ownera", 'https://ownera.io/'),
+    "seekingalpha": ("Seeking Alpha", 'https://seekingalpha.com/'),
+    "trullion": ("Trullion", 'https://trullion.com/'),
+    "wsc-sports": ("WSC Sports", 'https://wsc-sports.com/'),
+    "trigo": ("Trigo", 'https://www.trigoretail.com/'),
+    "g2risksolutions": ("G2 Risk Solutions", 'https://g2risksolutions.com/'),
+    "incredibuild": ("Incredibuild", 'www.incredibuild.com'),
+    "upstream": ("Upstream Security", 'https://www.upstream.auto/'),
+    "artlist": ("Artlist", 'https://artlist.io/'),
+    "navina": ("Navina", 'https://www.navina.ai'),
+    "qodo": ("Qodo", 'https://www.qodo.ai/'),
+    "fetcherr": ("Fetcherr", 'https://www.fetcherr.io/'),
+    "evoke": ("evoke", 'https://www.evokeplc.com/'),
 }
 GREENHOUSE_ROUTES = {"tipalti": "tipaltisolutions"}
 HIBOB_ROUTES = {"hibob": "hibob-fa0ad69d0cb34a", "fundbox": "fundbox"}
@@ -119,13 +229,14 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
             payload = json.loads(script.get_text() if script else "{}")
             payload = payload.get("props", {}).get("pageProps", {}).get("allRecipes")
         elif not greenhouse and not hibob and not lever and not COMEET_ROUTES[identifier][2]:
-            if identifier == "astrix-security":
+            if identifier == "astrix-security" or identifier in SHARED_COMEET_COMPANIES:
                 company_marker = re.search(r"\bCOMPANY_DATA\s*=\s*", document)
                 if not company_marker:
                     raise ValueError("Missing company identity")
                 company_data, _ = json.JSONDecoder().raw_decode(document[company_marker.end():])
-                if (not isinstance(company_data, dict) or company_data.get("name") != "Astrix Security"
-                        or company_data.get("website") != "https://astrix.security/"
+                name, website = SHARED_COMEET_COMPANIES.get(identifier, ("Astrix Security", "https://astrix.security/"))
+                if (not isinstance(company_data, dict) or company_data.get("name") != name
+                        or company_data.get("website") != website
                         or company_data.get("url_comeet_hosted_page") != endpoint_for(identifier)):
                     raise ValueError("Unexpected company identity")
             marker = re.search(r"\bCOMPANY_POSITIONS_DATA\s*=\s*", document)
@@ -224,6 +335,9 @@ def parse_expansion_feed(identifier: str, document: str, company: str) -> JobCol
             valid_url = (parsed.scheme == "https" and parsed.hostname == "www.comeet.com"
                          and parsed.path.startswith(f"/jobs/{slug}/{uid}/")
                          and parsed.path.rstrip("/").split("/")[-1] == external_id)
+            if identifier in SHARED_COMEET_COMPANIES:
+                valid_url = (valid_url and not parsed.username and not parsed.password
+                             and not parsed.query and not parsed.fragment and parsed.netloc == "www.comeet.com")
             custom_fields = row.get("custom_fields")
             details = row.get("details") or (custom_fields.get("details") if isinstance(custom_fields, dict) else None)
             if not isinstance(details, list) or len(details) > 30:

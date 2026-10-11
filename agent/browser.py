@@ -20,7 +20,7 @@ CAPTCHA_ACTION_TERMS = [
 SUCCESS_TERMS = [
     "application submitted", "thank you for applying", "thanks for applying", "application received",
     "successfully submitted", "your application has been submitted",
-    "thanks for your application", "מועמדותך התקבלה", "המועמדות נשלחה בהצלחה",
+    "thanks for your application", "thank you for your application", "מועמדותך התקבלה", "המועמדות נשלחה בהצלחה",
     "הבקשה נשלחה", "תודה שהגשת",
 ]
 APPLY_START_TERMS = [

@@ -1,0 +1,51 @@
+{
+  "mode": "local_isolated_shared_catalog_copy",
+  "original_database_unchanged": "/Users/AlmogKarif/Downloads/jobpilot/data/jobpilot.db",
+  "preview_database": "/Users/AlmogKarif/Downloads/jobpilot/data/shared_catalog_preview_2026-10-11.db",
+  "version": "canonical-local-v1",
+  "sources_before": 426,
+  "physical_canonical_sources_after_migration": 295,
+  "source_aliases": 131,
+  "jobs_before": 2820,
+  "job_aliases": 324,
+  "jobs_after": 2496,
+  "original_row_counts": {
+    "sources": 426,
+    "jobs": 2820,
+    "applications": 55,
+    "profiles": 1
+  },
+  "explicit_source_disables_preserved": 0,
+  "new_thirteen_sources_still_disabled": true,
+  "all_preview_profile_auto_submit_disabled": true,
+  "scheduler_disabled": true,
+  "worker_claim_gate_enabled": true,
+  "supabase_calls": 0,
+  "scan_executed": false,
+  "api_validation": {
+    "url": "http://127.0.0.1:8000",
+    "visible_sources": 241,
+    "enabled": 228,
+    "all_shared": true,
+    "unique_identities": true,
+    "recommended_definitions": 240,
+    "recommended_installed": 240,
+    "new_sources_disabled": 13,
+    "auto_submit_enabled": false
+  },
+  "local_server_restarted": true,
+  "launcher": "data/run_shared_catalog_preview_2026-10-11.py",
+  "focused_tests": {
+    "shared_source_startup_retirement_disabled_choice": 11,
+    "source_ui_twice_daily_schedule": 65,
+    "skipped": 0
+  },
+  "original_database_row_counts_rechecked": {
+    "sources": 426,
+    "jobs": 2820,
+    "applications": 55,
+    "profiles": 1
+  },
+  "original_still_legacy_and_new_sources_disabled": true,
+  "preview_foreign_keys_verified": true
+}

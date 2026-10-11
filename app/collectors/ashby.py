@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from .base import JobCollection, NormalizedJob, PreserveExistingJobs
+from .verified_shared_ats import is_verified_shared_board, load_verified_payload, verified_collection
 from ..services.source_identifiers import normalize_ashby_identifier
 from ..utils import html_to_text, parse_datetime
 
@@ -39,10 +40,14 @@ class AshbyCollector:
         except ValueError as exc:
             raise PreserveExistingJobs(str(exc)) from exc
         url = self.BASE.format(board=board)
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            response = await client.get(url, params={"includeCompensation": "true"})
-            response.raise_for_status()
-            payload = response.json()
+        verified = is_verified_shared_board("ashby", board)
+        if verified:
+            payload = await load_verified_payload("ashby", board)
+        else:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                response = await client.get(url, params={"includeCompensation": "true"})
+                response.raise_for_status()
+                payload = response.json()
 
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise PreserveExistingJobs("Ashby returned an unrecognized job-list payload")
@@ -91,7 +96,8 @@ class AshbyCollector:
                           "compensation": item.get("compensation"),
                           "primary_location": primary, "locations": locations},
             )
-        return JobCollection(jobs.values(), complete=complete, blocked_external_ids=blocked_ids)
+        collection = JobCollection(jobs.values(), complete=complete, blocked_external_ids=blocked_ids)
+        return verified_collection("ashby", board, collection, payload) if verified else collection
 
 
 def _detect_workplace(location: str, description: str) -> str:

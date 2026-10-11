@@ -32,6 +32,8 @@ from tests.test_guest_dashboard import owner_guest_catalog
 from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
 from tests.test_live_question_wait_api import live_question_api, register as register_live_question
 from tests.test_guided_submission_admin_gate import guided_gate_api
+from tests.test_auto_queue_resource_bounds import AUTO_QUEUE, add_resume, bounded_ranking, queue_reader
+from tests.test_ranking_storage import storage_database
 
 
 @pytest.mark.parametrize('endpoint', ['/api/jobs', '/api/dashboard'])
@@ -1059,7 +1061,10 @@ def test_two_stage_ranking_uses_bounded_keyset_batches():
     assert "commit_every=50" in source
     assert "batch_size = min(commit_every or 50, 50)" in source
     assert "order_date < last_date" in source
-    assert "desc(Job.id)).limit(limit)).all()" in source
+    assert "page = page.order_by(desc(order_date), desc(Job.id)).limit(limit)" in source
+    assert "batch = db.execute(page.options(load_only(" in source
+    assert "*catalog_ranking.RANKING_JOB_COLUMNS, raiseload=True," in source
+    assert "catalog_ranking.reserve_catalog_egress(2 * sum(size" in source
     assert "dashboardRankingRecoveryTracks" in Path("app/static/app.js").read_text()
     assert "rescore_jobs=False, refresh_resumes=False, rank_v2=True" in source
 
@@ -2481,3 +2486,302 @@ def test_new_claim_retires_otp_in_one_owner_scoped_write_without_reading_codes(s
     assert 'returning' not in sql and 'select ' not in sql
     assert options['synchronize_session'] is False
     assert not any(sql.startswith('select ') and 'blockers.kind = ' in sql for sql, _, _ in statements)
+
+
+
+
+@pytest.mark.parametrize('refresh', ['shared', 'profile'])
+def test_profile_and_shared_ranking_share_budget_before_job_bodies(monkeypatch, refresh):
+    from app.config import settings
+    engine, factory = _isolated_session_factory()
+    monkeypatch.setattr(settings, 'auth_mode', 'local')
+    monkeypatch.setattr(settings, 'unified_catalog_preview', False)
+    @contextmanager
+    def sessions(user_id):
+        with factory() as db:
+            set_user_scope(db, user_id)
+            yield db
+    with sessions('overnight-budget') as db:
+        db.add(Profile(full_name='Synthetic budget fixture', active_career_track='computer_science'))
+        source = Source(name='Synthetic', kind='greenhouse', identifier='synthetic')
+        db.add(source); db.flush()
+        db.add(Job(source_id=source.id, title='Software Engineer', company='Synthetic', external_id='one',
+                   description='Develop Python applications and production services. ' * 10,
+                   classification_json='x' * 300000, score_reasons_json='x' * 300000,
+                   match_breakdown_json='x' * 300000, alternate_links_json='x' * 300000,
+                   apply_url='https://example.test/jobs/one'))
+        db.commit()
+    monkeypatch.setattr(settings, 'auth_mode', 'supabase')
+    monkeypatch.setattr(catalog_ranking, 'user_session', sessions)
+    reservations, queries, hydrated = [], [], []
+    monkeypatch.setattr(catalog_ranking, 'reserve_catalog_egress',
+                        lambda size: reservations.append(size) or False)
+    event.listen(engine, 'before_cursor_execute',
+                 lambda _c, _cu, sql, _p, _ctx, _many: queries.append(' '.join(sql.lower().split())))
+    from sqlalchemy.orm import Session
+    event.listen(Session, 'loaded_as_persistent', record := lambda _db, row:
+                 hydrated.append(row.id) if isinstance(row, (Job, JobRanking)) else None)
+    try:
+        if refresh == 'shared':
+            result = catalog_ranking.rank_shared_catalog_for_user('overnight-budget', 'computer_science')
+        else:
+            with sessions('overnight-budget') as db:
+                result = main_module._rescore_v2_jobs(db, db.scalar(select(Profile)))
+        assert result['deferred'] == 1 and result['reason'] == 'daily_catalog_byte_limit'
+        assert len(reservations) == 1 and 0 < reservations[0] < 20000
+        assert not hydrated
+        catalog_reads = [sql for sql in queries if sql.startswith('select') and 'from jobs' in sql]
+        assert any('length(cast(jobs.description as blob))' in sql for sql in catalog_reads)
+        assert any('length(cast(job_rankings.result_json as blob))' in sql for sql in catalog_reads)
+        assert not any(f'jobs.{column}' in sql for sql in catalog_reads for column in (
+            'classification_json', 'skills_json', 'score_reasons_json', 'match_breakdown_json',
+            'alternate_links_json', 'apply_url', 'source_url'))
+    finally:
+        event.remove(Session, 'loaded_as_persistent', record)
+        engine.dispose()
+
+
+def test_new_shared_sources_reuse_bounded_public_transport_and_preserve_partial_snapshots(monkeypatch):
+    import httpx
+    from app.collectors import expansion_ats, verified_shared_ats
+    from app.services.source_catalog import SHARED_RECOMMENDED_SOURCES
+    from tests.test_verified_shared_sources import COLLECTORS, fixture_document, mock_transport
+    assert expansion_ats.MAX_RESPONSE_BYTES == 4_000_000
+    assert expansion_ats.MAX_FEED_ROWS == 200
+    assert expansion_ats.MAX_DESCRIPTION_CHARS == 24_000
+    assert verified_shared_ats.MAX_METADATA_BYTES == 4096
+    for source in SHARED_RECOMMENDED_SOURCES:
+        calls = []
+        def serve(request):
+            calls.append(str(request.url))
+            return httpx.Response(200, text=fixture_document(source['kind'], source['identifier']))
+        with monkeypatch.context() as scoped:
+            mock_transport(scoped, serve)
+            collection = asyncio.run(COLLECTORS[source['kind']]().collect(source['identifier'], source['company_name']))
+        assert len(calls) == 1 and len(collection) == 1 and collection.complete is False
+        assert len(collection[0].description) <= 24000
+
+
+def test_unrestricted_seniority_listing_keeps_bounded_projection_without_regex():
+    from types import SimpleNamespace
+    from sqlalchemy.dialects import postgresql
+    from app.services.seniority import LEVELS, seniority_visibility_condition
+    for selected in ('', json.dumps(LEVELS)):
+        statement = select(Job.id).where(seniority_visibility_condition(
+            SimpleNamespace(seniority_levels_json=selected), Job.title)).limit(20)
+        sql = str(statement.compile(dialect=postgresql.dialect())).lower()
+        assert 'limit' in sql and 'case' not in sql and ' ~ ' not in sql
+        assert 'jobs.description' not in sql
+
+
+def test_auto_queue_reserves_shared_budget_before_projected_cv_and_job_bodies(queue_reader, monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.models import ResumeProfile
+    engine, sessions, seed, dispatched = queue_reader
+    seed(1, description='x' * 300000, classification_json='x' * 300000,
+         score_reasons_json='x' * 300000, alternate_links_json='x' * 300000)
+    add_resume(sessions, extracted_text='x' * 300000, analysis_json='x' * 300000)
+    timeline, queries = [], []
+    def reserve(size):
+        timeline.append(('reserve', size))
+        return True
+    def record(_db, row):
+        if isinstance(row, (Job, Source, ResumeProfile)):
+            timeline.append(('body', type(row).__name__))
+    def capture(_c, _cu, sql, _p, _ctx, _many):
+        if sql.lstrip().lower().startswith('select'):
+            queries.append(' '.join(sql.lower().split()))
+    monkeypatch.setattr(catalog_ranking, 'reserve_catalog_egress', reserve)
+    event.listen(Session, 'loaded_as_persistent', record)
+    event.listen(engine, 'before_cursor_execute', capture)
+    try:
+        with sessions() as db:
+            assert AUTO_QUEUE(db, db.scalar(select(Profile))) == 1
+    finally:
+        event.remove(Session, 'loaded_as_persistent', record)
+        event.remove(engine, 'before_cursor_execute', capture)
+    assert timeline[0][0] == 'reserve'
+    assert len([value for kind, value in timeline if kind == 'reserve']) == 2
+    first_job = next(index for index, item in enumerate(timeline) if item == ('body', 'Job'))
+    assert len([kind for kind, _value in timeline[:first_job] if kind == 'reserve']) == 2
+    assert sum(size for kind, size in timeline if kind == 'reserve') < 20000
+    assert len(dispatched) == 1
+    for sql in queries:
+        projection = sql.split(' from ', 1)[0]
+        assert not any(column in projection for column in (
+            'jobs.description', 'jobs.classification_json', 'jobs.score_reasons_json',
+            'jobs.alternate_links_json', 'sources.metadata_json', 'sources.last_error',
+            'applications.answers_json', 'resume_profiles.extracted_text', 'resume_profiles.analysis_json',
+        ))
+
+
+@pytest.mark.parametrize('refresh', ['shared', 'profile'])
+def test_oversized_default_cv_defers_ranking_before_any_body_or_reservation(bounded_ranking, monkeypatch, refresh):
+    from app.config import settings
+    from app.models import ResumeProfile
+    from sqlalchemy.orm import Session
+    engine, sessions, add_jobs = bounded_ranking
+    add_jobs(2)
+    with sessions() as db:
+        db.add(ResumeProfile(label='Synthetic CV', path='/tmp/synthetic.pdf', is_default=True,
+                             skills_json=json.dumps(['א' * 150000], ensure_ascii=False),
+                             extracted_text='x' * 300000, analysis_json='x' * 300000))
+        db.commit()
+    monkeypatch.setattr(settings, 'auth_mode', 'supabase')
+    monkeypatch.setattr(catalog_ranking, 'reserve_catalog_egress',
+                        lambda _size: pytest.fail('Oversized CV must fail before reservation'))
+    queries, loaded = [], []
+    def capture(_c, _cu, sql, _p, _ctx, _many):
+        if sql.lstrip().lower().startswith('select'):
+            queries.append(' '.join(sql.lower().split()))
+    def record(_db, row):
+        if isinstance(row, (ResumeProfile, Job, JobRanking)):
+            loaded.append(type(row).__name__)
+    event.listen(engine, 'before_cursor_execute', capture)
+    event.listen(Session, 'loaded_as_persistent', record)
+    try:
+        if refresh == 'shared':
+            result = catalog_ranking.rank_shared_catalog_for_user('one', 'computer_science')
+        else:
+            with sessions() as db:
+                result = main_module._rescore_v2_jobs(db, db.scalar(select(Profile)))
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+        event.remove(Session, 'loaded_as_persistent', record)
+    assert result['ranked'] == 0 and result['deferred'] == 2
+    assert result['reason'] == 'resume_skills_row_limit' and not loaded
+    cv_queries = [sql for sql in queries if 'from resume_profiles' in sql]
+    assert len(cv_queries) == 1 and 'limit' in cv_queries[0]
+    assert ('octet_length(resume_profiles.skills_json)' in cv_queries[0]
+            or 'length(cast(resume_profiles.skills_json as blob))' in cv_queries[0])
+    assert 'resume_profiles.extracted_text' not in cv_queries[0]
+    assert 'resume_profiles.analysis_json' not in cv_queries[0]
+
+
+def test_compressed_ranking_size_plan_bounds_decoded_utf8_bytes():
+    from sqlalchemy import String
+    from app.utils import dumps
+    from tests.test_ranking_v2 import job, profile
+
+    engine, sessions = _isolated_session_factory()
+    candidate = profile(skills=['python'], titles=['software engineer'])
+    opening = job('Software Engineer', 'Develop Python software. Python is required.')
+    payload = get_ranking_engine().rank_job(opening, candidate).to_dict()
+    payload['warnings'] = ['Synthetic storage regression warning.'] * 500
+    original = dumps(payload, compact=True)
+    with sessions() as db:
+        source = Source(name='Storage budget', kind='greenhouse', identifier='storage-budget')
+        db.add(source)
+        db.flush()
+        opening = Job(source_id=source.id, external_id='1', title=opening.title,
+                      company='Synthetic', description=opening.description,
+                      location=opening.location, workplace=opening.workplace,
+                      published_at=opening.published_at,
+                      apply_url='https://example.com/jobs/1')
+        db.add(opening)
+        db.flush()
+        row = JobRanking(job_id=opening.id, result_json=original)
+        db.add(row)
+        db.commit()
+        with engine.connect() as connection:
+            raw = connection.exec_driver_sql('SELECT result_json FROM job_rankings').scalar_one()
+        assert len(raw.encode('utf-8')) < len(original.encode('utf-8')) // 2
+        db.expire(row)
+        assert row.result_json == original
+        size = db.scalar(select(catalog_ranking._ranking_row_bytes(db)).select_from(Job).join(
+            JobRanking, JobRanking.job_id == Job.id))
+        expected = 2048
+        columns = list(catalog_ranking.RANKING_JOB_COLUMNS) + list(JobRanking.__table__.columns)
+        for column in columns:
+            if not (isinstance(column.type, String)
+                    or isinstance(getattr(column.type, 'impl', None), String)):
+                continue
+            value = getattr(row if column.table.name == 'job_rankings' else opening, column.key)
+            expected += len((value or '').encode('utf-8'))
+        assert size == expected
+        assert size >= 2048 + len(original.encode('utf-8'))
+    engine.dispose()
+
+
+def test_ranking_storage_does_not_compress_oversized_utf8_payload_past_budget():
+    from app.utils import dumps
+
+    engine, sessions = _isolated_session_factory()
+    original = dumps({'eligibility': {'state': 'realistic'},
+                      'warnings': ['א' * (128 * 1024)]}, compact=True)
+    with sessions() as db:
+        source = Source(name='Oversized storage', kind='greenhouse', identifier='oversized-storage')
+        db.add(source)
+        db.flush()
+        opening = Job(source_id=source.id, external_id='1', title='Software Engineer',
+                      company='Synthetic', apply_url='https://example.com/jobs/1')
+        db.add(opening)
+        db.flush()
+        db.add(JobRanking(job_id=opening.id, result_json=original))
+        db.commit()
+        with engine.connect() as connection:
+            raw = connection.exec_driver_sql('SELECT result_json FROM job_rankings').scalar_one()
+        assert raw == original
+        size = db.scalar(select(catalog_ranking._ranking_row_bytes(db)).select_from(Job).join(
+            JobRanking, JobRanking.job_id == Job.id))
+        assert size > catalog_ranking.MAX_RANKING_ROW_BYTES
+    engine.dispose()
+
+
+@pytest.mark.parametrize('payload_kind', ['encoded', 'malformed_legacy', 'oversized_legacy'])
+def test_ranking_logical_size_aggregate_handles_both_databases_without_json_parsing(
+        storage_database, payload_kind):
+    from app.services.ranking import service
+    from app.utils import dumps
+
+    engine, sessions = storage_database
+    with sessions() as db:
+        row = service.persist_v2_result(db, db.get(Job, 1), db.scalar(select(Profile)),
+                                        service.get_settings(db))
+        if payload_kind == 'malformed_legacy':
+            row.result_json = 'Malformed legacy ranking JSON. ' * 100
+        elif payload_kind == 'oversized_legacy':
+            row.result_json = dumps({'warnings': ['א' * (128 * 1024)]}, compact=True)
+        original = row.result_json
+        db.commit()
+        with engine.connect() as connection:
+            raw = connection.exec_driver_sql('SELECT result_json FROM job_rankings').scalar_one()
+        if payload_kind == 'encoded':
+            assert len(raw.encode('utf-8')) < len(original.encode('utf-8'))
+        else:
+            assert raw == original
+        measured = db.scalar(select(catalog_ranking._ranking_result_bytes(
+            engine.dialect.name == 'postgresql')).where(JobRanking.id == row.id))
+        assert measured == len(original.encode('utf-8'))
+        if payload_kind == 'oversized_legacy':
+            assert measured > catalog_ranking.MAX_RANKING_ROW_BYTES
+
+
+def test_new_shared_sources_remain_unscheduled_until_explicit_enable(monkeypatch):
+    from sqlalchemy.orm import Session
+    from app.services import source_catalog, unified_catalog
+    from app.services.scanner import COLLECTORS
+
+    calls = []
+
+    class UnexpectedCollector:
+        async def collect(self, identifier, _company):
+            calls.append(identifier)
+            raise AssertionError('Disabled new sources must not make an employer request')
+
+    monkeypatch.setattr(source_catalog, 'RECOMMENDED_SOURCES_BY_TRACK', {})
+    monkeypatch.setattr(unified_catalog, 'unified_catalog_enabled', lambda: True)
+    for kind in {item['kind'] for item in source_catalog.SHARED_RECOMMENDED_SOURCES}:
+        monkeypatch.setitem(COLLECTORS, kind, UnexpectedCollector)
+    engine = create_engine('sqlite://')
+    Base.metadata.create_all(engine)
+    try:
+        with Session(engine) as db:
+            assert unified_catalog.install_unified_sources(db) == 60
+            result = asyncio.run(unified_catalog.scan_unified_catalog(
+                db, None, None, 'computer_science', catalog_only=True))
+            assert result['sources'] == result['collected'] == result['new'] == 0
+            assert calls == []
+            assert db.scalar(select(func.count()).select_from(Job)) == 0
+    finally:
+        engine.dispose()

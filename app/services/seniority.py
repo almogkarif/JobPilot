@@ -46,6 +46,9 @@ def selected_seniority_levels(profile, excluded_keywords=None):
 def seniority_visibility_condition(profile, title):
     if profile is None:
         return literal(True)
+    selected = selected_seniority_levels(profile)
+    if set(selected) == set(LEVELS):
+        return literal(True)
     from sqlalchemy import func
     lowered = func.lower(title)
     clauses = []
@@ -54,4 +57,4 @@ def seniority_visibility_condition(profile, title):
         if level == "manager":
             matches = and_(matches, ~lowered.regexp_match(PROFESSION_MANAGERS))
         clauses.append((matches, level))
-    return case(*clauses, else_="unknown").in_(selected_seniority_levels(profile))
+    return case(*clauses, else_="unknown").in_(selected)

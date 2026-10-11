@@ -2084,3 +2084,369 @@ suite checks all seven collector routes and their response/row/text bounds;
 the existing streaming-byte test checks early cancellation. No production DB
 or bulk scan was used. Production Usage still needs checking before an actual
 bulk scan; the last reported 3.276 GB is not a current measurement.
+
+## Goozali discovery comparison — October 10, 2026
+
+This is an explicit, one-time read-only benchmark of 100 public feed postings
+linked by Goozali (80 software-channel and 20 junior-channel records). The sample
+is selected before matching, deduplicated by public posting identity, and contains
+titles/company/location/URLs/feed timestamps only. It is not a complete Airtable
+export or an assertion that all sampled vacancies are currently open.
+
+Impact check: `scripts/benchmark_goozali_coverage.py` generates SQL locally using
+stdlib and AST-isolated existing identity helpers; it never imports app startup,
+connects to production, schedules work, or reads Storage. Generated SQL uses a
+read-only repeatable-read transaction, a five-second statement timeout, one-second
+lock timeout, and explicit rollback. The primary read accepts at most 100 sample
+rows, returns at most five exact matches, three title candidates and three source
+summaries per sample, and reports overflow rather than silently counting truncated
+matches. Descriptions, CVs, full profile/ranking/source JSON and contact data are
+not returned. Matching and aggregates run inside PostgreSQL.
+
+The primary JSON response and the optional targeted owner-visibility response
+each enforce a one-MiB UTF-8 result ceiling in SQL, returning a small error object
+above that ceiling. The visibility read accepts at most 500 already-identified canonical job IDs
+(the primary bound is 100 samples with at most five exact matches each); it does
+not repeat matching or recompute rankings. Allow
+two MiB payload plus one MiB for deliberate schema checks, SQL-editor control
+traffic and protocol overhead: three MiB per complete explicit comparison, or
+three MiB/day for one comparison/day. This is a planning allowance, not a wire-byte
+meter. Idle additional traffic is zero calls/bytes per hour/day; no polling,
+automatic retries, catalog transfers or maintenance schedule is added.
+
+On October 10 the authenticated Supabase organization overview displayed
+4.82 / 5 GB egress. That observation is time-specific and is not a reservation or
+an assertion of current remaining capacity. This bounded audit does not authorize
+bulk scans, repairs, backfills, source installation, or reranking.
+
+Public employer availability checks are external to Supabase: at most 100 initial
+GETs, three redirect hops/request, four concurrent requests with one per host,
+twelve-second request timeouts, and a one-MiB decompressed body cap per response.
+A host returning 403/429 is not retried; pending same-host checks are withheld.
+Only compact availability observations are retained. HTTP 200 alone does not
+establish that a vacancy is open, and blocked/oversized/unstructured pages remain
+unverified. These checks submit no applications and do not use user documents.
+
+Regression coverage in `tests/test_benchmark_goozali_coverage.py` exercises actual
+disposable local PostgreSQL queries for alias resolution, private-scope exclusion,
+posting-ID collisions, candidate caps, visibility uncertainty and the hard result
+budget. The Supabase egress suite also protects preflight bounds for this audit.
+
+## Local capacity rehearsal and shared-source expansion — October 11, 2026
+
+This work is local and has not been committed, pushed or deployed. No Supabase
+query, Storage download, production scan or real application submission was
+performed. The October 10 organization Usage observation above was not refreshed.
+The existing two scans/day and production catalog limits have not been raised.
+
+Thirteen new employers use the existing shared catalog, independently of academic
+tracks: PointFive, Pi Security, Stigg, Parallel Wireless, Nanit, Dream, Riverside,
+8fig, IVIX, Encore, Sygnia, Zenity and DriveNets. Only their public official pages
+and native feeds were fetched. All added routes make one GET/scan, prohibit
+redirects/retries, stop after 4,000,000 decompressed bytes or 200 feed rows, and
+withhold descriptions exceeding 24,000 characters. Generic Ashby/Lever/Greenhouse
+metadata is capped at 4,096 bytes; Comeet normalizes into the existing fixed job
+fields. Empty, malformed or capped snapshots remain partial and preserve existing
+jobs; the existing 14-day freshness policy still applies. Admin disable choices
+are retained. No per-job browser or detail-page crawling was added.
+
+Impact check for two scans/day: 26 public feed calls/day (780/30 days), with a
+worst-case 104,000,000 employer-response bytes/day (3.12 GB/30 days). These bytes
+flow from employers to the worker and are **not Supabase egress**. The thirteen
+observed feeds totaled 2,674,332 bytes. There are at most 2,600 feed rows/scan;
+24,000 characters could occupy 96,000 UTF-8 bytes per description. Those are
+input ceilings, not a promise that all rows can be persisted or reranked.
+Existing per-source/per-scan/canonical catalog bounds and the shared daily ledger
+still govern persistence. The adapters themselves make zero Supabase requests.
+
+One-time source installation adds at most thirteen identity-existence SELECTs
+returning one ID each; allow 1 KiB/response, or 13 KiB once. Healthy source
+definitions need less than 2 KiB/row including protocol allowance: 26 KiB added
+to each existing catalog source read, or 52 KiB/day at two reads/day and roughly
+1.53 MiB/30 days. At twenty-four source reads/day, the same additions are
+624 KiB/day, or about 18.3 MiB/30 days. Startup, recovery and open UI source views
+can add reads; multiply the per-read allowance by their actual call frequency.
+This estimate is for the new static definitions, not a bound
+on arbitrary administrator-provided source JSON. Reconciliation reuses existing
+source queries after installation. The local setup driver initially inserted
+these thirteen definitions into `data/jobpilot.db` (IDs 414–426); it performed
+no scan and created no jobs there. They were preserved and disabled pending
+review: that normal local database contains an auto-submit-enabled profile.
+Only the thirteen newly inserted source rows were paused, after checking exact
+source identities and zero jobs; existing sources and profiles were unchanged.
+The isolated preview retains active definitions with scheduler, worker and
+auto-submit disabled. The corrected replay
+used a separate disposable SQLite database with the exact path asserted and
+network access prohibited; its 143 Israeli canonical jobs were removed with the
+temporary database. Compact results, including 70 Computer Science matches,
+are in `docs/audits/shared_sources_overnight_2026-10-11.json`.
+
+A separate persistent local preview is available at
+`data/catalog_expansion_preview_2026-10-11.db` (about 1.59 MB), containing the
+same thirteen sources and 143 full public postings. It has one synthetic profile,
+blank contact/CV/password fields, auto-submit off and no applications or personal
+rankings. `.venv/bin/python data/run_catalog_expansion_preview_2026-10-11.py`
+opens it on loopback port 8001 with local storage/auth, scheduler off, cloud
+credentials blanked and the preview worker gate enabled. The normal database
+and any existing server are not replaced or stopped. A disposable copy was
+checked through actual app startup and API handlers with network connections
+blocked: thirteen sources and seventy CS jobs were exposed, and auto-submit
+remained off. The isolated viewer was then started on loopback port 8001 for
+morning review. Its actual index, dashboard and profile returned HTTP 200; the
+dashboard exposed seventy CS jobs and auto-submit remained off. Read-only SQLite
+counts after startup still showed thirteen sources, 143 jobs and zero applications,
+resumes, agent devices or personal rankings. Existing local servers were preserved.
+
+The actual preview's full descriptions total 560,475 UTF-8 bytes; the seventy CS
+descriptions total 272,112 bytes. A read-only SQLite aggregate of the exact first
+ranking projection (including the 2,048-byte/row framing, with no existing ranking
+cache) gives 425,769 bytes for those seventy jobs and a largest row of 12,010
+bytes. Thirty CS owners would therefore plan 12,773,070 body bytes and reserve
+25,546,140 bytes once for these additions. This is below the global 67,108,864-byte
+daily ledger in isolation; CV/profile reads, existing cache rows, other catalog
+work and protocol uncertainty remain separate. This is an observed local payload
+planning calculation, not measured Supabase traffic or authorization to scan.
+Unchanged warm rankings should not repeat the new-description transfer.
+
+Personal refresh now uses the same projected ranking inputs and daily egress
+reservation as shared ranking. Before reading bodies it aggregates row counts
+and UTF-8 sizes in SQL, plans ID/size pages, and reserves twice the planned body
+size. It reads at most 5,000 jobs/refresh, 256 KiB/projected row and 16 MiB/body
+per refresh, typically in 50-row pages. Per-ID size ceilings prevent concurrent
+growth from exceeding the plan. When there is pending work, an owned default-CV
+ID/UTF-8-size query (LIMIT 1) precedes its skills-only ORM body query (LIMIT 1).
+The CV must fit 256 KiB and reserves twice its planned bytes before body loading;
+its bytes count toward the same 16 MiB pass limit. Oversize, denial or concurrent
+growth defers the whole backlog instead of silently ranking without CV skills.
+No pending jobs means zero CV queries. The loaded skills are reused throughout
+the pass; pending caller edits retain their meaning. CV text/analysis, unused
+classification/legacy score JSON, alternate URLs and
+other unused columns are not fetched. SQL metadata counts/IDs/sizes remain
+bounded by the job cap; allow up to 5,000 plan/body query pairs in the pathological
+one-row-page case (normally about 100). Caller frequency remains user-dependent,
+but canonical-cloud body reads share the existing 64 MiB/day ledger and fail
+closed when it is exhausted. A forced CV refresh marks its eligible cached rows
+stale in one tenant-scoped UPDATE so deferred work can resume later. The caller's
+transaction is preserved; no new commit is introduced solely for a deferral.
+For thirty profiles and two scheduled ranking passes/day, the nominal scheduled
+ceiling is sixty passes/day (plus explicit user refreshes). At most two default-CV
+metadata/body requests are added per nonempty pass, or 120/day under that schedule;
+denial or an empty backlog lowers this. Sixty passes do not receive sixty separate
+16 MiB daily allowances: their body reads compete for the single daily ledger.
+
+Automatic queue selection also projects only adapter/CV-selection inputs and
+uses an SQL existence check for prior owned applications instead of downloading
+application answers/receipts. In canonical cloud mode its CV and job bodies share
+the same 16 MiB/pass, 256 KiB/row and 5,000-job caps, with at most 100 rows/page
+and twice-planned-byte reservations against the same daily ledger. All owned CV
+candidates must fit and remain consistent before selecting a CV: a budget denial
+does not silently choose from a truncated subset or use a fallback CV. At most
+5,000 CV candidates are planned, making the pathological query ceiling 10,000
+CV/job plan-body pairs per pass, plus small aggregate/configuration/cooldown
+queries. Foreign history and large private payloads are not read. Existing
+opt-in, eligibility, adapter, cooldown, queue commits and worker policies remain.
+This is a read budget, not a new daily application allowance. Noncanonical/local
+mode keeps the existing behavior and does not claim the canonical daily ledger.
+
+Cloud catalog/ranking/queue reservations together remain **64 MiB/day**, or
+1.875 GiB/30 days. This excludes UI, authentication, application-status polling
+and Storage. User traffic and submissions are not unlimited: the earlier
+application-status planning allowance of 180 MB/day for twenty users submitting
+five applications each scales to 270 MB/day for thirty users (8.1 GB/30 days),
+before other services. This is an estimate, not measured wire traffic. Expanding
+automatic-compatible sources does not establish that this workload fits 5 GB.
+Deferred dashboard/onboarding states stop their own automatic recovery/polling
+loop and expose the partial-results route. They add two small status fields and
+no new polling or database queries. An unrestricted seniority filter returns a
+SQL literal rather than repeatedly extracting seniority from job descriptions;
+it adds no calls or transferred fields. Restricted seniority behavior is retained.
+
+`scripts/benchmark_catalog_capacity.py` accepts no external database URL. It
+overrides cloud/storage/scheduler settings before importing the app, then creates
+a new loopback-only PostgreSQL cluster or disposable SQLite database. Bounds are
+50,000 jobs, 30 users, 300,000 personal ranking rows, 500 sources, 24,000 bytes per
+synthetic description, 300 requests and 30 concurrent callers. PostgreSQL engines
+pin both host and hostaddr to loopback. Startup failures also attempt cluster
+cleanup. Existing reports cannot be overwritten. Cloud traffic and idle traffic
+are zero; seeding and queries affect only the temporary local database. The actual
+list handler is exercised with tenant scope, 20 rows/page, no job-description
+selection, verified owner scores and no HTTP/auth/network layer.
+
+The latest fully ranked thirty-user measurements used 8 KiB synthetic descriptions
+and ten concurrent callers: 5,000 jobs/150,000 rankings used 309,559,811 bytes
+(309.6 MB), with 616.7 ms p95; 10,000 jobs/300,000 rankings used 607,929,123 bytes
+(607.9 MB), with 1,272.0 ms p95. Reports include actual indexes and TOAST. Rank
+templates and synthetic text compress differently from real data; twenty real
+rank calculations per owner were reused to populate storage. This measures storage
+and list latency, not full-catalog ranking throughput, cold starts, free-host CPU,
+production wire bytes or production availability. Fifty thousand jobs with only
+three ranked users used 461.1 MB; that report does not verify owner-specific scores
+and is not evidence that fifty thousand jobs for all thirty users fit.
+
+Initial personalized ranking is a separate bottleneck. In the 5,000-job rehearsal
+the 600 real template evaluations had 66.9 ms p50 and 72.8 ms p95. Extrapolating
+66.9 ms to 150,000 sequential evaluations gives about 2.8 hours of CPU wall time;
+this is an inference, not a full-catalog throughput measurement. At 8 KiB per
+description, downloading 5,000 descriptions separately for thirty users would
+already be about 1.23 GB before ranking-cache/protocol bytes. Twice-byte
+reservation alone would require at least 37 days of the 64 MiB/day ledger if
+no other catalog work consumed it. Warm unchanged caches avoid that work; initial
+backfills and frequent CV changes cannot be assumed to finish quickly for free.
+Do not increase the daily allowance to hide this backlog without measuring the
+remaining organization quota and all other traffic first.
+
+Supabase currently lists a 500 MB Free database and 5 GB uncached egress, while
+Render Free has an ephemeral filesystem and no persistent disks. The public
+JobPilot repository can use standard GitHub Actions runners without the private
+Free plan's 2,000-minute allowance. These limits are documented at
+https://supabase.com/pricing, https://render.com/docs/free and
+https://docs.github.com/en/billing/concepts/product-billing/github-actions.
+Free Actions time does not remove database/egress limits. Do not switch production
+to ephemeral SQLite or automatically raise catalog caps based on this rehearsal.
+Before any deployment or bulk scan, check actual database space and current
+organization Usage and leave room for inactive jobs, applications, users and CVs.
+
+Regression gates include `test_supabase_egress_optimization.py`,
+`test_ranking_profile_bounds.py`, `test_auto_queue_resource_bounds.py`,
+`test_ranking_default_resume_bounds.py`,
+`test_catalog_capacity_benchmark.py`, `test_verified_shared_sources.py`,
+`test_seniority_sql_fast_path.py`, `test_ranking_deferred_status.py` and the
+deferred UI browser cases. Tests use disposable SQLite/PostgreSQL and mock
+submission workers. Public-feed replay verifies native automatic adapter routes;
+it does not verify actual submission for any of the thirteen employers.
+
+### Subsequent local source-count correction
+
+The existing localhost:8000 process still used the legacy SQLite catalog and
+returned 172 CS-only sources. It was restarted on a new, explicitly migrated
+local copy, `data/shared_catalog_preview_2026-10-11.db`, using
+`data/run_shared_catalog_preview_2026-10-11.py`. The original `data/jobpilot.db`
+is unchanged by this correction. The isolated thirteen-company snapshot remains
+separate on localhost:8001. Canonical consolidation archives duplicate source/job
+rows on the copy; it does not delete the originals. Queued original history is
+preserved, and no application was in flight when the old local server stopped.
+
+The full local view returns 241 unique operational source identities: all 240
+recommended definitions plus one existing custom source. It includes disabled
+sources; 228 are enabled and the thirteen overnight additions remain disabled.
+All preview profiles have auto-submit off, including saved track states. The
+launcher disables scheduling, clears cloud credentials, checks the migration
+receipt and enables the existing preview worker-claim gate. No scan, employer
+request, Supabase/Storage operation or production migration was run. The source
+UI now describes two daily scans and the shared pool.
+
+The copy/migration reads local SQLite only: incremental Supabase calls and bytes
+are **0/hour/day/month**. The product change is static wording/cache revision;
+existing source endpoint query limits, polling and catalog budgets are unchanged.
+Source/schedule UI tests passed 65 cases; shared-list/disabled-choice/retirement/
+bounded-startup tests passed 11 without skips. Actual localhost GETs verified
+the total, unique shared identities, all recommendations installed and auto-submit
+off. Compact results are in
+`docs/audits/local_shared_source_count_2026-10-11.json`.
+
+## Local ranking storage reduction and 47 further sources — October 11, 2026
+
+`JobRanking.result_json` retains its existing TEXT column and exact ORM string
+contract. New bounded v2 results may use a versioned, lossless zlib envelope with
+an immutable 7,296-byte dictionary made solely from public ranking code literals
+and an empty schema. The dictionary is verified locally once on import. No
+database or Storage request is added. Existing plain JSON remains readable;
+there is no schema migration, index removal, automatic rewrite, or startup
+backfill. All personalized scores, explanations, warnings and hidden scoring
+caches survive an exact-string round-trip. The nine existing SQL diagnostic
+eligibility gates remain readable in the envelope without decompression.
+
+Encoding is limited to 256 KiB of original UTF-8 JSON, requires at least 128
+bytes of serialized savings, and leaves short, malformed, high-entropy and
+oversized legacy values unchanged. Decoding rejects unknown versions, corruption,
+truncation, trailing data, dictionary mismatches and output beyond the declared
+size or 256 KiB. Catalog planning includes decorated TEXT columns and counts
+the **larger of physical bytes and the declared original byte length** in SQL.
+Prefix/regex extraction avoids parsing malformed legacy JSON and was executed
+on SQLite and PostgreSQL 14. Per-row, per-refresh, per-page and shared daily
+reservation limits therefore remain conservative; compression does not provide
+permission to read extra decoded rows beyond those limits.
+
+The existing bounded reads/writes retain their call and row counts. They can
+transfer fewer physical ranking bytes, but API responses to users remain exact
+and the existing 2x shared reservation remains pessimistic. There are zero new
+calls/hour/day, polls, startup catalog reads, schedules, document downloads,
+model calls or employer submissions. Maximum decoder output is 256 KiB per row;
+existing page limits remain in force. Existing oversized plain rows are still
+measured and deferred before any catalog body transfer.
+
+Two disposable local PostgreSQL runs used identical 5,000-job, 30-user,
+150,000-ranking workloads and the same indexes: database bytes fell from
+309,551,619 to 263,471,619 (**14.89%**); the ranking table fell from 280,797,184
+to 234,700,800 (**16.42%**). Job-table size was unchanged. A separate diverse
+holdout with realistic, stretch and excluded results measured **16.83%** table
+savings. These are local synthetic measurements, not production quota readings
+or proof that a much larger all-user ranking matrix fits the free tier.
+The 60 list-handler requests still checked all 30 owners, loaded at most 20
+jobs, returned the same maximum 86,058 bytes and made at most four SELECTs;
+descriptions were not loaded. Timing differences are not claimed as causal.
+
+The source expansion adds **47 distinct verified employers**, bringing the
+recommended shared definitions to 287 and verified additions to 60. Each new
+board uses one bounded native public GET, at most 4,000,000 decompressed bytes,
+200 feed rows, 24,000 description characters and 4,096 metadata bytes. Two
+scheduled scans add at most 94 public requests/day, 376 MB/day of public
+employer ingress and 9,400 raw postings/scan. The observed 47 feed bodies totaled
+8,648,029 bytes, or 17.30 MB/day at two equivalent scans. These external bodies
+are not Supabase egress; downstream reads remain under the unchanged shared
+64 MiB/day ledger and existing catalog/input limits. No global limit was raised.
+
+For the incremental source metadata, reserve a conservative 16 KiB/source/read
+for these fresh presets, their generated scan-status fields, the existing
+1,000-character error limit, bounded string fields and protocol overhead:
+**752 KiB per source-list/scan read**, or **1.47 MiB/day** for two reads,
+independent of descriptions. These boards add no incremental checkpoint or
+full-page source metadata. The allowance describes the generated presets;
+arbitrary administrator metadata edits require a new estimate. Two reads is a
+planning frequency, not a cap on manual openings or restarts; each such read
+consumes the same bounded delta.
+The initial 47 identity lookups return at most one compact row each; reserve
+another 752 KiB for that one-time installation. Source-list polling frequency
+and existing responses are unchanged.
+
+Research used only bounded public employer reads. Offline replay from cached
+feeds created a new local copy with 288 operational source identities and 2,978
+canonical jobs, including 482 fresh verified vacancies. It preserved existing
+history, resumes, rankings, aliases and disabled-source choices; 13 previously
+paused sources remain paused. All preview profiles and saved track states have
+auto-submit off, scheduling is disabled, worker claims return no task and cloud
+credentials are blank. The original SQLite database is preserved. Actual
+Supabase database/Storage calls and bytes for this work are **0/hour/day/month**.
+No production deployment, source scan, migration, cleanup or retry was run.
+
+Regression gates are `tests/test_ranking_storage.py`, the compression/logical-size
+tests in `tests/test_supabase_egress_optimization.py`, the existing per-board
+bounded transport test now exercising all 60 definitions, ranking/API cache
+tests and shared-source/retirement tests. Exact measurements are in
+`docs/audits/ranking_storage_2026-10-11.json`, the before/after capacity reports,
+and `docs/audits/shared_sources_expansion_60_2026-10-11.json`. Before any later
+production expansion, check current organization egress through a configured
+direct connection; this session has no direct Supabase connector or credentials
+and cannot claim to have refreshed production usage.
+
+## October 12 release guard for the 60 new source definitions
+
+All 60 verified additions are disabled by default when first installed. The
+installer preserves existing administrator choices, including enabled sources
+and pending-adapter pauses. The locally expanded preview remains separate.
+Publishing the definitions therefore introduces no employer collection calls,
+new jobs, ranking work, resume downloads or automatic submissions for these
+fresh sources until they are explicitly enabled. Current production egress has
+not been rechecked; enabling them requires the existing impact check first.
+
+Installation performs at most 60 compact identity lookups and 60 returned insert
+IDs once; reserve 120 KiB with a 1 KiB allowance per response. Existing bounded
+source metadata reads can grow by at most 60 x 16 KiB = 960 KiB per read, or
+1.875 MiB/day at two reads. Manual source-list openings and restarts multiply
+that bounded delta at the existing call frequency. Descriptions and resume
+files are not loaded, and scheduling, polling frequencies and shared byte
+budgets are unchanged. Disabled sources add no scheduled collection ingress.
+
+Behavioral regression tests cover disabled fresh installation, preservation of
+existing enabled/disabled choices and pending-adapter pauses, and an isolated
+canonical scan making zero collector calls for the disabled additions.

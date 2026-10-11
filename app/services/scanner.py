@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 import asyncio
 import re
 from collections.abc import Callable
-from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session, joinedload, load_only
+from sqlalchemy import LargeBinary, String, case, cast, func, select, update
+from sqlalchemy.orm import Session, contains_eager, joinedload, load_only, raiseload
 from ..collectors import COLLECTORS
 from ..collectors.base import PreserveExistingJobs
 from ..models import AppIdentity, Application, ApplicationEvent, AuditLog, Job, JobRanking, Profile, ResumeProfile, Source, UserJobState
@@ -31,6 +31,23 @@ from .user_job_state import set_job_status
 
 SOURCE_SCAN_TIMEOUT_SECONDS = max(5, int(settings.source_scan_timeout_seconds))
 SOURCE_SCAN_CONCURRENCY = max(1, min(8, int(settings.scan_concurrency)))
+AUTO_QUEUE_PAGE_SIZE = 100
+_AUTO_QUEUE_JOB_COLUMNS = (
+    Job.id, Job.user_id, Job.canonical_job_id, Job.career_track, Job.source_id,
+    Job.company, Job.skills_json, Job.apply_url,
+)
+_AUTO_QUEUE_RESUME_COLUMNS = (ResumeProfile.id, ResumeProfile.path, ResumeProfile.skills_json, ResumeProfile.is_default)
+
+
+def _auto_queue_payload_bytes(db, columns):
+    """Measure exactly the projected strings in SQL before downloading them."""
+    postgres = db.get_bind().dialect.name == "postgresql"
+    size = 2048
+    for column in columns:
+        if isinstance(column.type, String):
+            length = func.octet_length(column) if postgres else func.length(cast(column, LargeBinary))
+            size += func.coalesce(length, 0)
+    return size
 
 
 async def scan_all_sources(
@@ -655,6 +672,7 @@ def _job_fingerprint(title: str, company: str, location: str) -> tuple[str, str,
 
 
 def auto_queue_jobs(db: Session, profile: Profile) -> int:
+    db.info.pop("auto_queue_deferred", None)
     if not auto_submit_is_enabled(profile):
         return 0
     if settings.auth_mode == "supabase":
@@ -677,9 +695,7 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
     career_track = active_track(profile)
     db.info["ranking_track"] = career_track
     ranking_settings = get_ranking_settings(db)
-    query = select(Job).options(load_only(
-        Job.id, Job.career_track, Job.skills_json, Job.apply_url, Job.source_id,
-    ), joinedload(Job.application), joinedload(Job.source)).outerjoin(
+    query = select(Job).outerjoin(Source, Source.id == Job.source_id).outerjoin(
         UserJobState, UserJobState.job_id == Job.id
     ).where(
         Job.is_active.is_(True), func.coalesce(UserJobState.status, "new") == "new", job_in_track(career_track),
@@ -695,18 +711,119 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
         # Reject a snapshot already superseded when candidates are selected.
         select(Profile.id).where(Profile.id == profile.id,
             Profile.updated_at == profile.updated_at).exists(),
+        # Existing application/history needs only an existence check, never its
+        # private answers, notes or worker receipts. Tenant scope is automatic.
+        ~select(Application.id).where(Application.job_id == Job.id).correlate(Job).exists(),
     )
-    jobs = db.scalars(query).all()
+    body_options = (load_only(*_AUTO_QUEUE_JOB_COLUMNS, raiseload=True),
+                    contains_eager(Job.source).load_only(Source.id, Source.kind, raiseload=True),
+                    raiseload(Job.application))
+    bounded = settings.auth_mode == "supabase" and unified_catalog_enabled()
+    from . import catalog_ranking
+    transferred = planned = processed = 0
+    total = oversized = upper_id = 0
+    reason = ""
+    if bounded:
+        row_bytes = _auto_queue_payload_bytes(db, (*_AUTO_QUEUE_JOB_COLUMNS, Source.kind))
+        total, oversized, upper_id = db.execute(query.with_only_columns(
+            func.count(Job.id),
+            func.coalesce(func.sum(case((row_bytes > catalog_ranking.MAX_RANKING_ROW_BYTES, 1), else_=0)), 0),
+            func.max(Job.id), maintain_column_froms=True,
+        )).one()
+        if not total:
+            return 0
+    else:
+        jobs = db.scalars(query.options(*body_options)).unique().all()
+        if not jobs:
+            return 0
+
+    def defer_queue(deferred_reason):
+        metadata = {"career_track": career_track, "reason": deferred_reason,
+                    "deferred": max(0, total - processed)}
+        db.info["auto_queue_deferred"] = metadata
+        db.add(AuditLog(event_type="auto_queue_deferred", entity_type="queue", entity_id=career_track,
+                        message="Automatic queue reading deferred by catalog transfer budget",
+                        details_json=dumps(metadata)))
+
+    resume_query = select(ResumeProfile).where(ResumeProfile.career_track == career_track)
+    resume_options = load_only(*_AUTO_QUEUE_RESUME_COLUMNS, raiseload=True)
+    if bounded:
+        resume_bytes = _auto_queue_payload_bytes(db, _AUTO_QUEUE_RESUME_COLUMNS)
+        resume_total, resume_size, resume_oversized, resume_upper = db.execute(resume_query.with_only_columns(
+            func.count(ResumeProfile.id), func.coalesce(func.sum(resume_bytes), 0),
+            func.coalesce(func.sum(case((resume_bytes > catalog_ranking.MAX_RANKING_ROW_BYTES, 1), else_=0)), 0),
+            func.max(ResumeProfile.id), maintain_column_froms=True,
+        )).one()
+        # Selecting a CV from only a subset changes the existing best-skill/tie
+        # rule. If all owned candidates cannot fit, leave every job unqueued.
+        if (resume_total > catalog_ranking.MAX_RANKING_JOBS or resume_oversized
+                or resume_size > catalog_ranking.MAX_RANKING_REFRESH_BYTES):
+            defer_queue("resume_candidate_budget")
+            return 0
+        resumes, last_resume_id = [], 0
+        while len(resumes) < resume_total:
+            remaining = catalog_ranking.MAX_RANKING_REFRESH_BYTES - transferred
+            page = resume_query.where(
+                ResumeProfile.id > last_resume_id, ResumeProfile.id <= resume_upper,
+                resume_bytes <= min(catalog_ranking.MAX_RANKING_ROW_BYTES, remaining),
+            ).order_by(ResumeProfile.id).limit(min(AUTO_QUEUE_PAGE_SIZE,
+                max(1, remaining // catalog_ranking.MAX_RANKING_ROW_BYTES)))
+            plan = db.execute(page.with_only_columns(ResumeProfile.id, resume_bytes,
+                                                     maintain_column_froms=True)).all()
+            if not plan:
+                defer_queue("resume_candidate_budget")
+                return 0
+            if not catalog_ranking.reserve_catalog_egress(2 * sum(size for _id, size in plan)):
+                defer_queue("daily_catalog_byte_limit")
+                return 0
+            sizes = {resume_id: size for resume_id, size in plan}
+            rows = db.execute(page.where(ResumeProfile.id.in_(sizes),
+                resume_bytes <= case(sizes, value=ResumeProfile.id, else_=0)
+            ).add_columns(resume_bytes).options(resume_options)).all()
+            transferred += sum(size for _resume, size in rows)
+            if len(rows) != len(plan):
+                defer_queue("resume_candidates_changed")
+                return 0
+            resumes.extend(resume for resume, _size in rows)
+            last_resume_id = plan[-1][0]
+    else:
+        resumes = db.scalars(resume_query.options(resume_options)).all()
+
+    def job_pages():
+        nonlocal transferred, planned, processed, reason
+        if not bounded:
+            yield jobs
+            return
+        last_id = 0
+        while planned < catalog_ranking.MAX_RANKING_JOBS and transferred < catalog_ranking.MAX_RANKING_REFRESH_BYTES:
+            remaining = catalog_ranking.MAX_RANKING_REFRESH_BYTES - transferred
+            page = query.where(Job.id > last_id, Job.id <= upper_id,
+                row_bytes <= min(catalog_ranking.MAX_RANKING_ROW_BYTES, remaining)
+            ).order_by(Job.id).limit(min(AUTO_QUEUE_PAGE_SIZE, catalog_ranking.MAX_RANKING_JOBS - planned,
+                                       max(1, remaining // catalog_ranking.MAX_RANKING_ROW_BYTES)))
+            plan = db.execute(page.with_only_columns(Job.id, row_bytes, maintain_column_froms=True)).all()
+            if not plan:
+                break
+            planned += len(plan)
+            if not catalog_ranking.reserve_catalog_egress(2 * sum(size for _id, size in plan)):
+                reason = "daily_catalog_byte_limit"
+                break
+            sizes = {job_id: size for job_id, size in plan}
+            rows = db.execute(page.where(Job.id.in_(sizes),
+                row_bytes <= case(sizes, value=Job.id, else_=0)
+            ).add_columns(row_bytes).options(*body_options)).unique().all()
+            transferred += sum(size for _job, size in rows)
+            processed += len(rows)
+            last_id = plan[-1][0]
+            yield [job for job, _size in rows]
+
     count = 0
     queued_application_ids: list[int] = []
-    resumes = db.scalars(select(ResumeProfile).where(ResumeProfile.career_track == career_track)).all()
     resume_candidates = [
         (resume, {skill.casefold() for skill in loads(resume.skills_json, [])})
         for resume in resumes
     ]
-    for job in jobs:
-        if job.application:
-            continue
+    for job in (job for page in job_pages() for job in page):
         source_kind = job.source.kind if job.source else ""
         adapter = detect_adapter(job.apply_url, source_kind)
         if not automatic_submit_ready_for_profile(adapter, profile):
@@ -727,6 +844,10 @@ def auto_queue_jobs(db: Session, profile: Profile) -> int:
         db.flush()
         queued_application_ids.append(application.id)
         count += 1
+    if bounded and processed < total:
+        reason = reason or ("oversized_rows" if total - processed == oversized else
+                            "job_count_limit" if planned >= catalog_ranking.MAX_RANKING_JOBS else "refresh_byte_limit")
+        defer_queue(reason)
     if count:
         db.add(AuditLog(event_type="jobs_auto_queued", message=f"Queued {count} jobs automatically"))
         db.commit()

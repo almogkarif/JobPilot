@@ -2205,6 +2205,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ranking_pending_jobs = 0 if guest_catalog else int(current_stats.get("ranking_pending_jobs", 0))
         if not guest_catalog:
             ranking_refresh = _ranking_failure_status(ranking_refresh, int(current_stats.get("ranking_failed_jobs", 0)))
+            if not ranking_pending_jobs and not ranking_refresh.get("running") and ranking_refresh.get("phase") == "deferred":
+                ranking_refresh.update(phase="complete", deferred=0, reason="", message="")
 
         # Dashboard recommendations are the strongest active opportunities in the
         # entire catalog. Company diversity and then recency break ranking ties;
@@ -3238,6 +3240,9 @@ def personal_ranking_status(db: Session = Depends(get_db)):
     display_checked = int(refresh.get("checked") or 0) if live else checked
     display_filtered = int(refresh.get("filtered") or 0) if live else filtered
     display_eligible = int(refresh.get("eligible") or 0) if live else checked - filtered
+    ready = not refresh.get("failed") and refresh.get("phase") != "failed" and (total == 0 or (not refresh.get("running") and checked >= total))
+    if ready and refresh.get("phase") == "deferred":
+        refresh.update(phase="complete", deferred=0, reason="", message="")
     return {
         "career_track": track,
         "running": bool(refresh.get("running")),
@@ -3246,7 +3251,9 @@ def personal_ranking_status(db: Session = Depends(get_db)):
         "checked": min(display_checked, display_total),
         "filtered": min(display_filtered, display_total),
         "ranked": min(display_eligible, display_total),
-        "ready": not refresh.get("failed") and refresh.get("phase") != "failed" and (total == 0 or (not refresh.get("running") and checked >= total)),
+        "ready": ready,
+        "deferred": int(refresh.get("deferred") or 0),
+        "reason": str(refresh.get("reason") or ""),
         "failed": int(refresh.get("failed") or 0),
         "message": refresh.get("message", ""),
     }
@@ -7447,6 +7454,8 @@ def _ranking_refresh_status(user_id: str, career_track: str, *, include_progress
         "running": running,
         "phase": str(progress.get("phase") or ("queued" if running else "")),
         "failed": int(progress.get("failed") or 0),
+        "deferred": int(progress.get("deferred") or 0),
+        "reason": str(progress.get("reason") or ""),
         "message": (
             "רק משרות שעוברות את המסננים שלך מקבלות ציון התאמה. "
             "ציונים שמורים שעדיין תקפים אינם מחושבים מחדש."
@@ -7476,7 +7485,10 @@ def _ranking_refresh_status(user_id: str, career_track: str, *, include_progress
 def _ranking_failure_status(payload: dict, persisted_failed: int | None = None) -> dict:
     payload["failed"] = int(payload.get("failed") or 0) if persisted_failed is None else persisted_failed
     if not payload.get("running"):
-        if payload.get("phase") == "failed":
+        if payload.get("deferred"):
+            payload["phase"] = "deferred"
+            payload["message"] = "רענון הדירוג נעצר במגבלת נפח הנתונים. המשרות שנותרו ימשיכו ברענון הבא."
+        elif payload.get("phase") == "failed":
             payload["message"] = "רענון הדירוג נכשל. אפשר לנסות שוב; דירוגים תקינים יישמרו."
         elif payload["failed"]:
             payload["phase"] = "partial_failure"
@@ -7486,7 +7498,7 @@ def _ranking_failure_status(payload: dict, persisted_failed: int | None = None) 
 
 def _set_ranking_refresh_progress(
     user_id: str, career_track: str, *, phase: str, completed: int, total: int, failed: int = 0,
-    eligible: int = 0, filtered: int = 0,
+    eligible: int = 0, filtered: int = 0, deferred: int = 0, reason: str = "",
 ) -> None:
     key = (user_id, normalize_track(career_track))
     with _profile_refresh_queue_lock:
@@ -7494,6 +7506,7 @@ def _set_ranking_refresh_progress(
         _profile_refresh_progress[key] = {
             "phase": phase, "completed": max(0, int(completed)), "total": max(0, int(total)), "failed": failed,
             "eligible": max(0, int(eligible)), "filtered": max(0, int(filtered)),
+            "deferred": max(0, int(deferred)), "reason": reason,
             "started_at": float(previous.get("started_at") or time.monotonic()),
         }
 
@@ -7548,7 +7561,7 @@ def _profile_refresh_worker(user_id: str, career_track: str) -> None:
                 with _profile_refresh_queue_lock:
                     _profile_refresh_active.pop(key, None)
                     progress = _profile_refresh_progress.get(key)
-                    if progress and not _profile_refresh_pending.get(key) and progress.get("phase") not in {"failed", "partial_failure"}:
+                    if progress and not _profile_refresh_pending.get(key) and progress.get("phase") not in {"failed", "partial_failure", "deferred"}:
                         progress["phase"] = "complete"
     finally:
         with _profile_refresh_queue_lock:
@@ -7581,15 +7594,16 @@ def _refresh_profile_derived_background(
                         return
                     if refresh_resumes:
                         _refresh_resume_analyses(db, profile, career_track=career_track)
+                    ranking_summary = {}
                     if rank_v2 or rescore_jobs:
-                        _rescore_v2_jobs(
+                        ranking_summary = _rescore_v2_jobs(
                             db, profile, career_track=career_track, commit_every=50, priority_limit=8,
                             yield_seconds=0.03 if settings.auth_mode == "supabase" else 0.0,
                             stale_only=not rescore_jobs, progress_key=(user_id, career_track), retry_failed=retry_failed,
                         )
                     db.commit()
                     ranking_finished = True
-                    if auto_submit_is_enabled(profile):
+                    if auto_submit_is_enabled(profile) and not ranking_summary.get("deferred"):
                         from .services.scanner import auto_queue_jobs
                         auto_queue_jobs(db, profile)
     except Exception as exc:
@@ -7605,14 +7619,14 @@ def _rescore_v2_jobs(
     db: Session, profile: Profile, career_track: str | None = None, *, commit_every: int = 0,
     yield_seconds: float = 0.0, stale_only: bool = False, progress_key: tuple[str, str] | None = None,
     priority_limit: int = 0, retry_failed: bool = False,
-) -> None:
+) -> dict:
+    from .services import catalog_ranking
+
     track = normalize_track(career_track or active_track(profile))
-    default_resume = db.scalar(select(ResumeProfile).where(
-        ResumeProfile.is_default.is_(True), ResumeProfile.career_track == track
-    ))
-    resume_skills = loads(default_resume.skills_json, []) if default_resume else []
-    context = build_match_context(profile, resume_skills, career_track=track)
+    if unified_catalog_enabled():
+        db.info["ranking_track"] = track
     ranking_settings = get_ranking_settings(db)
+    bounded = settings.auth_mode == "supabase"
 
     # Reuse current exclusions before loading jobs; scoring itself always begins
     # with eligibility. Ranking rows are loaded once per bounded batch.
@@ -7622,48 +7636,114 @@ def _rescore_v2_jobs(
     if retry_failed:
         predicate += (select(JobRanking.id).where(JobRanking.job_id == Job.id,
             JobRanking.engine == "v2", JobRanking.error != "").correlate(Job).exists(),)
+    if bounded and not stale_only:
+        # A CV-only change is not part of profile_fingerprint. Mark eligible
+        # cached results pending before a capped pass, so later stale-only runs
+        # can finish it without rereading already refreshed descriptions.
+        stale_rows = update(JobRanking).where(
+            JobRanking.engine == "v2", JobRanking.job_id.in_(select(Job.id).where(*predicate)),
+        )
+        if unified_catalog_enabled():
+            stale_rows = stale_rows.where(JobRanking.career_track == track)
+        db.execute(stale_rows.values(stale=True).execution_options(synchronize_session=False))
     if stale_only:
         predicate += (pending_ranking_condition(profile, ranking_settings, track),)
-    total = int(db.scalar(select(func.count()).select_from(Job).where(*predicate)) or 0)
     # Consume each bounded query completely before committing. A streaming
     # SQLite cursor retained across commits pins an old read snapshot and can
     # fail its next write with SQLITE_BUSY_SNAPSHOT even in WAL mode.
     order_date = func.coalesce(Job.published_at, Job.discovered_at, datetime(1970, 1, 1))
+    ranking_join = (JobRanking.job_id == Job.id) & (JobRanking.engine == "v2")
+    if unified_catalog_enabled():
+        ranking_join &= JobRanking.career_track == track
+    statement = select(Job, JobRanking, order_date.label("order_date")).outerjoin(
+        JobRanking, ranking_join,
+    ).where(*predicate)
+    row_bytes = catalog_ranking._ranking_row_bytes(db)
+    if bounded:
+        total, oversized = db.execute(statement.with_only_columns(
+            func.count(Job.id),
+            func.coalesce(func.sum(case((row_bytes > catalog_ranking.MAX_RANKING_ROW_BYTES, 1), else_=0)), 0),
+            maintain_column_froms=True,
+        )).one()
+    else:
+        total = int(db.scalar(select(func.count()).select_from(Job).where(*predicate)) or 0)
+        oversized = 0
     cursor = None
     failed = completed = processed = eligible = filtered = 0
+    planned = transferred = 0
+    resume_reason = ""
+    if total:
+        resume_skills, resume_reason, transferred = catalog_ranking._load_default_resume_skills(
+            db, track, bounded=bounded,
+        )
+        if not resume_reason:
+            context = build_match_context(profile, resume_skills, career_track=track)
+    daily_budget_exhausted = False
     batch_size = min(commit_every or 50, 50)
     if progress_key:
         _set_ranking_refresh_progress(*progress_key, phase="priority" if priority_limit else "v2",
                                      completed=0, total=total)
-    while True:
+    while total and not resume_reason:
         if db.bind.dialect.name == "sqlite":
             connection = db.connection()
             if not connection.connection.driver_connection.in_transaction:
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
-        batch_predicate = list(predicate)
+        if bounded and (planned >= catalog_ranking.MAX_RANKING_JOBS
+                        or transferred >= catalog_ranking.MAX_RANKING_REFRESH_BYTES):
+            break
+        page = statement
         if cursor is not None:
             last_date, last_id = cursor
-            batch_predicate.append(or_(order_date < last_date,
-                                       (order_date == last_date) & (Job.id < last_id)))
+            page = page.where(or_(order_date < last_date,
+                                 (order_date == last_date) & (Job.id < last_id)))
         limit = min(batch_size, priority_limit) if priority_limit and processed == 0 else batch_size
-        batch = db.execute(select(Job, order_date.label("order_date")).where(
-            *batch_predicate
-        ).order_by(desc(order_date), desc(Job.id)).limit(limit)).all()
+        if bounded:
+            remaining = catalog_ranking.MAX_RANKING_REFRESH_BYTES - transferred
+            limit = min(limit, catalog_ranking.MAX_RANKING_JOBS - planned,
+                        max(1, remaining // catalog_ranking.MAX_RANKING_ROW_BYTES))
+            page = page.where(row_bytes <= min(catalog_ranking.MAX_RANKING_ROW_BYTES, remaining))
+        page = page.order_by(desc(order_date), desc(Job.id)).limit(limit)
+        if bounded:
+            plan = db.execute(page.with_only_columns(
+                Job.id, order_date.label("order_date"), row_bytes, maintain_column_froms=True,
+            )).all()
+            if not plan:
+                break
+            planned += len(plan)
+            if not catalog_ranking.reserve_catalog_egress(2 * sum(size for _id, _date, size in plan)):
+                daily_budget_exhausted = True
+                break
+            planned_sizes = {job_id: size for job_id, _date, size in plan}
+            cursor = (plan[-1].order_date, plan[-1].id)
+            page = page.where(Job.id.in_(planned_sizes),
+                              row_bytes <= case(planned_sizes, value=Job.id, else_=0)).add_columns(row_bytes)
+        batch = db.execute(page.options(load_only(
+            *catalog_ranking.RANKING_JOB_COLUMNS, raiseload=True,
+        ))).all()
         if not batch:
+            if bounded:
+                # Concurrent growth can exclude the planned page. Keep its rows
+                # pending and advance the metadata cursor without loading them.
+                continue
             if commit_every or priority_limit:
                 db.commit()
             break
-        cursor = (batch[-1].order_date, batch[-1].Job.id)
-        ids = [item.Job.id for item in batch]
-        existing = {row.job_id: row for row in db.scalars(select(JobRanking).where(
-            JobRanking.engine == "v2", JobRanking.job_id.in_(ids),
-        )).all()}
+        if not bounded:
+            cursor = (batch[-1].order_date, batch[-1].Job.id)
+        existing = {item.Job.id: item.JobRanking for item in batch}
         for item in batch:
             job = item.Job
+            if bounded:
+                transferred += item[-1]
             row = existing.get(job.id)
             should_rank = not stale_only or result_is_stale(existing.get(job.id), job, profile, ranking_settings)
             if should_rank:
                 try:
+                    if row is None:
+                        row = JobRanking(job_id=job.id, engine="v2",
+                                         career_track=track if unified_catalog_enabled() else "")
+                        db.add(row)
+                        existing[job.id] = row
                     row = persist_v2_result(db, job, profile, ranking_settings, context=context,
                                             existing_row=existing.get(job.id))
                 except Exception as exc:
@@ -7694,11 +7774,23 @@ def _rescore_v2_jobs(
         if yield_seconds > 0:
             time.sleep(yield_seconds)
 
+    deferred = max(0, total - processed) if bounded else 0
+    reason = ("oversized_rows" if deferred and deferred == oversized else
+              "job_count_limit" if planned >= catalog_ranking.MAX_RANKING_JOBS else "refresh_byte_limit")
+    if daily_budget_exhausted:
+        reason = "daily_catalog_byte_limit"
+    if resume_reason:
+        reason = resume_reason
+    if deferred:
+        catalog_ranking._record_ranking_deferral(db, track, deferred, reason, commit=False)
     if progress_key:
         _set_ranking_refresh_progress(
-            *progress_key, phase="partial_failure" if failed else "complete",
+            *progress_key, phase="deferred" if deferred else ("partial_failure" if failed else "complete"),
             completed=completed, total=total, failed=failed, eligible=eligible, filtered=filtered,
+            deferred=deferred, reason=reason if deferred else "",
         )
+    return {"ranked": completed, "failed": failed, "deferred": deferred,
+            "reason": reason if deferred else ""}
 
 
 def _profile_dict(p: Profile) -> dict:

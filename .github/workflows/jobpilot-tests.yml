@@ -258,6 +258,11 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements-test.txt
 
+      - name: Install Chromium for focused UI and submission regressions
+        env:
+          NODE_OPTIONS: --throw-deprecation
+        run: python -m playwright install --with-deps chromium
+
       - name: Enable local PostgreSQL integration tests
         run: |
           sudo apt-get update
@@ -272,7 +277,7 @@ jobs:
 
       - name: Run scan and resource-budget tests
         run: >-
-          python -m pytest -q
+          python -m pytest -q -n 4 --dist loadfile
           tests/test_twice_daily_scan_schedule.py
           tests/test_external_scan_worker.py
           tests/test_scan_worker_recovery.py
@@ -292,3 +297,25 @@ jobs:
           tests/test_guest_dashboard.py
           tests/test_job_id_search.py
           tests/test_ranking_v2.py
+          tests/test_ranking_storage.py
+          tests/test_ranking_default_resume_bounds.py
+          tests/test_ranking_profile_bounds.py
+          tests/test_ranking_deferred_status.py
+          tests/test_ranking_refresh_failure_ui.py
+          tests/test_auto_queue_resource_bounds.py
+          tests/test_verified_shared_sources.py
+          tests/test_source_retirements.py
+          tests/test_unified_rollout_sources.py
+          tests/test_source_expansion_v053.py
+          tests/test_ee_source_expansion_v2.py
+          tests/test_iem_source_expansion.py
+          tests/test_job_text_plain_url.py
+          tests/test_job_text.py
+          tests/test_seniority_sql_fast_path.py
+          tests/test_seniority_filter.py
+          tests/test_catalog_capacity_benchmark.py
+          tests/test_api.py
+          tests/test_ranking_lab_api.py
+          tests/test_applied_materials_submission.py
+          tests/test_agent_browser_flow.py::test_greenhouse_email_verification_keeps_session_and_recognizes_nanit_confirmation
+          tests/test_agent_browser_flow.py::test_greenhouse_submission_response_requires_explicit_success_evidence

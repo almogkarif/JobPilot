@@ -69,6 +69,7 @@ def test_preview_is_read_only_and_v2_jobs_endpoint_is_available(monkeypatch):
 
 
 def test_rerank_persists_v2_results(monkeypatch, seeded_cs_catalog):
+    monkeypatch.setattr(main_module, "_profile_refresh_progress", {})
     # Run the worker synchronously for a deterministic persistence assertion.
     monkeypatch.setattr(
         main_module,

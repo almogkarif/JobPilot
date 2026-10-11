@@ -1,0 +1,413 @@
+{
+  "generated_at": "2026-10-10T23:31:03.768974+00:00",
+  "mode": "local_only_unreleased_review",
+  "baseline_commit": "a5cb1b3df22af2ce85396e4cfc0a8912580d4296",
+  "authorization": {
+    "commit": false,
+    "push": false,
+    "deployment": false,
+    "production_scan": false,
+    "supabase_read_or_write": false,
+    "storage_download": false,
+    "real_submission": false
+  },
+  "preexisting_goozali_work": "Preserved without replacing historical October 10 audit JSON or benchmark implementation.",
+  "ruflo": {
+    "status": "repaired_and_verified_with_fresh_codex_clients",
+    "version": "3.47.0",
+    "native_tools": 90,
+    "memory_store_retrieve_search": "verified across independent fresh processes and actual Codex clients",
+    "current_long_running_thread": "Earlier tool catalog does not hot-reload; fresh connection required.",
+    "documentation": "docs/RUFLO_LOCAL_SETUP.md",
+    "production_dependencies_changed": false,
+    "verified_reusable_catalog_note": {
+      "namespace": "jobpilot",
+      "key": "catalog-resource-budgets-20261011",
+      "verification": "memory_store and exact memory_retrieve; independent fresh process retrieval and semantic memory_search by note text;384dimlocalembedding; no model/API/production requests."
+    }
+  },
+  "source_expansion": {
+    "shared_new_employers": 13,
+    "employers": [
+      "PointFive",
+      "Pi Security",
+      "Stigg",
+      "Parallel Wireless",
+      "Nanit",
+      "Dream",
+      "Riverside",
+      "8fig",
+      "IVIX",
+      "Encore",
+      "Sygnia",
+      "Zenity",
+      "DriveNets"
+    ],
+    "public_feed_rows": 239,
+    "israeli_canonical_jobs": 143,
+    "computer_science_matches": 70,
+    "electrical_engineering_matches": 31,
+    "industrial_engineering_matches": 23,
+    "any_track_distinct_jobs": 86,
+    "automatic_routes": {
+      "comeet": 108,
+      "lever": 18,
+      "ashby": 13,
+      "greenhouse": 4
+    },
+    "real_submissions_verified": false,
+    "details": "docs/audits/shared_sources_overnight_2026-10-11.json",
+    "preserved_sample_comparison": "15 additional October 10 sample records representing 13 distinct native postings; historical24+offline15=39/100 is not measured current production or entire-market coverage.",
+    "local_preview": {
+      "database": "data/catalog_expansion_preview_2026-10-11.db",
+      "launcher": "data/run_catalog_expansion_preview_2026-10-11.py",
+      "command": ".venv/bin/python data/run_catalog_expansion_preview_2026-10-11.py",
+      "url": "http://127.0.0.1:8001",
+      "sources": 13,
+      "jobs": 143,
+      "bytes": 1589248,
+      "synthetic_profile_only": true,
+      "auto_submit_enabled": false,
+      "worker_gate": "canonical preview returns no task",
+      "server_left_running": true,
+      "api_check": "Actual startup and API handlers on disposable copy with sockets blocked:13sources,70CSjobs,auto_submitfalse; original preview unchanged.",
+      "live_http_check": "localhost:8001 index/dashboard/profile200; dashboard70CSjobs,auto_submitfalse; read-onlySQLite13sources/143jobs/0applications/0resumes/0agentdevices/0rankings."
+    },
+    "normal_local_db_effect": {
+      "database_path": "data/jobpilot.db",
+      "reason": "Initial disposable driver used unprefixed environment variables instead of JOBPILOT_ prefix.",
+      "source_rows_added": 13,
+      "source_ids": [
+        414,
+        415,
+        416,
+        417,
+        418,
+        419,
+        420,
+        421,
+        422,
+        423,
+        424,
+        425,
+        426
+      ],
+      "source_career_track": "shared",
+      "jobs_under_added_sources": 0,
+      "scan_attempted": false,
+      "cleanup_performed": false,
+      "corrected_replay_database": "Separate disposable SQLite with exact-path assertions and network blocked; removed after replay.",
+      "review_pause": {
+        "new_source_rows_disabled": 13,
+        "prior_enabled_ids": [
+          414,
+          415,
+          416,
+          417,
+          418,
+          419,
+          420,
+          421,
+          422,
+          423,
+          424,
+          425,
+          426
+        ],
+        "reason": "Normal local database has an opt-in auto-submit profile; pause only the thirteen newly introduced definitions until review. Existing sources/profiles preserved. Separate preview keeps thirteen active definitions with scheduler/worker/auto-submit disabled.",
+        "identity_and_zero_job_preflight": true,
+        "existing_user_sources_or_profiles_changed": false
+      }
+    },
+    "observed_incremental_ranking_plan": {
+      "method": "Read-only SQLite SQL UTF8aggregate of current ranking projection and2048byte framing; new cache rows absent.",
+      "all143_description_bytes": 560475,
+      "cs70_description_bytes": 272112,
+      "cs70_projected_job_bytes": 425769,
+      "largest_projected_row_bytes": 12010,
+      "30_cs_owner_projected_bytes": 12773070,
+      "30_cs_owner_twice_reserved_bytes": 25546140,
+      "daily_shared_ledger_bytes": 67108864,
+      "limitations": "Excludes other catalog work, existing cached ranking payloads, CV/profile queries and protocol uncertainty. Not measured production wire traffic; remaining daily/orgquota not checked."
+    }
+  },
+  "capacity_measurements": [
+    {
+      "report": "docs/audits/catalog_capacity_5000_30ranked_verified_2026-10-11.json",
+      "jobs": 5000,
+      "users": 30,
+      "ranked_users": 30,
+      "database_bytes": 309559811,
+      "job_ranking_table_bytes": 280797184,
+      "description_bytes": 8192,
+      "concurrency": 10,
+      "p95_ms": 616.707,
+      "max_job_rows_loaded": 20,
+      "catalog_body_reads": 0,
+      "ranking_ownership_verified": true
+    },
+    {
+      "report": "docs/audits/catalog_capacity_10000_30ranked_after_2026-10-11.json",
+      "jobs": 10000,
+      "users": 30,
+      "ranked_users": 30,
+      "database_bytes": 607929123,
+      "job_ranking_table_bytes": 561315840,
+      "description_bytes": 8192,
+      "concurrency": 10,
+      "p95_ms": 1271.97,
+      "max_job_rows_loaded": 20,
+      "catalog_body_reads": 0,
+      "ranking_ownership_verified": true
+    },
+    {
+      "report": "docs/audits/catalog_capacity_50000_3ranked_2026-10-11.json",
+      "jobs": 50000,
+      "users": 30,
+      "ranked_users": 3,
+      "database_bytes": 461128195,
+      "job_ranking_table_bytes": 273301504,
+      "description_bytes": 8192,
+      "concurrency": 10,
+      "p95_ms": 2419.35,
+      "max_job_rows_loaded": 20,
+      "catalog_body_reads": 0,
+      "ranking_ownership_verified": false
+    }
+  ],
+  "free_capacity_conclusion": {
+    "entire_goozali_inventory_count_verified": false,
+    "equal_entire_market_coverage_verified": false,
+    "fully_ranked_5000_for_30_users": "Local synthetic test occupies309.6MB; possible starting scale, not a proven production/free-host capacity.",
+    "fully_ranked_10000_for_30_users": "Local synthetic test occupies607.9MB, exceeding current Supabase500MB Free database limit before real history/CVs.",
+    "50000_for_3_ranked_users": "461.1MB with only3 ranked owners, not evidence for all30; near database limit.",
+    "primary_storage_cost": "Personal ranking matrix; all30 ranking rows account for280.8MB at5000jobs and561.3MB at10000jobs.",
+    "cold_ranking_transfer_estimate": "5000jobs ×30users ×8192descriptionbytes =1.2288GB before cached results/protocol. Twice-size reservation with64MiB/day would take at least37days, excluding all other traffic.",
+    "cpu_inference": "600 real sample evaluations p50~66.9ms imply~2.8hours for150000 serial evaluations; full-catalog throughput not measured.",
+    "free_host_cpu_network_cold_starts": "Not measured; local list-handler p95 excludes HTTP/auth/internet."
+  },
+  "resource_protection": {
+    "catalog_daily_reserved_bytes": 67108864,
+    "personal_pass_jobs": 5000,
+    "projected_row_bytes": 262144,
+    "personal_pass_body_bytes": 16777216,
+    "partial_or_denied_cv_behavior": "Defer; no subset selection or silent fallback.",
+    "projection": "Skip unused descriptions/legacy JSON/private history where not needed; retain actual ranking requirements text.",
+    "ranking_ui": "Budget-deferred states stop automatic polling/recovery and permit opening available jobs.",
+    "seniority": "Unrestricted all-level filter avoids repeated SQL text regex; restricted behavior tested.",
+    "production_catalog_cap_or_schedule_changed": false,
+    "documentation": "docs/SUPABASE_EGRESS.md",
+    "default_cv_skills": "Owned default-CV LIMIT1 ID/UTF8metadata before LIMIT1 projected ORM body; <=256KiB, same twice-size ledger reservation, growth guard, bytes included in16MiB pass. No backlog => no CV query. Denial does not silently omit CV.",
+    "queue_job_page_size": 100,
+    "queue_ui_null_blocker": "Absent question blocker now returns zero live-wait seconds, preserving queue rendering and navigation; four failing HEAD UI cases now pass."
+  },
+  "verification": {
+    "status": "local_review_complete_broad_failure_resolved_by_targeted_final_tests",
+    "completed_gates": [
+      {
+        "scope": "resources/sources/ranking/seniority/benchmark/deferred UI",
+        "passed": 305,
+        "skipped": 0
+      },
+      {
+        "scope": "new source transport/native routes/plain URL and rollout/retirements",
+        "passed": 166,
+        "skipped": 0
+      },
+      {
+        "scope": "queue/resource/CV/history/tenant/Ashby/deletion behavior",
+        "passed": 80,
+        "skipped": 0
+      },
+      {
+        "scope": "generic browser automation",
+        "passed": 101,
+        "skipped": 0,
+        "seconds": 542.5
+      },
+      {
+        "scope": "API after explicit deferral contract update",
+        "passed": 32,
+        "skipped": 0
+      },
+      {
+        "scope": "new queue egress regression SQLite/PostgreSQL",
+        "passed": 2,
+        "skipped": 0
+      },
+      {
+        "scope": "default CV/shared/profile + batching/refresh/targeted/cache/API behavior",
+        "passed": 102,
+        "skipped": 0
+      },
+      {
+        "scope": "final combined affected source/resource/CV/queue/egress/seniority/benchmark/API/deferred UI",
+        "passed": 458,
+        "skipped": 0,
+        "seconds": 49.29
+      },
+      {
+        "scope": "queue notification diagnostics/navigation/polling and live-question countdown after null-blocker guard",
+        "passed": 10,
+        "skipped": 0,
+        "seconds": 38.79
+      },
+      {
+        "scope": "Applied Materials entire module after deterministic duplicate-test repair",
+        "passed": 94,
+        "skipped": 0,
+        "seconds": 139.47
+      },
+      {
+        "scope": "root independent final Applied first-use/simultaneous duplicate/sequential duplicate synthetic browser scenarios",
+        "passed": 3,
+        "skipped": 0,
+        "seconds": 2.73,
+        "junit_report_local": "/tmp/jobpilot-overnight-final-applied-regressions-2026-10-11.xml"
+      }
+    ],
+    "counts_overlap": "Gate counts are not summed as distinct tests.",
+    "full_suite": "Broad run excluding separately verified agent_browser_flow:3968passed/1failed/0errors/0skips in1580.83seconds. The sole failure was the old exact-one duplicate-upload assertion already collected before its test repair. Final Applied module94passed and independent first-use/simultaneous/sequential3passed. No second complete broad run after the test repair is claimed.",
+    "pending": "None for the authorized local work. Production release/current quota checks and actual new-employer submissions are outside this local-only run.",
+    "compile_and_js_syntax": "compileall of app/new scripts/tests and node --check app/static/app.js passed; git diff --check passed.",
+    "intermediate_broad_run": {
+      "command": ".venv/bin/python -m pytest -q --tb=short --ignore=tests/test_agent_browser_flow.py",
+      "passed": 3902,
+      "failed": 6,
+      "skipped": 0,
+      "seconds": 1592.33,
+      "limitations": "Started before subsequent scanner/helper/defaultCV edits; not a final-code full-suite claim. API contract failure fixed, final458gate passes. Remaining five browser cases independently reproduced in clean HEAD: four actual null-blocker UI bugs repaired, one timing-assumption test repaired; all final targeted gates passed.",
+      "failed_node_ids": [
+        "tests/test_api.py::test_health_and_dashboard",
+        "tests/test_applied_materials_submission.py::test_native_upload_cannot_send_foreign_bytes_or_upload_twice[duplicateUpload]",
+        "tests/test_mobile_ui.py::test_notification_failures_stay_in_queue_and_full_diagnostics[390]",
+        "tests/test_mobile_ui.py::test_notification_failures_stay_in_queue_and_full_diagnostics[1440]",
+        "tests/test_personal_queue_ui.py::test_regular_user_can_open_queue_navigate_and_copy_diagnostics[390]",
+        "tests/test_personal_queue_ui.py::test_regular_user_can_open_queue_navigate_and_copy_diagnostics[1440]"
+      ]
+    },
+    "baseline_failure_review": {
+      "method": "Fresh read-only clean HEAD archive; same Python environment, local browser fixtures, no employer submission.",
+      "ui": "Four queue/notification assertions reproduced in HEAD; same wait_until access on null blocker.",
+      "applied": "Existing simultaneous duplicate race reproduced in HEAD: safe zero-or-one upload with no final submission. Test now checks at-most-one own-CV upload, verified bootstrap and guard rejection. Added deterministic second upload after first native receipt checks two attempts/one receipt/one rejection/zero final submits; accepted single-upload test unchanged. Both omitted-duplicate mutations fail, independently proving the negative scenarios."
+    },
+    "final_broad_run": {
+      "command": ".venv/bin/python -m pytest -v --tb=short --ignore=tests/test_agent_browser_flow.py --junitxml=/tmp/jobpilot-overnight-final-suite-2026-10-11.xml",
+      "collected": 3969,
+      "passed": 3968,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 1580.83,
+      "failed_node_ids": [
+        "tests/test_applied_materials_submission.py::test_native_upload_cannot_send_foreign_bytes_or_upload_twice[duplicateUpload]"
+      ],
+      "resolution": "Fixture/test repair only; unchanged adapter. Whole final module94passed, root independent3passed. Null-blocker JS repair landed before the four affected UI cases ran; their focused10cases also passed.",
+      "current_collected_excluding_generic_browser": 3970,
+      "separately_covered_generic_browser_tests": 101,
+      "junit_report_local": "/tmp/jobpilot-overnight-final-suite-2026-10-11.xml"
+    }
+  },
+  "production_review_before_release": [
+    "Check actual Supabase database size and current organization egress; October10 showed4.82/5GB, not current.",
+    "Review local diff and source/application eligibility; only then decide commit/push/deployment.",
+    "Keep two scheduled daily scans; do not trigger a bulk backfill until resource headroom is verified.",
+    "Real submissions to these13 employers were not attempted; native adapter routing alone does not prove a successful submission."
+  ],
+  "official_resource_limits": {
+    "supabase": "https://supabase.com/pricing",
+    "render": "https://render.com/docs/free",
+    "github_actions": "https://docs.github.com/en/billing/concepts/product-billing/github-actions",
+    "github_repository_visibility_readonly_verified": "public",
+    "note": "Standard public-repository GitHub runners are free; database/egress and Render ephemeral filesystem constraints remain."
+  },
+  "scope_notes": [
+    "Thirteen newly added definitions remain in normal local SQLite, disabled pending review; no jobs from them. Separate preview holds143full public jobs with scans/auto-submit off.",
+    "Global/local Codex MCP launch settings repaired with mode600backups, no project dependency versions upgraded.",
+    "No catalog limit, application daily allowance, production user limit, cloud setting or two-scan schedule changed. Existing local server preserved; isolated preview started on localhost:8001."
+  ],
+  "subsequent_local_source_count_correction": {
+    "report": "docs/audits/local_shared_source_count_2026-10-11.json",
+    "original_8000_count": 172,
+    "corrected_8000_shared_count": 241,
+    "recommended_definitions_installed": 240,
+    "custom_existing_sources": 1,
+    "new_sources_still_disabled": 13,
+    "preview_auto_submit_enabled": false,
+    "original_database_preserved": true,
+    "launcher": "data/run_shared_catalog_preview_2026-10-11.py",
+    "cloud_or_git_changes": false
+  },
+  "subsequent_storage_and_source_expansion": {
+    "recorded_at": "2026-10-11T10:06:20.417551+00:00",
+    "mode": "local_only_no_commit_push_deployment_or_cloud_mutation",
+    "space_interpretation": "database_storage; optional UI-vs-storage clarification had no reply; no visual layout change made",
+    "direct_supabase_access": {
+      "connector_exposed": false,
+      "local_cloud_database_credentials_configured": false,
+      "local_database_is_sqlite": true,
+      "browser_used": false,
+      "supabase_calls": 0
+    },
+    "ranking_storage": {
+      "lossless": true,
+      "schema_migration": false,
+      "legacy_rows_preserved": true,
+      "automatic_backfill": false,
+      "original_logical_size_budget_preserved": true,
+      "workload_jobs": 5000,
+      "workload_users": 30,
+      "workload_rankings": 150000,
+      "database_bytes_before": 309551619,
+      "database_bytes_after": 263471619,
+      "database_bytes_saved": 46080000,
+      "database_percent_saved": 14.89,
+      "unchanged_api_response_bytes": 86058,
+      "details": "docs/audits/ranking_storage_2026-10-11.json"
+    },
+    "sources": {
+      "additional_verified_distinct_employers_this_followup": 47,
+      "total_new_verified_shared_sources": 60,
+      "additional_canonical_israel_jobs_this_followup": 339,
+      "total_new_canonical_israel_jobs": 482,
+      "all_287_recommended_definitions_freshly_verified": false,
+      "actual_submission_verification": false,
+      "details": "docs/audits/shared_sources_expansion_60_2026-10-11.json"
+    },
+    "local_runtime": {
+      "validated_by_root": true,
+      "local_url": "http://127.0.0.1:8000",
+      "launcher": "data/run_shared_catalog_expanded_preview_2026-10-11.py",
+      "database": "data/shared_catalog_expanded_preview_2026-10-11.db",
+      "operational_unique_sources": 288,
+      "enabled_sources": 275,
+      "paused_sources": 13,
+      "recommended_definitions_installed": 287,
+      "custom_sources": 1,
+      "canonical_jobs": 2978,
+      "existing_alias_rows": 324,
+      "physical_job_rows": 3302,
+      "profile_auto_submit_enabled": false,
+      "applications_applying": 0,
+      "scheduler_enabled": false,
+      "worker_claims_disabled": true,
+      "browser_used": false
+    },
+    "verification": {
+      "relevant_tests_passed": 610,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "full_repository_suite_rerun": false,
+      "git_diff_check_passed": true,
+      "compile_check_passed": true,
+      "junit_report": "/tmp/jobpilot-storage-sources-final-2026-10-11.xml"
+    },
+    "limits": [
+      "Synthetic PostgreSQL storage measurements do not establish actual Supabase usage.",
+      "No proof that tens of thousands of fully ranked vacancies for every user fit a free plan.",
+      "The original local database and previous previews are preserved.",
+      "Source collection was validated, while no new real application submission was attempted."
+    ]
+  }
+}
