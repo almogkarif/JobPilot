@@ -18,6 +18,7 @@ on:
           - scan_resources
           - applications
           - comeet
+          - solaredge
           - catalog_inventory
       runner_mode:
         description: Runner for focused user-limit tests
@@ -37,7 +38,7 @@ concurrency:
 
 jobs:
   test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' || inputs.test_scope == 'comeet' || inputs.test_scope == 'catalog_inventory' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' || inputs.test_scope == 'comeet' || inputs.test_scope == 'solaredge' || inputs.test_scope == 'catalog_inventory' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -157,6 +158,17 @@ jobs:
           tests/test_supabase_egress_optimization.py::test_submit_progress_duplicate_check_reads_one_projected_event
           tests/test_supabase_egress_optimization.py::test_comeet_questionnaire_receipts_keep_diagnostics_bounded_without_private_tokens
           tests/test_supabase_egress_optimization.py::test_unavailable_comeet_posting_stops_before_another_form_or_progress_read
+
+      - name: Run focused SolarEdge release tests
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'solaredge' }}
+        run: >-
+          python -m pytest -q -n 4 --dist loadfile
+          tests/test_solaredge_embedded_form.py
+          tests/test_solaredge_native_application.py
+          tests/test_agent_radio_question_context.py
+          tests/test_comeet_submission_receipts.py
+          tests/test_comeet_worker_recovery.py
+          tests/test_supabase_egress_optimization.py::test_solaredge_embedded_flow_reuses_the_original_form_and_bounded_progress
 
       - name: Run catalog inventory and automatic queue release tests
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'catalog_inventory' }}

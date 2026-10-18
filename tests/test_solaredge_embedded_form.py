@@ -96,11 +96,52 @@ def _task(tmp_path):
                         'cv_path': str(resume)}, 'answers': {}, 'answer_memories': []}
 
 
+def _fill_offline_with_diagnostics(page, task):
+    """Expose synthetic fixture readiness on CI without changing the result."""
+    browser_errors = []
+
+    def console(message):
+        if message.type in {'warning', 'error'} and len(browser_errors) < 10:
+            browser_errors.append({'type': message.type, 'text': message.text[:500]})
+
+    def script_error(error):
+        if len(browser_errors) < 10:
+            browser_errors.append({'type': 'pageerror', 'text': str(error)[:500]})
+
+    page.on('console', console)
+    page.on('pageerror', script_error)
+    try:
+        return fill_application(page, task, auto_submit=True)
+    except ApplicationBlocked as error:
+        state = {'kind': error.kind, 'diagnostics': error.diagnostics, 'url': page.url,
+                 'browser_errors': browser_errors}
+        state['parent'] = page.evaluate('''() => ({
+          ready: document.readyState, startClicks: window.startClicks ?? null,
+          startButton: !!document.querySelector('#native-start'),
+          iframes: [...document.querySelectorAll('iframe')].slice(0, 20).map(frame => ({
+            src: frame.src, display: getComputedStyle(frame).display,
+            visibility: getComputedStyle(frame).visibility,
+            width: frame.getBoundingClientRect().width, height: frame.getBoundingClientRect().height
+          }))
+        })''')
+        state['frames'] = []
+        for frame in page.frames[:20]:
+            item = {'url': frame.url, 'detached': frame.is_detached()}
+            try:
+                item['ready'] = frame.evaluate('document.readyState')
+                item['form_control_count'] = frame.locator(
+                    'form input:not([type="hidden"]), form select, form textarea').count()
+            except Exception as frame_error:
+                item['read_error'] = type(frame_error).__name__
+            state['frames'].append(item)
+        pytest.fail('Offline embedded form state: ' + json.dumps(state, ensure_ascii=False), pytrace=False)
+
+
 @pytest.mark.parametrize('lazy,hidden', [(False, False), (True, False), (False, True)],
                          ids=['mounted', 'lazy', 'hidden'])
 def test_solaredge_fills_and_submits_only_the_matching_child_form(page, tmp_path, lazy, hidden):
     requests = _routes(page, [OTHER_FORM, WRONG_JOB, FORM], lazy=lazy, hidden=hidden)
-    result = fill_application(page, _task(tmp_path), auto_submit=True)
+    result = _fill_offline_with_diagnostics(page, _task(tmp_path))
     assert result['submitted'] and 'Comeet accepted' in result['confirmation_text']
     assert page.url == POSTING and page.locator('#outer-email').input_value() == ''
     matching = next(frame for frame in page.frames if frame.url == FORM)
@@ -142,7 +183,7 @@ def test_hidden_solaredge_child_waits_for_its_native_start_button(page, tmp_path
 
     monkeypatch.setattr(page, 'get_by_role', get_by_role)
     monkeypatch.setattr(page, 'wait_for_timeout', wait)
-    result = fill_application(page, _task(tmp_path), auto_submit=True)
+    result = _fill_offline_with_diagnostics(page, _task(tmp_path))
     assert result['submitted'] and start_revealed
     assert page.url == POSTING and page.evaluate('window.startClicks') == 1
     matching = next(frame for frame in page.frames if frame.url == FORM)
