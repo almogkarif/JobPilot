@@ -2969,6 +2969,11 @@ def test_admin_queue_snapshot_returns_only_bounded_metadata_without_catalog_bodi
     encoded = json.dumps(report, default=str)
     assert len(encoded.encode()) < 32 * 1024
     assert not any(value in encoded for value in ('PRIVATE_', 'SECRET', 'private-owner', 'other-owner', '@'))
+    freshness_counts = {key: report['ranking'][key] for key in (
+        'current_excluded_rankings', 'outdated_above_threshold_without_application',
+    )}
+    assert all(isinstance(value, int) and value >= 0 for value in freshness_counts.values())
+    assert len(json.dumps(freshness_counts).encode()) < 256
 
 
 def test_solaredge_embedded_flow_reuses_the_original_form_and_bounded_progress(embedded_form_page, tmp_path):

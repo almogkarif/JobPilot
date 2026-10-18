@@ -13,7 +13,7 @@ from app.database import SHARED_CATALOG_USER_ID, set_user_scope
 from app.models import AppIdentity, Application, AuditLog, Blocker, Job, JobRanking, JobTrack, Profile, Source, UserJobState
 from app.services import application_submission
 from app.services.catalog_egress import DAILY_CATALOG_BYTES
-from app.services.ranking.service import get_ranking_engine, profile_fingerprint
+from app.services.ranking.service import eligibility_profile_fingerprint, get_ranking_engine, profile_fingerprint
 from scripts import diagnose_owner_catalog as diagnostic
 from tests.test_canonical_postgres import postgres_cluster  # noqa: F401
 from tests.test_owner_catalog_diagnostic import owner_catalog  # noqa: F401
@@ -113,6 +113,44 @@ def test_admin_snapshot_distinguishes_version_mismatch_from_explicit_opt_in(admi
     assert report['ranking']['engine_mismatches'] == 1
     assert report['ranking']['config_mismatches'] == 1
     assert report['ranking']['candidates_before_adapter_cooldown_cv'] == 0
+
+
+def test_current_hard_exclusion_accepts_eligibility_fingerprint_without_reporting_a_profile_mismatch(admin_catalog):
+    engine, _job_id = admin_catalog
+    with Session(engine) as db:
+        set_user_scope(db, 'private-owner')
+        excluded_job = db.scalar(select(Job.id).where(Job.external_id == '2'))
+        ranking = db.scalar(select(JobRanking).where(JobRanking.job_id == excluded_job))
+        assert ranking.eligibility_state == 'excluded'
+        ranking.profile_fingerprint = eligibility_profile_fingerprint(db.scalar(select(Profile)))
+        db.commit()
+    report = admin_report(engine)
+    assert report['ranking']['fresh_rankings'] == 5
+    assert report['ranking']['profile_mismatches'] == 0
+    assert report['ranking']['current_excluded_rankings'] == 3
+    assert report['ranking']['outdated_above_threshold_without_application'] == 0
+    assert report['ranking']['candidates_before_adapter_cooldown_cv'] == 1
+    assert len(report['candidate_sample']) == 1
+
+
+@pytest.mark.parametrize('fingerprint', ['obsolete', 'eligibility_only'])
+def test_outdated_eligible_candidate_requires_the_full_profile_fingerprint(admin_catalog, fingerprint):
+    engine, job_id = admin_catalog
+    with Session(engine) as db:
+        set_user_scope(db, 'private-owner')
+        ranking = db.scalar(select(JobRanking).where(JobRanking.job_id == job_id))
+        assert ranking.eligibility_state != 'excluded' and ranking.score > 80
+        ranking.profile_fingerprint = (
+            eligibility_profile_fingerprint(db.scalar(select(Profile)))
+            if fingerprint == 'eligibility_only' else 'obsolete'
+        )
+        db.commit()
+    report = admin_report(engine)
+    assert report['ranking']['profile_mismatches'] == 1
+    assert report['ranking']['current_excluded_rankings'] == 3
+    assert report['ranking']['outdated_above_threshold_without_application'] == 1
+    assert report['ranking']['candidates_before_adapter_cooldown_cv'] == 0
+    assert report['candidate_sample'] == []
 
 
 def test_admin_candidate_sample_stops_at_twenty_and_signals_remaining_candidates(admin_catalog):

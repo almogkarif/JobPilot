@@ -505,6 +505,11 @@ rather than classifying a truncated URL. Password configuration is a SQL boolean
 the credential is never returned. Adapter classification uses those metadata
 fields locally. Candidate counts remain explicitly before adapter, cooldown, CV
 and dispatch checks, so the report does not claim that every candidate can submit.
+Freshness accepts the normal full profile fingerprint, or the dedicated eligibility
+fingerprint for an excluded result, matching the ranking engine. Two integer
+aggregates distinguish current exclusions from outdated eligible candidates above
+the threshold without an application. They reuse the same SQL aggregate, add zero
+reads, and reserve at most 256 additional JSON bytes within the existing allowance.
 
 Fingerprint inputs retain their eight 8 KiB caps, configuration its 8 KiB cap,
 and the budget ledger a 1,025-character bounded read. The existing **2 MiB per

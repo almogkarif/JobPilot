@@ -162,7 +162,9 @@ WITH base AS (
         coalesce(r.stale=false AND r.error='' AND r.engine_version=:engine_version
                  AND r.config_version=:config_version AND j.source_fingerprint<>''
                  AND r.job_fingerprint=j.source_fingerprint
-                 AND r.profile_fingerprint=:profile_fp, false) AS fresh,
+                 AND (r.profile_fingerprint=:profile_fp OR
+                      (r.eligibility_state='excluded' AND r.profile_fingerprint=:eligibility_fp)),
+                 false) AS fresh,
         coalesce(r.eligibility_state='excluded', false) AS excluded,
         coalesce(r.score>=:threshold, false) AS above_threshold,
         coalesce(r.score>80, false) AS above_80,
@@ -171,7 +173,9 @@ WITH base AS (
         coalesce(r.error<>'', false) AS ranking_error,
         coalesce(r.engine_version<>:engine_version, false) AS engine_mismatch,
         coalesce(r.config_version<>:config_version, false) AS config_mismatch,
-        coalesce(r.profile_fingerprint<>:profile_fp, false) AS profile_mismatch,
+        coalesce(NOT (r.profile_fingerprint=:profile_fp OR
+                      (r.eligibility_state='excluded' AND r.profile_fingerprint=:eligibility_fp)),
+                 false) AS profile_mismatch,
         coalesce(r.job_fingerprint<>j.source_fingerprint, false)
             OR j.source_fingerprint='' AS source_mismatch,
         coalesce(u.status, 'new')='new' AS state_new,
@@ -201,6 +205,7 @@ SELECT count(*) AS active_in_track,
  count(*) FILTER (WHERE profile_mismatch) AS profile_mismatches,
  count(*) FILTER (WHERE source_mismatch) AS source_mismatches,
  count(*) FILTER (WHERE fresh) AS fresh_rankings,
+ count(*) FILTER (WHERE fresh AND excluded) AS current_excluded_rankings,
  count(*) FILTER (WHERE fresh AND NOT excluded AND above_threshold) AS fresh_above_threshold,
  count(*) FILTER (WHERE fresh AND NOT excluded AND above_80) AS fresh_above_80,
  count(*) FILTER (WHERE fresh AND NOT excluded AND above_threshold AND has_application)
@@ -209,7 +214,9 @@ SELECT count(*) AS active_in_track,
      AS above_threshold_with_nonnew_state,
  count(*) FILTER (WHERE manual_fallback) AS manual_fallback_jobs,
  count(*) FILTER (WHERE fresh AND NOT excluded AND above_threshold AND state_new AND NOT has_application)
-     AS candidates_before_adapter_cooldown_cv
+     AS candidates_before_adapter_cooldown_cv,
+ count(*) FILTER (WHERE NOT fresh AND NOT excluded AND above_threshold AND state_new AND NOT has_application)
+     AS outdated_above_threshold_without_application
 FROM base
 """)
 ADMIN_CANDIDATE_SAMPLE_QUERY = text(ADMIN_CANDIDATES_BASE + """
