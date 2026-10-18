@@ -2785,3 +2785,53 @@ def test_new_shared_sources_remain_unscheduled_until_explicit_enable(monkeypatch
             assert db.scalar(select(func.count()).select_from(Job)) == 0
     finally:
         engine.dispose()
+
+
+def test_comeet_questionnaire_receipts_keep_diagnostics_bounded_without_private_tokens():
+    from agent.browser import _safe_hosted_response_diagnostics
+
+    candidate_token = 'private-candidate-token-' * 3000
+    response = {
+        'url': 'https://www.comeet.co/pub/questionnaires/complete-application/F2.004/'
+               + candidate_token + '?private=private-query',
+        'status': 200, 'text': 'private-answer-' * 6000, 'location': '',
+    }
+    diagnostic = _safe_hosted_response_diagnostics(response)
+    serialized = json.dumps(diagnostic)
+    assert len(serialized.encode('utf-8')) < 1024
+    assert 'private-candidate-token-' not in serialized
+    assert 'private-query' not in serialized
+    assert 'private-answer-' not in serialized
+    assert diagnostic['body_length'] == len(response['text'])
+
+
+def test_unavailable_comeet_posting_stops_before_another_form_or_progress_read(monkeypatch):
+    from agent import browser
+
+    class Page:
+        url = 'about:blank'
+
+        def set_default_timeout(self, _timeout):
+            pass
+
+        def goto(self, url, **_kwargs):
+            self.url = 'https://www.comeet.com/jobs/offline/86.00B'
+
+        def wait_for_timeout(self, _timeout):
+            pass
+
+    monkeypatch.setattr(browser, '_detect_captcha', lambda _page: None)
+
+    def unexpected_form_read(*_args, **_kwargs):
+        raise AssertionError('A redirected company listing must not start another form')
+
+    monkeypatch.setattr(browser, '_wait_for_application_ui', unexpected_form_read)
+    progress = []
+    with pytest.raises(browser.ApplicationBlocked) as caught:
+        browser.fill_application(Page(), {
+            'job': {'apply_url': 'https://www.comeet.com/jobs/offline/86.00B/data-analyst/F5.27C'},
+            'profile': {},
+        }, auto_submit=True, progress=lambda *event: progress.append(event))
+    assert [event[0] for event in progress] == ['page_opened']
+    assert caught.value.diagnostics == {'reason': 'comeet_position_redirected_to_listing'}
+    assert len(json.dumps(caught.value.diagnostics).encode()) < 128

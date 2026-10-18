@@ -13,7 +13,9 @@ from pathlib import Path
 import httpx
 from playwright.sync_api import sync_playwright
 
-from .browser import ApplicationBlocked, fill_application
+from .browser import (
+    ApplicationBlocked, _hosted_ats_name, _is_hosted_ats_submission_endpoint, fill_application,
+)
 from .config import (AGENT_CACHE_DIR, AGENT_ID, APPLICATION_ID, AUTO_SUBMIT, BASE_URL,
                      BROWSERBASE_API_KEY, BROWSER_PROFILE, HEADLESS, INTERACTIVE_BROWSER,
                      INTERACTIVE_SESSION_SECONDS, POLL_SECONDS, RUN_ONCE, SCREENSHOT_DIR,
@@ -334,6 +336,18 @@ def run_task(context, task: dict):
         page.bring_to_front()
     screenshot_path = ""
     keep_open_for_manual_submit = False
+    comeet_submission_sent = False
+    request_listener_attached = False
+
+    def capture_comeet_submission(request):
+        nonlocal comeet_submission_sent
+        try:
+            if (request.method.upper() == "POST" and _hosted_ats_name(request.url) == "Comeet"
+                    and _is_hosted_ats_submission_endpoint(request.url)):
+                comeet_submission_sent = True
+        except Exception:
+            pass
+
     try:
         # Background auto applications are already authorized to perform the final
         # submit. Do not downgrade them to review-only after an intermediate
@@ -343,6 +357,11 @@ def run_task(context, task: dict):
         submit_authorized = submission_is_authorized(task)
         prepare_resume(task)
         prepare_grade_sheet(task)
+        if hasattr(page, "on"):
+            # Keep the observation local even if progress reporting fails or a
+            # timeout interrupts the browser before it can classify the receipt.
+            page.on("request", capture_comeet_submission)
+            request_listener_attached = True
         def report_progress(stage, message, page_url):
             try:
                 api("POST", f"/api/agent/tasks/{application_id}/progress", json={
@@ -453,18 +472,28 @@ def run_task(context, task: dict):
             remote_screenshot = upload_screenshot(application_id, screenshot_path) if screenshot_path else ""
         except Exception as upload_exc:  # noqa: BLE001
             print(f"[screenshot upload warning] {upload_exc}", file=sys.stderr)
-        api("POST", f"/api/agent/tasks/{application_id}/recover",
-            json={"token": TOKEN, "attempt_id": attempt_id, "message": str(exc), "page_url": page.url,
-                  "screenshot_path": remote_screenshot or screenshot_path})
-        print(f"[recovered] {exc}", file=sys.stderr)
+        report = {"token": TOKEN, "attempt_id": attempt_id, "message": str(exc), "page_url": page.url,
+                  "screenshot_path": remote_screenshot or screenshot_path}
+        if comeet_submission_sent:
+            report["verification_state"] = "uncertain"
+        endpoint = "failed" if comeet_submission_sent else "recover"
+        api("POST", f"/api/agent/tasks/{application_id}/{endpoint}", json=report)
+        status = "verification pending" if comeet_submission_sent else "recovered"
+        print(f"[{status}] {exc}", file=sys.stderr)
     except Exception as exc:  # noqa: BLE001
         print(f"[failed] {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         api(
             "POST",
             f"/api/agent/tasks/{application_id}/failed",
-            json={"token": TOKEN, "attempt_id": attempt_id, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url},
+            json={"token": TOKEN, "attempt_id": attempt_id, "message": f"{type(exc).__name__}: {exc}", "page_url": page.url,
+                  **({"verification_state": "uncertain"} if comeet_submission_sent else {})},
         )
     finally:
+        if request_listener_attached:
+            try:
+                page.remove_listener("request", capture_comeet_submission)
+            except Exception:
+                pass
         if keep_open_for_manual_submit:
             if hasattr(page, "bring_to_front"):
                 page.bring_to_front()

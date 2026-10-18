@@ -2450,3 +2450,44 @@ budgets are unchanged. Disabled sources add no scheduled collection ingress.
 Behavioral regression tests cover disabled fresh installation, preservation of
 existing enabled/disabled choices and pending-adapter pauses, and an isolated
 canonical scan making zero collector calls for the disabled additions.
+
+## Comeet question context and submission receipts — October 18, 2026
+
+Question grouping and receipt detection run deterministically in the existing
+browser session. Recognizing the native post-application questionnaire endpoint
+adds no Supabase calls, rows, Storage downloads, polling, schedules, scans or
+document delivery. Idle calls/bytes remain zero/hour/day. Existing question
+and progress/report budgets remain in force; no new status field is polled.
+The new completion route reuses the already-reported submit click rather than
+sending the redundant `submit_request_sent` progress POST (the existing API maps
+both stages to the same event). Ordinary application progress is unchanged.
+The worker keeps only a local Boolean for an observed trusted Comeet POST. A
+timeout/crash after that POST uses the existing uncertain-failure report instead
+of the ordinary recovery report; it adds no API call, database lookup or retry.
+Existing confirmation diagnostics retain at most three outgoing URLs and three
+response summaries. The additional `request_sent` boolean costs at most 24
+serialized bytes/report (120 bytes/hour or 2,880 bytes/day at five reports/hour;
+this is a planning frequency, not a new enforced call cap).
+
+Questionnaire URLs have their candidate token replaced and query/fragment
+removed before progress or receipt diagnostics are recorded. A token growing
+past 64 KiB still produces a summary under 1 KiB in the bounded-payload regression;
+Comeet redirect locations are omitted because they can embed that token in
+absolute or relative URLs and are not needed for its status-based receipt.
+raw response bodies and entered answers remain omitted. No catalog or production
+database read is required by these changes. Local regression tests intercept all
+browser traffic; the investigation made only bounded public Comeet GETs, with no
+CV upload or employer submission.
+
+### Unavailable Comeet vacancy redirect — October 18, 2026
+
+The worker compares the already-requested native vacancy identity with its final
+URL. A redirect to that employer's company listing stops before any form search,
+other-vacancy navigation, profile fill or submission. This adds zero Supabase
+queries, Storage requests, employer requests or polling per attempt/hour/day.
+The only added diagnostic metadata is a constant reason under 128 serialized
+bytes (640 bytes/hour or 15 KiB/day at five such attempts/hour); it
+does not add a report call or transfer catalog/job descriptions. Its existing
+page-open progress is unchanged. Regressions prove the early stop and preserve
+the working active-vacancy path. No production row or study-track setting is
+changed, and there is no backfill or bulk scan.

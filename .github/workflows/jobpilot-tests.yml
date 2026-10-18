@@ -17,6 +17,7 @@ on:
           - ranking
           - scan_resources
           - applications
+          - comeet
       runner_mode:
         description: Runner for focused user-limit tests
         required: true
@@ -35,7 +36,7 @@ concurrency:
 
 jobs:
   test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' || inputs.test_scope == 'comeet' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -132,6 +133,29 @@ jobs:
           tests/test_elad_queue.py
           tests/test_gstat_submission.py
           tests/test_gstat_queue.py
+
+      - name: Run focused Comeet release tests
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'comeet' }}
+        run: >-
+          python -m pytest -q -n 4
+          tests/test_agent_browser_flow.py
+          tests/test_agent_radio_question_context.py
+          tests/test_comeet_submission_receipts.py
+          tests/test_comeet_worker_recovery.py
+          tests/test_comeet_unavailable_posting.py
+          tests/test_uncertain_submission_report_recovery.py
+          tests/test_agent_one_time_approval.py
+          tests/test_agent_resume_delivery.py
+          tests/test_agent_live_question_wait.py
+          tests/test_agent_live_question_browser.py
+          tests/test_live_question_resume_integration.py
+          tests/test_application_choice_blocker_ui.py
+          tests/test_application_submit_progress.py
+          tests/test_dynamic_official_api_adapters.py
+          tests/test_auto_apply_expansion_v037.py
+          tests/test_supabase_egress_optimization.py::test_submit_progress_duplicate_check_reads_one_projected_event
+          tests/test_supabase_egress_optimization.py::test_comeet_questionnaire_receipts_keep_diagnostics_bounded_without_private_tokens
+          tests/test_supabase_egress_optimization.py::test_unavailable_comeet_posting_stops_before_another_form_or_progress_read
 
   browser-agent:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}

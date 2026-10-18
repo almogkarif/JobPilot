@@ -255,6 +255,13 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
     if progress:
         progress("page_opened", "עמוד ההגשה נפתח ברקע", page.url)
     _detect_captcha(page)
+    if _comeet_position_redirected_to_listing(job["apply_url"], page.url):
+        raise ApplicationBlocked(
+            "application_form_missing", "זמינות המשרה", "המשרה אינה זמינה בקישור המקורי",
+            "אתר המעסיק הפנה מעמוד המשרה לרשימת המשרות של החברה. "
+            "ייתכן שהמשרה נסגרה או שהקישור השתנה. לא נשלחה מועמדות ולא תיבחר משרה אחרת במקומה.",
+            page.url, diagnostics={"reason": "comeet_position_redirected_to_listing"},
+        )
 
     if one_careers_job_id(job["apply_url"]):
         from .one import fill_one_application
@@ -626,7 +633,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             if field_type in {"radio", "checkbox"} and candidate is None:
                 group_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
                 for saved_question, saved_answer in answers.items():
-                    if normalize(saved_question) in group_options and normalize(str(saved_answer)) in group_options:
+                    saved_key = normalize(saved_question)
+                    if (saved_key not in {"yes", "no", "כן", "לא", "true", "false", "0", "1"}
+                            and saved_key in group_options and normalize(str(saved_answer)) in group_options):
                         candidate = CandidateValue(str(saved_answer), "resolved_choice_group")
                         break
                 if candidate is None:
@@ -886,7 +895,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     if request.method.upper() == "POST" and _is_lever_submission_endpoint(request.url):
                         lever_submit_requests.append(request.url)
                     if request.method.upper() == "POST" and _is_hosted_ats_submission_endpoint(request.url):
-                        hosted_submit_requests.append(request.url)
+                        hosted_submit_requests.append(_safe_hosted_submission_url(request.url))
                 except Exception:
                     pass
 
@@ -905,8 +914,12 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                             location = response.header_value("location") or ""
                         except Exception:
                             pass
+                        # Comeet classifies receipts by its response status;
+                        # redirects can contain private candidate tokens.
+                        if _hosted_ats_name(response.url) == "Comeet":
+                            location = ""
                         hosted_submit_responses.append({
-                            "url": response.url, "status": response.status,
+                            "url": _safe_hosted_submission_url(response.url), "status": response.status,
                             "text": payload_text[:100_000], "location": location,
                         })
                     if not _is_lever_submission_endpoint(response.url):
@@ -1005,11 +1018,17 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     progress("submit_request_sent", "בקשת ההגשה נשלחה ל־Lever", lever_submit_requests[-1])
                     post_reported = True
                 if hosted_submit_requests and progress and not post_reported:
-                    progress("submit_request_sent", f"בקשת ההגשה נשלחה ל־{_hosted_ats_name(hosted_submit_requests[-1])}", hosted_submit_requests[-1])
+                    # The server folds this into the already-reported submit
+                    # click. Don't add a redundant API read for the new followup.
+                    if not urlparse(hosted_submit_requests[-1]).path.startswith("/pub/questionnaires/complete-application/"):
+                        progress("submit_request_sent", f"בקשת ההגשה נשלחה ל־{_hosted_ats_name(hosted_submit_requests[-1])}", hosted_submit_requests[-1])
                     post_reported = True
                 if not network_error and lever_submit_failures:
                     network_error = f"Lever submission request failed: {lever_submit_failures[-1]}"
-                if not network_error and hosted_submit_failures:
+                comeet_transport_failure = bool(hosted_submit_failures) and any(
+                    _hosted_ats_name(url) == "Comeet" for url in hosted_submit_requests
+                )
+                if not network_error and hosted_submit_failures and not comeet_transport_failure:
                     hosted_name = _hosted_ats_name(page.url)
                     network_error = f"{hosted_name} submission request failed: {hosted_submit_failures[-1]}"
                 if network_evidence or network_error:
@@ -1023,6 +1042,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     )
                 confirmation_text = _success_evidence(page)
                 if confirmation_text:
+                    break
+                # A lost response can follow a committed Comeet application.
+                # Keep it pending verification instead of authorizing a retry.
+                if comeet_transport_failure:
                     break
                 page.wait_for_timeout(500)
             if network_evidence:
@@ -1120,6 +1143,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 "נצפתה בקשת Submit, אך לא התקבלה תשובת קבלה חד־משמעית ולא זוהה מסך אישור. "
                 "כדי למנוע הגשה כפולה JobPilot לא ישלח שוב אוטומטית ללא ראיה חדשה.", page.url,
                 diagnostics={
+                    "request_sent": bool(hosted_submit_requests or lever_submit_requests),
                     "hosted_requests": hosted_submit_requests[-3:],
                     "hosted_responses": [_safe_hosted_response_diagnostics(item) for item in hosted_submit_responses[-3:]],
                     "hosted_failures": hosted_submit_failures[-3:],
@@ -1676,13 +1700,20 @@ def _extract_fields(page: Page) -> list[dict]:
             if (el.getAttribute('aria-hidden') === 'true' || el.hidden) return false;
             if (style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0) return true;
             if (!['radio', 'checkbox', 'file'].includes((el.type || '').toLowerCase())) return false;
-            const associated = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : el.closest('label');
+            const associated = (el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null) || el.closest('label');
             if (!associated) return false;
             const labelStyle = getComputedStyle(associated), labelRect = associated.getBoundingClientRect();
             return labelStyle.display !== 'none' && labelStyle.visibility !== 'hidden' && labelRect.width > 0 && labelRect.height > 0;
           });
-          return elements.map((el, index) => {
+          allElements.forEach((el, index) => {
             if (!el.dataset.jobpilotId) el.dataset.jobpilotId = `jp-${index}-${Math.random().toString(36).slice(2)}`;
+          });
+          const optionLabel = option => {
+            const node = (option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : null) || option.closest('label');
+            return (node?.innerText || option.getAttribute('aria-label') || option.value || '').replace(/\s+/g, ' ').trim();
+          };
+          const genericChoices = /^(?:yes|no|כן|לא)(?:\s*(?:yes|no|כן|לא))*[\s*]*$/i;
+          return elements.map((el, index) => {
             const id = el.id;
             let label = '';
             if (id) {
@@ -1726,37 +1757,60 @@ def _extract_fields(page: Page) -> list[dict]:
             }
             let groupLabel = '';
             const choiceType = (el.type || '').toLowerCase();
-            const peers = ['radio', 'checkbox'].includes(choiceType) && el.name
-              ? [...document.querySelectorAll(`input[type="${choiceType}"][name="${CSS.escape(el.name)}"]`)]
+            let peers = ['radio', 'checkbox'].includes(choiceType) && el.name
+              ? [...root.querySelectorAll(`input[type="${choiceType}"][name="${CSS.escape(el.name)}"]`)].filter(peer => peer.form === el.form)
               : [el];
+            const groupSelector = 'fieldset, [role="radiogroup"], [role="group"], .application-question, .ashby-application-form-question, [class*="question"]';
+            if (choiceType === 'checkbox' && peers.length === 1) {
+              // Comeet MULTI_SELECT uses question-title_0, question-title_1,
+              // ... instead of one native name. Restrict these siblings to
+              // their own question, leaving standalone consents independent.
+              const base = el.name.match(/^(.+)_\d+$/)?.[1];
+              const container = base ? el.closest(groupSelector) : null;
+              const indexed = container ? [...container.querySelectorAll('input[type="checkbox"]')]
+                .filter(peer => peer.form === el.form && peer.name.match(/^(.+)_\d+$/)?.[1] === base) : [];
+              if (indexed.length > 1) peers = indexed;
+            }
+            let group = null;
             if (choiceType === 'radio' || (choiceType === 'checkbox' && peers.length > 1)) {
+              group = el.closest(groupSelector);
+              // A class such as question-option describes one answer, not the
+              // question. Keep walking until the container owns all its peers.
+              while (group && (!peers.every(peer => group.contains(peer)) || (
+                choiceType === 'radio' && peers.length === 1 && group.querySelectorAll('input[type="radio"]').length < 2
+              ))) group = group.parentElement?.closest(groupSelector) || null;
+              if (choiceType === 'radio' && peers.length === 1 && group) {
+                const grouped = [...group.querySelectorAll('input[type="radio"]')].filter(peer => peer.form === el.form);
+                // Explicit question containers can group nameless/custom radios.
+                // Do not absorb another independent native name-based group.
+                if (grouped.length > 1 && grouped.every(peer => !peer.name || grouped.filter(other => other.name === peer.name).length === 1)) peers = grouped;
+              }
               let common = peers[0] || el;
               while (common && !peers.every(peer => common.contains(peer))) common = common.parentElement;
-              const group = el.closest('fieldset, [role="radiogroup"], .application-question, .ashby-application-form-question, [class*="question"]') || common;
+              group = group || common;
               if (group) {
                 const direct = group.querySelector('legend, [role="heading"], .application-label, [class*="question-title"], [class*="questionTitle"]');
-                groupLabel = (direct?.innerText || '').replace(/\s+/g, ' ').trim();
+                const labelledBy = (group.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+                groupLabel = (labelledBy.map(ref => document.getElementById(ref)?.innerText || '').filter(Boolean).join(' ')
+                  || group.getAttribute('aria-label') || direct?.innerText || '').replace(/\s+/g, ' ').trim();
                 if (!groupLabel) {
-                  const optionLabels = new Set([...group.querySelectorAll('label')].map(node => (node.innerText || '').replace(/\s+/g, ' ').trim()));
+                  const optionLabels = new Set(peers.map(optionLabel));
                   const lines = (group.innerText || '').split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
-                  groupLabel = lines.find(value => value.length >= 3 && value.length <= 300 && !optionLabels.has(value)) || '';
+                  groupLabel = lines.find(value => value.length >= 3 && value.length <= 300 && !optionLabels.has(value) && !genericChoices.test(value)) || '';
                 }
                 if (!groupLabel && common) {
-                  const optionLabels = new Set(peers.map(option => {
-                    const node = option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : option.closest('label');
-                    return (node?.innerText || option.value || '').replace(/\s+/g, ' ').trim();
-                  }));
+                  const optionLabels = new Set(peers.map(optionLabel));
                   let context = common;
                   for (let depth = 0; context && depth < 4 && !groupLabel; depth++, context = context.parentElement) {
                     const raw = (context.innerText || '').trim();
                     if (raw.length > 1600) continue;
                     const lines = raw.split(/\n+/).map(value => value.replace(/\s+/g, ' ').trim()).filter(Boolean);
                     groupLabel = lines.find(value => value.length >= 4 && value.length <= 500
-                      && !optionLabels.has(value) && !/^(required|optional|yes|no)$/i.test(value)) || '';
+                      && !optionLabels.has(value) && !genericChoices.test(value) && !/^(required|optional)$/i.test(value)) || '';
                     let sibling = context.previousElementSibling;
                     for (let hops = 0; sibling && hops < 3 && !groupLabel; hops++, sibling = sibling.previousElementSibling) {
                       const text = (sibling.innerText || '').replace(/\s+/g, ' ').trim();
-                      if (text.length >= 4 && text.length <= 500) groupLabel = text;
+                      if (text.length >= 4 && text.length <= 500 && !genericChoices.test(text)) groupLabel = text;
                     }
                   }
                 }
@@ -1787,11 +1841,8 @@ def _extract_fields(page: Page) -> list[dict]:
             label = (label || '').replace(/\s+/g, ' ').trim().slice(0, 300);
             let options = [];
             if (el.tagName === 'SELECT') options = [...el.options].map(o => o.text.trim()).filter(Boolean);
-            if ((el.type === 'radio' || el.type === 'checkbox') && el.name) {
-              options = [...document.querySelectorAll(`input[name="${CSS.escape(el.name)}"]`)].map(option => {
-                const optionLabel = option.id ? document.querySelector(`label[for="${CSS.escape(option.id)}"]`) : option.closest('label');
-                return (optionLabel?.innerText || option.value || '').replace(/\s+/g, ' ').trim();
-              }).filter(Boolean);
+            if (choiceType === 'radio' || choiceType === 'checkbox') {
+              options = peers.map(optionLabel).filter(Boolean);
             }
             if (!options.length) {
               const optionHost = el.closest('[data-jobpilot-options]');
@@ -1814,7 +1865,7 @@ def _extract_fields(page: Page) -> list[dict]:
             // choice as actionable when its associated label is visibly clickable.
             let labelledChoiceVisible = false;
             if (!semanticallyHidden && ['radio', 'checkbox'].includes((el.type || '').toLowerCase())) {
-              const choiceLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : el.closest('label');
+              const choiceLabel = (id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null) || el.closest('label');
               if (choiceLabel) {
                 const labelStyle = window.getComputedStyle(choiceLabel), labelRect = choiceLabel.getBoundingClientRect();
                 labelledChoiceVisible = labelStyle.display !== 'none' && labelStyle.visibility !== 'hidden' && labelRect.width > 0 && labelRect.height > 0;
@@ -1835,13 +1886,16 @@ def _extract_fields(page: Page) -> list[dict]:
               class_name: typeof el.className === 'string' ? el.className.slice(0, 300) : '',
               label,
               group_label: groupLabel.slice(0, 500),
+              choice_selectors: ['radio', 'checkbox'].includes(choiceType)
+                ? peers.map(peer => `[data-jobpilot-id="${peer.dataset.jobpilotId}"]`) : [],
               file_context: fileContext,
               file_container_selector: fileContainerSelector,
               file_container_visible: fileContainerVisible,
               placeholder: el.placeholder || '',
               accept: el.getAttribute('accept') || '',
               multiple: !!el.multiple,
-              required: !!el.required || el.getAttribute('aria-required') === 'true',
+              required: !!el.required || el.getAttribute('aria-required') === 'true'
+                || (choiceType === 'radio' && group?.getAttribute('aria-required') === 'true'),
               disabled: el.matches(':disabled'),
               checked: !!el.checked,
               value: el.value || '',
@@ -1854,9 +1908,17 @@ def _extract_fields(page: Page) -> list[dict]:
     )
 
 
+def _binary_choice_options(options: list[str]) -> bool:
+    prefixes = {normalize(option).split(" ", 1)[0] for option in options if normalize(option)}
+    positive, negative = {"yes", "true", "כן", "1"}, {"no", "false", "לא", "0"}
+    return bool(prefixes & positive and prefixes & negative and prefixes <= positive | negative)
+
+
 def _choice_candidate_is_compatible(field: dict, desired: str | bool) -> bool:
     """Reject profile text accidentally mapped into a closed Yes/No/choice field."""
     if isinstance(desired, bool):
+        if field.get("type") == "checkbox" and len(set(field.get("options") or [])) > 1:
+            return _binary_choice_options(field["options"])
         return True
     desired_key = normalize(str(desired))
     if not desired_key:
@@ -1884,9 +1946,11 @@ def _choice_group_has_selection(locator: Locator, field: dict) -> bool:
             field.get("type") == "checkbox" and len(unique_options) > 1
         ):
             return bool(locator.evaluate(
-                """el => el.name
-                    ? [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].some(peer => peer.name === el.name && peer.checked)
-                    : !!el.checked"""
+                """(el, selectors) => selectors.length
+                    ? selectors.some(selector => document.querySelector(selector)?.checked)
+                    : el.name ? [...document.querySelectorAll('input[type=radio], input[type=checkbox]')]
+                        .some(peer => peer.name === el.name && peer.type === el.type && peer.form === el.form && peer.checked)
+                    : !!el.checked""", field.get("choice_selectors") or [],
             ))
         return bool(locator.is_checked(timeout=1_000))
     except Exception:
@@ -1915,15 +1979,22 @@ def _set_boolean(locator: Locator, desired: str | bool, field: dict) -> None:
     desired_bool = desired if isinstance(desired, bool) else desired_key in {"true", "yes", "כן", "1"}
     unique_options = {normalize(option) for option in field.get("options", []) if normalize(option)}
     grouped_checkbox = field.get("type") == "checkbox" and len(unique_options) > 1
-    if grouped_checkbox and not isinstance(desired, bool):
+    binary_group = grouped_checkbox and _binary_choice_options(field.get("options") or [])
+    if grouped_checkbox and isinstance(desired, bool) and not binary_group:
+        return
+    if grouped_checkbox and (not isinstance(desired, bool) or binary_group):
         option = normalize(" ".join([field.get("value", ""), field.get("label", "")]))
-        selected = bool(desired_key and (option == desired_key or option.endswith(" " + desired_key)))
+        if binary_group and (isinstance(desired, bool) or desired_key in {"yes", "no", "true", "false", "כן", "לא", "0", "1"}):
+            option_prefix = normalize(field.get("label") or field.get("value") or "").split(" ", 1)[0]
+            selected = option_prefix in ({"yes", "true", "כן", "1"} if desired_bool else {"no", "false", "לא", "0"})
+        else:
+            selected = bool(desired_key and (option == desired_key or option.endswith(" " + desired_key)))
         if selected and not field.get("checked"):
             try:
                 locator.check(force=True, timeout=2_000)
             except Exception:
                 _toggle_custom_checkbox(locator, True)
-        elif not selected and field.get("checked"):
+        elif binary_group and not selected and field.get("checked"):
             locator.uncheck(force=True, timeout=2_000)
         return
     if field.get("type") in {"radio", "checkbox"} and not isinstance(desired, bool) and desired_key not in {
@@ -2039,11 +2110,14 @@ def _select_best(locator: Locator, value: str) -> bool:
 def _small_choice_options(field: dict) -> list[str]:
     """Return compact, user-selectable choices for a closed required question.
 
-    We intentionally keep this narrow: radio groups and native selects only,
+    We intentionally keep this narrow: radio/Yes-No checkbox groups and native selects,
     with a small number of real options. Large selects (country, school, etc.)
-    and free-text/checkbox fields keep the normal blocker flow.
+    and free-text/standalone checkbox fields keep the normal blocker flow.
     """
-    if field.get("type") != "radio" and field.get("tag") != "select":
+    binary_checkboxes = (field.get("type") == "checkbox"
+                        and len(field.get("choice_selectors") or []) > 1
+                        and _binary_choice_options(field.get("options") or []))
+    if field.get("type") != "radio" and field.get("tag") != "select" and not binary_checkboxes:
         return []
     cleaned: list[str] = []
     seen: set[str] = set()
@@ -2061,7 +2135,12 @@ def _dedupe_unknown(fields: list[dict]) -> list[dict]:
     result = []
     seen = set()
     for field in fields:
-        key = normalize(field.get("label") or field.get("name") or field.get("placeholder"))
+        label = normalize(_display_field_label(field))
+        selectors = tuple(field.get("choice_selectors") or [])
+        if field.get("type") == "radio" or (field.get("type") == "checkbox" and len(selectors) > 1):
+            key = (field.get("type"), selectors or field.get("name") or label)
+        else:
+            key = normalize(field.get("label") or field.get("name") or field.get("placeholder"))
         if not key or key in seen:
             continue
         seen.add(key)
@@ -2596,6 +2675,21 @@ def _click_action(page: Page, candidate: Locator) -> None:
         except PlaywrightTimeoutError:
             pass
     page.wait_for_timeout(1000)
+
+
+def _comeet_position_redirected_to_listing(requested_url: str, current_url: str) -> bool:
+    """Never replace a specific Comeet vacancy with a company-list Apply link."""
+    original, current = urlparse(requested_url), urlparse(current_url)
+    hosts = {"comeet.com", "www.comeet.com", "comeet.co", "www.comeet.co"}
+    if (original.hostname or "").casefold() not in hosts or (current.hostname or "").casefold() not in hosts:
+        return False
+    uid = r"[A-Za-z0-9]{2}\.[A-Za-z0-9]{3}"
+    posting = re.fullmatch(rf"/jobs/[^/]+/({uid})/[^/]+/{uid}/?", original.path)
+    native_form = re.fullmatch(rf"/jobs/({uid})/{uid}/apply/?", original.path)
+    identity = posting or native_form
+    return bool(identity and re.fullmatch(
+        rf"/jobs/(?:[^/]+/)?{re.escape(identity[1])}/?", current.path, flags=re.I,
+    ))
 
 
 def _enter_comeet_embedded_form(page: Page) -> bool:
@@ -3902,6 +3996,8 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
     if host in {"comeet.co", "www.comeet.co"}:
         return bool(re.fullmatch(
             r"/careers-api/1\.0/company/[^/]+/positions/[^/]+/apply", path,
+        ) or re.fullmatch(
+            r"/pub/questionnaires/complete-application/[^/]+/[^/]+", path,
         ))
     if host == "niloo-server.herokuapp.com":
         return path == "/actions-elbit"
@@ -3914,6 +4010,18 @@ def _is_hosted_ats_submission_endpoint(url: str) -> bool:
     if operation in {"submitapplicationform", "apisubmitapplicationform"}:
         return True
     return operation.startswith("apisubmit") and "form" in operation and "action" in operation
+
+
+def _safe_hosted_submission_url(url: str) -> str:
+    """Keep Comeet questionnaire candidate tokens out of progress and receipts."""
+    parsed = urlparse(str(url or ""))
+    if (parsed.hostname or "").casefold() in {"", "comeet.co", "www.comeet.co"}:
+        completion = re.fullmatch(
+            r"(/pub/questionnaires/complete-application/[^/]+/)[^/]+/?", parsed.path, flags=re.I,
+        )
+        if completion:
+            return parsed._replace(path=completion[1] + "redacted", query="", fragment="").geturl()
+    return str(url or "")
 
 
 def _hosted_ats_name(url: str) -> str:
@@ -4097,6 +4205,10 @@ def _hosted_ats_submission_responses_result(*, responses: list) -> tuple[str, st
 def _safe_hosted_response_diagnostics(response: dict) -> dict:
     """Keep response structure useful without logging application content."""
     text = str(response.get("text") or "")
+    response_url = str(response.get("url") or "")
+    location = response.get("location")
+    if _hosted_ats_name(response_url) == "Comeet" or not urlparse(response_url).hostname:
+        location = ""  # Never expose candidate redirects, including relative records.
     typenames = list(dict.fromkeys(re.findall(r'"__typename"\s*:\s*"([A-Za-z0-9_]+)"', text)))[:12]
     action_keys = list(dict.fromkeys(re.findall(
         r'"(submit[A-Za-z0-9_]{1,80}Action)"\s*:', text
@@ -4111,8 +4223,8 @@ def _safe_hosted_response_diagnostics(response: dict) -> dict:
         if isinstance(item, dict) and str(item.get("message") or "").strip()
     ]
     return {
-        "url": response.get("url"), "status": response.get("status"),
-        "location": response.get("location"), "body_length": len(text),
+        "url": _safe_hosted_submission_url(response_url), "status": response.get("status"),
+        "location": location, "body_length": len(text),
         "typenames": typenames, "submit_action_keys": action_keys,
         "ashby_result_keys": ashby_result_keys, "graphql_error_count": len(graphql_errors),
         "graphql_error_messages": graphql_error_messages,
