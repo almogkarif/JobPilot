@@ -117,6 +117,41 @@ def test_solaredge_fills_and_submits_only_the_matching_child_form(page, tmp_path
         assert page.evaluate('window.startClicks') == 1
 
 
+def test_hidden_solaredge_child_waits_for_its_native_start_button(page, tmp_path, monkeypatch):
+    requests = _routes(page, [OTHER_FORM, WRONG_JOB, FORM], hidden=True)
+    original_role = page.get_by_role
+    original_wait = page.wait_for_timeout
+    start_checked = False
+    start_revealed = False
+
+    def get_by_role(role, **kwargs):
+        nonlocal start_checked
+        name = kwargs.get('name')
+        if role == 'button' and hasattr(name, 'pattern') and 'apply for this job' in name.pattern:
+            if not start_checked:
+                start_checked = True
+                page.locator('#native-start').evaluate('el => el.style.display = "none"')
+        return original_role(role, **kwargs)
+
+    def wait(delay):
+        nonlocal start_revealed
+        if delay == 250 and start_checked and not start_revealed:
+            page.locator('#native-start').evaluate('el => el.style.display = "block"')
+            start_revealed = True
+        return original_wait(delay)
+
+    monkeypatch.setattr(page, 'get_by_role', get_by_role)
+    monkeypatch.setattr(page, 'wait_for_timeout', wait)
+    result = fill_application(page, _task(tmp_path), auto_submit=True)
+    assert result['submitted'] and start_revealed
+    assert page.url == POSTING and page.evaluate('window.startClicks') == 1
+    matching = next(frame for frame in page.frames if frame.url == FORM)
+    assert matching.locator('[name=resume]').evaluate('el => el.files[0].name') == 'synthetic-resume.pdf'
+    assert matching.evaluate('window.submitClicks') == 1
+    assert [entry for entry in requests if entry[0] == 'POST'] == [('POST', ENDPOINT)]
+    assert page.locator('#outer-email').input_value() == ''
+
+
 @pytest.mark.parametrize('frame_url,unready', [(OTHER_FORM, False), (WRONG_JOB, False), (FORM, True)])
 def test_unmatched_or_unready_solaredge_frame_cannot_start_an_application(
     page, tmp_path, monkeypatch, frame_url, unready,
@@ -180,6 +215,64 @@ def test_detached_child_after_submit_uses_the_captured_receipt_or_remains_uncert
         assert fill_application(page, _task(tmp_path), auto_submit=True)['submitted']
     assert page.url == POSTING
     assert not any(frame.url == FORM for frame in page.frames)
+    assert [entry for entry in requests if entry[0] == 'POST'] == [('POST', ENDPOINT)]
+
+
+def test_detached_solaredge_child_observes_its_delayed_response_without_reading_the_body(
+    page, tmp_path, monkeypatch,
+):
+    requests = _routes(page, [FORM], detach_after_post=True)
+    original_on = page.on
+    original_wait = page.wait_for_timeout
+    original_load = page.wait_for_load_state
+    delayed = []
+    delivered = []
+    body_reads = []
+
+    class DeferredResponse:
+        def __init__(self, response):
+            self.response = response
+
+        def text(self):
+            body_reads.append(True)
+            return self.response.text()
+
+        def __getattr__(self, name):
+            return getattr(self.response, name)
+
+    def on(event, callback):
+        if event == 'response':
+            def defer(response):
+                if response.request.method == 'POST' and response.url == ENDPOINT:
+                    delayed.append((callback, DeferredResponse(response)))
+                else:
+                    callback(response)
+            return original_on(event, defer)
+        return original_on(event, callback)
+
+    def wait(delay):
+        result = original_wait(delay)
+        if delay == 500 and delayed:
+            assert not any(frame.url == FORM for frame in page.frames)
+            while delayed:
+                callback, response = delayed.pop(0)
+                callback(response)
+                delivered.append(True)
+        return result
+
+    def load(*args, **kwargs):
+        result = original_load(*args, **kwargs)
+        if any(method == 'POST' for method, _url in requests):
+            page.locator(f'iframe[src="{FORM}"]').wait_for(state='detached')
+        return result
+
+    monkeypatch.setattr(page, 'on', on)
+    monkeypatch.setattr(page, 'wait_for_timeout', wait)
+    monkeypatch.setattr(page, 'wait_for_load_state', load)
+    result = fill_application(page, _task(tmp_path), auto_submit=True)
+    assert result['submitted'] and 'Comeet accepted' in result['confirmation_text']
+    assert delivered == [True] and body_reads == []
+    assert page.url == POSTING and not any(frame.url == FORM for frame in page.frames)
     assert [entry for entry in requests if entry[0] == 'POST'] == [('POST', ENDPOINT)]
 
 

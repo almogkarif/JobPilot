@@ -78,6 +78,13 @@ remain unchanged; an explicit full screenshot view still has that existing
 Offline browser and shared egress regressions verify one posting GET, one form
 GET, one Submit POST, one CV attachment and progress under 16 KiB, plus exact
 identity, wrong-frame receipts and detached-frame handling.
+Native Apply readiness is rechecked within the same 20-poll limit and clicked at
+most once. Accepted Comeet receipts record status without fetching a response
+body or redirect header. If the exact child disappears after POST, only the
+original Page is observed within the existing 60-second deadline; settled/lost
+requests receive at most three seconds for delivery. No DOM action or retry is
+added. Unavailable-form diagnostics add only three structural booleans/counts,
+under 256 bytes within the existing blocker payload allowance.
 
 A controlled live worker test on the separate Embedded Infrastructure Engineer
 vacancy retained that normal embedded flow and received three native HTTP 423

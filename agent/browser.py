@@ -910,19 +910,22 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                         return
                     if _is_hosted_ats_submission_endpoint(response.url):
                         payload_text = ""
-                        try:
-                            payload_text = response.text()
-                        except Exception:
-                            pass
+                        comeet = _hosted_ats_name(response.url) == "Comeet"
+                        # Comeet's accepted receipt is status-only. Reading its
+                        # body can yield to a frame-detach event before recording it.
+                        if not (comeet and 200 <= response.status < 300):
+                            try:
+                                payload_text = response.text()
+                            except Exception:
+                                pass
                         location = ""
-                        try:
-                            location = response.header_value("location") or ""
-                        except Exception:
-                            pass
                         # Comeet classifies receipts by its response status;
                         # redirects can contain private candidate tokens.
-                        if _hosted_ats_name(response.url) == "Comeet":
-                            location = ""
+                        if not comeet:
+                            try:
+                                location = response.header_value("location") or ""
+                            except Exception:
+                                pass
                         hosted_submit_responses.append({
                             "url": _safe_hosted_submission_url(response.url), "status": response.status,
                             "text": payload_text[:100_000], "location": location,
@@ -979,6 +982,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             security_code_completed = False
             comeet_response_count = -1
             comeet_rejection_waits = 0
+            detached_observations = 0
             # Ashby's GraphQL mutation can remain pending behind reCAPTCHA/device
             # fingerprinting for longer than 20 seconds. Keep the hidden browser
             # alive for up to a minute so we record the authoritative response
@@ -990,7 +994,20 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     )
                     if network_evidence:
                         break
-                    raise page.unavailable_blocker()
+                    if not page._request_sent:
+                        raise page.unavailable_blocker()
+                    # Removing the child can reach Playwright before its response
+                    # callback. Pump only the original Page, never another form.
+                    # Pending requests retain the existing one-minute deadline;
+                    # settled/lost requests get a short event-delivery grace.
+                    pending = len(hosted_submit_requests) > (
+                        len(hosted_submit_responses) + len(hosted_submit_failures)
+                    )
+                    if not pending and detached_observations >= 6:
+                        raise page.unavailable_blocker()
+                    detached_observations += 1
+                    page.wait_for_timeout(500)
+                    continue
                 _detect_captcha(page)
                 security_inputs = _greenhouse_security_code_inputs(page)
                 if security_inputs and not security_code_completed:
@@ -2852,23 +2869,17 @@ def _enter_comeet_embedded_form(page: Page, *, requested_url: str = "") -> bool 
                 "application_form_missing", "טופס ההגשה", "עמוד המשרה המקורי השתנה",
                 "עמוד המעסיק אינו תואם למשרה המבוקשת. לא תיפתח משרה אחרת במקומה.", page.url,
             )
-        existing = page.locator("iframe[src]")
-        has_frame = any(existing.nth(i).is_visible()
-                        and _comeet_apply_identity(urljoin(page.url, existing.nth(i).get_attribute("src") or "")) == identity
-                        for i in range(min(existing.count(), 20)))
-        if not has_frame:
-            starts = page.get_by_role("button", name=re.compile(r"^\s*apply for this job\s*$", re.I))
-            visible = [starts.nth(i) for i in range(min(starts.count(), 10)) if starts.nth(i).is_visible()]
-            if len(visible) == 1 and visible[0].is_enabled():
-                visible[0].click(timeout=3_000)
+        native_start_clicked = False
         for _ in range(20):
             matches = []
+            matching_visible = False
             candidates = page.locator("iframe[src]")
             for index in range(min(candidates.count(), 20)):
                 candidate = candidates.nth(index)
                 if _comeet_apply_identity(urljoin(page.url, candidate.get_attribute("src") or "")) != identity:
                     continue
                 if candidate.is_visible():
+                    matching_visible = True
                     candidate.scroll_into_view_if_needed(timeout=1_000)
                     element = candidate.element_handle(timeout=1_000)
                     frame = element.content_frame() if element else None
@@ -2879,11 +2890,22 @@ def _enter_comeet_embedded_form(page: Page, *, requested_url: str = "") -> bool 
                 return _ComeetEmbeddedFormSurface(page, matches[0], identity)
             if len(matches) > 1:
                 break
+            # A native start button may mount after the hidden child. Recheck
+            # readiness within this bounded wait, but click it at most once.
+            if not matching_visible and not native_start_clicked:
+                starts = page.get_by_role("button", name=re.compile(r"^\s*apply for this job\s*$", re.I))
+                visible = [starts.nth(i) for i in range(min(starts.count(), 10)) if starts.nth(i).is_visible()]
+                if len(visible) == 1 and visible[0].is_enabled():
+                    visible[0].click(timeout=3_000)
+                    native_start_clicked = True
             page.wait_for_timeout(250)
         raise ApplicationBlocked(
             "application_form_missing", "טופס ההגשה", "טופס המשרה המוטמע לא זוהה",
             "לא נמצא טופס Comeet זמין שתואם לחברה ולמשרה המבוקשות. לא תיפתח משרה אחרת במקומה.",
-            page.url, diagnostics={"reason": "comeet_embedded_frame_unavailable", "request_sent": False},
+            page.url, diagnostics={"reason": "comeet_embedded_frame_unavailable", "request_sent": False,
+                                   "native_start_clicked": native_start_clicked,
+                                   "matching_frame_visible": matching_visible,
+                                   "ready_frame_count": len(matches)},
         )
     for _ in range(20):
         try:
