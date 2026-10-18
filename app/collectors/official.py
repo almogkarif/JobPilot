@@ -52,6 +52,7 @@ def _comeet_preset(company_slug: str, board_id: str, company: str) -> dict:
         "hydrate_details": True,
         "max_detail_jobs": 160,
         "preserve_on_empty": True,
+        "verified_api_inventory": True,
         "network_id_keys": ("uid", "position_uid", "positionId", "id"),
         "network_id_pattern": r"[A-Za-z0-9][A-Za-z0-9.-]{2,40}",
         "network_title_keys": ("name", "title", "positionTitle", "jobTitle"),
@@ -459,6 +460,7 @@ class OfficialCareersCollector:
         if preset.get("data_url"):
             try:
                 rows = await _collect_data_rows(preset)
+                listed_external_ids = getattr(rows, "listed_external_ids", None)
             except PreserveExistingJobs:
                 raise
             except Exception as exc:
@@ -467,7 +469,7 @@ class OfficialCareersCollector:
                 rows = []
         if preset.get("http_first"):
             try:
-                if not rows:
+                if not rows and listed_external_ids is None:
                     rows = await _collect_static_rows(preset)
                     listed_external_ids = getattr(rows, "listed_external_ids", None)
                     rows = [row for row in rows if _resolve_row_href(row, preset)[1]]
@@ -936,10 +938,16 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
     endpoints = [str(preset["data_url"]), *(str(url) for url in preset.get("data_fallback_urls", ()))]
     response = None
     rows: list[dict] = []
+    inventory = None
     route = "direct"
     async with httpx.AsyncClient(follow_redirects=True, timeout=75.0, headers=headers) as client:
         for index, endpoint in enumerate(endpoints):
-            response = await client.get(endpoint)
+            response = await _bounded_detail_get(
+                client, endpoint, 4_000_000 if preset.get("verified_api_inventory") else None,
+            )
+            if preset.get("verified_api_inventory"):
+                response.raise_for_status()
+                inventory = _verified_comeet_feed_inventory(response, preset)
             if len(response.content) > 16_000_000:
                 raise RuntimeError("Official jobs feed exceeded the safe size limit")
             payload = response.text
@@ -949,7 +957,7 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
                     payload = wrapped.group(1)
             rows = _extract_structured_job_rows(payload, preset)
             route = "direct" if index == 0 else f"fallback-{index}"
-            if rows:
+            if rows or inventory is not None:
                 break
             if response.status_code >= 400 and index == len(endpoints) - 1:
                 response.raise_for_status()
@@ -960,10 +968,12 @@ async def _collect_data_rows(preset: dict) -> list[dict]:
             f"content_type={response.headers.get('content-type', '')[:80]}",
             flush=True,
         )
-        if not rows:
+        if not rows and inventory is None:
             raise PreserveExistingJobs(
                 f"{preset.get('company')} returned an empty or unrecognized official jobs feed"
             )
+    if inventory is not None:
+        return _OfficialListingRows([{**row, "_structured_description": True} for row in rows], inventory)
     return rows
 
 
@@ -1208,6 +1218,13 @@ def _verified_comeet_inventory(document: str, payload, preset: dict) -> tuple[st
     board = str(preset["url"]).rstrip("/")
     if not isinstance(company, dict) or str(company.get("url_comeet_hosted_page") or "").rstrip("/") != board:
         return None
+    return _comeet_inventory_ids(payload, preset)
+
+
+def _comeet_inventory_ids(payload, preset: dict) -> tuple[str, ...] | None:
+    if not isinstance(payload, list) or len(payload) > 2000:
+        return None
+    board = str(preset["url"]).rstrip("/")
     ids = []
     for position in payload:
         if not isinstance(position, dict):
@@ -1223,6 +1240,35 @@ def _verified_comeet_inventory(document: str, payload, preset: dict) -> tuple[st
             return None
         ids.append(external_id)
     return tuple(ids)
+
+
+def _verified_comeet_feed_inventory(response: httpx.Response, preset: dict) -> tuple[str, ...] | None:
+    """Only an unfiltered, successful native company API may prove absence."""
+    if (not preset.get("verified_api_inventory") or response.status_code != 200
+            or response.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json"
+            or response.headers.get("content-range") or response.headers.get("link")):
+        return None
+    board = urlparse(str(preset["url"]))
+    board_match = re.fullmatch(r"/jobs/[^/]+/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})", board.path.rstrip("/"))
+    endpoint = urlparse(str(preset.get("data_url") or ""))
+    final = urlparse(str(response.url))
+    query = parse_qs(endpoint.query, keep_blank_values=True)
+    if (not board_match or board.scheme != "https" or board.netloc != "www.comeet.com"
+            or endpoint.scheme != "https" or endpoint.netloc not in {"www.comeet.co", "www.comeet.com"}
+            or endpoint.path != f"/careers-api/2.0/company/{board_match.group(1)}/positions"
+            or set(query) != {"token", "details"} or query["details"] != ["true"]
+            or len(query["token"]) != 1 or not query["token"][0]
+            or (final.scheme, final.netloc, final.path) != (endpoint.scheme, endpoint.netloc, endpoint.path)
+            or parse_qs(final.query, keep_blank_values=True) != query):
+        return None
+    try:
+        payload = response.json()
+    except (ValueError, TypeError):
+        return None
+    # An exact cap may be a truncated server-side listing; preserve older jobs.
+    if isinstance(payload, list) and len(payload) >= 2000:
+        return None
+    return _comeet_inventory_ids(payload, preset)
 
 
 async def _collect_static_rows(preset: dict) -> list[dict]:
@@ -1381,7 +1427,11 @@ async def _bounded_detail_get(client, url: str, byte_limit: int | None):
                 if len(payload) + len(chunk) > byte_limit:
                     raise ValueError('Employer detail response exceeded byte limit')
                 payload.extend(chunk)
-            return httpx.Response(response.status_code, content=bytes(payload), request=response.request)
+            # aiter_bytes already decoded compression; do not decode that body twice.
+            headers = {key: value for key, value in response.headers.items()
+                       if key not in {"content-encoding", "content-length", "transfer-encoding"}}
+            return httpx.Response(response.status_code, content=bytes(payload), headers=headers,
+                                  request=response.request)
 
 
 async def _hydrate_detail_rows(rows: list[dict], preset: dict, *, retain_unavailable: bool = False) -> list[dict]:

@@ -171,8 +171,9 @@ def test_tracking_list_is_a_compact_payload_not_full_application_history():
         response = client.get("/api/applications/tracking-list", params={"current_id": 0})
     assert response.status_code == 200
     for row in response.json():
-        assert set(row) == {"id", "status", "mode", "attempt_count", "updated_at", "job"}
-        assert set(row["job"]) == {"title", "company"}
+        assert set(row) == {"id", "job_id", "status", "mode", "attempt_count", "updated_at", "job"}
+        assert set(row["job"]) == {"id", "title", "company"}
+        assert row["job_id"] == row["job"]["id"]
         assert "attempts" not in row
         assert "blocker" not in row
 

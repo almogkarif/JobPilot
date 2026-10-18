@@ -99,3 +99,50 @@ def test_explicit_review_question_stays_trackable_without_importing_review_queue
     db.get(Job, 3).is_active = False
     db.commit()
     assert 3 not in {row['id'] for row in client.get('/api/applications/tracking-list?current_id=3').json()}
+
+
+def test_tracking_keeps_job_identity_distinct_from_application_identity(live_visibility):
+    client, db = live_visibility
+    db.add(Job(id=2824, source_id=1, external_id='legal',
+               title='Legal Operations Specialist', company='Exodigo', location='Israel',
+               apply_url='https://www.comeet.com/jobs/exodigo/89.005/legal-operations-specialist/9D.17B'))
+    db.flush()
+    db.get(Application, 3).job_id = 2824
+    db.commit()
+    response = client.get('/api/applications/tracking-list')
+    assert response.status_code == 200, response.text
+    row = next(item for item in response.json() if item['id'] == 3)
+    assert row['job_id'] == row['job']['id'] == 2824
+    assert row['job']['title'] == 'Legal Operations Specialist'
+
+
+def test_old_track_question_can_remain_in_attention_after_catalog_reclassification(live_visibility, monkeypatch):
+    from pathlib import Path
+    import json
+
+    client, db = live_visibility
+    monkeypatch.setattr(main.settings, 'unified_catalog_preview', True)
+    monkeypatch.setattr(main.settings, 'database_url', 'sqlite://')
+    profile = db.get(Profile, 1)
+    profile.active_career_track = 'industrial_engineering'
+    fixture = next(item for item in json.loads(
+        (Path(__file__).parent / 'fixtures/track_classification/real_jobs.json').read_text()
+    ) if item['id'] == 'local-2824')
+    legal = db.get(Job, 3)
+    legal.title, legal.company, legal.description = fixture['title'], fixture['company'], fixture['description']
+    # The former source-based IEM association is not current JobTrack membership.
+    legal.career_track = 'industrial_engineering'
+    db.get(Application, 3).originating_track = 'industrial_engineering'
+    db.commit()
+
+    catalog = client.get('/api/jobs', params={'query': 'Legal Operations Specialist'})
+    assert catalog.status_code == 200, catalog.text
+    assert catalog.json() == []
+    queue = client.get('/api/applications/auto-queue')
+    assert queue.status_code == 200, queue.text
+    assert [item['id'] for item in queue.json()['attention']] == [3]
+    tracked = client.get('/api/applications/tracking-list').json()
+    assert next(item for item in tracked if item['id'] == 3)['job_id'] == legal.id
+    history = client.get('/api/applications/3/timeline')
+    assert history.status_code == 200, history.text
+    assert history.json()['application']['status'] == 'needs_input'

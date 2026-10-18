@@ -4427,7 +4427,7 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
     ).order_by(desc(Blocker.created_at), desc(Blocker.id)).limit(1).correlate(Application).scalar_subquery()
     rows = db.execute(
         select(
-            Application.id, Application.status, Application.mode, Application.attempt_count,
+            Application.id, Application.job_id, Application.status, Application.mode, Application.attempt_count,
             Application.updated_at, func.substr(Job.title, 1, 300).label("title"),
             func.substr(Job.company, 1, 200).label("company"),
             live_blocker.label("wait_until"), live_attempt.label("wait_attempt_id"),
@@ -4454,13 +4454,13 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
     ).all()
     return [
         {
-            "id": row.id, "status": row.status, "mode": row.mode,
+            "id": row.id, "job_id": row.job_id, "status": row.status, "mode": row.mode,
             "attempt_count": int(row.attempt_count or 0), "updated_at": row.updated_at,
             **({"wait_until": _question_time(row.wait_until),
                 "live_waiting": bool(row.status == "needs_input" and row.wait_until
                                      and _question_time(row.wait_until) > utcnow())}
                if row.wait_attempt_id else {}),
-            "job": {"title": row.title, "company": row.company},
+            "job": {"id": row.job_id, "title": row.title, "company": row.company},
         }
         for row in rows
     ]

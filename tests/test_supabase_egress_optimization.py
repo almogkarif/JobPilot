@@ -531,6 +531,8 @@ def test_personal_tracking_is_two_bounded_metadata_queries(personal_tracking):
     sql,params=statements[1]
     assert 'limit' in sql and 100 in params and 'alpha' in params
     assert 'substr(jobs.title' in sql and 'substr(jobs.company' in sql
+    assert 'applications.job_id' in sql.split('from', 1)[0]
+    assert all(row['job_id'] == row['job']['id'] for row in response.json())
     for sql,_ in statements:
         assert not any(field in sql for field in ('description','application_profile_json','extracted_text','evidence_json','answers_json'))
 
@@ -2383,6 +2385,29 @@ def test_cyera_inventory_reuses_one_bounded_public_board_request(monkeypatch):
     with pytest.raises(PreserveExistingJobs):
         asyncio.run(official.OfficialCareersCollector().collect('cyera'))
     assert calls == [BOARD]
+
+
+def test_comeet_api_inventory_reuses_one_bounded_public_feed_without_database_reads(monkeypatch):
+    from app.collectors import official
+    from tests.test_comeet_feed_inventory import PRESET, collect, mock_feed, position
+    from app.database import engine
+
+    def no_database(*_args, **_kwargs):
+        pytest.fail('Public inventory validation must not read the database')
+
+    calls = mock_feed(monkeypatch, [position(), position('12.D63')], compressed=True)
+    event.listen(engine, 'before_cursor_execute', no_database)
+    try:
+        jobs = collect()
+    finally:
+        event.remove(engine, 'before_cursor_execute', no_database)
+    assert calls == [PRESET['data_url']]
+    assert jobs.listed_external_ids == ('89.E6C', '12.D63') and len(jobs) == 2
+    assert not jobs.complete  # A complete inventory does not promise complete details.
+    calls = mock_feed(monkeypatch, b' ' * 4_000_001, compressed=True)
+    with pytest.raises(RuntimeError, match='byte limit'):
+        collect()
+    assert calls == [PRESET['data_url']]
 
 
 def test_aman_source_bounds_inventory_details_and_persistent_checkpoint(monkeypatch):

@@ -18,6 +18,7 @@ on:
           - scan_resources
           - applications
           - comeet
+          - catalog_inventory
       runner_mode:
         description: Runner for focused user-limit tests
         required: true
@@ -36,7 +37,7 @@ concurrency:
 
 jobs:
   test:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' || inputs.test_scope == 'comeet' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' || inputs.test_scope == 'comeet' || inputs.test_scope == 'catalog_inventory' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -156,6 +157,32 @@ jobs:
           tests/test_supabase_egress_optimization.py::test_submit_progress_duplicate_check_reads_one_projected_event
           tests/test_supabase_egress_optimization.py::test_comeet_questionnaire_receipts_keep_diagnostics_bounded_without_private_tokens
           tests/test_supabase_egress_optimization.py::test_unavailable_comeet_posting_stops_before_another_form_or_progress_read
+
+      - name: Run catalog inventory and queue identity tests
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'catalog_inventory' }}
+        run: >-
+          python -m pytest -q -n 4 --dist loadfile
+          tests/test_comeet_feed_inventory.py
+          tests/test_comeet_inventory_reconciliation.py
+          tests/test_dynamic_official_api_adapters.py
+          tests/test_cyera_inventory.py
+          tests/test_hourly_job_closure.py
+          tests/test_collector_completeness.py
+          tests/test_unified_rollout_sources.py
+          tests/test_official_collector_titles.py
+          tests/test_comeet_unavailable_posting.py
+          tests/test_application_live_visibility.py
+          tests/test_application_queue_identity_ui.py
+          tests/test_application_tracking_access.py
+          tests/test_auto_apply_queue_focus.py
+          tests/test_auto_apply_queue_priority.py
+          tests/test_application_queue_waiting_ui.py
+          tests/test_job_id_search.py
+          tests/test_supabase_egress_optimization.py::test_comeet_api_inventory_reuses_one_bounded_public_feed_without_database_reads
+          tests/test_supabase_egress_optimization.py::test_availability_reconciliation_returns_no_catalog_payload
+          tests/test_supabase_egress_optimization.py::test_personal_tracking_is_two_bounded_metadata_queries
+          tests/test_supabase_egress_optimization.py::test_live_application_visibility_reuses_compact_queries_without_descriptions
+          tests/test_supabase_egress_optimization.py::test_queue_snapshot_and_health_do_not_read_job_descriptions
 
   browser-agent:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}

@@ -4,6 +4,74 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Verified Comeet company API inventory — October 18, 2026
+
+Voyantis and the seven other native Comeet company-API presets now carry the
+validated full listing IDs into the existing availability reconciliation. The
+collector still reports partial detail coverage; absence authority comes only
+from an opted-in, unfiltered exact company endpoint returning HTTP 200 JSON.
+The native endpoint's published-position list and empty-list semantics follow
+the [Comeet Careers API contract](https://developers.comeet.com/reference/careers-api-list-all-positions).
+Every raw position must have a unique matching ID/title/URL on that company's
+board, before any location, classification or detail-budget filtering. Partial
+status/range/pagination, wrong-company redirects, malformed rows and failed or
+oversized responses cannot authorize absence-based deactivation. A validated
+empty array is an empty company inventory; an unrecognized empty response is not.
+
+Impact check: inventory reuses the existing employer feed GET, capped at
+4,000,000 decoded bytes and fewer than 2,000 identities. Eight enabled sources
+would transfer at most 32 MB/scan (64 MB for two scans/day) from employers,
+not Supabase, for these listing requests. No additional HTTP request, startup
+task, schedule, query, returned SQL column, polling response, Storage download,
+model call or automatic application is introduced. Complete, quality-checked
+descriptions already in the same response avoid redundant detail GETs; incomplete
+descriptions keep the existing hydration budget. Inventory IDs stay ephemeral.
+
+The canonical scanner reuses UPDATE-only reconciliation: at most three writes
+per changed source, no RETURNING or job descriptions, preserving another live
+source identity and personal submission history. The existing 8 KiB/source
+framing reservation allows <=64 KiB/scan across these eight sources, or
+128 KiB/day and 3.75 MiB/30 days at the twice-daily schedule; it remains inside
+the existing shared scan budget. No new database read is required, and no job
+payload is downloaded for reconciliation. This is an upper bound for the
+existing write path now given verified inventories, not a higher scan allowance.
+
+Regression tests exercise native feed validation, gzip/decoded byte bounds,
+empty versus unverified responses, detail-independent identity coverage, and
+absence/history/multiple-source behavior in isolated SQLite and PostgreSQL.
+The egress regression checks one bounded public request with zero database reads;
+existing SQL regressions enforce UPDATE-only/no-RETURNING reconciliation.
+Live checks read each of the eight existing public feeds once: all returned
+HTTP 200 and validated inventories (433 published positions across all countries,
+2,397,310 decoded bytes in total). Voyantis returned four positions and omitted
+the old Data Analyst UID. Replaying its saved response through the collector
+returned all four jobs and IDs with one mocked GET. No production Supabase query,
+scan, retry or data mutation was performed. Changes remain local pending release.
+
+## Application queue job identity — October 18, 2026
+
+The compact tracking list returns the existing application-to-job foreign key in
+its current metadata query, so queue cards can show the actual job number even
+when they come from the tracking fallback. Application IDs are never substituted
+for job IDs. History, catalog filters, submission eligibility and dispatch are
+unchanged. No extra query, polling timer, Storage read or catalog scan is added;
+the existing list limit stays at 100 rows and descriptions/answers remain omitted.
+
+Impact check: reserve 16 bytes per returned integer including wire overhead,
+at most 1.6 KiB per full 100-row response. The existing notification opening has a
+15-minute cutoff: at the fastest five-second cadence, 181 reads including the
+initial refresh add at most 283 KiB per opening. Thirty such openings/day reserve
+8.3 MiB/day, about 249 MiB/30 days. Other explicit refreshes reuse the same per-call
+bound; request frequency is not a global account quota. Idle delta is zero.
+The duplicated job ID in the HTTP JSON is serialized locally, not another SQL
+read. Regression coverage checks the exact job/application distinction, the same
+two metadata queries and the absence of descriptions/private payloads.
+
+For the reported Exodigo discrepancy, the existing one-time encrypted owner
+diagnostic is used without modifying production data. Its separate bounded cost
+and read-only transaction limits are documented below in the October 4 section;
+no retry, bulk scan or application workflow is triggered by this diagnosis.
+
 ## Free-tier reduction and twice-daily scans — October 11, 2026
 
 Scheduled collection/ranking now runs at **08:00 and 20:00 Asia/Jerusalem**.
