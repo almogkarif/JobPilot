@@ -6,7 +6,7 @@ from sqlalchemy.orm import load_only
 from ..database import get_user_profile, user_session
 from ..models import AuditLog, Job, JobRanking, ResumeProfile
 from ..utils import dumps, loads
-from .career_tracks import active_track, normalize_track
+from .career_tracks import active_track, auto_submit_is_enabled, normalize_track
 from .catalog_routing import job_in_track, unified_catalog_enabled
 from .catalog_egress import reserve_catalog_egress
 from .application_queue_recovery import recover_stuck_auto_applications
@@ -223,7 +223,13 @@ def rank_shared_catalog_for_user(user_id: str, career_track: str, *, stale_only:
         db.commit()
 
         from .scanner import auto_queue_jobs
-        auto_queued = auto_queue_jobs(db, profile) if not deferred else 0
+        # Partial ranking leaves unrelated fresh scores usable. The queue reader
+        # independently checks each snapshot and reserves its own bounded payload.
+        # A shared daily refusal or unreadable default CV still stops this pass.
+        queue_allowed = not deferred or (
+            auto_submit_is_enabled(profile) and not daily_budget_exhausted and not resume_reason
+        )
+        auto_queued = auto_queue_jobs(db, profile) if queue_allowed else 0
         # Ranking is the common path used by the hourly shared scan and by
         # profile-triggered refreshes. Recovering here closes the old gap where
         # auto_queue_jobs() persisted rows as queued but never launched a worker.

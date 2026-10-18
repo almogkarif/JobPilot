@@ -217,6 +217,7 @@ def test_cli_emits_only_recipient_encrypted_report(tmp_path, monkeypatch, capsys
 def test_workflow_controls_stay_in_secret_instead_of_public_inputs(tmp_path, monkeypatch, capsys):
     from pathlib import Path
     from textwrap import dedent
+    from types import SimpleNamespace
     import subprocess
     workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/jobpilot-owner-diagnostic.yml').read_text()
     assert 'inputs:' not in workflow and '${{ inputs.' not in workflow
@@ -229,9 +230,10 @@ def test_workflow_controls_stay_in_secret_instead_of_public_inputs(tmp_path, mon
     calls = []
     def run(argv, *, check):
         import os
-        assert check is True and 'OWNER_DIAGNOSTIC_INPUTS' not in os.environ
+        assert check is False and 'OWNER_DIAGNOSTIC_INPUTS' not in os.environ
         assert os.environ['EXPECTED_OWNER_EMAIL_SHA256'] == controls['expected_owner_email_sha256']
         calls.append(argv)
+        return SimpleNamespace(returncode=0)
     monkeypatch.setattr(subprocess, 'run', run)
     script = workflow.split("python - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
     exec(compile(dedent(script), 'owner-diagnostic-workflow', 'exec'), {})

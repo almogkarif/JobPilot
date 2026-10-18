@@ -1059,8 +1059,8 @@ def _applied_materials_application_query_filter():
     )
 
 
-def _automatic_application_query_filter():
-    """Match lightweight application lists to the adapter capability check."""
+def _automatic_application_query_filter(*, user_id: str | None = None):
+    """Match capabilities; discovery can also exclude this owner's manual fallback."""
     apply_url = func.lower(func.coalesce(Job.apply_url, ""))
     source_kind = func.lower(func.coalesce(
         select(Source.kind).where(Source.id == Job.source_id).scalar_subquery(), ""
@@ -1110,7 +1110,23 @@ def _automatic_application_query_filter():
         | apply_url.like("https://careers.appliedmaterials.com/%")
         | apply_url.like("https://jobs.appliedmaterials.com/%")
     )
-    return supported & ~excluded & (~applied_employer | applied)
+    capability = supported & ~excluded & (~applied_employer | applied)
+    if user_id is None:
+        # Tracking/history still need to expose previously blocked applications.
+        return capability
+    automation_blocked = select(Blocker.id).where(
+        Blocker.application_id == Application.id, Blocker.user_id == user_id,
+        Blocker.status == "open", Blocker.kind == ASHBY_SPAM_BLOCKER_KIND,
+    ).correlate(Application).exists()
+    manual_application = select(Application.id).where(
+        Application.job_id == Job.id, Application.user_id == user_id,
+        or_(Application.mode == "manual", Application.status == "manual_required", automation_blocked),
+    ).correlate(Job).exists()
+    manual_state = select(UserJobState.id).where(
+        UserJobState.job_id == Job.id, UserJobState.user_id == user_id,
+        UserJobState.status == "manual_required",
+    ).correlate(Job).exists()
+    return capability & ~manual_application & ~manual_state
 
 
 def _automatic_submit_sort_order():
@@ -3430,7 +3446,9 @@ def list_jobs(
             statement = statement.where(query_filter)
             location_count_statement = location_count_statement.where(query_filter)
         if automatic_only:
-            automatic_filter = _automatic_application_query_filter()
+            automatic_filter = _automatic_application_query_filter(
+                user_id=None if guest_catalog else current_user_id(catalog_db),
+            )
             statement = statement.where(automatic_filter)
             location_count_statement = location_count_statement.where(automatic_filter)
         if selected_admin_filters:
@@ -6840,7 +6858,9 @@ def _deterministic_ats_anti_automation_block(application: Application, payload: 
     if adapter == "aman":
         return diagnostics.get("aman_response_outcome") == "blocked"
     if adapter == "comeet":
-        return bool(diagnostics.get("invisible_recaptcha_rejected")) or any(
+        return bool(diagnostics.get("comeet_session_verification_rejected")) or bool(
+            diagnostics.get("invisible_recaptcha_rejected")
+        ) or any(
             int(item.get("status") or 0) == 423
             for item in diagnostics.get("hosted_responses", []) if isinstance(item, dict)
         )
@@ -7603,7 +7623,9 @@ def _refresh_profile_derived_background(
                         )
                     db.commit()
                     ranking_finished = True
-                    if auto_submit_is_enabled(profile) and not ranking_summary.get("deferred"):
+                    if auto_submit_is_enabled(profile) and (
+                        not ranking_summary.get("deferred") or ranking_summary.get("auto_queue_allowed", False)
+                    ):
                         from .services.scanner import auto_queue_jobs
                         auto_queue_jobs(db, profile)
     except Exception as exc:
@@ -7790,7 +7812,8 @@ def _rescore_v2_jobs(
             deferred=deferred, reason=reason if deferred else "",
         )
     return {"ranked": completed, "failed": failed, "deferred": deferred,
-            "reason": reason if deferred else ""}
+            "reason": reason if deferred else "",
+            "auto_queue_allowed": not daily_budget_exhausted and not resume_reason}
 
 
 def _profile_dict(p: Profile) -> dict:

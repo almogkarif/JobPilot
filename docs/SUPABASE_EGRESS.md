@@ -4,6 +4,101 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## Manual fallback and partial-ranking automatic queue — October 18, 2026
+
+The automatic-only discovery filter now excludes the authenticated owner's
+manual-mode applications, manual-required status/state and open anti-automation
+blockers. Correlated SQL EXISTS predicates reuse the existing count and card
+queries; they add zero queries, returned columns, polling or private payloads.
+Other owners and guest discovery retain their own views. Tracking/history still
+shows the original application. Regression coverage checks tenant isolation,
+pagination/counts and no description, answer or blocker-body hydration.
+
+A partial ranking refresh can now enqueue already-fresh eligible candidates,
+instead of allowing an unrelated oversized or deferred row to starve the queue.
+Opt-in, administrator permission, configured threshold, ranking fingerprints,
+existing history and manual-employer exclusions still apply. A refused ranking
+reservation or unreadable default CV stops the partial pass. The queue reader
+retains its own reservation before loading any job/resume body: at most 5,000
+jobs, 256 KiB/row and 16 MiB of combined payload per pass, charged at twice the
+planned bytes against the unchanged shared 64 MiB/day ledger. The incremental
+queue read can therefore be at most 16 MiB/pass, or 32 MiB for two scheduled
+passes/day before shared-budget refusals. Explicit preference refreshes share
+that ledger; neither cadence nor budget is increased. Adapter exclusions reuse
+the existing company, URL and source-kind projections and add no database read.
+Regressions enforce the denied-reservation/no-body boundary on SQLite and
+PostgreSQL, plus opt-in, permission, CV and threshold gates.
+
+Comeet observation now waits for the final outcome of the website's own native
+continuation after a single Submit click, within the existing 60-second window.
+It adds no JobPilot Submit click, retry, Supabase request, polling endpoint or
+Storage download. A lost/pending continuation remains unverified rather than
+authorizing a duplicate retry. Referral-source selection prefers an explicit
+company careers-site option when the existing referral-group detection matches.
+Offline browser tests cover delayed acceptance, final rejection, transport loss
+and an in-flight request at the observation deadline, each with one Submit event.
+Only the final settled rejection controls Comeet's session-verification label;
+an earlier 423 does not override a later validation error. An explicit error-body
+code takes precedence, matching the vendor's client. The message records missing
+acceptance and does not claim a particular CAPTCHA implementation. The structural
+boolean replaces the earlier CAPTCHA-specific diagnostic flag; the server still
+accepts older worker reports. This adds no query or returned application body.
+
+The authorized local SolarEdge experiment reused the owner's cached 127,702-byte
+CV and read one local profile, with no production Supabase query or mutation.
+The background-worker native flow issued three application requests from one
+click; all three returned HTTP 423 and no worker acceptance was recorded.
+A subsequent authorized submission through ordinary Chrome produced a receipt
+email from SolarEdge at 18:54 on October 18 for the exact Junior Embedded
+Software Engineer role. This verifies the manual application, while background
+automation has not yet produced an accepted receipt. The difference between
+the normal embedded form and the worker's browser flow remains under
+investigation; the manual receipt alone does not establish its cause.
+SolarEdge's existing automatic capability, source and active jobs are retained
+while that difference is investigated.
+No bulk retry or scan was performed. After release, compare daily Supabase
+egress before triggering retries or increasing collection coverage.
+
+The targeted SolarEdge worker path now keeps the public posting as the parent
+and fills only its exact company/job application iframe. It clicks the native
+Apply button once when that iframe is not mounted yet or remains hidden, preserving the website's
+normal flow. Other Comeet providers keep their existing path. DOM operations
+use the validated child; Page events confirm only that child's matching native
+submission endpoint. A detached child after an outgoing request remains uncertain
+unless an accepted receipt was already captured. No browser profile, cookie,
+CAPTCHA or fingerprint setting is copied or changed.
+
+Impact check: frame selection examines at most 20 candidate iframes during the
+existing 20-by-250 ms mount wait. These are local browser operations, adding zero
+Supabase queries, returned SQL columns, backend polls or document downloads.
+The original iframe is reused rather than downloaded again as a new top-level
+page. Existing terminal screenshot counts and the server's 8 MiB/file ceiling
+remain unchanged; an explicit full screenshot view still has that existing
+8 MiB transfer bound. No new screenshot polling or publication is added.
+Offline browser and shared egress regressions verify one posting GET, one form
+GET, one Submit POST, one CV attachment and progress under 16 KiB, plus exact
+identity, wrong-frame receipts and detached-frame handling.
+
+A controlled live worker test on the separate Embedded Infrastructure Engineer
+vacancy retained that normal embedded flow and received three native HTTP 423
+responses from one Submit click. No accepted worker receipt was recorded. This
+shows that preserving the iframe alone did not resolve verification.
+
+A follow-up pre-submit audit used the actual worker's standard persistent
+headless browser settings (1440x1000, en-US), the cached local CV and that same
+separate vacancy. Fourteen fields were filled, native form validity was true,
+Angular reported no invalid controls and the CV input contained one file. The
+audit stopped before Submit and produced zero application POSTs. One subsequent
+controlled attempt followed the site's normal reload advice using that worker's
+own session, with no copied Chrome profile or security setting change. Its one
+Submit click again produced three native HTTP 423 responses. The saved page
+explicitly displayed a session-verification failure due to a human-check error;
+this is direct evidence beyond the numeric status alone. No accepted worker
+receipt was captured. The reason that verification fails remains unresolved;
+SolarEdge retains automatic capability. No duplicate of the manually accepted
+junior vacancy was initiated. Both follow-ups used zero production Supabase
+queries, Storage downloads or database mutations.
+
 ## Verified Comeet company API inventory — October 18, 2026
 
 Voyantis and the seven other native Comeet company-API presets now carry the
@@ -392,6 +487,34 @@ tests verify read-only enforcement, owner isolation, overlapping counts and stal
 rankings; the egress regression verifies bounded projections with large private
 synthetic documents present. This describes the diagnostic budget, not a live
 verification result or permission to trigger retries.
+
+### Explicit admin queue snapshot — October 18, 2026
+
+An explicit admin mode resolves exactly one administrator by the same account
+email SHA-256, without guessing an application anchor. The existing encrypted
+artifact, temporary secret controls, mandatory canonical migration receipt,
+read-only transaction and statement/lock timeouts remain in force. Failure logs
+add only allowlisted stage codes, never database URLs, arguments or raw errors.
+
+Impact check: one deliberate snapshot performs nine projected/aggregate SELECTs,
+including the two migration checks. It returns aggregate ranking freshness and
+queue gates, at most 28 status/mode groups, and at most 20 candidate metadata rows
+with a 21st truncation sentinel. SQL caps each candidate at 512 bytes for company,
+4,096 for URL and 80 for source kind; unreadable metadata is null and fails closed
+rather than classifying a truncated URL. Password configuration is a SQL boolean;
+the credential is never returned. Adapter classification uses those metadata
+fields locally. Candidate counts remain explicitly before adapter, cooldown, CV
+and dispatch checks, so the report does not claim that every candidate can submit.
+
+Fingerprint inputs retain their eight 8 KiB caps, configuration its 8 KiB cap,
+and the budget ledger a 1,025-character bounded read. The existing **2 MiB per
+invocation** allowance comfortably covers metadata and framing: 20 MiB for ten
+deliberate invocations/hour or day and 600 MiB/30 days at ten/day. Idle cost is
+zero; no schedule, scan, retry, reservation write, worker launch, job body or
+Storage download is introduced. Shared egress regressions and isolated PostgreSQL
+tests verify bounded output, owner isolation, credential privacy and read-only
+enforcement. An unreadable/missing canonical receipt stops the diagnostic; it
+does not authorize a migration or automatically change catalog routing.
 
 ## Guest live-catalog dashboard — October 4, 2026
 

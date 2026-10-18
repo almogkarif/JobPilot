@@ -24,12 +24,15 @@ import app.main as main_module
 from tests.test_job_id_search import job_search_catalog
 from tests.test_developer_login_activity_ui import activity_roster
 from tests.test_application_tracking_access import personal_tracking
+from tests.test_manual_fallback_catalog_filter import manual_fallback_catalog
 from tests.test_dashboard_company_diversity import dashboard_diversity_catalog
 from tests.test_application_resume_metadata import resume_metadata_db
 from tests.test_application_submit_progress import sent_progress_application
 from tests.test_application_resume_recovery import resume_recovery_engine
 from tests.test_guest_dashboard import owner_guest_catalog
 from tests.test_owner_catalog_diagnostic import owner_catalog, postgres_cluster
+from tests.test_admin_queue_diagnostic import admin_catalog, admin_report
+from tests.test_agent_radio_question_context import page as embedded_form_page
 from tests.test_live_question_wait_api import live_question_api, register as register_live_question
 from tests.test_guided_submission_admin_gate import guided_gate_api
 from tests.test_auto_queue_resource_bounds import AUTO_QUEUE, add_resume, bounded_ranking, queue_reader
@@ -2513,8 +2516,6 @@ def test_new_claim_retires_otp_in_one_owner_scoped_write_without_reading_codes(s
     assert not any(sql.startswith('select ') and 'blockers.kind = ' in sql for sql, _, _ in statements)
 
 
-
-
 @pytest.mark.parametrize('refresh', ['shared', 'profile'])
 def test_profile_and_shared_ranking_share_budget_before_job_bodies(monkeypatch, refresh):
     from app.config import settings
@@ -2860,3 +2861,129 @@ def test_unavailable_comeet_posting_stops_before_another_form_or_progress_read(m
     assert [event[0] for event in progress] == ['page_opened']
     assert caught.value.diagnostics == {'reason': 'comeet_position_redirected_to_listing'}
     assert len(json.dumps(caught.value.diagnostics).encode()) < 128
+
+
+def test_personal_manual_filter_reuses_bounded_catalog_queries_without_private_payloads(manual_fallback_catalog):
+    from sqlalchemy.orm import Session
+    from app.models import Application, Blocker
+
+    client, factory, engine = manual_fallback_catalog
+    with factory() as db:
+        set_user_scope(db, 'alpha')
+        application = db.get(Application, 1102)
+        application.answers_json = '{"private":"' + 'x' * 300000 + '"}'
+        blocker = db.scalar(select(Blocker).where(Blocker.application_id == application.id))
+        blocker.question = blocker.explanation = 'PRIVATE_MANUAL_BLOCKER_' + 'x' * 300000
+        db.get(Job, 102).description = 'PRIVATE_JOB_DESCRIPTION_' + 'x' * 300000
+        db.commit()
+
+    params = {'paginated': True, 'page_size': 2}
+    headers = {'Authorization': 'alpha'}
+    # Initialize the existing settings row before comparing the two read paths.
+    warm = client.get('/api/jobs', params=params, headers=headers)
+    assert warm.status_code == 200, warm.text
+    statements, loaded_blockers = [], []
+    def capture(_conn, _cursor, sql, parameters, _context, _many):
+        if sql.lstrip().lower().startswith('select'):
+            statements.append((' '.join(sql.lower().split()), parameters))
+    def hydrated(_session, row):
+        if isinstance(row, Blocker):
+            loaded_blockers.append(row.id)
+    event.listen(engine, 'before_cursor_execute', capture)
+    event.listen(Session, 'loaded_as_persistent', hydrated)
+    try:
+        ordinary = client.get('/api/jobs', params=params, headers=headers)
+        ordinary_queries = list(statements)
+        statements.clear()
+        automatic = client.get('/api/jobs', params={**params, 'automatic_only': True}, headers=headers)
+        automatic_queries = list(statements)
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+        event.remove(Session, 'loaded_as_persistent', hydrated)
+    assert ordinary.status_code == automatic.status_code == 200
+    assert ordinary.json()['total'] == 6 and automatic.json()['total'] == 3
+    assert len(ordinary_queries) == len(automatic_queries) <= 4
+    assert len(automatic.json()['items']) == 2 and len(automatic.content) < 16 * 1024
+    assert not loaded_blockers
+    assert 'PRIVATE_' not in automatic.text
+    catalog_reads = [(sql, values) for sql, values in automatic_queries if 'from jobs' in sql]
+    assert len(catalog_reads) == 2  # Existing location/count aggregate and bounded card page.
+    assert all('exists (select' in sql and 'alpha' in values for sql, values in catalog_reads)
+    assert any('limit' in sql for sql, _values in catalog_reads)
+    assert not any(column in sql for sql, _values in catalog_reads for column in (
+        'jobs.description', 'applications.answers_json', 'blockers.question',
+        'blockers.explanation', 'blockers.options_json',
+    ))
+
+
+@pytest.mark.parametrize('entry_point', ['scheduled', 'preferences'])
+def test_partial_ranking_queue_refusal_transfers_no_job_bodies(queue_reader, monkeypatch, entry_point):
+    from sqlalchemy.orm import Session
+    from tests.test_partial_ranking_auto_queue import _prepare
+
+    sessions, _ids, dispatched = _prepare(queue_reader, monkeypatch)
+    reservations = []
+    monkeypatch.setattr(catalog_ranking, 'reserve_catalog_egress',
+                        lambda size: reservations.append(size) or False)
+
+    def no_body(_session, row):
+        if isinstance(row, Job):
+            assert 'description' not in row.__dict__, 'Job body crossed the rejected shared reservation'
+
+    event.listen(Session, 'loaded_as_persistent', no_body)
+    try:
+        if entry_point == 'scheduled':
+            result = catalog_ranking.rank_shared_catalog_for_user('one', 'computer_science', stale_only=True)
+            assert result['reason'] == 'oversized_rows' and result['auto_queued'] == 0
+        else:
+            monkeypatch.setattr(main_module, 'user_session', sessions)
+            main_module._refresh_profile_derived_background(
+                'one', 'computer_science', rescore_jobs=False, rank_v2=True,
+            )
+    finally:
+        event.remove(Session, 'loaded_as_persistent', no_body)
+    assert len(reservations) == 1 and reservations[0] > 0
+    assert not dispatched
+
+
+def test_admin_queue_snapshot_returns_only_bounded_metadata_without_catalog_bodies(admin_catalog):
+    from sqlalchemy.engine import Engine
+
+    engine, _job_id = admin_catalog
+    statements = []
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        statements.append(' '.join(sql.lower().split()))
+    event.listen(Engine, 'before_cursor_execute', capture)
+    try:
+        report = admin_report(engine)
+    finally:
+        event.remove(Engine, 'before_cursor_execute', capture)
+    reads = [sql for sql in statements if sql.startswith(('select ', 'with '))]
+    assert len(reads) <= 9
+    assert all(sql.startswith(('select ', 'with ', 'set ')) for sql in statements)
+    assert any('set transaction read only' in sql for sql in statements)
+    assert not any(field in sql for sql in reads for field in (
+        'description', 'answers_json', 'result_json', 'cv_path', 'resume_path',
+        'extracted_text', 'snapshot_json', 'select *',
+    ))
+    encoded = json.dumps(report, default=str)
+    assert len(encoded.encode()) < 32 * 1024
+    assert not any(value in encoded for value in ('PRIVATE_', 'SECRET', 'private-owner', 'other-owner', '@'))
+
+
+def test_solaredge_embedded_flow_reuses_the_original_form_and_bounded_progress(embedded_form_page, tmp_path):
+    from agent.browser import fill_application
+    from agent.run_agent import bounded_page_url
+    from tests.test_solaredge_embedded_form import FORM, POSTING, ENDPOINT, _routes, _task
+
+    page = embedded_form_page
+    requests = _routes(page, [FORM])
+    progress = []
+    result = fill_application(page, _task(tmp_path), auto_submit=True,
+                              progress=lambda kind, message, url:
+                              progress.append((kind, message, bounded_page_url(url))))
+    assert result['submitted'] and page.url == POSTING
+    assert requests == [('GET', POSTING), ('GET', FORM), ('POST', ENDPOINT)]
+    assert len(json.dumps(progress, ensure_ascii=False).encode()) < 16 * 1024
+    frame = next(frame for frame in page.frames if frame.url == FORM)
+    assert frame.locator('[name=resume]').evaluate('el => el.files.length') == 1

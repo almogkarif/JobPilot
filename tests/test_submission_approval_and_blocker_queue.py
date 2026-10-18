@@ -998,25 +998,31 @@ def test_smartrecruiters_datadome_is_manual_required_and_cannot_auto_retry():
         assert retry.status_code == 409
 
 
-def test_comeet_http_423_is_manual_required_and_can_open_interactive_review(monkeypatch):
+@pytest.mark.parametrize('kind,diagnostic_key,http_status', [
+    ('captcha', 'invisible_recaptcha_rejected', 423),
+    ('anti_automation_blocked', 'comeet_session_verification_rejected', 500),
+])
+def test_comeet_session_verification_is_manual_required_and_can_open_interactive_review(
+    monkeypatch, kind, diagnostic_key, http_status,
+):
     interactive_dispatched = []
     monkeypatch.setattr(
         "app.main.dispatch_interactive_application_workflow",
         lambda application_id: interactive_dispatched.append(application_id),
     )
     with TestClient(app) as client:
-        job = _make_ats_job(client, "Comeet blocked engineer", "https://www.comeet.co/jobs/test/apply")
+        job = _make_ats_job(client, "Comeet blocked engineer", f"https://www.comeet.co/jobs/test-{uuid4().hex}/apply")
         application_id, task = _queue_and_claim(client, job)
         blocked = client.post(
             f"/api/agent/tasks/{application_id}/blocked",
             json={
                 "token": "change-me", "attempt_id": task["attempt"]["id"],
-                "kind": "captcha", "field_label": "CAPTCHA", "question": "Invisible reCAPTCHA",
-                "explanation": "Comeet rejected invisible reCAPTCHA with HTTP 423",
+                "kind": kind, "field_label": "Session verification", "question": "Session verification failed",
+                "explanation": "Comeet returned session verification error code 423",
                 "page_url": job["apply_url"],
                 "diagnostics": {
-                    "invisible_recaptcha_rejected": True,
-                    "hosted_responses": [{"status": 423}],
+                    diagnostic_key: True,
+                    "hosted_responses": [{"status": http_status}],
                 },
             },
         )

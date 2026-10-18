@@ -158,7 +158,7 @@ jobs:
           tests/test_supabase_egress_optimization.py::test_comeet_questionnaire_receipts_keep_diagnostics_bounded_without_private_tokens
           tests/test_supabase_egress_optimization.py::test_unavailable_comeet_posting_stops_before_another_form_or_progress_read
 
-      - name: Run catalog inventory and queue identity tests
+      - name: Run catalog inventory and automatic queue release tests
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_scope == 'catalog_inventory' }}
         run: >-
           python -m pytest -q -n 4 --dist loadfile
@@ -178,11 +178,34 @@ jobs:
           tests/test_auto_apply_queue_priority.py
           tests/test_application_queue_waiting_ui.py
           tests/test_job_id_search.py
+          tests/test_manual_fallback_catalog_filter.py
+          tests/test_partial_ranking_auto_queue.py
+          tests/test_solaredge_native_application.py
+          tests/test_solaredge_embedded_form.py
+          tests/test_submission_approval_and_blocker_queue.py::test_comeet_session_verification_is_manual_required_and_can_open_interactive_review
+          tests/test_application_submission.py
+          tests/test_auto_apply_job_sort.py
+          tests/test_auto_queue_resource_bounds.py
+          tests/test_catalog_ranking_bounds.py
+          tests/test_preference_auto_queue.py
+          tests/test_ranking_default_resume_bounds.py
+          tests/test_ranking_profile_bounds.py
+          tests/test_ranking_targeted_refresh.py
+          tests/test_catalog_egress_budget.py
+          tests/test_agent_radio_question_context.py
+          tests/test_comeet_submission_receipts.py
+          tests/test_comeet_worker_recovery.py
+          tests/test_owner_catalog_diagnostic.py
+          tests/test_admin_queue_diagnostic.py
           tests/test_supabase_egress_optimization.py::test_comeet_api_inventory_reuses_one_bounded_public_feed_without_database_reads
           tests/test_supabase_egress_optimization.py::test_availability_reconciliation_returns_no_catalog_payload
           tests/test_supabase_egress_optimization.py::test_personal_tracking_is_two_bounded_metadata_queries
           tests/test_supabase_egress_optimization.py::test_live_application_visibility_reuses_compact_queries_without_descriptions
           tests/test_supabase_egress_optimization.py::test_queue_snapshot_and_health_do_not_read_job_descriptions
+          tests/test_supabase_egress_optimization.py::test_personal_manual_filter_reuses_bounded_catalog_queries_without_private_payloads
+          tests/test_supabase_egress_optimization.py::test_partial_ranking_queue_refusal_transfers_no_job_bodies
+          tests/test_supabase_egress_optimization.py::test_admin_queue_snapshot_returns_only_bounded_metadata_without_catalog_bodies
+          tests/test_supabase_egress_optimization.py::test_solaredge_embedded_flow_reuses_the_original_form_and_bounded_progress
 
   browser-agent:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.test_scope == 'full' || inputs.test_scope == 'applications' }}

@@ -210,7 +210,8 @@ def test_pending_oversized_cv_preserves_caller_edits_and_stale_backlog(resume_ra
         commits = []
         event.listen(db, 'after_commit', lambda _db: commits.append(True))
         result = main._rescore_v2_jobs(db, profile)
-        assert result == dict(ranked=0, failed=0, deferred=1, reason='resume_skills_row_limit')
+        assert result == dict(ranked=0, failed=0, deferred=1, reason='resume_skills_row_limit',
+                              auto_queue_allowed=False)
         assert commits == [] and resume.skills_json == dumps(['א' * (128 * 1024)])
         assert db.scalar(select(JobRanking.stale).where(JobRanking.job_id == job_id))
         db.commit()

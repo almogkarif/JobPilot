@@ -38,12 +38,16 @@ jobs:
           recipient.write_text(controls['recipient_public_key'])
           recipient.chmod(0o600)
           os.environ['EXPECTED_OWNER_EMAIL_SHA256'] = controls['expected_owner_email_sha256']
-          subprocess.run([
+          target = (['--admin-queue'] if controls.get('admin_queue') is True else
+                    ['--anchor-application-id', str(controls['anchor_application_id'])])
+          result = subprocess.run([
               sys.executable, '-m', 'scripts.diagnose_owner_catalog',
-              '--anchor-application-id', str(controls['anchor_application_id']),
+              *target,
               '--recipient-public-key-file', str(recipient),
               '--output-file', str(Path(os.environ['RUNNER_TEMP'], 'owner-diagnostic.encrypted.json')),
-          ], check=True)
+          ], check=False)
+          if result.returncode:
+              raise SystemExit(result.returncode)
           PY
       - name: Upload encrypted report
         uses: actions/upload-artifact@v7.0.1

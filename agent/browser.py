@@ -363,7 +363,10 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
         # Branded career pages can embed the real Comeet application below
         # unrelated product CTAs that also say "Apply". Enter the embedded
         # recruiting form before the generic action search can leave the site.
-        if _enter_comeet_embedded_form(page):
+        embedded = _enter_comeet_embedded_form(page, requested_url=job["apply_url"])
+        if embedded:
+            if isinstance(embedded, _ComeetEmbeddedFormSurface):
+                page = embedded
             continue
         if policy.get("id") == "intel_workday" and _on_intel_voluntary_disclosures(page):
             filled.extend(_fill_intel_voluntary_disclosures(page, profile))
@@ -400,7 +403,9 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                     break
                 visited_steps[step_key] = visited_steps.get(step_key, 0) + 1
                 _click_action(page, apply_button)
-                _enter_comeet_embedded_form(page)
+                embedded = _enter_comeet_embedded_form(page, requested_url=job["apply_url"])
+                if isinstance(embedded, _ComeetEmbeddedFormSurface):
+                    page = embedded
                 continue
 
         email_sign_in = _workday_email_sign_in_action(page)
@@ -972,11 +977,20 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
             network_error = ""
             post_reported = False
             security_code_completed = False
+            comeet_response_count = -1
+            comeet_rejection_waits = 0
             # Ashby's GraphQL mutation can remain pending behind reCAPTCHA/device
             # fingerprinting for longer than 20 seconds. Keep the hidden browser
             # alive for up to a minute so we record the authoritative response
             # instead of cancelling a legitimate in-flight submission.
             for _ in range(120):
+                if isinstance(page, _ComeetEmbeddedFormSurface) and not page.frame_available():
+                    network_evidence, network_application_id, network_error = _hosted_ats_submission_responses_result(
+                        responses=hosted_submit_responses
+                    )
+                    if network_evidence:
+                        break
+                    raise page.unavailable_blocker()
                 _detect_captcha(page)
                 security_inputs = _greenhouse_security_code_inputs(page)
                 if security_inputs and not security_code_completed:
@@ -1031,6 +1045,24 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 if not network_error and hosted_submit_failures and not comeet_transport_failure:
                     hosted_name = _hosted_ats_name(page.url)
                     network_error = f"{hosted_name} submission request failed: {hosted_submit_failures[-1]}"
+                comeet_submission = any(_hosted_ats_name(url) == "Comeet" for url in hosted_submit_requests)
+                if not network_evidence and comeet_submission:
+                    if comeet_transport_failure:
+                        # A later native request may have committed despite an
+                        # earlier rejection. Do not authorize a duplicate retry.
+                        network_error = ""
+                        break
+                    if network_error:
+                        # Comeet's own form retries rejected requests after
+                        # 300/1000 ms. Observe that single click; never click again.
+                        if len(hosted_submit_responses) != comeet_response_count:
+                            comeet_response_count = len(hosted_submit_responses)
+                            comeet_rejection_waits = 0
+                        if (len(hosted_submit_requests) > len(hosted_submit_responses)
+                                or comeet_rejection_waits < 6):
+                            comeet_rejection_waits += 1
+                            page.wait_for_timeout(500)
+                            continue
                 if network_evidence or network_error:
                     break
                 duplicate_text = _duplicate_submission_evidence(page)
@@ -1048,6 +1080,15 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 if comeet_transport_failure:
                     break
                 page.wait_for_timeout(500)
+            if not network_evidence and any(_hosted_ats_name(url) == "Comeet" for url in hosted_submit_requests):
+                # The last wait can deliver the authoritative receipt at the
+                # observation deadline. Read it before classifying the attempt.
+                network_evidence, network_application_id, network_error = _hosted_ats_submission_responses_result(
+                    responses=hosted_submit_responses
+                )
+                if (not network_evidence and (hosted_submit_failures
+                        or len(hosted_submit_requests) > len(hosted_submit_responses))):
+                    network_error = ""
             if network_evidence:
                 return {
                     "submitted": True, "message": "The ATS accepted the application",
@@ -1059,27 +1100,26 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                 hosted_error = bool(hosted_submit_responses or hosted_submit_failures)
                 hosted_name = _hosted_ats_name(page.url)
                 anti_automation_blocked = hosted_name == "Ashby" and _is_ashby_spam_rejection(network_error)
-                comeet_recaptcha_blocked = hosted_name == "Comeet" and any(
-                    int(item.get("status") or 0) == 423 for item in hosted_submit_responses
+                comeet_verification_blocked = hosted_name == "Comeet" and bool(hosted_submit_responses) and (
+                    _comeet_session_verification_rejected(hosted_submit_responses[-1])
                 )
                 raise ApplicationBlocked(
-                    "anti_automation_blocked" if comeet_recaptcha_blocked else
+                    "anti_automation_blocked" if comeet_verification_blocked else
                     "anti_automation_blocked" if anti_automation_blocked else "submit_rejected",
-                    "CAPTCHA" if comeet_recaptcha_blocked else
+                    "אימות סשן" if comeet_verification_blocked else
                     "הגשה ידנית" if anti_automation_blocked else "שליחת המועמדות",
                     (
-                        "נדרש אימות אנושי בלתי־נראה של Comeet"
-                        if comeet_recaptcha_blocked
+                        "Comeet החזיר שגיאה באימות הסשן"
+                        if comeet_verification_blocked
                         else "Ashby חסם את ההגשה האוטומטית"
                         if anti_automation_blocked
                         else f"{hosted_name} לא קיבל את המועמדות" if hosted_error
                         else "Lever לא קיבל את המועמדות"
                     ),
                     (
-                        "Comeet מפעיל Google reCAPTCHA v3 בלתי־נראה. ה־worker שלח את הטופס, "
-                        "אך Comeet דחה את אימות ה־anti-bot ב־HTTP 423; המועמדות לא התקבלה. "
-                        "בדפדפן רגיל ייתכן שלא יוצג CAPTCHA כלל."
-                        if comeet_recaptcha_blocked else network_error
+                        "הטופס נשלח, אך Comeet החזיר קוד 423, שמזוהה באתר כשגיאה באימות אנושי של הסשן. "
+                        "לא התקבל אישור קליטת מועמדות. הסיבה המדויקת לא אומתה; לא תתבצע שליחה חוזרת אוטומטית."
+                        if comeet_verification_blocked else network_error
                     ), page.url, diagnostics={
                         "hosted_responses": [_safe_hosted_response_diagnostics(item)
                                              for item in hosted_submit_responses[-3:]],
@@ -1087,7 +1127,7 @@ def fill_application(page: Page, task: dict, auto_submit: bool, progress: Callab
                                              "location": item.get("location")}
                                             for item in lever_submit_responses[-3:]],
                         "anti_automation_blocked": anti_automation_blocked,
-                        "invisible_recaptcha_rejected": comeet_recaptcha_blocked,
+                        "comeet_session_verification_rejected": comeet_verification_blocked,
                     },
                 )
             if confirmation_text:
@@ -2064,6 +2104,9 @@ def _safe_referral_group_option(options: list[str]) -> str:
     if sum(any(term in key for term in referral_terms) for key in keys) < 2:
         return ""
     for option, key in zip(cleaned, keys):
+        if any(term in key for term in ("careers website", "career website", "company website")):
+            return option
+    for option, key in zip(cleaned, keys):
         if "none of the above" in key or key in {"other", "other source"}:
             return option
     return cleaned[0] if cleaned else ""
@@ -2692,8 +2735,86 @@ def _comeet_position_redirected_to_listing(requested_url: str, current_url: str)
     ))
 
 
-def _enter_comeet_embedded_form(page: Page) -> bool:
-    """Promote Comeet's cross-origin application iframe into the active page."""
+def _comeet_apply_identity(url: str) -> tuple[str, str] | None:
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+    if parsed.scheme != "https" or parsed.netloc.casefold() not in {
+        "comeet.co", "www.comeet.co", "comeet.com", "www.comeet.com",
+    }:
+        return None
+    match = re.fullmatch(r"/jobs/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})/apply/?", parsed.path)
+    return (match[1].casefold(), match[2].casefold()) if match else None
+
+
+class _ComeetEmbeddedFormSurface:
+    """Scope SolarEdge DOM operations to its original child, not a new page."""
+
+    def __init__(self, page: Page, frame, identity: tuple[str, str]):
+        self._page, self._frame, self._identity = page, frame, identity
+        self._form_url = frame.url
+        self._request_sent = False
+
+    @property
+    def url(self):
+        return self._frame.url if self.frame_available() else self._form_url
+
+    def frame_available(self) -> bool:
+        return not self._frame.is_detached() and _comeet_apply_identity(self._frame.url) == self._identity
+
+    def unavailable_blocker(self) -> ApplicationBlocked:
+        return ApplicationBlocked(
+            "confirmation_missing" if self._request_sent else "application_form_missing",
+            "טופס ההגשה", "טופס ההגשה המוטמע אינו זמין",
+            "לא ניתן לאמת את טופס המשרה המקורי. לא תיבחר משרה אחרת ולא תתבצע שליחה נוספת.",
+            self._form_url, diagnostics={"reason": "comeet_embedded_frame_unavailable",
+                                         "request_sent": self._request_sent},
+        )
+
+    def _checked_frame(self):
+        if not self.frame_available():
+            raise self.unavailable_blocker()
+        return self._frame
+
+    def wait_for_load_state(self, *args, **kwargs):
+        # Post-submit navigation may remove the child after its receipt. Let the
+        # observation loop classify that evidence before reading the child DOM.
+        target = self._page if self._request_sent else self._checked_frame()
+        return target.wait_for_load_state(*args, **kwargs)
+
+    def on(self, event, callback):
+        def scoped(value):
+            request = value.request if event == "response" else value
+            try:
+                parsed = urlparse(request.url)
+                company, job = self._identity
+                matches = (request.method.upper() == "POST" and request.frame == self._frame
+                           and parsed.scheme == "https"
+                           and parsed.netloc.casefold() in {"comeet.co", "www.comeet.co"}
+                           and parsed.path.casefold().rstrip("/") ==
+                           f"/careers-api/1.0/company/{company}/positions/{job}/apply")
+            except Exception:
+                matches = False
+            if matches:
+                if event == "request":
+                    self._request_sent = True
+                callback(value)
+        self._page.on(event, scoped)
+
+    def __getattr__(self, name):
+        if name in {"locator", "evaluate", "get_by_role", "get_by_text", "goto"}:
+            return getattr(self._checked_frame(), name)
+        # Request events, context, keyboard and native file choosers remain on
+        # the real Page, which still owns the original posting and child frame.
+        return getattr(self._page, name)
+
+
+def _enter_comeet_embedded_form(page: Page, *, requested_url: str = "") -> bool | _ComeetEmbeddedFormSurface:
+    """Keep SolarEdge embedded; retain legacy promotion for other Comeet boards."""
+    if isinstance(page, _ComeetEmbeddedFormSurface):
+        page._checked_frame()
+        return False
     host = (urlparse(page.url).hostname or "").casefold()
     marker = page.locator('script[type="comeet-applyform"], .comeet-applyform').first
     container = page.locator('.comeet-apply, #form-script-wrapper.careerpageform').first
@@ -2711,6 +2832,59 @@ def _enter_comeet_embedded_form(page: Page) -> bool:
             target.scroll_into_view_if_needed(timeout=1_500)
     except Exception:
         pass
+    original = urlparse(requested_url)
+    solar_posting = re.fullmatch(
+        r"/jobs/[^/]+/(71\.00A)/[^/]+/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})/?",
+        original.path, flags=re.I,
+    )
+    if (solar_posting and original.scheme == "https"
+            and original.netloc.casefold() in {"comeet.com", "www.comeet.com"}):
+        identity = (solar_posting[1].casefold(), solar_posting[2].casefold())
+        current = urlparse(page.url)
+        current_posting = re.fullmatch(
+            r"/jobs/[^/]+/(71\.00A)/[^/]+/([A-Za-z0-9]{2}\.[A-Za-z0-9]{3})/?",
+            current.path, flags=re.I,
+        )
+        if (current.scheme != "https" or current.netloc.casefold() not in {"comeet.com", "www.comeet.com"}
+                or not current_posting
+                or (current_posting[1].casefold(), current_posting[2].casefold()) != identity):
+            raise ApplicationBlocked(
+                "application_form_missing", "טופס ההגשה", "עמוד המשרה המקורי השתנה",
+                "עמוד המעסיק אינו תואם למשרה המבוקשת. לא תיפתח משרה אחרת במקומה.", page.url,
+            )
+        existing = page.locator("iframe[src]")
+        has_frame = any(existing.nth(i).is_visible()
+                        and _comeet_apply_identity(urljoin(page.url, existing.nth(i).get_attribute("src") or "")) == identity
+                        for i in range(min(existing.count(), 20)))
+        if not has_frame:
+            starts = page.get_by_role("button", name=re.compile(r"^\s*apply for this job\s*$", re.I))
+            visible = [starts.nth(i) for i in range(min(starts.count(), 10)) if starts.nth(i).is_visible()]
+            if len(visible) == 1 and visible[0].is_enabled():
+                visible[0].click(timeout=3_000)
+        for _ in range(20):
+            matches = []
+            candidates = page.locator("iframe[src]")
+            for index in range(min(candidates.count(), 20)):
+                candidate = candidates.nth(index)
+                if _comeet_apply_identity(urljoin(page.url, candidate.get_attribute("src") or "")) != identity:
+                    continue
+                if candidate.is_visible():
+                    candidate.scroll_into_view_if_needed(timeout=1_000)
+                    element = candidate.element_handle(timeout=1_000)
+                    frame = element.content_frame() if element else None
+                    if (frame and not frame.is_detached() and _comeet_apply_identity(frame.url) == identity
+                            and frame.locator('form input:not([type="hidden"]), form select, form textarea').count()):
+                        matches.append(frame)
+            if len(matches) == 1:
+                return _ComeetEmbeddedFormSurface(page, matches[0], identity)
+            if len(matches) > 1:
+                break
+            page.wait_for_timeout(250)
+        raise ApplicationBlocked(
+            "application_form_missing", "טופס ההגשה", "טופס המשרה המוטמע לא זוהה",
+            "לא נמצא טופס Comeet זמין שתואם לחברה ולמשרה המבוקשות. לא תיפתח משרה אחרת במקומה.",
+            page.url, diagnostics={"reason": "comeet_embedded_frame_unavailable", "request_sent": False},
+        )
     for _ in range(20):
         try:
             if iframe.count():
@@ -4186,6 +4360,20 @@ def _hosted_ats_submission_response_result(
     if code >= 400:
         return "", "", f"The hosted ATS rejected the application (HTTP {code})"
     return "", "", ""
+
+
+def _comeet_session_verification_rejected(response: dict) -> bool:
+    """Comeet uses the error body's code before the HTTP status for its message."""
+    if _hosted_ats_name(str(response.get("url") or "")) != "Comeet":
+        return False
+    code = response.get("status")
+    try:
+        payload = json.loads(str(response.get("text") or ""))
+    except (ValueError, TypeError):
+        payload = None
+    if isinstance(payload, dict):
+        code = payload.get("code", payload.get("Code", code))
+    return str(code) == "423"
 
 
 def _hosted_ats_submission_responses_result(*, responses: list) -> tuple[str, str, str]:

@@ -82,7 +82,8 @@ def test_profile_global_budget_stops_before_bodies_and_preserves_caller_save(clo
             event.listen(db, 'after_commit', lambda _db: commits.append(True))
             result = main._rescore_v2_jobs(db, profile, progress_key=('one', 'computer_science'))
             assert commits == [], 'Synchronous ranking must not commit the caller transaction'
-            assert result == dict(ranked=0, failed=0, deferred=2, reason='daily_catalog_byte_limit')
+            assert result == dict(ranked=0, failed=0, deferred=2, reason='daily_catalog_byte_limit',
+                                  auto_queue_allowed=False)
             db.commit()
     finally:
         event.remove(Session, 'loaded_as_persistent', record)
@@ -161,7 +162,8 @@ def test_profile_oversized_utf8_rows_are_deferred_without_transfer(cloud_profile
             db.commit()
     finally:
         event.remove(Session, 'loaded_as_persistent', record)
-    assert result == dict(ranked=1, failed=0, deferred=1, reason='oversized_rows')
+    assert result == dict(ranked=1, failed=0, deferred=1, reason='oversized_rows',
+                          auto_queue_allowed=True)
     assert ids[0] not in loaded and ids[1] in loaded
 
 
