@@ -193,6 +193,27 @@ def test_hidden_solaredge_child_waits_for_its_native_start_button(page, tmp_path
     assert page.locator('#outer-email').input_value() == ''
 
 
+def test_solaredge_native_start_works_when_pointer_click_is_not_delivered(page, tmp_path, monkeypatch):
+    requests = _routes(page, [OTHER_FORM, WRONG_JOB, FORM], hidden=True)
+    locator_class = type(page.locator('button'))
+    original_click = locator_class.click
+
+    def click(locator, *args, **kwargs):
+        if locator.get_attribute('id') == 'native-start':
+            return None
+        return original_click(locator, *args, **kwargs)
+
+    monkeypatch.setattr(locator_class, 'click', click)
+    result = _fill_offline_with_diagnostics(page, _task(tmp_path))
+    assert result['submitted'] and 'Comeet accepted' in result['confirmation_text']
+    assert page.url == POSTING and page.evaluate('window.startClicks') == 1
+    matching = next(frame for frame in page.frames if frame.url == FORM)
+    assert matching.evaluate('window.submitClicks') == 1
+    assert matching.locator('[name=resume]').evaluate('el => el.files[0].name') == 'synthetic-resume.pdf'
+    assert [entry for entry in requests if entry[0] == 'POST'] == [('POST', ENDPOINT)]
+    assert page.locator('#outer-email').input_value() == ''
+
+
 @pytest.mark.parametrize('frame_url,unready', [(OTHER_FORM, False), (WRONG_JOB, False), (FORM, True)])
 def test_unmatched_or_unready_solaredge_frame_cannot_start_an_application(
     page, tmp_path, monkeypatch, frame_url, unready,

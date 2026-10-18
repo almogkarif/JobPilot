@@ -2896,7 +2896,9 @@ def _enter_comeet_embedded_form(page: Page, *, requested_url: str = "") -> bool 
                 starts = page.get_by_role("button", name=re.compile(r"^\s*apply for this job\s*$", re.I))
                 visible = [starts.nth(i) for i in range(min(starts.count(), 10)) if starts.nth(i).is_visible()]
                 if len(visible) == 1 and visible[0].is_enabled():
-                    visible[0].click(timeout=3_000)
+                    # Standard keyboard activation delivers the native button's
+                    # click without relying on pointer hit testing.
+                    visible[0].press("Enter", timeout=3_000)
                     native_start_clicked = True
             page.wait_for_timeout(250)
         raise ApplicationBlocked(

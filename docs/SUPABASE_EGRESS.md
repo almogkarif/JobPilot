@@ -79,7 +79,8 @@ Offline browser and shared egress regressions verify one posting GET, one form
 GET, one Submit POST, one CV attachment and progress under 16 KiB, plus exact
 identity, wrong-frame receipts and detached-frame handling.
 Native Apply readiness is rechecked within the same 20-poll limit and clicked at
-most once. Accepted Comeet receipts record status without fetching a response
+most once through the button's standard Enter activation, avoiding an unacknowledged
+pointer click. Accepted Comeet receipts record status without fetching a response
 body or redirect header. If the exact child disappears after POST, only the
 original Page is observed within the existing 60-second deadline; settled/lost
 requests receive at most three seconds for delivery. No DOM action or retry is
