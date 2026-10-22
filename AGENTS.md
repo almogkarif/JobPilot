@@ -294,6 +294,29 @@ A skipped test is not a passed test.
 
 If the full suite cannot be run, state exactly what was and was not executed.
 
+### Relevant tests for each release
+
+The user's standing preference (October 22, 2026) is to run the tests relevant to
+the change, rather than the whole suite on every small update.
+
+- Inspect the complete diff and choose the smallest adequate CI scope before an
+  authorized commit/push. Run its relevant tests locally; do not repeat unrelated
+  suites after they already passed without a new reason.
+- Mark every code-bearing commit with its reviewed scope, for example
+  `[tests:queue]`, `[tests:ui]`, `[tests:ranking]` or `[tests:queue,ci]`.
+  `scripts/select_ci_tests.py` contains the supported scopes and path boundaries.
+- Scope declarations are engineering decisions, especially for the monolithic
+  `app/main.py` and `app/static/app.js`. Read the changed functions and their
+  callers; a file allowlist alone does not prove that a test subset is adequate.
+- The selector checks every commit in the tested push/PR range. Missing or
+  invalid declarations, uncovered files and unavailable history fall back to the
+  full suite. Documentation-only changes need no application tests.
+- Use full CI for cross-cutting changes, shared models/database/dependencies or
+  fixture changes, and when focused coverage cannot be established. Existing
+  manual release scopes and an explicit full run remain available.
+- Do not use `[skip ci]` or `[ci skip]` to make a release faster. Run the selected
+  checks on the actual uploaded revision and report their result accurately.
+
 ---
 
 ## Final Verification

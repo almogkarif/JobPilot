@@ -5,9 +5,26 @@ import re
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from app.services.application_submission import is_gstat_application_url
+
+
+def _posting_path(url: str) -> str:
+    """Compare one posting across browser UTF-8 encoding, never path separators."""
+    if not is_gstat_application_url(url):
+        return ""
+    path = urlparse(url).path
+    if re.search(r"%(?:2f|5c)", path, flags=re.I):
+        return ""
+    try:
+        path = unquote(path, errors="strict").rstrip("/")
+    except UnicodeDecodeError:
+        return ""
+    if (not re.fullmatch(r"/jobs/[^/\\\x00-\x1f\x7f]+", path)
+            or path.rsplit("/", 1)[-1] in {".", ".."}):
+        return ""
+    return path
 
 
 def submission_fields(request) -> dict[str, str]:
@@ -71,9 +88,8 @@ def fill_gstat_application(page, task: dict, auto_submit: bool, progress=None) -
     def blocked(kind, message, **kwargs):
         return ApplicationBlocked(kind, "הגשה ל־G-STAT", message, message, page.url, **kwargs)
 
-    original = urlparse(task["job"]["apply_url"])
-    current = urlparse(page.url)
-    if not is_gstat_application_url(page.url) or current.path.rstrip("/") != original.path.rstrip("/"):
+    original = _posting_path(task["job"]["apply_url"])
+    if not original or _posting_path(page.url) != original:
         raise blocked("application_form_missing", "עמוד המשרה השתנה; לא ניתן לזהות את טופס ההגשה בבטחה.")
     form = page.locator("form.jobs-form")
     if form.count() != 1:

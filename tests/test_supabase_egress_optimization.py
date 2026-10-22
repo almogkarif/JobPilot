@@ -536,8 +536,107 @@ def test_personal_tracking_is_two_bounded_metadata_queries(personal_tracking):
     assert 'substr(jobs.title' in sql and 'substr(jobs.company' in sql
     assert 'applications.job_id' in sql.split('from', 1)[0]
     assert all(row['job_id'] == row['job']['id'] for row in response.json())
+    assert all('apply_url' not in row['job'] for row in response.json())
+    projection = ' '.join(sql.split()).split(' from applications join jobs ', 1)[0]
+    assert 'jobs.apply_url' not in projection
     for sql,_ in statements:
         assert not any(field in sql for field in ('description','application_profile_json','extracted_text','evidence_json','answers_json'))
+
+
+@pytest.mark.parametrize('extra_rows', [0, 110])
+def test_explicit_tracking_job_links_reuse_bounded_owner_scoped_metadata_reads(personal_tracking, extra_rows):
+    from datetime import timedelta
+    from sqlalchemy.orm import Session
+    from app.models import Application, Blocker
+
+    client, factory, engine = personal_tracking
+    prefix = 'https://boards.greenhouse.io/synthetic/jobs/'
+    over_limit = prefix + 'x' * (1201 - len(prefix))
+    at_limit = prefix + 'y' * (1200 - len(prefix))
+    with factory() as db:
+        set_user_scope(db, 'alpha')
+        db.get(Job, 1).apply_url = over_limit
+        db.get(Job, 2).apply_url = at_limit
+        db.get(Application, 2).updated_at = datetime.now(timezone.utc) + timedelta(days=1)
+        db.get(Job, 3).description = 'PRIVATE_DESCRIPTION' * 30000
+        db.get(Application, 3).answers_json = 'PRIVATE_ANSWERS' * 30000
+        db.scalar(select(Blocker).where(Blocker.application_id == 3)).question = 'PRIVATE_QUESTION' * 30000
+        for job_id in range(100, 100 + extra_rows):
+            db.add(Job(id=job_id, source_id=1, external_id=str(job_id), title='Bounded extra job',
+                       company='Synthetic', apply_url=prefix + str(job_id)))
+            db.add(Application(id=job_id, job_id=job_id, mode='auto', status='queued',
+                               originating_track='computer_science'))
+        db.commit()
+    statements, hydrated = [], []
+    def capture(_conn, _cursor, statement, parameters, _context, _many):
+        if statement.lstrip().upper().startswith('SELECT'):
+            statements.append((' '.join(statement.lower().split()), parameters))
+    def loaded(_db, row):
+        if isinstance(row, (Job, Application, Blocker)):
+            hydrated.append(type(row).__name__)
+    event.listen(engine, 'before_cursor_execute', capture)
+    event.listen(Session, 'loaded_as_persistent', loaded)
+    try:
+        alpha = client.get('/api/applications/tracking-list',
+                           params={'include_job_links': True, 'current_id': 1}, headers={'Authorization': 'alpha'})
+        beta = client.get('/api/applications/tracking-list',
+                          params={'include_job_links': True, 'current_id': 1}, headers={'Authorization': 'beta'})
+    finally:
+        event.remove(engine, 'before_cursor_execute', capture)
+        event.remove(Session, 'loaded_as_persistent', loaded)
+    assert alpha.status_code == beta.status_code == 200
+    assert len(alpha.json()) == min(5 + extra_rows, 100)
+    assert {row['id'] for row in beta.json()} == {7, 8}
+    assert {7, 8}.isdisjoint(row['id'] for row in alpha.json())
+    alpha_jobs = {row['job_id']: row['job'] for row in alpha.json()}
+    assert alpha_jobs[1]['apply_url'] == ''
+    assert alpha_jobs[2]['apply_url'] == at_limit
+    assert over_limit[:1200] not in alpha.text and 'PRIVATE_' not in alpha.text
+    assert all(len(row['job'].get('apply_url') or '') <= 1200 for row in alpha.json() + beta.json())
+    assert not hydrated and len(statements) == 4
+    for offset, owner in [(0, 'alpha'), (2, 'beta')]:
+        profile_sql, _ = statements[offset]
+        sql, params = statements[offset + 1]
+        assert 'profiles.active_career_track' in profile_sql and 'limit' in profile_sql
+        assert 'limit' in sql and 100 in params and owner in params and 1201 in params
+        projection = sql.split(' from applications join jobs ', 1)[0]
+        assert 'substr(jobs.apply_url' in projection
+    assert not any(field in sql for sql, _ in statements for field in (
+        'description', 'application_profile_json', 'extracted_text', 'evidence_json', 'answers_json',
+        'blockers.question', 'blockers.options_json', 'applications.notes',
+    ))
+
+
+def test_tracking_job_link_opt_in_is_not_sticky_and_adds_no_polling():
+    import subprocess
+
+    source = (main_module.STATIC_DIR / 'app.js').read_text()
+    start = source.index('async function refreshTrackingApplications(')
+    refresh = source[start:source.index('\nfunction trackedApplicationPosition(', start)]
+    flag_lines = [line for line in source.splitlines() if 'refreshTrackingApplications({includeJobLinks:true})' in line]
+    assert len(flag_lines) == 1 and 'async function showAutoApplyQueue(' in flag_lines[0]
+    script = '''
+      const vm = require('node:vm'), fs = require('node:fs');
+      const source = fs.readFileSync(0, 'utf8'), requests = [], timers = [];
+      const context = {applicationTrackingAllowed:()=>true, trackingApplications:[],
+        incompleteApplications:null, trackedApplicationId:null, state:{autoApplyQueue:{}},
+        TRACKABLE_APPLICATION_STATUSES:new Set(), api:async url=>{requests.push(url);return []},
+        setTimeout:()=>timers.push('timeout'), setInterval:()=>timers.push('interval')};
+      vm.createContext(context); vm.runInContext(source, context);
+      (async()=>{await context.refreshTrackingApplications();
+        await context.refreshTrackingApplications({includeJobLinks:true});
+        await context.refreshTrackingApplications();
+        process.stdout.write(JSON.stringify({requests,timers}));
+      })().catch(error=>{console.error(error);process.exitCode=1});
+    '''
+    result = subprocess.run(['node', '-e', script], input=refresh, text=True,
+                            capture_output=True, check=True, timeout=5)
+    captured = json.loads(result.stdout)
+    assert captured == {'requests': [
+        '/api/applications/tracking-list?current_id=0',
+        '/api/applications/tracking-list?current_id=0&include_job_links=true',
+        '/api/applications/tracking-list?current_id=0',
+    ], 'timers': []}
 
 
 @pytest.mark.parametrize('user_limit', [10, 20])

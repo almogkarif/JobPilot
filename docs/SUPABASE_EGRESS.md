@@ -4,6 +4,43 @@ JobPilot's Supabase Free organization has a 5 GB uncached-egress allowance per
 billing cycle. Exceeding it can restrict every project with HTTP 402. Egress is a
 hard production budget, not only a billing metric.
 
+## G-STAT posting URL encoding — October 22, 2026
+
+The G-STAT form guard compares the same posting after one strict UTF-8 URL-path
+decode, so Chromium's percent-encoding of Hebrew does not look like a different
+vacancy. Trusted HTTPS hosts, a single posting path, the hidden employer job ID
+and one-submit receipt guards remain enforced. This is an in-memory comparison:
+zero new SQL queries, polling, Storage downloads, employer requests or retries.
+Offline regressions use a synthetic CV and intercepted employer responses; no
+real applicant data is sent. A read-only public check of the Junior Data Analyst
+mortgages vacancy verified employer form ID 34193. The actual collector returns
+its literal-Hebrew URL; Chromium encodes that same path. Replaying its public DOM
+reproduces the original missing-form error before the fix and reaches the
+pre-submit review after it. A live pre-submit audit used synthetic data with
+network requests blocked during filling: contact fields, one CV attachment and
+native validity passed, with zero application POSTs. No production application
+was retried and employer acceptance was not tested.
+
+## Original job links in the application queue — October 22, 2026
+
+Opening the queue explicitly requests `tracking-list?include_job_links=true`.
+Only this request adds the original job URL to the existing projected metadata;
+normal notification polling omits the flag and URL column. There are still two
+SQL reads and at most 100 rows, with no job descriptions, source graphs, answers,
+Storage downloads or new polling interval. The SQL URL projection is capped at
+1,201 characters; URLs longer than the existing 1,200-character schema limit are
+omitted from the response rather than used as truncated destinations.
+
+Incremental database egress is at most 100 × 1,201 × 4 = 480,400 bytes per explicit
+queue opening, below 470 KiB; ten openings/day are below 4.6 MiB in that worst
+case. Recurring polling adds zero URL bytes. Clicking the link uses the employer
+site directly in a new tab, with no extra JobPilot API call. Resource regression
+coverage checks the optional projection, two-read bound, tenant isolation and
+oversized URL handling. Browser checks use synthetic local data and intercepted
+employer pages, with no production access or application submission.
+The adjacent JobPilot details button invokes the existing single-job modal only
+on a user click; queue rendering does not prefetch job details or resume metadata.
+
 ## Manual fallback and partial-ranking automatic queue — October 18, 2026
 
 The automatic-only discovery filter now excludes the authenticated owner's

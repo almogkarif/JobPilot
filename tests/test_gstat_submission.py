@@ -1,8 +1,10 @@
+from urllib.parse import quote
+
 import pytest
 from playwright.sync_api import sync_playwright
 
 from agent.browser import ApplicationBlocked, fill_application
-from agent.gstat import response_outcome, submission_fields
+from agent.gstat import fill_gstat_application, response_outcome, submission_fields
 from app.services.application_submission import detect_adapter
 
 
@@ -48,7 +50,7 @@ def scenario(tmp_path):
 
         def serve(route):
             request = route.request
-            if request.url == URL and request.method == 'GET':
+            if request.url == state.get('url', URL) and request.method == 'GET':
                 route.fulfill(content_type='text/html', body=state['html'])
             elif request.url == 'https://g-stat.com/wp-admin/admin-ajax.php' and request.method == 'POST':
                 state['posts'].append(submission_fields(request))
@@ -96,6 +98,48 @@ def test_gstat_audit_fills_without_sending(scenario):
     assert error.value.kind == 'review_before_submit'
     assert page.locator('.jobs-form .yb-name').input_value() == task['profile']['full_name']
     assert page.locator('.jobs-form [type=file]').evaluate('el=>el.files.length') == 1
+    assert state['posts'] == []
+
+
+@pytest.mark.parametrize('auto_submit', [False, True], ids=['review', 'submit'])
+def test_gstat_hebrew_posting_url_can_be_encoded_by_the_browser_without_changing_the_job(scenario, auto_submit):
+    page, task, state = scenario
+    task['job']['apply_url'] = 'https://g-stat.com/jobs/junior-data-analyst-לתחום-המשכנתאות/'
+    state['html'] = FORM.replace('33965', '34193')
+    state['url'] = quote(task['job']['apply_url'], safe=':/')
+    if auto_submit:
+        result = fill_application(page, task, True)
+        assert result['submitted'] and result['confirmation_text'] == state['body']
+    else:
+        with pytest.raises(ApplicationBlocked) as error:
+            fill_application(page, task, False)
+        assert error.value.kind == 'review_before_submit'
+    assert page.url == state['url']
+    assert page.locator('.jobs-form .yb-name').input_value() == task['profile']['full_name']
+    assert page.locator('.jobs-form [type=file]').evaluate('el=>el.files.length') == 1
+    assert page.locator('#side-form [name=name]').input_value() == ''
+    assert state['posts'] == ([{'action': 'send_sv', 'job': '34193'}] if auto_submit else [])
+
+
+@pytest.mark.parametrize('original,current', [
+    (URL, 'https://g-stat.com/jobs/another-job/'),
+    (URL, 'https://g-stat.com/careers/'),
+    (URL, 'https://other.test/jobs/marketind-data-analyst/'),
+    ('https://g-stat.com/jobs/data%2F/', 'https://g-stat.com/jobs/data/'),
+    ('https://g-stat.com/jobs/data%5Cpart/', 'https://g-stat.com/jobs/data%5Cpart/'),
+    ('https://g-stat.com/jobs/data%00/', 'https://g-stat.com/jobs/data%00/'),
+    ('https://g-stat.com/jobs/data%FF/', 'https://g-stat.com/jobs/data%FF/'),
+])
+def test_gstat_url_normalization_cannot_switch_postings_or_decode_path_separators(scenario, original, current):
+    page, task, state = scenario
+    task['job']['apply_url'] = original
+    state['url'] = current
+    page.goto(current)
+    with pytest.raises(ApplicationBlocked) as error:
+        fill_gstat_application(page, task, False)
+    assert error.value.kind == 'application_form_missing'
+    assert page.locator('.jobs-form .yb-name').input_value() == ''
+    assert page.locator('.jobs-form [type=file]').evaluate('el=>el.files.length') == 0
     assert state['posts'] == []
 
 

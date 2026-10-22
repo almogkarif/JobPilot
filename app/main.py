@@ -4426,13 +4426,16 @@ def list_applications(request: Request, status: str | None = None, limit: int = 
 
 
 @app.get("/api/applications/tracking-list")
-def application_tracking_list(request: Request, current_id: int = Query(0, ge=0), db: Session = Depends(get_db)):
+def application_tracking_list(request: Request, current_id: int = Query(0, ge=0),
+                              include_job_links: bool = Query(False), db: Session = Depends(get_db)):
     _require_application_tracking(request)
     """Return only the tiny navigation payload needed by the notification tracker.
 
     The full applications endpoint eagerly loads jobs, sources, blockers and every
     attempt. Polling that graph every three seconds made the notification center
     progressively slower as submission history grew.
+    Job links are opt-in for opening the queue, never part of recurring polling.
+    Oversized links are omitted rather than opening a truncated destination.
     """
     track = normalize_track(db.scalar(select(Profile.active_career_track).order_by(Profile.id).limit(1)))
     live_blocker = select(Blocker.wait_until).where(
@@ -4448,6 +4451,7 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
             Application.id, Application.job_id, Application.status, Application.mode, Application.attempt_count,
             Application.updated_at, func.substr(Job.title, 1, 300).label("title"),
             func.substr(Job.company, 1, 200).label("company"),
+            *([func.substr(Job.apply_url, 1, 1201).label("apply_url")] if include_job_links else []),
             live_blocker.label("wait_until"), live_attempt.label("wait_attempt_id"),
         )
         .join(Job, Application.job_id == Job.id)
@@ -4478,7 +4482,9 @@ def application_tracking_list(request: Request, current_id: int = Query(0, ge=0)
                 "live_waiting": bool(row.status == "needs_input" and row.wait_until
                                      and _question_time(row.wait_until) > utcnow())}
                if row.wait_attempt_id else {}),
-            "job": {"id": row.job_id, "title": row.title, "company": row.company},
+            "job": {"id": row.job_id, "title": row.title, "company": row.company,
+                    **({"apply_url": row.apply_url if len(row.apply_url or "") <= 1200 else ""}
+                       if include_job_links else {})},
         }
         for row in rows
     ]
